@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#FFF3E0;color:#C2410C;border:1px solid #FDBA74;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -165,7 +165,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v3.5</span>
+      <span style="font-size:12px;background:#FFF3E0;color:#C2410C;border:1px solid #FDBA74;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v3.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -189,7 +189,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v3.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v3.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -592,7 +592,7 @@ function buildAttribution(jobs,estimates){
 
   // Build lookup maps
   const estById={};
-  const estByCustomer={}; // custId -> [estimates sorted by date]
+  const estByCustomer={}; // custId -> [estimates sorted by date asc]
   estimates.forEach(e=>{
     estById[e.id]=e;
     const cid=getCustId(e);
@@ -600,7 +600,7 @@ function buildAttribution(jobs,estimates){
   });
   Object.values(estByCustomer).forEach(arr=>arr.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)));
 
-  // Helper: get selling tech from estimate (non-installer assigned emp)
+  // Get selling tech from estimate (skip installers)
   function getSellerFromEst(est){
     const emps=getAssignedList(est).filter(e=>!INSTALLER_IDS.has(e.id));
     const e=emps.length?emps[0]:getAssignedList(est)[0];
@@ -608,9 +608,53 @@ function buildAttribution(jobs,estimates){
     return{id:e.id,name:((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?'};
   }
 
-  // Helper: amounts match within $1 (cents rounding)
-  function amountsMatch(jobTotal, estTotal){
-    return Math.abs(jobTotal - estTotal) < 1.5;
+  // Get job's primary non-installer tech ID set
+  function getJobTechIds(j){
+    return new Set(getAssignedList(j).filter(e=>!INSTALLER_IDS.has(e.id)).map(e=>e.id));
+  }
+
+  // Score how well an estimate matches a job (higher = better match)
+  // Returns null if no reasonable match
+  function scoreMatch(j, est, jDate, jobTotal, jobTechIds){
+    const estDate=new Date(est.created_at||0);
+    // Estimate must be before or same day as job
+    if(estDate>jDate) return null;
+
+    const seller=getSellerFromEst(est);
+    if(!seller) return null;
+
+    const estTotal=getEstTotal(est);
+    const daysDiff=Math.max(0,(jDate-estDate)/(1000*60*60*24));
+    const techMatch=jobTechIds.has(seller.id);
+    const approved=isConv(est);
+
+    let score=0;
+
+    // Same day = very strong signal
+    if(daysDiff<=1) score+=40;
+    else if(daysDiff<=7) score+=20;
+    else if(daysDiff<=30) score+=10;
+    else if(daysDiff<=180) score+=5;
+
+    // Same tech on estimate and job
+    if(techMatch) score+=30;
+
+    // Approved/pro approved
+    if(approved) score+=25;
+
+    // Amount proximity (allow up to 40% difference for removed items)
+    if(jobTotal>0&&estTotal>0){
+      const diff=Math.abs(jobTotal-estTotal);
+      const pct=diff/Math.max(jobTotal,estTotal);
+      if(pct<0.01) score+=20;       // exact match
+      else if(pct<0.15) score+=12;  // close (minor items removed)
+      else if(pct<0.30) score+=6;   // moderate difference
+      else if(pct<0.50) score+=2;   // large difference, weak signal
+      // >50% difference = no amount bonus
+    }
+
+    // Minimum score threshold to be considered a real match
+    return score>=30?{score,seller}:null;
   }
 
   jobs.forEach(j=>{
@@ -619,7 +663,7 @@ function buildAttribution(jobs,estimates){
     const custId=getCustId(j);
     const dept=getDept(j);
     const jobTotal=getJobTotal(j);
-
+    const jobTechIds=getJobTechIds(j);
     const allEmps=getAssignedList(j);
     const sellingEmps=allEmps.filter(e=>!INSTALLER_IDS.has(e.id));
     const primaryEmp=sellingEmps.length?sellingEmps[0]:allEmps[0];
@@ -630,7 +674,7 @@ function buildAttribution(jobs,estimates){
       return;
     }
 
-    // 2. original_estimate_id direct link
+    // 2. Direct link via original_estimate_id
     const linkedEstId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
     if(linkedEstId&&estById[linkedEstId]){
       const seller=getSellerFromEst(estById[linkedEstId]);
@@ -640,63 +684,43 @@ function buildAttribution(jobs,estimates){
       }
     }
 
-    // 3. Customer estimates — try to find a match
+    // 3. Score all estimates for this customer
     if(custId&&estByCustomer[custId]){
-      const custEsts=estByCustomer[custId].filter(e=>new Date(e.created_at)<=jDate);
-      if(custEsts.length){
+      const custEsts=estByCustomer[custId];
 
-        // 3a. Amount match — most reliable tie after direct link
-        const amountMatch=custEsts.find(e=>jobTotal>0&&amountsMatch(jobTotal,getEstTotal(e)));
-        if(amountMatch){
-          const seller=getSellerFromEst(amountMatch);
-          if(seller){
-            _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'amount_match',
-              candidates:[{est:amountMatch,seller:{id:seller.id,first_name:seller.name,last_name:''}}]};
-            return;
-          }
+      // Score every estimate
+      const scored=custEsts.map(est=>{
+        const result=scoreMatch(j,est,jDate,jobTotal,jobTechIds);
+        return result?{est,score:result.score,seller:result.seller}:null;
+      }).filter(Boolean).sort((a,b)=>b.score-a.score);
+
+      if(scored.length>0){
+        const best=scored[0];
+
+        // Auto-assign if best score is strong enough AND clearly beats second place
+        const secondScore=scored[1]?.score||0;
+        const confident=best.score>=50&&(best.score-secondScore>=15||scored.length===1);
+
+        if(confident){
+          const srcLabel=best.score>=80?'linked_strong':best.score>=60?'amount_match':'customer_match';
+          _jobAttribution[jid]={
+            techId:best.seller.id,techName:best.seller.name,dept,
+            source:srcLabel,
+            candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score}))
+          };
+          return;
         }
 
-        // 3b. Pro/customer approved estimates for this customer
-        const approvedEsts=custEsts.filter(e=>{
-          if(e.options&&e.options.length){
-            return e.options.some(o=>isApprovedStatus(o.approval_status||o.status||''));
-          }
-          return isApprovedStatus(e.work_status||e.status||'');
-        });
-        if(approvedEsts.length===1){
-          const seller=getSellerFromEst(approvedEsts[0]);
-          if(seller){
-            _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'customer_match',
-              candidates:[{est:approvedEsts[0],seller:{id:seller.id,first_name:seller.name,last_name:''}}]};
-            return;
-          }
-        }
-
-        // 3c. Only one estimate for this customer — auto-assign
-        if(custEsts.length===1){
-          const seller=getSellerFromEst(custEsts[0]);
-          if(seller){
-            _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'customer_match',
-              candidates:[{est:custEsts[0],seller:{id:seller.id,first_name:seller.name,last_name:''}}]};
-            return;
-          }
-        }
-
-        // 3d. Multiple candidates — queue for manual confirmation
+        // Not confident enough — queue for confirmation but pre-select best guess
         _jobAttribution[jid]={
-          techId:primaryEmp?.id||null,
-          techName:primaryEmp?((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name:'?',
-          dept,source:'unresolved',
-          candidates:custEsts.map(e=>{
-            const s=getSellerFromEst(e);
-            return{est:e,seller:s?{id:s.id,first_name:s.name,last_name:''}:null};
-          })
+          techId:best.seller.id,techName:best.seller.name,dept,source:'unresolved',
+          candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score}))
         };
         return;
       }
     }
 
-    // 4. No estimate found — unresolved, default to primary tech
+    // 4. No estimate found — default to primary tech, mark unresolved
     _jobAttribution[jid]={
       techId:primaryEmp?.id||null,
       techName:primaryEmp?((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name:'Unassigned',
@@ -708,6 +732,7 @@ function buildAttribution(jobs,estimates){
   const unresolved=Object.values(_jobAttribution).filter(a=>a.source==='unresolved').length;
   const attrTab=$$('attrTab');
   attrTab.innerHTML=unresolved>0?`Attribution <span class="badge-count">${unresolved}</span>`:'Attribution';
+}
 }
 
 function confirmAttribution(jobId,techId,techName){
@@ -749,10 +774,18 @@ function renderAttr(jobs,estimates){
         const sName=c.seller?((c.seller.first_name||'')+' '+(c.seller.last_name||'')).trim():getAssigned(c.est);
         const estDate=fmtD(c.est.created_at);
         const estVal=getEstTotal(c.est);
+        const estStatus=getEstDisplayStatus(c.est);
+        const daysDiff=Math.round((new Date(j.created_at||j.schedule?.scheduled_start||0)-new Date(c.est.created_at||0))/(1000*60*60*24));
+        const timeLabel=daysDiff<=1?'same day':daysDiff<=7?`${daysDiff}d later`:daysDiff<=30?`${daysDiff}d later`:`${Math.round(daysDiff/30)}mo later`;
+        const scoreLabel=c.score>=80?'Strong match':c.score>=60?'Good match':c.score>=40?'Possible match':'Weak match';
+        const scoreColor=c.score>=80?'#166534':c.score>=60?'#185FA5':c.score>=40?'#854F0B':'#9ca3af';
         return`<label class="attr-option">
           <input type="radio" name="attr_${j.id}" value="${c.seller?.id||''}" data-name="${sName}" ${i===0?'checked':''}>
-          <div class="attr-option-name">${sName}</div>
-          <div class="attr-option-detail">Est #${c.est.estimate_number||c.est.id||'—'} · ${estDate} · ${estVal?dollars(estVal):'—'}</div>
+          <div style="flex:1">
+            <div class="attr-option-name">${sName}</div>
+            <div class="attr-option-detail">Est #${c.est.estimate_number||'—'} · ${estDate} (${timeLabel}) · ${estVal?dollars(estVal):'—'} · ${estStatus}</div>
+          </div>
+          <span style="font-size:10px;font-weight:600;color:${scoreColor};white-space:nowrap">${scoreLabel}</span>
         </label>`;
       }).join('');
     } else {
@@ -890,6 +923,7 @@ function renderJobRows(jobs){
     const revTo=attr?attr.techName:'—';
     const attrSource=attr?.source||'';
     const sourceChip=attrSource==='linked'?'<span style="font-size:10px;color:#3B6D11">●linked</span>':
+      attrSource==='linked_strong'?'<span style="font-size:10px;color:#3B6D11">●matched</span>':
       attrSource==='amount_match'?'<span style="font-size:10px;color:#3B6D11">●amt match</span>':
       attrSource==='customer_match'?'<span style="font-size:10px;color:#185FA5">●cust match</span>':
       attrSource==='manual'?'<span style="font-size:10px;color:#5B21B6">●manual</span>':
