@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#F3E8FF;color:#6B21A8;border:1px solid #D8B4FE;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -165,7 +165,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#F3E8FF;color:#6B21A8;border:1px solid #D8B4FE;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v3.3</span>
+      <span style="font-size:12px;background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v3.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -189,7 +189,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v3.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v3.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -388,48 +388,83 @@ function getCustId(x){return x.customer?.id||x.customer_id||'';}
 function getDept(x){
   return x.job_fields?.business_unit?.name||x.estimate_fields?.business_unit?.name||x.business_unit?.name||'Other';
 }
-function getStatus(x){return x.work_status||x.status||'';}
-function isJobComplete(j){
-  const s=getStatus(j).toLowerCase();
-  return s.includes('complete');
+function getRawStatus(x){return(x.work_status||x.status||'').toLowerCase();}
+
+// Normalize HCP's many statuses into your 6
+function getNormStatus(x){
+  const s=getRawStatus(x);
+  const bal=parseFloat(x.outstanding_balance)||0;
+  if(s.includes('cancel'))return'Canceled';
+  if(s.includes('complete')||s.includes('completed')){
+    if(bal===0)return'Paid';
+    return'Unpaid';
+  }
+  if(s.includes('schedul')||s.includes('progress')||s.includes('way'))return'Scheduled';
+  if(s.includes('needs')||s.includes('unschedul')||s.includes('incomplete'))return'Incomplete';
+  return'Scheduled'; // default for unknown active statuses
 }
-function isJobPaid(j){
-  return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;
+
+function isJobComplete(j){const s=getRawStatus(j);return s.includes('complete')||s.includes('completed');}
+function isJobPaid(j){return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;}
+
+function jBadge(j){
+  const norm=typeof j==='string'?j:getNormStatus(j);
+  if(norm==='Paid')return`<span class="badge bg">Paid</span>`;
+  if(norm==='Unpaid')return`<span class="badge ba">Unpaid</span>`;
+  if(norm==='Scheduled')return`<span class="badge bb">Scheduled</span>`;
+  if(norm==='Canceled')return`<span class="badge br">Canceled</span>`;
+  if(norm==='Incomplete')return`<span class="badge bgr">Incomplete</span>`;
+  return`<span class="badge bgr">${norm}</span>`;
 }
+
 function isConv(e){
   if(e.options&&e.options.length){
     return e.options.some(o=>{
       const s=(o.approval_status||o.status||'').toLowerCase();
-      return s==='approved'||s==='created job from estimate'||s==='converted';
+      return s==='approved'||s==='pro approved'||s==='customer approved'||
+             s==='created job from estimate'||s==='converted';
     });
   }
   const s=(e.status||e.work_status||'').toLowerCase();
-  return s==='created job from estimate'||s==='approved'||s==='converted'||s==='job_scheduled'||!!e.job_id;
+  return s==='created job from estimate'||s==='approved'||s==='pro approved'||
+         s==='customer approved'||s==='converted'||s==='job_scheduled'||!!e.job_id;
+}
+function isApprovedStatus(s){
+  const v=(s||'').toLowerCase();
+  return v==='approved'||v==='pro approved'||v==='customer approved'||
+         v==='created job from estimate'||v==='converted';
 }
 function getEstDisplayStatus(e){
   if(e.options&&e.options.length){
-    const conv=e.options.find(o=>{const s=(o.approval_status||o.status||'').toLowerCase();return s==='approved'||s==='created job from estimate';});
-    if(conv)return conv.approval_status||conv.status;
+    const conv=e.options.find(o=>isApprovedStatus(o.approval_status||o.status||''));
+    if(conv){
+      const raw=(conv.approval_status||conv.status||'').toLowerCase();
+      if(raw==='pro approved')return'Sold – Pro approved';
+      if(raw==='customer approved')return'Sold – Customer approved';
+      if(raw==='created job from estimate')return'Sold – Job created';
+      return'Sold';
+    }
+    const allComplete=e.options.every(o=>(o.status||'').toLowerCase().includes('complete'));
+    if(allComplete)return'Visited – not sold';
+    return e.options[0].status||e.work_status||'';
   }
+  const s=(e.work_status||e.status||'').toLowerCase();
+  if(s==='pro approved')return'Sold – Pro approved';
+  if(s==='customer approved')return'Sold – Customer approved';
+  if(s==='created job from estimate')return'Sold – Job created';
+  if(s==='approved'||s==='converted')return'Sold';
+  if(s.includes('complete'))return'Visited – not sold';
   return e.work_status||e.status||'';
 }
 function isInstaller(empName){return INSTALLER_NAMES.includes(empName);}
 
-function jBadge(s){
-  const v=(s||'').toLowerCase();
-  if(v.includes('complete'))return`<span class="badge bg">${s}</span>`;
-  if(v.includes('progress')||v.includes('schedul'))return`<span class="badge bb">${s}</span>`;
-  if(v.includes('cancel'))return`<span class="badge br">${s}</span>`;
-  if(v.includes('needs')||v.includes('unschedul'))return`<span class="badge ba">${s}</span>`;
-  return`<span class="badge bgr">${s||'—'}</span>`;
-}
 function eBadge(s){
   const v=(s||'').toLowerCase();
-  if(v==='created job from estimate'||v==='approved'||v==='converted')return`<span class="badge bg">${s}</span>`;
+  if(v.startsWith('sold'))return`<span class="badge bg">${s}</span>`;
+  if(v.includes('visited'))return`<span class="badge bpur">${s}</span>`;
   if(v.includes('progress')||v==='sent'||v.includes('await'))return`<span class="badge bb">${s}</span>`;
   if(v==='draft')return`<span class="badge bgr">${s}</span>`;
   if(v.includes('cancel')||v==='declined'||v==='expired')return`<span class="badge br">${s}</span>`;
-  if(v.includes('complete'))return`<span class="badge bpur">${s}</span>`;
   return`<span class="badge bgr">${s||'—'}</span>`;
 }
 function deptBadge(d){
@@ -563,100 +598,116 @@ function buildAttribution(jobs,estimates){
     const cid=getCustId(e);
     if(cid){if(!estByCustomer[cid])estByCustomer[cid]=[];estByCustomer[cid].push(e);}
   });
-  // Sort estimates by created_at ascending
   Object.values(estByCustomer).forEach(arr=>arr.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)));
+
+  // Helper: get selling tech from estimate (non-installer assigned emp)
+  function getSellerFromEst(est){
+    const emps=getAssignedList(est).filter(e=>!INSTALLER_IDS.has(e.id));
+    const e=emps.length?emps[0]:getAssignedList(est)[0];
+    if(!e)return null;
+    return{id:e.id,name:((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?'};
+  }
+
+  // Helper: amounts match within $1 (cents rounding)
+  function amountsMatch(jobTotal, estTotal){
+    return Math.abs(jobTotal - estTotal) < 1.5;
+  }
 
   jobs.forEach(j=>{
     const jid=j.id;
     const jDate=new Date(j.created_at||j.schedule?.scheduled_start||0);
     const custId=getCustId(j);
     const dept=getDept(j);
+    const jobTotal=getJobTotal(j);
 
-    // Get non-installer techs on job
     const allEmps=getAssignedList(j);
     const sellingEmps=allEmps.filter(e=>!INSTALLER_IDS.has(e.id));
     const primaryEmp=sellingEmps.length?sellingEmps[0]:allEmps[0];
 
-    // 1. Check manual override first (localStorage)
+    // 1. Manual override (localStorage)
     if(_attr[jid]){
-      _jobAttribution[jid]={
-        techId:_attr[jid].techId,
-        techName:_attr[jid].techName,
-        dept,source:'manual',candidates:[]
-      };
+      _jobAttribution[jid]={techId:_attr[jid].techId,techName:_attr[jid].techName,dept,source:'manual',candidates:[]};
       return;
     }
 
-    // 2. Check original_estimate_id
+    // 2. original_estimate_id direct link
     const linkedEstId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
     if(linkedEstId&&estById[linkedEstId]){
-      const est=estById[linkedEstId];
-      const estEmps=getAssignedList(est).filter(e=>!INSTALLER_IDS.has(e.id));
-      const seller=estEmps.length?estEmps[0]:getAssignedList(est)[0];
+      const seller=getSellerFromEst(estById[linkedEstId]);
       if(seller){
+        _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'linked',candidates:[]};
+        return;
+      }
+    }
+
+    // 3. Customer estimates — try to find a match
+    if(custId&&estByCustomer[custId]){
+      const custEsts=estByCustomer[custId].filter(e=>new Date(e.created_at)<=jDate);
+      if(custEsts.length){
+
+        // 3a. Amount match — most reliable tie after direct link
+        const amountMatch=custEsts.find(e=>jobTotal>0&&amountsMatch(jobTotal,getEstTotal(e)));
+        if(amountMatch){
+          const seller=getSellerFromEst(amountMatch);
+          if(seller){
+            _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'amount_match',
+              candidates:[{est:amountMatch,seller:{id:seller.id,first_name:seller.name,last_name:''}}]};
+            return;
+          }
+        }
+
+        // 3b. Pro/customer approved estimates for this customer
+        const approvedEsts=custEsts.filter(e=>{
+          if(e.options&&e.options.length){
+            return e.options.some(o=>isApprovedStatus(o.approval_status||o.status||''));
+          }
+          return isApprovedStatus(e.work_status||e.status||'');
+        });
+        if(approvedEsts.length===1){
+          const seller=getSellerFromEst(approvedEsts[0]);
+          if(seller){
+            _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'customer_match',
+              candidates:[{est:approvedEsts[0],seller:{id:seller.id,first_name:seller.name,last_name:''}}]};
+            return;
+          }
+        }
+
+        // 3c. Only one estimate for this customer — auto-assign
+        if(custEsts.length===1){
+          const seller=getSellerFromEst(custEsts[0]);
+          if(seller){
+            _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'customer_match',
+              candidates:[{est:custEsts[0],seller:{id:seller.id,first_name:seller.name,last_name:''}}]};
+            return;
+          }
+        }
+
+        // 3d. Multiple candidates — queue for manual confirmation
         _jobAttribution[jid]={
-          techId:seller.id,
-          techName:((seller.first_name||'')+' '+(seller.last_name||'')).trim()||seller.name,
-          dept,source:'linked',candidates:[]
+          techId:primaryEmp?.id||null,
+          techName:primaryEmp?((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name:'?',
+          dept,source:'unresolved',
+          candidates:custEsts.map(e=>{
+            const s=getSellerFromEst(e);
+            return{est:e,seller:s?{id:s.id,first_name:s.name,last_name:''}:null};
+          })
         };
         return;
       }
     }
 
-    // 3. Customer name match — find estimates for same customer before this job
-    if(custId&&estByCustomer[custId]){
-      const candidates=estByCustomer[custId].filter(e=>new Date(e.created_at)<=jDate);
-      if(candidates.length){
-        // Auto-assign if only one candidate and it's converted
-        const convCandidates=candidates.filter(isConv);
-        const best=convCandidates.length?convCandidates[convCandidates.length-1]:candidates[candidates.length-1];
-        const estEmps=getAssignedList(best).filter(e=>!INSTALLER_IDS.has(e.id));
-        const seller=estEmps.length?estEmps[0]:null;
-        if(seller&&(candidates.length===1||convCandidates.length===1)){
-          _jobAttribution[jid]={
-            techId:seller.id,
-            techName:((seller.first_name||'')+' '+(seller.last_name||'')).trim()||seller.name,
-            dept,source:'customer_match',candidates:candidates.map(e=>({est:e,seller}))
-          };
-          return;
-        }
-        // Multiple candidates — needs confirmation
-        if(primaryEmp){
-          _jobAttribution[jid]={
-            techId:primaryEmp.id,
-            techName:((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name,
-            dept,source:'unresolved',
-            candidates:candidates.map(e=>{
-              const ee=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
-              const s=ee.length?ee[0]:getAssignedList(e)[0];
-              return{est:e,seller:s};
-            })
-          };
-          return;
-        }
-      }
-    }
-
-    // 4. No estimate found — unresolved
-    if(primaryEmp){
-      _jobAttribution[jid]={
-        techId:primaryEmp.id,
-        techName:((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name,
-        dept,source:'unresolved',candidates:[]
-      };
-    } else {
-      _jobAttribution[jid]={techId:null,techName:'Unassigned',dept,source:'unresolved',candidates:[]};
-    }
+    // 4. No estimate found — unresolved, default to primary tech
+    _jobAttribution[jid]={
+      techId:primaryEmp?.id||null,
+      techName:primaryEmp?((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name:'Unassigned',
+      dept,source:'unresolved',candidates:[]
+    };
   });
 
   // Update attribution tab badge
   const unresolved=Object.values(_jobAttribution).filter(a=>a.source==='unresolved').length;
   const attrTab=$$('attrTab');
-  if(unresolved>0){
-    attrTab.innerHTML=`Attribution <span class="badge-count">${unresolved}</span>`;
-  } else {
-    attrTab.textContent='Attribution';
-  }
+  attrTab.innerHTML=unresolved>0?`Attribution <span class="badge-count">${unresolved}</span>`:'Attribution';
 }
 
 function confirmAttribution(jobId,techId,techName){
@@ -724,15 +775,16 @@ function renderAttr(jobs,estimates){
       <div class="attr-header">
         <div>
           <div class="attr-job">#${j.job_number||j.id||'—'} · ${getCust(j)}</div>
-          <div class="attr-meta">${getDept(j)} · Scheduled ${fmtD(j.schedule?.scheduled_start||j.scheduled_start)} · ${getStatus(j)}</div>
+          <div class="attr-meta">${getDept(j)} · Scheduled ${fmtD(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}</div>
         </div>
         <div class="attr-amount">${total?dollars(total):'$0'}</div>
       </div>
-      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Who gets revenue credit?</div>
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px">Who ran the estimate &amp; gets revenue credit?</div>
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:8px">The tech who ran the estimate that became this job gets the credit.</div>
       <div class="attr-candidates">${optionsHtml}</div>
       <div>
-        <button class="attr-confirm-btn" onclick="confirmFromCard('${j.id}')">Confirm →</button>
-        <button class="attr-skip-btn" onclick="skipAttribution('${j.id}')">Skip</button>
+        <button class="attr-confirm-btn" onclick="confirmFromCard('${j.id}')">Confirm credit →</button>
+        <button class="attr-skip-btn" onclick="skipAttribution('${j.id}')">Skip for now</button>
       </div>`;
     container.appendChild(card);
   });
@@ -751,9 +803,11 @@ function confirmFromCard(jobId){
 // ============================================================
 function populateFilters(jobs,estimates,plans){
   function fill(selId,items){const sel=$$(selId);sel.innerHTML='<option value="">All</option>'+[...new Set(items.filter(Boolean))].sort().map(s=>`<option value="${s}">${s}</option>`).join('');}
-  fill('jobStatusFilter',jobs.map(j=>getStatus(j)));
+  // Jobs use normalized statuses
+  fill('jobStatusFilter',jobs.map(j=>getNormStatus(j)));
   fill('jobEmpFilter',jobs.map(j=>getAssigned(j)));
   fill('jobDeptFilter',jobs.map(j=>getDept(j)));
+  // Estimates use display statuses
   fill('estStatusFilter',estimates.map(e=>getEstDisplayStatus(e)));
   fill('estEmpFilter',estimates.map(e=>getAssigned(e)));
   fill('planEmpFilter',plans.map(p=>getPlanSoldBy(p)));
@@ -763,7 +817,7 @@ function populateFilters(jobs,estimates,plans){
 function getJobFiltered(){
   const sf=$$('jobStatusFilter').value,ef=$$('jobEmpFilter').value,df=$$('jobDeptFilter').value;
   return _jobs.filter(j=>{
-    if(sf&&getStatus(j)!==sf)return false;
+    if(sf&&getNormStatus(j)!==sf)return false;
     if(ef&&getAssigned(j)!==ef)return false;
     if(df&&getDept(j)!==df)return false;
     return true;
@@ -776,8 +830,7 @@ function getEstFiltered(){
     if(ef&&getAssigned(e)!==ef)return false;
     return true;
   });
-}
-function applyJobFilter(){const f=getJobFiltered();renderJobRows(f);$$('jobFilterCount').textContent=f.length!==_jobs.length?`Showing ${f.length} of ${_jobs.length}`:'';}
+}(){const f=getJobFiltered();renderJobRows(f);$$('jobFilterCount').textContent=f.length!==_jobs.length?`Showing ${f.length} of ${_jobs.length}`:'';}
 function applyEstFilter(){const f=getEstFiltered();renderEstRows(f);$$('estFilterCount').textContent=f.length!==_estimates.length?`Showing ${f.length} of ${_estimates.length}`:'';}
 function clearJobFilters(){$$('jobStatusFilter').value='';$$('jobEmpFilter').value='';$$('jobDeptFilter').value='';applyJobFilter();}
 function clearEstFilters(){$$('estStatusFilter').value='';$$('estEmpFilter').value='';applyEstFilter();}
@@ -801,7 +854,7 @@ function sortItems(items,col,dir){
     else if(col==='total'){av=getJobTotal(a);bv=getJobTotal(b);}
     else if(col==='dept'){av=getDept(a).toLowerCase();bv=getDept(b).toLowerCase();}
     else if(col==='scheduled'){av=a.schedule?.scheduled_start||a.scheduled_start||'';bv=b.schedule?.scheduled_start||b.scheduled_start||'';}
-    else if(col==='work_status'||col==='status'){av=getStatus(a).toLowerCase();bv=getStatus(b).toLowerCase();}
+    else if(col==='work_status'||col==='status'){av=getNormStatus(a).toLowerCase();bv=getNormStatus(b).toLowerCase();}
     else{av=(a[col]||'').toString().toLowerCase();bv=(b[col]||'').toString().toLowerCase();}
     if(av<bv)return dir==='asc'?-1:1;
     if(av>bv)return dir==='asc'?1:-1;
@@ -816,7 +869,7 @@ function renderJobs(jobs,estimates){
   const paid=jobs.filter(isJobPaid);
   const rev=paid.reduce((s,j)=>s+getJobTotal(j),0);
   const avg=paid.length?rev/paid.length:0;
-  const open=jobs.filter(j=>{const s=getStatus(j).toLowerCase();return!s.includes('complete')&&!s.includes('cancel');});
+  const open=jobs.filter(j=>{const n=getNormStatus(j);return n==='Scheduled'||n==='Incomplete';});
   $$('jobMetrics').innerHTML=`
     <div class="metric"><div class="metric-label">Revenue (paid)</div><div class="metric-value">${dollars(rev)}</div><div class="metric-sub">${paid.length} paid & complete</div></div>
     <div class="metric"><div class="metric-label">Total jobs</div><div class="metric-value">${jobs.length}</div></div>
@@ -831,17 +884,19 @@ function renderJobRows(jobs){
   sorted.slice(0,150).forEach(j=>{
     const sched=j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):j.scheduled_start?fmtD(j.scheduled_start):'—';
     const total=getJobTotal(j);
-    const paid=isJobPaid(j);
+    const norm=getNormStatus(j);
     const attr=_jobAttribution[j.id];
     const revTo=attr?attr.techName:'—';
     const attrSource=attr?.source||'';
     const sourceChip=attrSource==='linked'?'<span style="font-size:10px;color:#3B6D11">●linked</span>':
-      attrSource==='customer_match'?'<span style="font-size:10px;color:#185FA5">●matched</span>':
+      attrSource==='amount_match'?'<span style="font-size:10px;color:#3B6D11">●amt match</span>':
+      attrSource==='customer_match'?'<span style="font-size:10px;color:#185FA5">●cust match</span>':
       attrSource==='manual'?'<span style="font-size:10px;color:#5B21B6">●manual</span>':
       '<span style="font-size:10px;color:#9ca3af">●?</span>';
     const t=document.createElement('tr');
-    if(paid&&total>0)t.style.background='#f0fdf4';
-    t.innerHTML=`<td>#${j.job_number||j.id||'—'}</td><td>${getCust(j)}</td><td style="color:#6b7280">${getAssigned(j)}</td><td>${deptBadge(getDept(j))}</td><td>${jBadge(getStatus(j))}</td><td style="color:#6b7280">${sched}</td><td class="r" style="font-weight:600">${total?dollars(total):'—'}</td><td style="font-size:12px;color:#374151">${revTo} ${sourceChip}</td>`;
+    if(norm==='Paid'&&total>0)t.style.background='#f0fdf4';
+    if(norm==='Unpaid'&&total>0)t.style.background='#fffbeb';
+    t.innerHTML=`<td>#${j.job_number||j.id||'—'}</td><td>${getCust(j)}</td><td style="color:#6b7280">${getAssigned(j)}</td><td>${deptBadge(getDept(j))}</td><td>${jBadge(j)}</td><td style="color:#6b7280">${sched}</td><td class="r" style="font-weight:600">${total?dollars(total):'—'}</td><td style="font-size:12px;color:#374151">${revTo} ${sourceChip}</td>`;
     tb.appendChild(t);
   });
 }
