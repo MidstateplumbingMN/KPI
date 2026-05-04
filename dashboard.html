@@ -830,7 +830,8 @@ function getEstFiltered(){
     if(ef&&getAssigned(e)!==ef)return false;
     return true;
   });
-}(){const f=getJobFiltered();renderJobRows(f);$$('jobFilterCount').textContent=f.length!==_jobs.length?`Showing ${f.length} of ${_jobs.length}`:'';}
+}
+function applyJobFilter(){const f=getJobFiltered();renderJobRows(f);$$('jobFilterCount').textContent=f.length!==_jobs.length?`Showing ${f.length} of ${_jobs.length}`:'';}
 function applyEstFilter(){const f=getEstFiltered();renderEstRows(f);$$('estFilterCount').textContent=f.length!==_estimates.length?`Showing ${f.length} of ${_estimates.length}`:'';}
 function clearJobFilters(){$$('jobStatusFilter').value='';$$('jobEmpFilter').value='';$$('jobDeptFilter').value='';applyJobFilter();}
 function clearEstFilters(){$$('estStatusFilter').value='';$$('estEmpFilter').value='';applyEstFilter();}
