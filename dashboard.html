@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#FFF3E0;color:#C2410C;border:1px solid #FDBA74;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -154,8 +154,110 @@ tr:hover td{background:#fafafa}
 .attr-skip-btn{margin-top:10px;margin-left:8px;background:#f3f4f6;color:#6b7280;border-color:#e5e7eb;padding:7px 14px;border-radius:5px;font-size:13px}
 .attr-done{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;color:#166534;display:flex;align-items:center;gap:8px}
 .no-attr{text-align:center;padding:2rem;color:#9ca3af;font-size:13px}
-/* DEBUG */
-.debug-pre{font-size:11px;font-family:monospace;background:#f8fafc;border:1px solid #e5e7eb;padding:12px;border-radius:6px;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all;color:#374151}
+/* NOTES */
+.notes-box{margin-top:6px;padding:6px 10px;background:#fffbeb;border-left:3px solid #fbbf24;border-radius:0 4px 4px 0;font-size:12px;color:#374151;line-height:1.5}
+.notes-label{font-size:10px;font-weight:700;text-transform:uppercase;color:#9ca3af;letter-spacing:.05em;margin-bottom:2px}
+/* REASONING */
+.reason-box{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px}
+.reason-label{font-size:11px;font-weight:700;color:#374151;margin-bottom:6px}
+.reason-rec{font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;padding:6px 10px;border-radius:5px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.reason-rec .rec-icon{font-size:14px}
+.reason-select{width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;margin-bottom:6px}
+.reason-notes{width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;resize:vertical;min-height:48px;font-family:Arial,sans-serif}
+/* PATTERN STATS */
+.pattern-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:18px}
+.pattern-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px}
+.pattern-name{font-size:13px;font-weight:700;color:#111827;margin-bottom:8px}
+.pattern-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f3f4f6}
+.pattern-row:last-child{border-bottom:none}
+.pattern-key{color:#6b7280}.pattern-val{font-weight:600;color:#1A3A5C}
+/* INSIDE SALES */
+.is-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.is-card.is-converted{border-left:4px solid #16a34a;opacity:.8}
+.is-card.is-lost{border-left:4px solid #dc2626;opacity:.65}
+.is-card.is-open{border-left:4px solid #E8640A}
+.is-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:12px}
+.is-card-title{font-size:14px;font-weight:700;color:#111827}
+.is-card-value{font-size:16px;font-weight:800;color:#1A3A5C;white-space:nowrap}
+.is-card-meta{font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.6}
+.is-card-meta strong{color:#374151}
+.is-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.is-btn{font-size:12px;padding:5px 12px;border-radius:5px;cursor:pointer;border:1px solid #d1d5db;background:#f9fafb;color:#374151;font-weight:500}
+.is-btn:hover{background:#f0f0f0}
+.is-btn.primary{background:#1A3A5C;color:#fff;border-color:#1A3A5C}
+.is-btn.primary:hover{background:#163351}
+.is-btn.success{background:#16a34a;color:#fff;border-color:#16a34a}
+.is-btn.danger{background:#fff;color:#dc2626;border-color:#fca5a5}
+.is-btn.email{background:#7c3aed;color:#fff;border-color:#7c3aed}
+.is-activity{margin-top:10px;border-top:1px solid #f3f4f6;padding-top:10px}
+.is-activity-head{font-size:11px;font-weight:700;text-transform:uppercase;color:#9ca3af;letter-spacing:.05em;margin-bottom:6px}
+.is-activity-item{display:flex;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid #f9fafb}
+.is-activity-item:last-child{border-bottom:none}
+.is-activity-icon{font-size:14px;flex-shrink:0;width:20px;text-align:center}
+.is-activity-body{flex:1}
+.is-activity-body-title{font-weight:500;color:#374151}
+.is-activity-body-meta{font-size:11px;color:#9ca3af}
+.is-log-form{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin-top:8px}
+.is-log-form label{display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:3px;margin-top:8px}
+.is-log-form label:first-child{margin-top:0}
+.is-log-form select,.is-log-form textarea,.is-log-form input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;font-family:Arial,sans-serif}
+.is-log-form textarea{min-height:60px;resize:vertical}
+.is-days-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;margin-left:6px}
+.is-days-fresh{background:#EAF3DE;color:#3B6D11}
+.is-days-warm{background:#FEF9C3;color:#854F0B}
+.is-days-hot{background:#FECACA;color:#991B1B}
+/* MODAL */
+.is-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200}
+.is-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.2);z-index:201;width:min(640px,96vw);max-height:88vh;overflow-y:auto;padding:24px}
+.is-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.is-modal-title{font-size:17px;font-weight:700;color:#1A3A5C}
+.is-email-preview{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;font-size:13px;line-height:1.7;color:#374151;white-space:pre-wrap;margin-bottom:12px;min-height:120px}
+.is-email-preview.loading{color:#9ca3af;font-style:italic}
+.is-tone-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.is-tone-btn{font-size:12px;padding:4px 12px;border-radius:99px;cursor:pointer;border:1px solid #d1d5db;background:#f9fafb}
+.is-tone-btn.active{background:#1A3A5C;color:#fff;border-color:#1A3A5C}
+.is-copy-row{display:flex;gap:8px;margin-top:8px}
+</style>
+.cal-legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;font-size:12px}
+.cal-legend-title{font-weight:700;color:#374151;margin-right:4px}
+.cal-legend-item{display:flex;align-items:center;gap:5px;color:#6b7280}
+.cal-swatch{width:14px;height:14px;border-radius:3px;display:inline-block;flex-shrink:0}
+.cal-controls{margin-bottom:12px;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px}
+.cal-wrap{overflow-x:auto;overflow-y:auto;max-height:70vh;border:1px solid #e5e7eb;border-radius:8px}
+.cal-table{border-collapse:collapse;font-size:12px;min-width:100%}
+.cal-table th{position:sticky;top:0;background:#1A3A5C;color:#fff;padding:8px 10px;font-size:11px;font-weight:600;white-space:nowrap;z-index:10;text-align:center;border-right:1px solid #163351}
+.cal-table th.date-col{position:sticky;left:0;top:0;background:#1A3A5C;z-index:20;text-align:left;min-width:90px}
+.cal-table td.date-cell{position:sticky;left:0;background:#f9fafb;font-size:11px;font-weight:600;color:#374151;padding:4px 8px;border-right:1px solid #e5e7eb;border-bottom:1px solid #f3f4f6;white-space:nowrap;min-width:90px;z-index:5}
+.cal-table tr.weekend td.date-cell{background:#f1f0eb;color:#9ca3af}
+.cal-table tr.today td.date-cell{background:#FFF9DB;color:#854F0B;font-weight:800}
+.cal-cell{padding:4px 6px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;min-width:110px;vertical-align:top;cursor:pointer;transition:filter .1s}
+.cal-cell:hover{filter:brightness(.93)}
+.cal-cell.empty{background:#f9fafb;cursor:default}
+.cal-cell.est-only{background:#DBEAFE}
+.cal-cell.in-progress{background:#FEF9C3}
+.cal-cell.paid-low{background:#BBF7D0}
+.cal-cell.paid-high{background:#16a34a;color:#fff}
+.cal-cell.paid-high .cal-rev,.cal-cell.paid-high .cal-meta{color:#fff!important}
+.cal-cell.unpaid{background:#FECACA}
+.cal-cell.mixed{background:linear-gradient(135deg,#BBF7D0 50%,#FECACA 50%)}
+.cal-rev{font-size:12px;font-weight:700;color:#166534;line-height:1.3}
+.cal-meta{font-size:10px;color:#6b7280;margin-top:2px;line-height:1.4}
+.cal-meta span{display:inline-block;margin-right:4px}
+.cal-totals td{background:#f9fafb;font-weight:700;font-size:11px;padding:5px 8px;border-top:2px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
+.cal-totals td.date-cell{background:#f0f0f0}
+/* POPUP */
+.cal-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:100}
+.cal-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:101;width:min(560px,95vw);max-height:80vh;overflow-y:auto;padding:20px}
+.cal-popup-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.cal-popup-title{font-size:16px;font-weight:700;color:#1A3A5C}
+.cal-popup-close{font-size:20px;cursor:pointer;color:#9ca3af;line-height:1;padding:0 4px}
+.cal-popup-close:hover{color:#374151}
+.cal-popup-section{margin-bottom:14px}
+.cal-popup-section-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;border-left:3px solid #E8640A;padding-left:8px;margin-bottom:8px}
+.cal-popup-item{padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:6px;font-size:12px}
+.cal-popup-item-title{font-weight:600;color:#111827;margin-bottom:3px}
+.cal-popup-item-meta{color:#6b7280;font-size:11px}
+.cal-popup-item-note{margin-top:4px;padding:4px 8px;background:#fffbeb;border-left:2px solid #fbbf24;font-size:11px;color:#374151}
 </style>
 </head>
 <body>
@@ -165,7 +267,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#FFF3E0;color:#C2410C;border:1px solid #FDBA74;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v3.6</span>
+      <span style="font-size:12px;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v4.2</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -175,6 +277,11 @@ tr:hover td{background:#fafafa}
     <div class="field">
       <label>HCP API Key</label>
       <input type="password" id="apiToken" placeholder="From HCP Settings → Integrations → API" autocomplete="off"/>
+    </div>
+    <div class="field">
+      <label>Google Sheets Proxy URL</label>
+      <input type="text" id="sheetsProxy" value="https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec" placeholder="Google Sheets Proxy URL" autocomplete="off"/>
+      <div style="font-size:11px;color:#9ca3af;margin-top:3px">From Midstate HCP Data → Extensions → Apps Script → Deploy</div>
     </div>
     <button class="connect-btn" onclick="connect()">Connect →</button>
     <div class="auth-note">Your API key is held in memory only — never stored anywhere.</div>
@@ -189,7 +296,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v3.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v4.2</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -213,6 +320,8 @@ tr:hover td{background:#fafafa}
       <button class="tab" onclick="showTab('estimates')">Estimates</button>
       <button class="tab" id="attrTab" onclick="showTab('attr')">Attribution</button>
       <button class="tab" onclick="showTab('kpi')">Employee KPIs</button>
+      <button class="tab" onclick="showTab('cal')">📅 Calendar</button>
+      <button class="tab" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
       <button class="tab" onclick="showTab('plans')">Service Plans</button>
       <button class="tab" onclick="showTab('debug')">Raw Data</button>
     </div>
@@ -270,8 +379,11 @@ tr:hover td{background:#fafafa}
 
     <!-- ATTRIBUTION CONFIRMATION -->
     <div class="panel" id="tab-attr">
+      <div class="sec-head">Attribution Pattern Stats</div>
+      <p style="font-size:12px;color:#6b7280;margin-top:0">Based on confirmed attributions. Use these to spot-check that patterns make sense.</p>
+      <div class="pattern-grid" id="patternStats"></div>
       <div class="sec-head">Jobs Needing Revenue Attribution</div>
-      <p style="font-size:12px;color:#6b7280;margin-top:0">These jobs have no linked estimate. Review suggested matches by customer name and confirm who gets revenue credit.</p>
+      <p style="font-size:12px;color:#6b7280;margin-top:0">These jobs need a revenue credit decision. Review the recommendation and confirm or override. Paid jobs are prioritized.</p>
       <div id="attrList"></div>
     </div>
 
@@ -282,6 +394,87 @@ tr:hover td{background:#fafafa}
       <div class="sec-head">Employee KPI Scorecards</div>
       <div style="font-size:12px;color:#6b7280;margin-bottom:12px">Revenue credited to the tech who sold the estimate. Andy Mitchell &amp; Gannon Blaiser are installers — jobs counted, revenue attributed to selling tech.</div>
       <div class="sc-grid" id="scorecards"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="panel" id="tab-cal">
+      <!-- Legend -->
+      <div class="cal-legend">
+        <span class="cal-legend-title">Legend:</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#f9fafb;border:1px solid #e5e7eb"></span>No activity</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#DBEAFE"></span>Estimates only</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#FEF9C3"></span>Jobs in progress</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#BBF7D0"></span>Revenue collected</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#166534;"></span>Strong revenue day</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#FECACA"></span>Unpaid / outstanding</span>
+      </div>
+      <!-- Controls -->
+      <div class="cal-controls">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;color:#6b7280">View:</label>
+          <select id="calRevenueMode" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
+            <option value="estimate">Revenue on estimate date (who sold it)</option>
+            <option value="collected">Revenue on collection date (cash flow)</option>
+          </select>
+          <label style="font-size:12px;color:#6b7280;margin-left:8px">Employee:</label>
+          <select id="calEmpFilter" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
+            <option value="all">All employees</option>
+          </select>
+        </div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:6px">
+          💡 Revenue is backdated to the estimate date when a job converts — cells update automatically when you pull fresh data.
+          Click any cell for details.
+        </div>
+      </div>
+      <!-- Calendar table -->
+      <div class="cal-wrap" id="calWrap">
+        <div style="text-align:center;padding:2rem;color:#9ca3af;font-size:13px">Pull a report to load the calendar.</div>
+      </div>
+      <!-- Detail popup -->
+      <div class="cal-popup-overlay" id="calOverlay" onclick="closeCalPopup()" style="display:none"></div>
+      <div class="cal-popup" id="calPopup" style="display:none"></div>
+    </div>
+
+    <!-- INSIDE SALES -->
+    <div class="panel" id="tab-is">
+      <!-- Pipeline summary metrics -->
+      <div class="metrics" id="isMetrics"></div>
+
+      <!-- Controls -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:12px;color:#6b7280">Min value:</label>
+        <select id="isMinVal" onchange="renderIS()" style="font-size:12px;padding:5px 8px">
+          <option value="1000">$1,000+</option>
+          <option value="500">$500+</option>
+          <option value="2000">$2,000+</option>
+          <option value="0">All estimates</option>
+        </select>
+        <label style="font-size:12px;color:#6b7280">Status:</label>
+        <select id="isStatusFilter" onchange="renderIS()" style="font-size:12px;padding:5px 8px">
+          <option value="open">Open opportunities</option>
+          <option value="all">All</option>
+          <option value="converted">Converted by IS</option>
+          <option value="lost">Lost / not interested</option>
+        </select>
+        <label style="font-size:12px;color:#6b7280">Dept:</label>
+        <select id="isDeptFilter" onchange="renderIS()" style="font-size:12px;padding:5px 8px">
+          <option value="">All departments</option>
+        </select>
+        <span style="font-size:11px;color:#9ca3af;margin-left:4px" id="isCount"></span>
+      </div>
+
+      <!-- Opportunity cards -->
+      <div id="isCards"></div>
+
+      <!-- Email modal -->
+      <div class="is-modal-overlay" id="isModalOverlay" onclick="closeISModal()" style="display:none"></div>
+      <div class="is-modal" id="isModal" style="display:none">
+        <div class="is-modal-header">
+          <div class="is-modal-title" id="isModalTitle">Follow-up Email</div>
+          <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeISModal()">✕</span>
+        </div>
+        <div id="isModalBody"></div>
+      </div>
     </div>
 
     <!-- SERVICE PLANS -->
@@ -314,7 +507,7 @@ tr:hover td{background:#fafafa}
 // ============================================================
 // STATE
 // ============================================================
-let _workerUrl='', _token='';
+let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
 // attributions: jobId -> { techId, techName, confirmed }
 // stored in localStorage so they persist
@@ -333,22 +526,29 @@ function saveAttr(){ try{ localStorage.setItem('hcp_attr',JSON.stringify(_attr))
 function connect(){
   const w=document.getElementById('workerUrl').value.trim().replace(/\/$/,'');
   const t=document.getElementById('apiToken').value.trim();
+  const s=document.getElementById('sheetsProxy').value.trim().replace(/\/$/,'');
   const err=document.getElementById('authErr');
-  if(!w){err.textContent='Enter Worker URL.';err.style.display='block';return;}
+  if(!w){err.textContent='Enter Cloudflare Worker URL.';err.style.display='block';return;}
   if(!t){err.textContent='Enter HCP API key.';err.style.display='block';return;}
-  _workerUrl=w; _token=t;
+  if(!s){err.textContent='Enter Google Sheets Proxy URL.';err.style.display='block';return;}
+  _workerUrl=w; _token=t; _sheetsProxy=s;
+  // Save proxy URL to localStorage so it persists across sessions
+  try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
+  loadIS();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
   setPr('month',{target:document.querySelector('.preset.active')});
 }
 function disconnect(){
-  _workerUrl='';_token='';
+  _workerUrl='';_token='';_sheetsProxy='';
   document.getElementById('dashboard').style.display='none';
   document.getElementById('authScreen').style.display='block';
   document.getElementById('main').style.display='none';
   document.getElementById('apiToken').value='';
 }
+// Pre-fill saved proxy URL on load
+(function(){try{const el=document.getElementById('sheetsProxy');if(el&&!el.value)el.value=localStorage.getItem('hcp_sheets_proxy')||'https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';}catch(e){}})();
 
 // ============================================================
 // HELPERS
@@ -485,9 +685,9 @@ function setPr(p,e){
   $$('dateFrom').value=fmt(from);$$('dateTo').value=fmt(now);
 }
 function showTab(t){
-  const n=['jobs','estimates','attr','kpi','plans','debug'];
+  const n=['jobs','estimates','attr','kpi','cal','is','plans','debug'];
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
-  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-plans','tab-debug'][i]==='tab-'+t));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-cal','tab-is','tab-plans','tab-debug'][i]==='tab-'+t));
 }
 function printReport(){
   const active=document.querySelectorAll('.panel.active');
@@ -568,6 +768,11 @@ async function loadAll(){
     renderAttr(jobs,estimates);
     renderKPI(jobs,estimates,employees,plans);
     renderPlans(plans);
+    renderCalendar();
+    renderIS();
+    updateISBadge();
+    // Sync to Google Sheets in background
+    syncReportToSheets(jobs,estimates,employees,plans,from,to);
 
     $$('main').style.display='block';
     $$('printBtn').style.display='';
@@ -614,47 +819,73 @@ function buildAttribution(jobs,estimates){
   }
 
   // Score how well an estimate matches a job (higher = better match)
-  // Returns null if no reasonable match
-  function scoreMatch(j, est, jDate, jobTotal, jobTechIds){
+  function scoreMatch(j, est, jDate, jobTotal, jobTechIds, jobDept){
     const estDate=new Date(est.created_at||0);
-    // Estimate must be before or same day as job
     if(estDate>jDate) return null;
 
     const seller=getSellerFromEst(est);
     if(!seller) return null;
 
     const estTotal=getEstTotal(est);
+    const estDept=getDept(est);
     const daysDiff=Math.max(0,(jDate-estDate)/(1000*60*60*24));
     const techMatch=jobTechIds.has(seller.id);
     const approved=isConv(est);
+    const deptMatch=jobDept&&estDept&&jobDept.toLowerCase()===estDept.toLowerCase();
+    const deptMismatch=jobDept&&estDept&&jobDept.toLowerCase()!==estDept.toLowerCase()&&estDept.toLowerCase()!=='other';
 
     let score=0;
 
-    // Same day = very strong signal
+    // Recency
     if(daysDiff<=1) score+=40;
     else if(daysDiff<=7) score+=20;
     else if(daysDiff<=30) score+=10;
     else if(daysDiff<=180) score+=5;
 
-    // Same tech on estimate and job
+    // Same tech
     if(techMatch) score+=30;
 
-    // Approved/pro approved
+    // Department match/mismatch — key signal
+    if(deptMatch) score+=25;
+    else if(deptMismatch) score-=20;
+
+    // Approved
     if(approved) score+=25;
 
-    // Amount proximity (allow up to 40% difference for removed items)
+    // Amount proximity
     if(jobTotal>0&&estTotal>0){
       const diff=Math.abs(jobTotal-estTotal);
       const pct=diff/Math.max(jobTotal,estTotal);
-      if(pct<0.01) score+=20;       // exact match
-      else if(pct<0.15) score+=12;  // close (minor items removed)
-      else if(pct<0.30) score+=6;   // moderate difference
-      else if(pct<0.50) score+=2;   // large difference, weak signal
-      // >50% difference = no amount bonus
+      if(pct<0.01) score+=20;
+      else if(pct<0.15) score+=12;
+      else if(pct<0.30) score+=6;
+      else if(pct<0.50) score+=2;
     }
 
-    // Minimum score threshold to be considered a real match
-    return score>=30?{score,seller}:null;
+    return score>=25?{score,seller,estDept,deptMatch,techMatch,approved,daysDiff}:null;
+  }
+
+  // Generate recommended reason string based on signals
+  function recommendReason(signals, jobDept){
+    if(!signals) return{text:'No estimate found — assigning to job tech',icon:'⚠️',key:'no_estimate'};
+    const{score,deptMatch,techMatch,approved,daysDiff}=signals;
+    if(daysDiff<=1&&techMatch&&approved)
+      return{text:'Closed in field — same day, same tech, approved',icon:'✅',key:'closed_in_field'};
+    if(daysDiff<=1&&deptMatch&&techMatch)
+      return{text:'Same day, same tech, matching department',icon:'✅',key:'same_day_dept'};
+    if(daysDiff<=1&&deptMatch)
+      return{text:'Same day, matching department',icon:'✅',key:'same_day_dept'};
+    if(techMatch&&deptMatch&&daysDiff>1)
+      return{text:'Customer decided later — last estimate, matching dept & tech',icon:'✅',key:'called_back_later'};
+    if(deptMatch&&daysDiff>1&&approved)
+      return{text:'Approved estimate, matching department (later date)',icon:'✅',key:'called_back_later'};
+    if(deptMatch&&daysDiff>1)
+      return{text:'Most recent estimate, matching department',icon:'🔵',key:'dept_match_later'};
+    if(techMatch&&!deptMatch)
+      return{text:'Same tech — different department (verify this is correct)',icon:'⚠️',key:'tech_only_diff_dept'};
+    if(score>=60)
+      return{text:'Strong match on multiple signals',icon:'✅',key:'multi_signal'};
+    return{text:'Possible match — please verify before confirming',icon:'❓',key:'needs_review'};
   }
 
   jobs.forEach(j=>{
@@ -690,8 +921,8 @@ function buildAttribution(jobs,estimates){
 
       // Score every estimate
       const scored=custEsts.map(est=>{
-        const result=scoreMatch(j,est,jDate,jobTotal,jobTechIds);
-        return result?{est,score:result.score,seller:result.seller}:null;
+        const result=scoreMatch(j,est,jDate,jobTotal,jobTechIds,dept);
+        return result?{est,score:result.score,seller:result.seller,signals:result}:null;
       }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
       if(scored.length>0){
@@ -703,18 +934,20 @@ function buildAttribution(jobs,estimates){
 
         if(confident){
           const srcLabel=best.score>=80?'linked_strong':best.score>=60?'amount_match':'customer_match';
+          const rec=recommendReason(best.signals,dept);
           _jobAttribution[jid]={
             techId:best.seller.id,techName:best.seller.name,dept,
-            source:srcLabel,
-            candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score}))
+            source:srcLabel,recommendation:rec,
+            candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score,signals:s.signals}))
           };
           return;
         }
 
-        // Not confident enough — queue for confirmation but pre-select best guess
+        // Not confident — queue for confirmation
+        const rec=recommendReason(best.signals,dept);
         _jobAttribution[jid]={
-          techId:best.seller.id,techName:best.seller.name,dept,source:'unresolved',
-          candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score}))
+          techId:best.seller.id,techName:best.seller.name,dept,source:'unresolved',recommendation:rec,
+          candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score,signals:s.signals}))
         };
         return;
       }
@@ -734,13 +967,14 @@ function buildAttribution(jobs,estimates){
   attrTab.innerHTML=unresolved>0?`Attribution <span class="badge-count">${unresolved}</span>`:'Attribution';
 }
 
-function confirmAttribution(jobId,techId,techName){
-  _attr[jobId]={techId,techName,confirmed:true};
+function confirmAttribution(jobId,techId,techName,reason,notes){
+  _attr[jobId]={techId,techName,confirmed:true,reason:reason||'',notes:notes||'',ts:Date.now()};
   saveAttr();
   buildAttribution(_jobs,_estimates);
   renderAttr(_jobs,_estimates);
   renderJobs(_jobs,_estimates);
   renderKPI(_jobs,_estimates,_employees,_plans);
+  renderPatternStats();
 }
 function skipAttribution(jobId){
   _attr[jobId]={techId:'skip',techName:'—',confirmed:false};
@@ -752,21 +986,47 @@ function skipAttribution(jobId){
 // ============================================================
 // RENDER ATTRIBUTION PANEL
 // ============================================================
+function getJobNotes(j){return(j.notes||[]).map(n=>n.content||'').filter(Boolean);}
+function getEstNotes(e){
+  const n=(e.notes||[]).map(n=>n.content||'').filter(Boolean);
+  const opt=(e.options||[]).flatMap(o=>(o.notes||[]).map(n=>n.content||'')).filter(Boolean);
+  return[...n,...opt];
+}
+const REASON_OPTIONS=[
+  {key:'closed_in_field',    label:'✅ Closed in field — tech approved on same visit'},
+  {key:'called_back_later',  label:'✅ Customer decided later — called back after estimate'},
+  {key:'same_day_dept',      label:'✅ Same day, matching department'},
+  {key:'dept_match_later',   label:'🔵 Most recent estimate, matching department'},
+  {key:'amount_match',       label:'🔵 Amount matches estimate (items may have been removed)'},
+  {key:'tech_only_diff_dept',label:'⚠️ Same tech, different department — verify correct'},
+  {key:'multi_signal',       label:'✅ Strong match on multiple signals'},
+  {key:'no_estimate',        label:'⚠️ No estimate found — assigning to job tech'},
+  {key:'needs_review',       label:'❓ Manual review — could not determine automatically'},
+  {key:'other',              label:'📝 Other (add notes below)'},
+];
 function renderAttr(jobs,estimates){
-  const unresolved=jobs.filter(j=>_jobAttribution[j.id]?.source==='unresolved'&&isJobPaid(j));
+  const unresolved=jobs.filter(j=>_jobAttribution[j.id]?.source==='unresolved')
+    .sort((a,b)=>{
+      // Paid first, then unpaid complete, then in progress
+      const pa=isJobPaid(a)?0:isJobComplete(a)?1:2;
+      const pb=isJobPaid(b)?0:isJobComplete(b)?1:2;
+      if(pa!==pb)return pa-pb;
+      return new Date(b.created_at||0)-new Date(a.created_at||0);
+    });
   const container=$$('attrList');
   if(!unresolved.length){
     container.innerHTML='<div class="no-attr">✅ All paid jobs have been attributed. Good to go!</div>';
-    return;
+    renderPatternStats();return;
   }
   container.innerHTML='';
   unresolved.forEach(j=>{
     const attr=_jobAttribution[j.id];
     const total=getJobTotal(j);
+    const jobNotes=getJobNotes(j);
+    const rec=attr.recommendation||{text:'Please review manually',icon:'❓',key:'needs_review'};
     const card=document.createElement('div');
     card.className='attr-card';
     const candidates=attr.candidates||[];
-    // Build candidate options — either from estimates or from assigned techs
     let optionsHtml='';
     if(candidates.length){
       optionsHtml=candidates.map((c,i)=>{
@@ -774,21 +1034,28 @@ function renderAttr(jobs,estimates){
         const estDate=fmtD(c.est.created_at);
         const estVal=getEstTotal(c.est);
         const estStatus=getEstDisplayStatus(c.est);
-        const daysDiff=Math.round((new Date(j.created_at||j.schedule?.scheduled_start||0)-new Date(c.est.created_at||0))/(1000*60*60*24));
-        const timeLabel=daysDiff<=1?'same day':daysDiff<=7?`${daysDiff}d later`:daysDiff<=30?`${daysDiff}d later`:`${Math.round(daysDiff/30)}mo later`;
-        const scoreLabel=c.score>=80?'Strong match':c.score>=60?'Good match':c.score>=40?'Possible match':'Weak match';
+        const estDept=getDept(c.est);
+        const estNotes=getEstNotes(c.est);
+        const daysDiff=c.signals?.daysDiff!=null?c.signals.daysDiff:
+          Math.round((new Date(j.created_at||j.schedule?.scheduled_start||0)-new Date(c.est.created_at||0))/(1000*60*60*24));
+        const timeLabel=daysDiff<=1?'same day':daysDiff<=7?`${daysDiff}d later`:`${Math.round(daysDiff/30)||1}mo later`;
+        const scoreLabel=c.score>=80?'Strong':c.score>=60?'Good':c.score>=40?'Possible':'Weak';
         const scoreColor=c.score>=80?'#166534':c.score>=60?'#185FA5':c.score>=40?'#854F0B':'#9ca3af';
+        const dm=c.signals?.deptMatch;
+        const deptChip=dm===true?'<span style="font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 5px;border-radius:3px">dept ✓</span>':
+          dm===false?'<span style="font-size:10px;background:#FECACA;color:#991B1B;padding:1px 5px;border-radius:3px">dept ✗</span>':'';
+        const notesHtml=estNotes.length?`<div class="notes-box"><div class="notes-label">Est notes</div>${estNotes.slice(0,2).map(n=>`<div>${n.slice(0,130)}${n.length>130?'…':''}</div>`).join('')}</div>`:'';
         return`<label class="attr-option">
           <input type="radio" name="attr_${j.id}" value="${c.seller?.id||''}" data-name="${sName}" ${i===0?'checked':''}>
           <div style="flex:1">
-            <div class="attr-option-name">${sName}</div>
-            <div class="attr-option-detail">Est #${c.est.estimate_number||'—'} · ${estDate} (${timeLabel}) · ${estVal?dollars(estVal):'—'} · ${estStatus}</div>
+            <div class="attr-option-name">${sName} ${deptChip}</div>
+            <div class="attr-option-detail">Est #${c.est.estimate_number||'—'} · ${estDept} · ${estDate} (${timeLabel}) · ${estVal?dollars(estVal):'—'} · ${estStatus}</div>
+            ${notesHtml}
           </div>
-          <span style="font-size:10px;font-weight:600;color:${scoreColor};white-space:nowrap">${scoreLabel}</span>
+          <span style="font-size:10px;font-weight:600;color:${scoreColor};white-space:nowrap">${scoreLabel} (${c.score})</span>
         </label>`;
       }).join('');
     } else {
-      // No estimates — show assigned non-installer techs as options
       const techs=getAssignedList(j).filter(e=>!INSTALLER_IDS.has(e.id));
       if(techs.length){
         optionsHtml=techs.map((e,i)=>{
@@ -800,34 +1067,93 @@ function renderAttr(jobs,estimates){
           </label>`;
         }).join('');
       } else {
-        optionsHtml='<div style="font-size:12px;color:#9ca3af;padding:8px">No non-installer techs found on this job.</div>';
+        optionsHtml='<div style="font-size:12px;color:#9ca3af;padding:8px">No non-installer techs on this job.</div>';
       }
     }
+    const reasonOpts=REASON_OPTIONS.map(r=>`<option value="${r.key}" ${r.key===rec.key?'selected':''}>${r.label}</option>`).join('');
+    const jobNotesHtml=jobNotes.length?`<div class="notes-box" style="margin-bottom:10px"><div class="notes-label">Job notes</div>${jobNotes.slice(0,3).map(n=>`<div>${n.slice(0,150)}${n.length>150?'…':''}</div>`).join('')}</div>`:'';
     card.innerHTML=`
       <div class="attr-header">
         <div>
           <div class="attr-job">#${j.job_number||j.id||'—'} · ${getCust(j)}</div>
-          <div class="attr-meta">${getDept(j)} · Scheduled ${fmtD(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}</div>
+          <div class="attr-meta">${getDept(j)} · ${fmtD(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}${isJobPaid(j)?'<span style="margin-left:6px;font-size:11px;background:#EAF3DE;color:#3B6D11;padding:2px 7px;border-radius:99px;font-weight:600">💰 Paid</span>':isJobComplete(j)?'<span style="margin-left:6px;font-size:11px;background:#FAEEDA;color:#854F0B;padding:2px 7px;border-radius:99px;font-weight:600">⚠️ Unpaid</span>':''}</div>
         </div>
         <div class="attr-amount">${total?dollars(total):'$0'}</div>
       </div>
-      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px">Who ran the estimate &amp; gets revenue credit?</div>
-      <div style="font-size:11px;color:#9ca3af;margin-bottom:8px">The tech who ran the estimate that became this job gets the credit.</div>
+      ${jobNotesHtml}
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Who ran the estimate &amp; gets revenue credit?</div>
       <div class="attr-candidates">${optionsHtml}</div>
-      <div>
+      <div class="reason-box">
+        <div class="reason-label">Why is this being attributed this way?</div>
+        <div class="reason-rec"><span class="rec-icon">${rec.icon}</span><span>Recommended: ${rec.text}</span></div>
+        <select class="reason-select" id="reason_${j.id}">${reasonOpts}</select>
+        <textarea class="reason-notes" id="notes_${j.id}" placeholder="Optional notes (e.g. customer mentioned Gordy by name when they called in)…"></textarea>
+      </div>
+      <div style="margin-top:10px">
         <button class="attr-confirm-btn" onclick="confirmFromCard('${j.id}')">Confirm credit →</button>
         <button class="attr-skip-btn" onclick="skipAttribution('${j.id}')">Skip for now</button>
       </div>`;
     container.appendChild(card);
   });
+  renderPatternStats();
 }
-
 function confirmFromCard(jobId){
   const selected=document.querySelector(`input[name="attr_${jobId}"]:checked`);
   if(!selected)return;
   const techId=selected.value;
   const techName=selected.getAttribute('data-name')||'Unknown';
-  confirmAttribution(jobId,techId,techName);
+  const reasonEl=document.querySelector(`#reason_${jobId}`);
+  const notesEl=document.querySelector(`#notes_${jobId}`);
+  const reason=reasonEl?reasonEl.value:'';
+  const notes=notesEl?notesEl.value:'';
+  confirmAttribution(jobId,techId,techName,reason,notes);
+}
+
+// ============================================================
+// PATTERN STATS
+// ============================================================
+function renderPatternStats(){
+  const container=$$('patternStats');
+  if(!container)return;
+  // Build per-tech reason counts from confirmed attributions
+  const techStats={};
+  Object.values(_attr).forEach(a=>{
+    if(!a.confirmed||!a.techName||a.techId==='skip')return;
+    const n=a.techName;
+    if(!techStats[n])techStats[n]={};
+    const r=a.reason||'unspecified';
+    techStats[n][r]=(techStats[n][r]||0)+1;
+  });
+  const entries=Object.entries(techStats);
+  if(!entries.length){
+    container.innerHTML='<div style="font-size:12px;color:#9ca3af;grid-column:1/-1">No confirmed attributions yet — pattern stats will appear here as you confirm jobs.</div>';
+    return;
+  }
+  container.innerHTML='';
+  const reasonLabel={
+    closed_in_field:'Closed in field',
+    called_back_later:'Called back later',
+    same_day_dept:'Same day, dept match',
+    dept_match_later:'Dept match, later date',
+    amount_match:'Amount match',
+    tech_only_diff_dept:'Same tech, diff dept',
+    multi_signal:'Multi-signal match',
+    no_estimate:'No estimate found',
+    needs_review:'Manual review',
+    other:'Other',
+    unspecified:'Unspecified'
+  };
+  entries.sort((a,b)=>Object.values(b[1]).reduce((s,v)=>s+v,0)-Object.values(a[1]).reduce((s,v)=>s+v,0))
+  .forEach(([name,reasons])=>{
+    const total=Object.values(reasons).reduce((s,v)=>s+v,0);
+    const rows=Object.entries(reasons).sort((a,b)=>b[1]-a[1]).map(([r,n])=>
+      `<div class="pattern-row"><span class="pattern-key">${reasonLabel[r]||r}</span><span class="pattern-val">${n}×</span></div>`
+    ).join('');
+    const card=document.createElement('div');
+    card.className='pattern-card';
+    card.innerHTML=`<div class="pattern-name">${name} <span style="font-size:11px;color:#9ca3af;font-weight:400">${total} attributed</span></div>${rows}`;
+    container.appendChild(card);
+  });
 }
 
 // ============================================================
@@ -1140,6 +1466,869 @@ function renderPlanRows(plans){
     t.innerHTML=`<td>${getPlanCust(p)}</td><td style="color:#1A3A5C;font-weight:500">${getPlanName(p)||'—'}</td><td style="color:#6b7280">${getPlanSoldBy(p)}</td><td>${badge}</td><td style="color:#6b7280">${p.created_at?fmtD(p.created_at):p.start_date?fmtD(p.start_date):'—'}</td><td class="r" style="font-weight:600">${getPlanTotal(p)?dollars(getPlanTotal(p)):'—'}</td>`;
     tb.appendChild(t);
   });
+}
+// ============================================================
+// INSIDE SALES
+// ============================================================
+// ============================================================
+// REPORT DATA → GOOGLE SHEETS SYNC
+// ============================================================
+async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, dateTo){
+  const PROXY=_sheetsProxy;
+  if(!PROXY){$$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (No Sheets proxy configured)`;return;}
+
+  // Build jobs payload
+  const jobsPayload=jobs.map(j=>{
+    const attr=_jobAttribution[j.id];
+    const stored=_attr[j.id]||{};
+    return{
+      job_number:j.job_number||j.id,
+      invoice_number:j.invoice_number||'',
+      customer_name:getCust(j),
+      customer_phone:j.customer?.mobile_number||j.customer?.home_number||'',
+      customer_email:j.customer?.email||'',
+      address:[j.address?.street,j.address?.city,j.address?.state,j.address?.zip].filter(Boolean).join(', '),
+      dept:getDept(j),
+      status:getNormStatus(j),
+      assigned_to:getAssigned(j),
+      revenue_to:attr?.techName||'',
+      attribution_source:attr?.source||'',
+      total:getJobTotal(j),
+      outstanding:parseFloat(j.outstanding_balance)||0,
+      scheduled:j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):'',
+      completed:j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):'',
+      description:j.description||'',
+    };
+  });
+
+  // Build estimates payload
+  const estsPayload=estimates.map(e=>({
+    estimate_number:e.estimate_number||e.id,
+    customer_name:getCust(e),
+    customer_phone:e.customer?.mobile_number||e.customer?.home_number||'',
+    customer_email:e.customer?.email||'',
+    dept:getDept(e),
+    tech:getAssigned(e),
+    status:getEstDisplayStatus(e),
+    converted:isConv(e),
+    converted_how:getEstDisplayStatus(e).startsWith('Sold')?getEstDisplayStatus(e):'',
+    value:getEstTotal(e),
+    option_count:e.options?.length||1,
+    created:e.created_at?fmtD(e.created_at):'',
+    notes:getEstNotes(e).slice(0,2).join(' | ').slice(0,300),
+  }));
+
+  // Build KPI payload
+  const map={};
+  employees.forEach(emp=>{
+    const name=((emp.first_name||emp.name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
+    map[emp.id]={name,role:emp.role||'Technician',installer:INSTALLER_NAMES.includes(name),
+      jobs:0,completed:0,revenue:0,depts:{},estimates:0,converted:0,plans:0};
+  });
+  function ensureEmp(id,name,role){if(!map[id])map[id]={name:name||'Unknown',role:role||'Technician',installer:INSTALLER_NAMES.includes(name||''),jobs:0,completed:0,revenue:0,depts:{},estimates:0,converted:0,plans:0};}
+  jobs.forEach(j=>{
+    const allEmps=getAssignedList(j);
+    allEmps.forEach(e=>{
+      if(!e)return;
+      const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
+      ensureEmp(e.id,n,e.role);
+      if(INSTALLER_IDS.has(e.id)) return;
+      map[e.id].jobs++;
+    });
+    if(isJobPaid(j)){
+      const attr=_jobAttribution[j.id];
+      if(attr&&attr.techId&&attr.techId!=='skip'&&map[attr.techId]){
+        const rev=getJobTotal(j);const dept=getDept(j);
+        map[attr.techId].revenue+=rev;
+        if(!map[attr.techId].depts[dept])map[attr.techId].depts[dept]={revenue:0,jobs:0};
+        map[attr.techId].depts[dept].revenue+=rev;
+        map[attr.techId].depts[dept].jobs++;
+        map[attr.techId].completed++;
+      }
+    }
+  });
+  estimates.forEach(e=>{
+    const all=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
+    all.forEach(emp=>{
+      if(!emp)return;
+      const n=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'?';
+      ensureEmp(emp.id,n,emp.role);
+      map[emp.id].estimates++;
+      if(isConv(e))map[emp.id].converted++;
+    });
+  });
+  plans.forEach(p=>{
+    const e=p.sold_by||p.employee||p.pro||p.assigned_employee;
+    if(!e)return;
+    const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
+    ensureEmp(e.id,n,e.role);
+    map[e.id].plans++;
+  });
+  const kpiPayload=Object.values(map).filter(e=>e.jobs>0||e.estimates>0||e.plans>0).map(emp=>{
+    const cr=emp.jobs>0?Math.round(emp.completed/emp.jobs*100):0;
+    const er=emp.estimates>0?Math.round(emp.converted/emp.estimates*100):0;
+    const avg=emp.completed>0?Math.round(emp.revenue/emp.completed):0;
+    let score=0;
+    if(!emp.installer){
+      if(emp.jobs>0)score+=Math.min(35,Math.round(emp.completed/emp.jobs*35));
+      if(emp.estimates>0)score+=Math.min(25,Math.round(emp.converted/emp.estimates*25));
+      score+=Math.min(25,Math.round(Math.min(avg,500)/500*25));
+      score+=Math.min(15,emp.plans*5);
+    }
+    return{
+      name:emp.name,role:emp.role,
+      dept_hvac:emp.depts['HVAC']?.revenue||0,
+      dept_plumbing:emp.depts['Plumbing']?.revenue||0,
+      dept_other:Object.entries(emp.depts).filter(([k])=>k!=='HVAC'&&k!=='Plumbing').reduce((s,[,v])=>s+v.revenue,0),
+      revenue:emp.revenue,jobs:emp.jobs,completed:emp.completed,
+      completion_pct:cr,estimates:emp.estimates,converted:emp.converted,
+      conversion_pct:er,avg_job:avg,plans:emp.plans,score:Math.min(100,score),
+    };
+  });
+
+  // Build attribution payload
+  const attrPayload=jobs.map(j=>{
+    const attr=_jobAttribution[j.id];
+    const stored=_attr[j.id]||{};
+    return{
+      job_number:j.job_number||j.id,
+      customer:getCust(j),dept:getDept(j),
+      tech:attr?.techName||'',
+      source:attr?.source||'unresolved',
+      reason:stored.reason||attr?.recommendation?.key||'',
+      notes:stored.notes||'',
+      total:getJobTotal(j),
+      status:getNormStatus(j),
+      confirmed:!!stored.confirmed,
+    };
+  });
+
+  // Summary
+  const paidJobs=jobs.filter(isJobPaid);
+  const totalRev=paidJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const convEsts=estimates.filter(isConv);
+  const openIS=estimates.filter(e=>getEstTotal(e)>=1000&&!isConv(e)&&(_isStatus[e.id]||'open')==='open').length;
+  const summary={
+    total_jobs:jobs.length,completed_jobs:paidJobs.length,total_revenue:totalRev,
+    total_estimates:estimates.length,converted_estimates:convEsts.length,
+    conversion_pct:estimates.length?Math.round(convEsts.length/estimates.length*100):0,
+    open_is:openIS,employees:employees.length,
+  };
+
+  try{
+    const res=await fetch(PROXY,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'syncReport',
+        dateFrom,dateTo,
+        jobs:jobsPayload,
+        estimates:estsPayload,
+        kpi:kpiPayload,
+        attribution:attrPayload,
+        summary,
+      })
+    });
+    const result=await res.json();
+    if(result.success){
+      $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
+    } else {
+      $$('statusBar').textContent=`Report loaded · Sheets sync failed: ${result.error||'unknown error'}`;
+    }
+  }catch(err){
+    console.warn('Report sync failed:',err.message);
+    $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
+  }
+}
+const IS_PROXY_PLACEHOLDER = ''; // Uses _sheetsProxy from state
+let _isActivity = {};
+let _isStatus   = {};
+let _isConvertedBy = {};
+
+function loadIS(){
+  // Load from localStorage as immediate fallback while Sheets loads
+  try{
+    _isActivity=JSON.parse(localStorage.getItem('hcp_is_activity')||'{}');
+    _isStatus=JSON.parse(localStorage.getItem('hcp_is_status')||'{}');
+    _isConvertedBy=JSON.parse(localStorage.getItem('hcp_is_conv')||'{}');
+  }catch(e){}
+  // Then load from Sheets (async — will re-render when done)
+  fetchISFromSheets();
+}
+
+async function fetchISFromSheets(){
+  if(!_sheetsProxy) return; // No proxy configured yet
+  try{
+    const res=await fetch(_sheetsProxy+'?action=getISData');
+    const data=await res.json();
+    if(data.success){
+      // Merge Sheets data into local state (Sheets wins)
+      if(data.statuses){
+        Object.entries(data.statuses).forEach(([id,s])=>{
+          _isStatus[id]=s.status;
+          if(s.convertedBy)_isConvertedBy[id]=s.convertedBy;
+        });
+      }
+      if(data.activities){
+        Object.entries(data.activities).forEach(([id,acts])=>{
+          _isActivity[id]=acts;
+        });
+      }
+      // Persist merged state to localStorage as cache
+      localStorage.setItem('hcp_is_activity',JSON.stringify(_isActivity));
+      localStorage.setItem('hcp_is_status',JSON.stringify(_isStatus));
+      localStorage.setItem('hcp_is_conv',JSON.stringify(_isConvertedBy));
+      // Re-render with fresh data
+      if(_estimates.length) renderIS();
+      updateISBadge();
+    }
+  }catch(e){
+    console.warn('Could not load IS data from Sheets:',e.message);
+    // Silent fail — localStorage fallback already loaded
+  }
+}
+
+function saveIS(){
+  // Always save to localStorage immediately
+  try{
+    localStorage.setItem('hcp_is_activity',JSON.stringify(_isActivity));
+    localStorage.setItem('hcp_is_status',JSON.stringify(_isStatus));
+    localStorage.setItem('hcp_is_conv',JSON.stringify(_isConvertedBy));
+  }catch(e){}
+}
+
+async function syncISStatusToSheets(estId, status, convertedBy){
+  const e=_estimates.find(x=>x.id===estId);
+  if(!e) return;
+  try{
+    await fetch(_sheetsProxy,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'saveISStatus',
+        estId,
+        customerId:e.customer?.id||'',
+        customerName:getCust(e),
+        dept:getDept(e),
+        tech:getAssigned(e),
+        estValue:getEstTotal(e),
+        estDate:e.created_at||'',
+        estimateNumber:e.estimate_number||'',
+        status,
+        convertedBy:convertedBy||''
+      })
+    });
+  }catch(err){console.warn('Sheets status sync failed:',err.message);}
+}
+
+async function syncISActivityToSheets(estId, activityItem){
+  const e=_estimates.find(x=>x.id===estId);
+  try{
+    await fetch(_sheetsProxy,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'saveISActivity',
+        estId,
+        customerName:e?getCust(e):'',
+        dept:e?getDept(e):'',
+        estValue:e?getEstTotal(e):0,
+        ...activityItem
+      })
+    });
+  }catch(err){console.warn('Sheets activity sync failed:',err.message);}
+}
+
+function getISOpportunities(){
+  const minVal=parseFloat($$('isMinVal')?.value||'1000');
+  const statusF=$$('isStatusFilter')?.value||'open';
+  const deptF=$$('isDeptFilter')?.value||'';
+  return _estimates.filter(e=>{
+    const total=getEstTotal(e);
+    if(total<minVal) return false;
+    const conv=isConv(e);
+    const status=_isStatus[e.id]||'open';
+    if(statusF==='open'&&(conv||status!=='open')) return false;
+    if(statusF==='converted'&&status!=='converted') return false;
+    if(statusF==='lost'&&status!=='lost') return false;
+    if(deptF&&getDept(e)!==deptF) return false;
+    return true;
+  }).sort((a,b)=>getEstTotal(b)-getEstTotal(a));
+}
+
+function renderIS(){
+  if(!_estimates.length) return;
+  const opps=getISOpportunities();
+  const allOpen=_estimates.filter(e=>getEstTotal(e)>=(parseFloat($$('isMinVal')?.value)||1000)&&!isConv(e)&&(_isStatus[e.id]||'open')==='open');
+  const totalVal=allOpen.reduce((s,e)=>s+getEstTotal(e),0);
+  const convByIS=Object.values(_isStatus).filter(v=>v==='converted').length;
+  const activityCount=Object.values(_isActivity).reduce((s,a)=>s+a.length,0);
+
+  $$('isMetrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Open opportunities</div><div class="metric-value">${allOpen.length}</div><div class="metric-sub">≥$${(parseFloat($$('isMinVal')?.value)||1000).toLocaleString()} not sold</div></div>
+    <div class="metric"><div class="metric-label">$ at stake</div><div class="metric-value">${dollars(totalVal)}</div><div class="metric-sub">Total open value</div></div>
+    <div class="metric"><div class="metric-label">Converted by IS</div><div class="metric-value">${convByIS}</div><div class="metric-sub">This period</div></div>
+    <div class="metric"><div class="metric-label">Follow-up actions</div><div class="metric-value">${activityCount}</div><div class="metric-sub">Calls &amp; emails logged</div></div>`;
+
+  // Populate dept filter
+  const depts=[...new Set(_estimates.map(e=>getDept(e)).filter(Boolean))].sort();
+  const deptSel=$$('isDeptFilter');
+  if(deptSel){const cur=deptSel.value;deptSel.innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option value="${d}" ${d===cur?'selected':''}>${d}</option>`).join('');if(cur)deptSel.value=cur;}
+
+  $$('isCount').textContent=`${opps.length} shown`;
+
+  const container=$$('isCards');
+  if(!opps.length){
+    container.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-size:13px">No opportunities match current filters.</div>';
+    return;
+  }
+  container.innerHTML='';
+  opps.forEach(e=>container.appendChild(buildISCard(e)));
+}
+
+function buildISCard(e){
+  const estId=e.id;
+  const total=getEstTotal(e);
+  const status=_isStatus[estId]||'open';
+  const conv=isConv(e);
+  const days=Math.floor((Date.now()-new Date(e.created_at||0))/(1000*60*60*24));
+  const daysBadgeClass=days<=7?'is-days-fresh':days<=21?'is-days-warm':'is-days-hot';
+  const daysLabel=days<=7?`${days}d ago`:days<=21?`${days}d ago — follow up soon!`:`${days}d ago — urgent!`;
+  const dept=getDept(e);
+  const tech=getAssigned(e);
+  const cust=getCust(e);
+  const custPhone=e.customer?.mobile_number||e.customer?.home_number||'';
+  const custEmail=e.customer?.email||'';
+  const estNotes=getEstNotes(e);
+  const displayStatus=getEstDisplayStatus(e);
+  const activity=_isActivity[estId]||[];
+
+  const cardStatus=conv?'is-converted':status==='lost'?'is-lost':'is-open';
+
+  // Activity log HTML
+  const activityIcons={call:'📞',email:'📧',note:'📝',converted:'✅',lost:'❌'};
+  const activityHtml=activity.length?`<div class="is-activity">
+    <div class="is-activity-head">Activity (${activity.length})</div>
+    ${activity.slice().reverse().map(a=>`<div class="is-activity-item">
+      <span class="is-activity-icon">${activityIcons[a.type]||'📝'}</span>
+      <div class="is-activity-body">
+        <div class="is-activity-body-title">${a.type==='call'?'Call logged':a.type==='email'?'Email sent':a.type==='note'?'Note':a.type==='converted'?'Converted by Inside Sales':'Marked lost'} ${a.outcome?`— <em>${a.outcome}</em>`:''}
+        </div>
+        ${a.notes?`<div style="font-size:12px;color:#374151;margin-top:2px">${a.notes}</div>`:''}
+        <div class="is-activity-body-meta">${fmtD(a.date)} · Bob</div>
+      </div>
+    </div>`).join('')}
+  </div>`:'';
+
+  // Log form (shown inline when open)
+  const logFormId=`is-log-${estId}`;
+
+  const card=document.createElement('div');
+  card.className=`is-card ${cardStatus}`;
+  card.id=`is-card-${estId}`;
+  card.innerHTML=`
+    <div class="is-card-header">
+      <div>
+        <div class="is-card-title">
+          ${cust}
+          <span class="is-days-badge ${daysBadgeClass}">${daysLabel}</span>
+        </div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px">Est #${e.estimate_number||e.id||'—'} · ${dept} · Ran by ${tech}</div>
+      </div>
+      <div class="is-card-value">${dollars(total)}</div>
+    </div>
+    <div class="is-card-meta">
+      ${custPhone?`<strong>📞</strong> ${custPhone}&nbsp;&nbsp;`:''}
+      ${custEmail?`<strong>✉</strong> ${custEmail}&nbsp;&nbsp;`:''}
+      <strong>Status:</strong> ${eBadge(displayStatus)}&nbsp;&nbsp;
+      <strong>Options:</strong> ${e.options?.length||1}
+      ${estNotes.length?`<div style="margin-top:4px;padding:4px 8px;background:#fffbeb;border-left:2px solid #fbbf24;border-radius:2px;font-size:11px">${estNotes[0].slice(0,180)}${estNotes[0].length>180?'…':''}</div>`:''}
+    </div>
+    ${status==='open'&&!conv?`<div class="is-actions">
+      <button class="is-btn primary" onclick="toggleISLogForm('${estId}','call')">📞 Log call</button>
+      <button class="is-btn email" onclick="openEmailModal('${estId}')">✉ Generate email</button>
+      <button class="is-btn success" onclick="markISConverted('${estId}')">✅ Mark converted by IS</button>
+      <button class="is-btn danger" onclick="markISLost('${estId}')">❌ Not interested</button>
+    </div>
+    <div id="${logFormId}" style="display:none"></div>`
+    :conv?'<div style="font-size:12px;color:#16a34a;font-weight:600;margin-bottom:6px">✅ Converted to job</div>'
+    :status==='converted'?'<div style="font-size:12px;color:#16a34a;font-weight:600;margin-bottom:6px">✅ Converted by Inside Sales (Bob)</div>'
+    :'<div style="font-size:12px;color:#dc2626;font-weight:600;margin-bottom:6px">❌ Not interested / Lost</div>'}
+    ${activityHtml}`;
+  return card;
+}
+
+function toggleISLogForm(estId, type){
+  const formId=`is-log-${estId}`;
+  const el=document.getElementById(formId);
+  if(!el)return;
+  if(el.style.display!=='none'){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML=`<div class="is-log-form">
+    <label>Type</label>
+    <select id="isLogType_${estId}">
+      <option value="call" ${type==='call'?'selected':''}>📞 Call</option>
+      <option value="email" ${type==='email'?'selected':''}>📧 Email</option>
+      <option value="note">📝 Note</option>
+    </select>
+    <label>Outcome</label>
+    <select id="isLogOutcome_${estId}">
+      <option value="">— select —</option>
+      <option value="No answer">No answer</option>
+      <option value="Left voicemail">Left voicemail</option>
+      <option value="Spoke with customer — interested">Spoke — interested</option>
+      <option value="Spoke with customer — needs time">Spoke — needs more time</option>
+      <option value="Spoke with customer — not interested">Spoke — not interested</option>
+      <option value="Callback scheduled">Callback scheduled</option>
+      <option value="Email sent">Email sent</option>
+    </select>
+    <label>Notes</label>
+    <textarea id="isLogNotes_${estId}" placeholder="What did you discuss?"></textarea>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="is-btn primary" onclick="saveISLog('${estId}')">Save</button>
+      <button class="is-btn" onclick="document.getElementById('is-log-${estId}').style.display='none'">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function saveISLog(estId){
+  const type=document.getElementById(`isLogType_${estId}`)?.value||'note';
+  const outcome=document.getElementById(`isLogOutcome_${estId}`)?.value||'';
+  const notes=document.getElementById(`isLogNotes_${estId}`)?.value||'';
+  if(!_isActivity[estId])_isActivity[estId]=[];
+  const item={type,outcome,notes,date:new Date().toISOString(),by:'Bob'};
+  _isActivity[estId].push(item);
+  saveIS();
+  syncISActivityToSheets(estId,item); // async — fire and forget
+  renderIS();
+  updateISBadge();
+}
+
+function markISConverted(estId){
+  if(!confirm('Mark this opportunity as converted by Inside Sales?'))return;
+  _isStatus[estId]='converted';
+  _isConvertedBy[estId]='bob';
+  const item={type:'converted',notes:'Converted by Inside Sales (Bob)',date:new Date().toISOString(),by:'Bob'};
+  if(!_isActivity[estId])_isActivity[estId]=[];
+  _isActivity[estId].push(item);
+  saveIS();
+  syncISStatusToSheets(estId,'converted','bob');
+  syncISActivityToSheets(estId,item);
+  renderIS();updateISBadge();
+}
+
+function markISLost(estId){
+  if(!confirm('Mark this opportunity as lost / not interested?'))return;
+  _isStatus[estId]='lost';
+  const item={type:'lost',notes:'Marked not interested',date:new Date().toISOString(),by:'Bob'};
+  if(!_isActivity[estId])_isActivity[estId]=[];
+  _isActivity[estId].push(item);
+  saveIS();
+  syncISStatusToSheets(estId,'lost','');
+  syncISActivityToSheets(estId,item);
+  renderIS();updateISBadge();
+}
+
+function updateISBadge(){
+  const openCount=_estimates.filter(e=>getEstTotal(e)>=1000&&!isConv(e)&&(_isStatus[e.id]||'open')==='open').length;
+  const tab=$$('isTab');
+  if(tab) tab.innerHTML=openCount>0?`📞 Inside Sales <span class="badge-count">${openCount}</span>`:'📞 Inside Sales';
+}
+
+// ---- EMAIL MODAL ----
+let _isEmailEstId=null;
+let _isEmailTone='friendly';
+
+function openEmailModal(estId){
+  _isEmailEstId=estId;
+  _isEmailTone='friendly';
+  $$('isModalTitle').textContent='Generate Follow-up Email';
+  $$('isModalBody').innerHTML=`
+    <div style="font-size:12px;color:#6b7280;margin-bottom:12px">
+      Choose a tone, then generate. The email is customized to the customer, estimate details, and department.
+    </div>
+    <div class="is-tone-btns">
+      <button class="is-tone-btn active" onclick="setISTone('friendly',this)">Friendly check-in</button>
+      <button class="is-tone-btn" onclick="setISTone('helpful',this)">Helpful &amp; informative</button>
+      <button class="is-tone-btn" onclick="setISTone('value',this)">Value-focused</button>
+      <button class="is-tone-btn" onclick="setISTone('brief',this)">Quick &amp; brief</button>
+    </div>
+    <div class="is-email-preview loading" id="isEmailPreview">Click Generate to create your email...</div>
+    <div class="is-copy-row">
+      <button class="is-btn primary" onclick="generateISEmail()">✨ Generate</button>
+      <button class="is-btn" id="isCopyBtn" style="display:none" onclick="copyISEmail()">📋 Copy email</button>
+      <button class="is-btn" id="isMailBtn" style="display:none" onclick="openMailClient()">📧 Open in mail</button>
+      <button class="is-btn success" id="isLogEmailBtn" style="display:none" onclick="logISEmail()">✅ Log as sent</button>
+    </div>`;
+  $$('isModal').style.display='block';
+  $$('isModalOverlay').style.display='block';
+  // Auto-generate immediately
+  generateISEmail();
+}
+
+function setISTone(tone, btn){
+  _isEmailTone=tone;
+  document.querySelectorAll('.is-tone-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  generateISEmail();
+}
+
+async function generateISEmail(){
+  const e=_estimates.find(x=>x.id===_isEmailEstId);
+  if(!e) return;
+  const preview=$$('isEmailPreview');
+  preview.className='is-email-preview loading';
+  preview.textContent='Generating personalized email...';
+  $$('isCopyBtn').style.display='none';
+  $$('isMailBtn').style.display='none';
+  $$('isLogEmailBtn').style.display='none';
+
+  const cust=getCust(e);
+  const firstName=e.customer?.first_name||cust.split(' ')[0]||'there';
+  const total=getEstTotal(e);
+  const dept=getDept(e);
+  const days=Math.floor((Date.now()-new Date(e.created_at||0))/(1000*60*60*24));
+  const tech=getAssigned(e);
+  const estNotes=getEstNotes(e).join(' ').slice(0,200);
+  const options=e.options||[];
+  const optSummary=options.length>1?`There are ${options.length} options ranging from ${dollars(Math.min(...options.map(o=>getEstTotal(o))))} to ${dollars(Math.max(...options.map(o=>getEstTotal(o))))}.`:`The estimate is ${dollars(total)}.`;
+  const deptWord=dept.toLowerCase()==='hvac'?'HVAC/heating & cooling':dept.toLowerCase()==='plumbing'?'plumbing':'home services';
+  const urgency=days<=7?'recently sent':days<=21?'sent a couple weeks ago':'sent a while back';
+  const toneInstructions={
+    friendly:'Write a warm, friendly, conversational follow-up. Not pushy. Feel like a helpful neighbor.',
+    helpful:'Focus on being informative and helpful — offer to clarify options, answer questions.',
+    value:'Emphasize the Home Club 10% savings and the value of moving forward.',
+    brief:'Very short — 3-4 sentences max. Casual and easy to read on mobile.'
+  };
+
+  const prompt=`You are Bob Danaher, the marketing coordinator at Midstate Plumbing, Heating & Cooling in Hastings, MN (651-480-1195). Write a follow-up email to a customer about their estimate.
+
+Customer: ${firstName} ${cust.includes(' ')?cust.split(' ').slice(1).join(' '):''}
+Department: ${deptWord}
+Estimate amount: ${dollars(total)}
+${optSummary}
+Estimate sent: ${days} days ago (${urgency})
+Tech who ran it: ${tech}
+${estNotes?`Estimate notes: ${estNotes}`:''}
+
+Tone instruction: ${toneInstructions[_isEmailTone]}
+
+Requirements:
+- Open with "Hi ${firstName},"
+- Reference the ${deptWord} estimate specifically (mention the amount ${dollars(total)})
+- Mention Home Club 10% savings naturally (not forced)
+- Keep it personal and warm — not corporate
+- Close with "Best regards,\\nBob\\nMidstate Plumbing, Heating & Cooling\\n651-480-1195"
+- No subject line — just the email body
+- DO NOT use placeholders like [name] or [date] — write it fully
+- 3-5 short paragraphs max`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:600,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    const text=data.content?.map(c=>c.text||'').join('')||'Could not generate email.';
+    preview.className='is-email-preview';
+    preview.textContent=text.trim();
+    $$('isCopyBtn').style.display='';
+    $$('isMailBtn').style.display='';
+    $$('isLogEmailBtn').style.display='';
+  }catch(err){
+    preview.className='is-email-preview';
+    preview.textContent='Error generating email: '+err.message;
+  }
+}
+
+function copyISEmail(){
+  const text=$$('isEmailPreview').textContent;
+  navigator.clipboard?.writeText(text).then(()=>{
+    $$('isCopyBtn').textContent='✅ Copied!';
+    setTimeout(()=>{$$('isCopyBtn').textContent='📋 Copy email';},2000);
+  }).catch(()=>{
+    // Fallback
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    $$('isCopyBtn').textContent='✅ Copied!';
+    setTimeout(()=>{$$('isCopyBtn').textContent='📋 Copy email';},2000);
+  });
+}
+
+function openMailClient(){
+  const e=_estimates.find(x=>x.id===_isEmailEstId);
+  if(!e)return;
+  const custEmail=e.customer?.email||'';
+  const body=$$('isEmailPreview').textContent;
+  const dept=getDept(e);
+  const subject=`Following up on your ${dept} estimate — Midstate Plumbing`;
+  const mailto=`mailto:${custEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailto,'_blank');
+}
+
+function logISEmail(){
+  const body=$$('isEmailPreview').textContent.slice(0,300);
+  const item={type:'email',outcome:'Email sent',notes:`Generated follow-up: "${body}..."`,date:new Date().toISOString(),by:'Bob'};
+  if(!_isActivity[_isEmailEstId])_isActivity[_isEmailEstId]=[];
+  _isActivity[_isEmailEstId].push(item);
+  saveIS();
+  syncISActivityToSheets(_isEmailEstId,item);
+  closeISModal();
+  renderIS();
+  updateISBadge();
+}
+
+function closeISModal(){
+  $$('isModal').style.display='none';
+  $$('isModalOverlay').style.display='none';
+}
+function buildCalendarData(jobs, estimates, mode){
+  // mode: 'estimate' = revenue on estimate date, 'collected' = revenue on job completion date
+  // Returns: { dates: Set, employees: [], cells: { 'YYYY-MM-DD|empId': { rev, jobs, estimates, unpaid, items } } }
+
+  const employees = _employees.filter(e=>{
+    const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+    return !INSTALLER_NAMES.includes(name);
+  }).sort((a,b)=>{
+    const an=((a.first_name||'')+' '+(a.last_name||'')).trim();
+    const bn=((b.first_name||'')+' '+(b.last_name||'')).trim();
+    return an.localeCompare(bn);
+  });
+
+  const dates = new Set();
+  const cells = {}; // key: 'YYYY-MM-DD|empId'
+
+  function key(date, empId){ return `${date}|${empId}`; }
+  function getCell(date, empId){
+    const k=key(date,empId);
+    if(!cells[k]) cells[k]={rev:0,jobCount:0,estCount:0,unpaid:0,items:[]};
+    return cells[k];
+  }
+  function fmtKey(d){ return d instanceof Date ? d.toISOString().split('T')[0] : d; }
+
+  // Process estimates
+  estimates.forEach(e=>{
+    const d=fmtKey(new Date(e.created_at||e.schedule?.scheduled_start||0));
+    if(!d||d==='1970-01-01') return;
+    dates.add(d);
+    const empList=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
+    const emp=empList.length?empList[0]:null;
+    if(!emp) return;
+    const cell=getCell(d, emp.id);
+    cell.estCount++;
+    cell.items.push({type:'estimate',date:d,id:e.id,number:e.estimate_number,customer:getCust(e),
+      status:getEstDisplayStatus(e),value:getEstTotal(e),dept:getDept(e),
+      notes:getEstNotes(e),emp:((emp.first_name||'')+' '+(emp.last_name||'')).trim()});
+  });
+
+  // Process jobs — revenue goes on estimate date (if mode=estimate) or collection date
+  jobs.forEach(j=>{
+    const attr=_jobAttribution[j.id];
+    const total=getJobTotal(j);
+    const paid=isJobPaid(j);
+    const complete=isJobComplete(j);
+    const unpaidAmt=complete&&!paid?total:0;
+
+    // Date for revenue
+    let revDate=null;
+    if(mode==='estimate'&&attr&&attr.source!=='unresolved'&&attr.source!=='manual'||
+       mode==='estimate'&&attr?.source==='manual'){
+      // Find the estimate date
+      const estId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
+      if(estId&&_estimates.find(e=>e.id===estId)){
+        const est=_estimates.find(e=>e.id===estId);
+        revDate=fmtKey(new Date(est.created_at||0));
+      } else if(attr?.candidates?.length){
+        revDate=fmtKey(new Date(attr.candidates[0].est?.created_at||0));
+      }
+    }
+    if(!revDate){
+      // Fall back to completion/collection date
+      const completedAt=j.work_timestamps?.completed_at||j.schedule?.scheduled_end||j.updated_at;
+      revDate=fmtKey(new Date(completedAt||j.created_at||0));
+    }
+    if(!revDate||revDate==='1970-01-01') revDate=fmtKey(new Date(j.created_at||0));
+    dates.add(revDate);
+
+    // Job scheduled date (for showing on calendar even if no revenue)
+    const schedDate=fmtKey(new Date(j.schedule?.scheduled_start||j.created_at||0));
+    if(schedDate&&schedDate!=='1970-01-01') dates.add(schedDate);
+
+    const empList=getAssignedList(j).filter(x=>!INSTALLER_IDS.has(x.id));
+    const emp=empList.length?empList[0]:null;
+    // Use attributed tech for revenue
+    const revEmpId=attr?.techId&&attr.techId!=='skip'?attr.techId:emp?.id;
+    const revEmpName=attr?.techName&&attr.techId!=='skip'?attr.techName:
+      emp?((emp.first_name||'')+' '+(emp.last_name||'')).trim():'Unassigned';
+
+    if(revEmpId){
+      const cell=getCell(revDate, revEmpId);
+      if(paid) cell.rev+=total;
+      if(unpaidAmt>0) cell.unpaid+=unpaidAmt;
+      cell.jobCount++;
+      cell.items.push({type:'job',date:revDate,schedDate,id:j.id,number:j.job_number,
+        customer:getCust(j),status:getNormStatus(j),total,paid,dept:getDept(j),
+        notes:getJobNotes(j),emp:revEmpName,
+        revNote:mode==='estimate'&&revDate!==schedDate?`Revenue backdated to estimate date (${revDate})`:'',
+        source:attr?.source,reason:_attr[j.id]?.reason});
+    }
+  });
+
+  return {dates, employees, cells};
+}
+
+function renderCalendar(){
+  if(!_jobs.length&&!_estimates.length) return;
+  const mode=$$('calRevenueMode')?.value||'estimate';
+  const empFilter=$$('calEmpFilter')?.value||'all';
+  const {dates, employees, cells}=buildCalendarData(_jobs,_estimates,mode);
+
+  // Populate employee filter
+  const calEmpSel=$$('calEmpFilter');
+  if(calEmpSel){
+    const cur=calEmpSel.value;
+    calEmpSel.innerHTML='<option value="all">All employees</option>'+
+      employees.map(e=>{const n=((e.first_name||'')+' '+(e.last_name||'')).trim();
+        return`<option value="${e.id}" ${e.id===cur?'selected':''}>${n}</option>`;}).join('');
+    if(cur) calEmpSel.value=cur;
+  }
+
+  const filteredEmps=empFilter==='all'?employees:employees.filter(e=>e.id===empFilter);
+  const sortedDates=[...dates].filter(d=>d&&d!=='1970-01-01').sort();
+  if(!sortedDates.length){
+    $$('calWrap').innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af">No data for this range.</div>';
+    return;
+  }
+
+  // Compute daily average revenue per emp for color thresholding
+  const allRevs=filteredEmps.flatMap(emp=>sortedDates.map(d=>(cells[`${d}|${emp.id}`]?.rev||0))).filter(v=>v>0);
+  const avgRev=allRevs.length?allRevs.reduce((a,b)=>a+b,0)/allRevs.length:0;
+  const highThreshold=Math.max(avgRev*1.5, 500);
+
+  const today=new Date().toISOString().split('T')[0];
+
+  // Build table
+  let html=`<table class="cal-table">
+  <thead><tr>
+    <th class="date-col">Date</th>
+    ${filteredEmps.map(e=>`<th>${((e.first_name||'')+' '+(e.last_name||'')).trim()}</th>`).join('')}
+  </tr></thead><tbody>`;
+
+  // Column totals
+  const colTotals={};filteredEmps.forEach(e=>{colTotals[e.id]={rev:0,jobs:0,ests:0};});
+
+  sortedDates.forEach(d=>{
+    const dt=new Date(d+'T12:00:00');
+    const dow=dt.getDay();
+    const isWeekend=dow===0||dow===6;
+    const isToday=d===today;
+    const dayLabel=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const rowClass=isToday?'today':isWeekend?'weekend':'';
+    let row=`<tr class="${rowClass}"><td class="date-cell">${dayLabel}</td>`;
+
+    filteredEmps.forEach(emp=>{
+      const c=cells[`${d}|${emp.id}`];
+      if(!c||(!c.rev&&!c.jobCount&&!c.estCount&&!c.unpaid)){
+        row+=`<td class="cal-cell empty"></td>`;return;
+      }
+      colTotals[emp.id].rev+=c.rev;
+      colTotals[emp.id].jobs+=c.jobCount;
+      colTotals[emp.id].ests+=c.estCount;
+
+      // Determine cell class
+      let cellClass='cal-cell ';
+      if(c.rev>0&&c.unpaid>0) cellClass+='mixed';
+      else if(c.rev>=highThreshold) cellClass+='paid-high';
+      else if(c.rev>0) cellClass+='paid-low';
+      else if(c.unpaid>0) cellClass+='unpaid';
+      else if(c.jobCount>0) cellClass+='in-progress';
+      else if(c.estCount>0) cellClass+='est-only';
+
+      const revDisplay=c.rev>0?`<div class="cal-rev">${dollars(c.rev)}</div>`:'';
+      const unpaidDisplay=c.unpaid>0?`<div class="cal-rev" style="color:#991B1B">-${dollars(c.unpaid)} unpaid</div>`:'';
+      const meta=[];
+      if(c.jobCount>0) meta.push(`<span>🔧 ${c.jobCount} job${c.jobCount>1?'s':''}</span>`);
+      if(c.estCount>0) meta.push(`<span>📋 ${c.estCount} est${c.estCount>1?'s':''}</span>`);
+
+      const dataKey=encodeURIComponent(`${d}|${emp.id}`);
+      row+=`<td class="${cellClass}" onclick="openCalPopup('${d}','${emp.id}','${((emp.first_name||'')+' '+(emp.last_name||'')).trim()}')">
+        ${revDisplay}${unpaidDisplay}
+        <div class="cal-meta">${meta.join('')}</div>
+      </td>`;
+    });
+    row+='</tr>';
+    html+=row;
+  });
+
+  // Totals row
+  html+=`<tr class="cal-totals"><td class="date-cell">Totals</td>`;
+  filteredEmps.forEach(emp=>{
+    const t=colTotals[emp.id];
+    html+=`<td class="cal-cell" style="background:#f9fafb">
+      <div style="font-size:12px;font-weight:700;color:#1A3A5C">${t.rev?dollars(t.rev):'—'}</div>
+      <div style="font-size:10px;color:#6b7280">${t.jobs} jobs · ${t.ests} ests</div>
+    </td>`;
+  });
+  html+=`</tr></tbody></table>`;
+
+  $$('calWrap').innerHTML=html;
+}
+
+// Store calendar data for popup
+let _calCells={}, _calMode='estimate';
+function openCalPopup(date, empId, empName){
+  const {cells}=buildCalendarData(_jobs,_estimates,$$('calRevenueMode')?.value||'estimate');
+  const c=cells[`${date}|${empId}`];
+  if(!c||!c.items.length) return;
+
+  const dt=new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const jobs=c.items.filter(i=>i.type==='job');
+  const ests=c.items.filter(i=>i.type==='estimate');
+
+  const jobsHtml=jobs.length?`<div class="cal-popup-section">
+    <div class="cal-popup-section-head">Jobs (${jobs.length})</div>
+    ${jobs.map(j=>`<div class="cal-popup-item">
+      <div class="cal-popup-item-title">#${j.number||j.id||'—'} · ${j.customer} ${jBadge({work_status:j.status,outstanding_balance:j.paid?0:1})}</div>
+      <div class="cal-popup-item-meta">${j.dept} · ${j.total?dollars(j.total):'—'} · Assigned: ${j.emp}</div>
+      ${j.revNote?`<div class="cal-popup-item-meta" style="color:#854F0B;font-style:italic">↩ ${j.revNote}</div>`:''}
+      ${j.reason?`<div class="cal-popup-item-meta" style="color:#5B21B6">Reason: ${j.reason}</div>`:''}
+      ${j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,200)}</div>`:''}
+    </div>`).join('')}
+  </div>`:'';
+
+  const estsHtml=ests.length?`<div class="cal-popup-section">
+    <div class="cal-popup-section-head">Estimates (${ests.length})</div>
+    ${ests.map(e=>`<div class="cal-popup-item">
+      <div class="cal-popup-item-title">Est #${e.number||'—'} · ${e.customer} ${eBadge(e.status)}</div>
+      <div class="cal-popup-item-meta">${e.dept} · ${e.value?dollars(e.value):'—'} · ${e.emp}</div>
+      ${e.notes.length?`<div class="cal-popup-item-note">${e.notes[0].slice(0,200)}</div>`:''}
+    </div>`).join('')}
+  </div>`:'';
+
+  const revTotal=c.rev?`<span style="color:#166534;font-weight:700">${dollars(c.rev)} collected</span>`:'';
+  const unpaidTotal=c.unpaid?`<span style="color:#991B1B;font-weight:700">${dollars(c.unpaid)} unpaid</span>`:'';
+
+  $$('calPopup').innerHTML=`
+    <div class="cal-popup-header">
+      <div>
+        <div class="cal-popup-title">${empName}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${dt}</div>
+        <div style="font-size:13px;margin-top:6px;display:flex;gap:10px">${revTotal}${unpaidTotal}</div>
+      </div>
+      <span class="cal-popup-close" onclick="closeCalPopup()">✕</span>
+    </div>
+    ${jobsHtml}${estsHtml}`;
+  $$('calPopup').style.display='block';
+  $$('calOverlay').style.display='block';
+}
+function closeCalPopup(){
+  $$('calPopup').style.display='none';
+  $$('calOverlay').style.display='none';
 }
 </script>
 </body>
