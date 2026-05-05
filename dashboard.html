@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#FFF7ED;color:#C2410C;border:1px solid #FDBA74;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#EFF6FF;color:#1d4ed8;border:1px solid #93C5FD;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -280,7 +280,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#FFF7ED;color:#C2410C;border:1px solid #FDBA74;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v4.7</span>
+      <span style="font-size:12px;background:#EFF6FF;color:#1d4ed8;border:1px solid #93C5FD;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v4.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -309,7 +309,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v4.7</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v4.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -1681,7 +1681,11 @@ function renderPlanRows(plans){
 // ============================================================
 async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, dateTo){
   const PROXY=_sheetsProxy;
-  if(!PROXY){$$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (No Sheets proxy configured)`;return;}
+  if(!PROXY){
+    $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (No Sheets proxy configured)`;
+    return;
+  }
+  $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · Syncing to Sheets...`;
 
   // Build jobs payload
   const jobsPayload=jobs.map(j=>{
@@ -1822,18 +1826,20 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   };
 
   try{
+    const payload=JSON.stringify({
+      action:'syncReport',
+      dateFrom,dateTo,
+      jobs:jobsPayload,
+      estimates:estsPayload,
+      kpi:kpiPayload,
+      attribution:attrPayload,
+      summary,
+    });
     const res=await fetch(PROXY,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        action:'syncReport',
-        dateFrom,dateTo,
-        jobs:jobsPayload,
-        estimates:estsPayload,
-        kpi:kpiPayload,
-        attribution:attrPayload,
-        summary,
-      })
+      headers:{'Content-Type':'text/plain'},
+      body:payload,
+      redirect:'follow',
     });
     const result=await res.json();
     if(result.success){
@@ -1865,7 +1871,7 @@ function loadIS(){
 async function fetchISFromSheets(){
   if(!_sheetsProxy) return; // No proxy configured yet
   try{
-    const res=await fetch(_sheetsProxy+'?action=getISData');
+    const res=await fetch(_sheetsProxy+'?action=getISData',{redirect:'follow'});
     const data=await res.json();
     if(data.success){
       // Merge Sheets data into local state (Sheets wins)
@@ -1909,7 +1915,8 @@ async function syncISStatusToSheets(estId, status, convertedBy){
   try{
     await fetch(_sheetsProxy,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'text/plain'},
+      redirect:'follow',
       body:JSON.stringify({
         action:'saveISStatus',
         estId,
@@ -1932,7 +1939,8 @@ async function syncISActivityToSheets(estId, activityItem){
   try{
     await fetch(_sheetsProxy,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'text/plain'},
+      redirect:'follow',
       body:JSON.stringify({
         action:'saveISActivity',
         estId,
