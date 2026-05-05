@@ -733,7 +733,6 @@ function buildAttribution(jobs,estimates){
   const attrTab=$$('attrTab');
   attrTab.innerHTML=unresolved>0?`Attribution <span class="badge-count">${unresolved}</span>`:'Attribution';
 }
-}
 
 function confirmAttribution(jobId,techId,techName){
   _attr[jobId]={techId,techName,confirmed:true};
