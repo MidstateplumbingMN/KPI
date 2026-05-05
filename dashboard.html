@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#EFF6FF;color:#1d4ed8;border:1px solid #93C5FD;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -280,7 +280,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#EFF6FF;color:#1d4ed8;border:1px solid #93C5FD;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v4.8</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v5.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -309,7 +309,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v4.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v5.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -595,9 +595,17 @@ function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString(
 function getJobTotal(j){return centsToD(j.total_amount??j.invoice_total??0);}
 function getEstTotal(e){
   if(e.options&&e.options.length){
-    const appr=e.options.filter(o=>{const s=(o.approval_status||o.status||'').toLowerCase();return s==='approved'||s==='created job from estimate';});
-    const src=appr.length?appr:e.options;
-    return centsToD(Math.max(...src.map(o=>parseFloat(o.total_amount||0)||0)));
+    const appr=e.options.filter(o=>{
+      const s=(o.approval_status||o.status||'').toLowerCase();
+      return s==='approved'||s==='pro approved'||s==='customer approved'||
+             s==='created job from estimate'||s==='converted';
+    });
+    if(appr.length){
+      // Sum all approved options
+      return centsToD(appr.reduce((sum,o)=>sum+parseFloat(o.total_amount||0),0));
+    }
+    // No approved option — show highest value as potential sale amount
+    return centsToD(Math.max(...e.options.map(o=>parseFloat(o.total_amount||0)||0)));
   }
   return centsToD(e.total_amount??e.invoice_total??0);
 }
@@ -624,13 +632,19 @@ function getDept(x){
 }
 function getRawStatus(x){return(x.work_status||x.status||'').toLowerCase();}
 
+// Check if a job is truly complete — HCP sometimes keeps work_status as 'scheduled'
+// even after completion, so we use work_timestamps.completed_at as the real signal
+function hasCompletedAt(j){return !!(j.work_timestamps?.completed_at||j.completed_at);}
+
 // Normalize HCP's many statuses into your 6
 function getNormStatus(x){
   const s=getRawStatus(x);
   const bal=parseFloat(x.outstanding_balance)||0;
+  const completedAt=hasCompletedAt(x);
   if(s.includes('cancel'))return'Canceled';
   if(s.includes('refund')||s.includes('void'))return'Refunded';
-  if(s.includes('complete')||s.includes('completed')){
+  // Completed = explicit complete status OR has a completed_at timestamp
+  if(s.includes('complete')||s.includes('completed')||completedAt){
     if(bal===0)return'Paid';
     return'Unpaid';
   }
@@ -641,9 +655,9 @@ function getNormStatus(x){
 
 function isJobComplete(j){
   const s=getRawStatus(j);
-  // Refunded/voided jobs are NOT counted as complete revenue events
   if(s.includes('refund')||s.includes('void')||s.includes('cancel'))return false;
-  return s.includes('complete')||s.includes('completed');
+  // Complete if status says so OR if there's a completed_at timestamp
+  return s.includes('complete')||s.includes('completed')||hasCompletedAt(j);
 }
 function isJobPaid(j){return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;}
 function isJobRefunded(j){const s=getRawStatus(j);return s.includes('refund')||s.includes('void');}
@@ -2302,8 +2316,13 @@ function closeISModal(){
   $$('isModalOverlay').style.display='none';
 }
 function buildCalendarData(jobs, estimates, mode){
-  // mode: 'estimate' = revenue on estimate date, 'collected' = revenue on job completion date
-  // Returns: { dates: Set, employees: [], cells: { 'YYYY-MM-DD|empId': { rev, jobs, estimates, unpaid, items } } }
+  // RULES:
+  // 1. Estimates always appear on the date they were RUN (created_at)
+  // 2. Jobs always appear on the date they were SCHEDULED (scheduled_start)
+  // 3. Revenue is credited on the ESTIMATE date (mode=estimate) only when job is complete+paid
+  //    OR on the COLLECTION date (mode=collected) = work_timestamps.completed_at
+  // 4. Multiple appointments = show job on each appointment date, mark as in-progress
+  // 5. Refunded jobs are excluded entirely
 
   const employees = _employees.filter(e=>{
     const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
@@ -2315,7 +2334,7 @@ function buildCalendarData(jobs, estimates, mode){
   });
 
   const dates = new Set();
-  const cells = {}; // key: 'YYYY-MM-DD|empId'
+  const cells = {};
 
   function key(date, empId){ return `${date}|${empId}`; }
   function getCell(date, empId){
@@ -2323,84 +2342,119 @@ function buildCalendarData(jobs, estimates, mode){
     if(!cells[k]) cells[k]={rev:0,jobCount:0,estCount:0,unpaid:0,pending:0,items:[]};
     return cells[k];
   }
-  function fmtKey(d){ return d instanceof Date ? d.toISOString().split('T')[0] : d; }
+  function fmtKey(d){
+    if(!d) return null;
+    try{ const s=(d instanceof Date?d:new Date(d)).toISOString().split('T')[0]; return s==='1970-01-01'?null:s; }
+    catch(e){ return null; }
+  }
 
-  // Process estimates
+  // Build estimate lookup by id for fast access
+  const estById={};
+  estimates.forEach(e=>{ estById[e.id]=e; });
+
+  // ---- ESTIMATES: show on the date they were RUN (scheduled appointment date)
+  // Use scheduled_start first — that's when the tech actually went out
+  // Fall back to created_at only if no scheduled date exists
   estimates.forEach(e=>{
-    const d=fmtKey(new Date(e.created_at||e.schedule?.scheduled_start||0));
-    if(!d||d==='1970-01-01') return;
+    const d=fmtKey(e.schedule?.scheduled_start||e.created_at);
+    if(!d) return;
     dates.add(d);
     const empList=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
     const emp=empList.length?empList[0]:null;
     if(!emp) return;
     const cell=getCell(d, emp.id);
     cell.estCount++;
-    cell.items.push({type:'estimate',date:d,id:e.id,number:e.estimate_number,customer:getCust(e),
-      status:getEstDisplayStatus(e),value:getEstTotal(e),dept:getDept(e),
-      notes:getEstNotes(e),emp:((emp.first_name||'')+' '+(emp.last_name||'')).trim()});
+    cell.items.push({type:'estimate',date:d,id:e.id,number:e.estimate_number,
+      customer:getCust(e),status:getEstDisplayStatus(e),value:getEstTotal(e),
+      dept:getDept(e),notes:getEstNotes(e),
+      emp:((emp.first_name||'')+' '+(emp.last_name||'')).trim()});
   });
 
-  // Process jobs — revenue goes on estimate date (if mode=estimate) or collection date
+  // ---- JOBS: show on scheduled date, credit revenue on estimate or collection date ----
   jobs.forEach(j=>{
+    if(isJobRefunded(j)) return; // exclude refunds entirely
+
     const attr=_jobAttribution[j.id];
     const total=getJobTotal(j);
     const paid=isJobPaid(j);
     const complete=isJobComplete(j);
-    const refunded=isJobRefunded(j);
 
-    // Skip refunded/voided jobs entirely — don't show as revenue OR unpaid
-    if(refunded) return;
+    // Get the job's actual scheduled date (when the tech goes out)
+    const schedDate=fmtKey(j.schedule?.scheduled_start||j.created_at);
+    if(!schedDate) return;
+    dates.add(schedDate);
 
-    // Unpaid = completed but outstanding balance > 0
-    // Pending = NOT complete yet (scheduled/in-progress) — show differently
-    const unpaidAmt=complete&&!paid?total:0;
-    const pendingAmt=!complete&&!refunded&&total>0?total:0;
-
-    // Date for revenue
+    // Get the revenue attribution date
     let revDate=null;
-    if(mode==='estimate'&&attr&&attr.source!=='unresolved'&&attr.source!=='manual'||
-       mode==='estimate'&&attr?.source==='manual'){
-      // Find the estimate date
-      const estId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
-      if(estId&&_estimates.find(e=>e.id===estId)){
-        const est=_estimates.find(e=>e.id===estId);
-        revDate=fmtKey(new Date(est.created_at||0));
+    if(mode==='estimate'){
+      // Find linked estimate date
+      const linkedEstId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
+      const linkedEst=linkedEstId?estById[linkedEstId]:null;
+      if(linkedEst){
+        // Use scheduled_start — that's when the estimate was actually presented
+        revDate=fmtKey(linkedEst.schedule?.scheduled_start||linkedEst.created_at);
       } else if(attr?.candidates?.length){
-        revDate=fmtKey(new Date(attr.candidates[0].est?.created_at||0));
+        const candEst=attr.candidates[0].est;
+        revDate=fmtKey(candEst?.schedule?.scheduled_start||candEst?.created_at);
       }
     }
+    // Collected mode or no estimate found — use completion date
     if(!revDate){
-      // Fall back to completion/collection date
-      const completedAt=j.work_timestamps?.completed_at||j.schedule?.scheduled_end||j.updated_at;
-      revDate=fmtKey(new Date(completedAt||j.created_at||0));
+      revDate=fmtKey(j.work_timestamps?.completed_at||j.completed_at)||schedDate;
     }
-    if(!revDate||revDate==='1970-01-01') revDate=fmtKey(new Date(j.created_at||0));
-    dates.add(revDate);
+    if(revDate) dates.add(revDate);
 
-    // Job scheduled date (for showing on calendar even if no revenue)
-    const schedDate=fmtKey(new Date(j.schedule?.scheduled_start||j.created_at||0));
-    if(schedDate&&schedDate!=='1970-01-01') dates.add(schedDate);
-
+    // Determine the tech to credit revenue to
     const empList=getAssignedList(j).filter(x=>!INSTALLER_IDS.has(x.id));
-    const emp=empList.length?empList[0]:null;
-    // Use attributed tech for revenue
-    const revEmpId=attr?.techId&&attr.techId!=='skip'?attr.techId:emp?.id;
+    const jobEmp=empList.length?empList[0]:null;
+    const revEmpId=attr?.techId&&attr.techId!=='skip'?attr.techId:jobEmp?.id;
     const revEmpName=attr?.techName&&attr.techId!=='skip'?attr.techName:
-      emp?((emp.first_name||'')+' '+(emp.last_name||'')).trim():'Unassigned';
+      jobEmp?((jobEmp.first_name||'')+' '+(jobEmp.last_name||'')).trim():'Unassigned';
 
+    const jobStatus=getNormStatus(j);
+    const isOnSameDate=revDate===schedDate;
+
+    // ---- Write to SCHEDULED DATE (where the work happens) ----
     if(revEmpId){
-      const cell=getCell(revDate, revEmpId);
-      if(paid) cell.rev+=total;
-      if(unpaidAmt>0) cell.unpaid+=unpaidAmt;
-      if(pendingAmt>0) cell.pending+=pendingAmt;
-      cell.jobCount++;
-      cell.items.push({type:'job',date:revDate,schedDate,id:j.id,number:j.job_number,
-        customer:getCust(j),status:getNormStatus(j),total,paid,
-        unpaid:unpaidAmt>0,pending:pendingAmt>0,
-        dept:getDept(j),
-        notes:getJobNotes(j),emp:revEmpName,
-        revNote:mode==='estimate'&&revDate!==schedDate?`Revenue backdated to estimate date (${revDate})`:'',
-        source:attr?.source,reason:_attr[j.id]?.reason});
+      const schedCell=getCell(schedDate, revEmpId);
+
+      if(isOnSameDate){
+        // Revenue and work on same date — normal case
+        if(paid) schedCell.rev+=total;
+        else if(complete) schedCell.unpaid+=total;
+        else schedCell.pending+=total>0?total:0;
+      } else {
+        // Work on this date, but revenue goes to a different (estimate) date
+        // Show the job but mark revenue as credited elsewhere
+        if(complete&&!paid) schedCell.unpaid+=total; // still show unpaid here
+      }
+
+      schedCell.jobCount++;
+      schedCell.items.push({
+        type:'job',date:schedDate,schedDate,revDate,
+        id:j.id,number:j.job_number,customer:getCust(j),
+        status:jobStatus,total,paid,complete,
+        unpaid:complete&&!paid,pending:!complete&&total>0,
+        dept:getDept(j),notes:getJobNotes(j),emp:revEmpName,
+        revenueElsewhere:!isOnSameDate&&paid,
+        revenueDate:revDate,
+        revNote:!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:'',
+        source:attr?.source,reason:_attr[j.id]?.reason
+      });
+    }
+
+    // ---- Write revenue to ESTIMATE DATE (different from sched date) ----
+    if(revDate&&revDate!==schedDate&&revEmpId&&paid){
+      dates.add(revDate);
+      const revCell=getCell(revDate, revEmpId);
+      revCell.rev+=total;
+      // Add a revenue reference item (not a duplicate job entry)
+      revCell.items.push({
+        type:'revenue_ref',date:revDate,schedDate,
+        id:j.id,number:j.job_number,customer:getCust(j),
+        status:jobStatus,total,paid,dept:getDept(j),emp:revEmpName,
+        note:`Job completed ${schedDate} · Revenue credited here`
+      });
     }
   });
 
@@ -2467,7 +2521,7 @@ function renderCalendar(){
 
     filteredEmps.forEach(emp=>{
       const c=cells[`${d}|${emp.id}`];
-      if(!c||(!c.rev&&!c.jobCount&&!c.estCount&&!c.unpaid)){
+      if(!c||(!c.rev&&!c.jobCount&&!c.estCount&&!c.unpaid&&!c.pending)){
         row+=`<td class="cal-cell empty"></td>`;return;
       }
       colTotals[emp.id].rev+=c.rev;
@@ -2476,13 +2530,18 @@ function renderCalendar(){
       if(c.unpaid>0) colTotals[emp.id].unpaid=(colTotals[emp.id].unpaid||0)+c.unpaid;
       if(c.pending>0) colTotals[emp.id].pending=(colTotals[emp.id].pending||0)+c.pending;
 
-      // Determine cell class — pending jobs don't color as unpaid
+      // Split jobs: revenue here vs revenue credited to estimate date
+      const elsewhereJobs=c.items.filter(i=>i.type==='job'&&i.revenueElsewhere).length;
+      const revenueJobs=c.items.filter(i=>i.type==='job'&&!i.revenueElsewhere).length;
+
+      // Determine cell class
       let cellClass='cal-cell ';
       if(c.rev>0&&c.unpaid>0) cellClass+='mixed';
       else if(c.rev>=highThreshold) cellClass+='paid-high';
       else if(c.rev>0) cellClass+='paid-low';
       else if(c.unpaid>0) cellClass+='unpaid';
-      else if(c.pending>0||c.jobCount>0) cellClass+='in-progress';
+      else if(c.pending>0||revenueJobs>0) cellClass+='in-progress';
+      else if(elsewhereJobs>0) cellClass+='est-only';
       else if(c.estCount>0) cellClass+='est-only';
 
       // Revenue line
@@ -2491,13 +2550,15 @@ function renderCalendar(){
       const unpaidDisplay=c.unpaid>0?`<div style="font-size:11px;font-weight:600;color:#92400E;background:#FEF3C7;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">⚠ ${dollars(c.unpaid)} due</div>`:'';
       // Pending = estimate sold, job scheduled but not done yet
       const pendingDisplay=c.pending>0?`<div style="font-size:11px;font-weight:600;color:#1d4ed8;background:#DBEAFE;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">🕐 ${dollars(c.pending)} pending</div>`:'';
+      // Jobs whose revenue is credited to a different (estimate) date
+      const elsewhereDisplay=elsewhereJobs>0&&c.rev===0?`<div style="font-size:10px;color:#6b7280;font-style:italic">↩ ${elsewhereJobs}j rev on est. date</div>`:'';
       // Meta line
       const meta=[];
       if(c.jobCount>0) meta.push(`<span style="color:#374151">🔧 ${c.jobCount}j</span>`);
       if(c.estCount>0) meta.push(`<span style="color:#374151">📋 ${c.estCount}e</span>`);
 
       row+=`<td class="${cellClass}" onclick="openCalPopup('${d}','${emp.id}','${((emp.first_name||'')+' '+(emp.last_name||'')).trim()}')">
-        ${revDisplay}${unpaidDisplay}${pendingDisplay}
+        ${revDisplay}${unpaidDisplay}${pendingDisplay}${elsewhereDisplay}
         <div class="cal-meta">${meta.join(' ')}</div>
       </td>`;
     });
@@ -2537,15 +2598,15 @@ function openCalPopup(date, empId, empName){
 
   const jobsHtml=jobs.length?`<div class="cal-popup-section">
     <div class="cal-popup-section-head">Jobs (${jobs.length})</div>
-    ${jobs.map(j=>`<div class="cal-popup-item">
+    ${jobs.map(j=>`<div class="cal-popup-item" style="${j.revenueElsewhere?'border-left:3px solid #9ca3af;':''}">
       <div class="cal-popup-item-title">#${j.number||j.id||'—'} · ${j.customer} ${jBadge({work_status:j.status,outstanding_balance:j.paid?0:1})}</div>
-      <div class="cal-popup-item-meta">${j.dept} · ${j.total?dollars(j.total):'—'} · Assigned: ${j.emp}</div>
-      ${j.revNote?`<div class="cal-popup-item-meta" style="color:#854F0B;font-style:italic">↩ ${j.revNote}</div>`:''}
+      <div class="cal-popup-item-meta">${j.dept} · ${j.total?dollars(j.total):'—'} · ${j.emp}</div>
+      ${j.revenueElsewhere?`<div class="cal-popup-item-meta" style="color:#6b7280;font-style:italic">↩ Revenue credited to estimate date (${j.revenueDate})</div>`:''}
+      ${j.revNote&&!j.revenueElsewhere?`<div class="cal-popup-item-meta" style="color:#854F0B;font-style:italic">↩ ${j.revNote}</div>`:''}
       ${j.reason?`<div class="cal-popup-item-meta" style="color:#5B21B6">Reason: ${j.reason}</div>`:''}
-      ${j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,200)}</div>`:''}
+      ${j.notes&&j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,200)}</div>`:''}
     </div>`).join('')}
   </div>`:'';
-
   const estsHtml=ests.length?`<div class="cal-popup-section">
     <div class="cal-popup-section-head">Estimates (${ests.length})</div>
     ${ests.map(e=>`<div class="cal-popup-item">
