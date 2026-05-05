@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#EEF2FF;color:#3730A3;border:1px solid #A5B4FC;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -217,7 +217,6 @@ tr:hover td{background:#fafafa}
 .is-tone-btn{font-size:12px;padding:4px 12px;border-radius:99px;cursor:pointer;border:1px solid #d1d5db;background:#f9fafb}
 .is-tone-btn.active{background:#1A3A5C;color:#fff;border-color:#1A3A5C}
 .is-copy-row{display:flex;gap:8px;margin-top:8px}
-</style>
 .cal-legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;font-size:12px}
 .cal-legend-title{font-weight:700;color:#374151;margin-right:4px}
 .cal-legend-item{display:flex;align-items:center;gap:5px;color:#6b7280}
@@ -227,12 +226,12 @@ tr:hover td{background:#fafafa}
 .cal-table{border-collapse:collapse;font-size:12px;min-width:100%}
 .cal-table th{position:sticky;top:0;background:#1A3A5C;color:#fff;padding:8px 10px;font-size:11px;font-weight:600;white-space:nowrap;z-index:10;text-align:center;border-right:1px solid #163351}
 .cal-table th.date-col{position:sticky;left:0;top:0;background:#1A3A5C;z-index:20;text-align:left;min-width:90px}
-.cal-table td.date-cell{position:sticky;left:0;background:#f9fafb;font-size:11px;font-weight:600;color:#374151;padding:4px 8px;border-right:1px solid #e5e7eb;border-bottom:1px solid #f3f4f6;white-space:nowrap;min-width:90px;z-index:5}
+.cal-table td.date-cell{position:sticky;left:0;background:#f9fafb;font-size:11px;font-weight:600;color:#374151;padding:4px 8px;border-right:2px solid #cbd5e1;border-bottom:1px solid #d1d5db;white-space:nowrap;min-width:90px;z-index:5}
 .cal-table tr.weekend td.date-cell{background:#f1f0eb;color:#9ca3af}
 .cal-table tr.today td.date-cell{background:#FFF9DB;color:#854F0B;font-weight:800}
-.cal-cell{padding:4px 6px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;min-width:110px;vertical-align:top;cursor:pointer;transition:filter .1s}
+.cal-cell{padding:4px 6px;border-right:1px solid #d1d5db;border-bottom:1px solid #d1d5db;min-width:110px;vertical-align:top;cursor:pointer;transition:filter .1s}
 .cal-cell:hover{filter:brightness(.93)}
-.cal-cell.empty{background:#f9fafb;cursor:default}
+.cal-cell.empty{background:#f9fafb;cursor:default;border-right:1px solid #d1d5db;border-bottom:1px solid #d1d5db}
 .cal-cell.est-only{background:#DBEAFE}
 .cal-cell.in-progress{background:#FEF9C3}
 .cal-cell.paid-low{background:#BBF7D0}
@@ -258,8 +257,22 @@ tr:hover td{background:#fafafa}
 .cal-popup-item-title{font-weight:600;color:#111827;margin-bottom:3px}
 .cal-popup-item-meta{color:#6b7280;font-size:11px}
 .cal-popup-item-note{margin-top:4px;padding:4px 8px;background:#fffbeb;border-left:2px solid #fbbf24;font-size:11px;color:#374151}
+/* EMPLOYEE FILTER DROPDOWN */
+.emp-filter-wrap{position:relative;display:inline-block}
+.emp-filter-btn{display:flex;align-items:center;gap:4px;font-size:12px;padding:5px 12px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;white-space:nowrap;color:#374151;font-family:Arial,sans-serif}
+.emp-filter-btn:hover{background:#f9fafb;border-color:#1A3A5C}
+.emp-filter-btn.active{background:#EFF6FF;border-color:#93C5FD;color:#1d4ed8}
+.emp-filter-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:50;min-width:220px;max-height:320px;overflow-y:auto}
+.emp-filter-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f3f4f6;position:sticky;top:0;background:#fff;z-index:1}
+.emp-filter-action{font-size:11px;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;cursor:pointer;background:#f9fafb;color:#374151;font-family:Arial,sans-serif}
+.emp-filter-action:hover{background:#EFF6FF;border-color:#93C5FD}
+.emp-filter-item{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #f9fafb;cursor:pointer;font-size:13px;color:#374151}
+.emp-filter-item:hover{background:#f9fafb}
+.emp-filter-item:last-child{border-bottom:none}
+.emp-filter-item input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#1A3A5C}
+.emp-filter-item .emp-role{font-size:10px;color:#9ca3af;margin-left:auto}
+.emp-filter-divider{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;padding:6px 12px 2px;background:#f9fafb}
 </style>
-</head>
 <body>
 <div class="wrap">
 
@@ -267,7 +280,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v4.2</span>
+      <span style="font-size:12px;background:#EEF2FF;color:#3730A3;border:1px solid #A5B4FC;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v4.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -296,7 +309,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v4.2</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v4.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -310,6 +323,24 @@ tr:hover td{background:#fafafa}
     <button class="preset" onclick="setPr('week',event)">This week</button>
     <button class="preset active" onclick="setPr('month',event)">This month</button>
     <button class="preset" onclick="setPr('last30',event)">Last 30 days</button>
+    <!-- Employee filter dropdown -->
+    <div class="emp-filter-wrap no-print" id="empFilterWrap" style="display:none">
+      <div class="emp-filter-btn" onclick="toggleEmpFilter(event)" id="empFilterBtn">
+        <span id="empFilterLabel">👥 All employees</span>
+        <span style="font-size:10px;margin-left:4px">▾</span>
+      </div>
+      <div class="emp-filter-dropdown" id="empFilterDropdown" style="display:none">
+        <div class="emp-filter-header">
+          <span style="font-size:12px;font-weight:600;color:#374151">Show in report</span>
+          <div style="display:flex;gap:6px">
+            <button class="emp-filter-action" onclick="empSelectAll()">All</button>
+            <button class="emp-filter-action" onclick="empSelectNone()">None</button>
+            <button class="emp-filter-action" onclick="empSelectTechs()">Techs only</button>
+          </div>
+        </div>
+        <div id="empCheckboxList"></div>
+      </div>
+    </div>
   </div>
   <div class="err-bar" id="errMsg"></div>
   <div class="status-bar" id="statusBar">Connected. Pick a date range and pull your report.</div>
@@ -508,6 +539,7 @@ tr:hover td{background:#fafafa}
 // STATE
 // ============================================================
 let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';
+let _selectedEmps=new Set(); // empty = all selected
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
 // attributions: jobId -> { techId, techName, confirmed }
 // stored in localStorage so they persist
@@ -532,10 +564,10 @@ function connect(){
   if(!t){err.textContent='Enter HCP API key.';err.style.display='block';return;}
   if(!s){err.textContent='Enter Google Sheets Proxy URL.';err.style.display='block';return;}
   _workerUrl=w; _token=t; _sheetsProxy=s;
-  // Save proxy URL to localStorage so it persists across sessions
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
   loadIS();
+  loadEmpFilter();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
   setPr('month',{target:document.querySelector('.preset.active')});
@@ -684,6 +716,142 @@ function setPr(p,e){
   else if(p==='last30')from.setDate(now.getDate()-30);
   $$('dateFrom').value=fmt(from);$$('dateTo').value=fmt(now);
 }
+// ---- Employee filter ----
+function buildEmpFilter(){
+  if(!_employees.length) return;
+  const wrap=$$('empFilterWrap');
+  if(wrap) wrap.style.display='';
+
+  const list=$$('empCheckboxList');
+  if(!list) return;
+
+  // Group into field techs and office/admin
+  const techs=_employees.filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim())&&(e.role||'').toLowerCase().includes('tech')||((e.role||'').toLowerCase().includes('field')));
+  const others=_employees.filter(e=>!techs.includes(e));
+
+  // If _selectedEmps is empty, default to all checked
+  if(_selectedEmps.size===0){
+    _employees.forEach(e=>_selectedEmps.add(e.id));
+    saveEmpFilter();
+  }
+
+  list.innerHTML='';
+
+  function makeItem(emp){
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
+    const checked=_selectedEmps.has(emp.id);
+    const div=document.createElement('label');
+    div.className='emp-filter-item';
+    div.innerHTML=`<input type="checkbox" value="${emp.id}" ${checked?'checked':''} onchange="toggleEmpCheck('${emp.id}',this.checked)"><span>${name}</span><span class="emp-role">${emp.role||''}</span>`;
+    list.appendChild(div);
+  }
+
+  if(techs.length){
+    const d=document.createElement('div');d.className='emp-filter-divider';d.textContent='Field Techs';list.appendChild(d);
+    techs.sort((a,b)=>((a.first_name||'')+(a.last_name||'')).localeCompare((b.first_name||'')+(b.last_name||''))).forEach(makeItem);
+  }
+  if(others.length){
+    const d=document.createElement('div');d.className='emp-filter-divider';d.textContent='Office / Other';list.appendChild(d);
+    others.sort((a,b)=>((a.first_name||'')+(a.last_name||'')).localeCompare((b.first_name||'')+(b.last_name||''))).forEach(makeItem);
+  }
+  updateEmpFilterLabel();
+}
+
+function toggleEmpCheck(empId, checked){
+  if(checked) _selectedEmps.add(empId);
+  else _selectedEmps.delete(empId);
+  saveEmpFilter();
+  updateEmpFilterLabel();
+  applyEmpFilter();
+}
+
+function empSelectAll(){
+  _employees.forEach(e=>_selectedEmps.add(e.id));
+  saveEmpFilter();
+  document.querySelectorAll('#empCheckboxList input[type=checkbox]').forEach(cb=>cb.checked=true);
+  updateEmpFilterLabel();
+  applyEmpFilter();
+}
+
+function empSelectNone(){
+  _selectedEmps.clear();
+  saveEmpFilter();
+  document.querySelectorAll('#empCheckboxList input[type=checkbox]').forEach(cb=>cb.checked=false);
+  updateEmpFilterLabel();
+  applyEmpFilter();
+}
+
+function empSelectTechs(){
+  _selectedEmps.clear();
+  _employees.forEach(e=>{
+    const role=(e.role||'').toLowerCase();
+    if(role.includes('tech')||role.includes('field')) _selectedEmps.add(e.id);
+  });
+  saveEmpFilter();
+  document.querySelectorAll('#empCheckboxList input[type=checkbox]').forEach(cb=>{
+    cb.checked=_selectedEmps.has(cb.value);
+  });
+  updateEmpFilterLabel();
+  applyEmpFilter();
+}
+
+function updateEmpFilterLabel(){
+  const btn=$$('empFilterBtn');
+  const label=$$('empFilterLabel');
+  if(!label) return;
+  const total=_employees.length;
+  const selected=_selectedEmps.size;
+  if(selected===0||selected===total){
+    label.textContent='👥 All employees';
+    if(btn) btn.classList.remove('active');
+  } else {
+    label.textContent=`👥 ${selected} of ${total} employees`;
+    if(btn) btn.classList.add('active');
+  }
+}
+
+function saveEmpFilter(){
+  try{localStorage.setItem('hcp_emp_filter',JSON.stringify([..._selectedEmps]));}catch(e){}
+}
+
+function loadEmpFilter(){
+  try{
+    const saved=localStorage.getItem('hcp_emp_filter');
+    if(saved){_selectedEmps=new Set(JSON.parse(saved));}
+  }catch(e){}
+}
+
+function isEmpVisible(empId){
+  return _selectedEmps.size===0||_selectedEmps.has(empId);
+}
+
+function toggleEmpFilter(e){
+  e.stopPropagation();
+  const dd=$$('empFilterDropdown');
+  dd.style.display=dd.style.display==='none'?'block':'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click',function(e){
+  const wrap=$$('empFilterWrap');
+  if(wrap&&!wrap.contains(e.target)){
+    const dd=$$('empFilterDropdown');
+    if(dd) dd.style.display='none';
+  }
+});
+
+function applyEmpFilter(){
+  // Re-render all tabs that depend on employee visibility
+  if(_jobs.length||_estimates.length){
+    renderJobs(_jobs,_estimates);
+    renderEstimates(_estimates);
+    renderKPI(_jobs,_estimates,_employees,_plans);
+    renderCalendar();
+    renderIS();
+  }
+}
+
+
 function showTab(t){
   const n=['jobs','estimates','attr','kpi','cal','is','plans','debug'];
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
@@ -771,6 +939,7 @@ async function loadAll(){
     renderCalendar();
     renderIS();
     updateISBadge();
+    buildEmpFilter();
     // Sync to Google Sheets in background
     syncReportToSheets(jobs,estimates,employees,plans,from,to);
 
@@ -1178,6 +1347,9 @@ function getJobFiltered(){
     if(sf&&getNormStatus(j)!==sf)return false;
     if(ef&&getAssigned(j)!==ef)return false;
     if(df&&getDept(j)!==df)return false;
+    // Apply employee visibility filter
+    const empList=getAssignedList(j);
+    if(_selectedEmps.size>0&&empList.length&&!empList.some(e=>_selectedEmps.has(e.id)))return false;
     return true;
   });
 }
@@ -1186,6 +1358,9 @@ function getEstFiltered(){
   return _estimates.filter(e=>{
     if(sf&&getEstDisplayStatus(e)!==sf)return false;
     if(ef&&getAssigned(e)!==ef)return false;
+    // Apply employee visibility filter
+    const empList=getAssignedList(e);
+    if(_selectedEmps.size>0&&empList.length&&!empList.some(x=>_selectedEmps.has(x.id)))return false;
     return true;
   });
 }
@@ -1356,8 +1531,13 @@ function renderKPI(jobs,estimates,employees,plans){
   });
 
   const allCards=Object.values(map).filter(e=>e.jobs>0||e.installs>0||e.estimates>0||e.plans>0);
-  const techCards=allCards.filter(e=>!e.installer).sort((a,b)=>b.revenue-a.revenue);
-  const installerCards=allCards.filter(e=>e.installer).sort((a,b)=>b.installs-a.installs);
+  // Apply employee visibility filter
+  const visibleCards=allCards.filter(e=>{
+    const emp=_employees.find(x=>{const n=((x.first_name||x.name||'')+' '+(x.last_name||'')).trim();return n===e.name;});
+    return !emp||isEmpVisible(emp.id);
+  });
+  const techCards=visibleCards.filter(e=>!e.installer).sort((a,b)=>b.revenue-a.revenue);
+  const installerCards=visibleCards.filter(e=>e.installer).sort((a,b)=>b.installs-a.installs);
   const maxRev=Math.max(...techCards.map(e=>e.revenue),1);
 
   // Department totals
@@ -2093,7 +2273,7 @@ function buildCalendarData(jobs, estimates, mode){
 
   const employees = _employees.filter(e=>{
     const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-    return !INSTALLER_NAMES.includes(name);
+    return !INSTALLER_NAMES.includes(name) && isEmpVisible(e.id);
   }).sort((a,b)=>{
     const an=((a.first_name||'')+' '+(a.last_name||'')).trim();
     const bn=((b.first_name||'')+' '+(b.last_name||'')).trim();
@@ -2199,7 +2379,22 @@ function renderCalendar(){
   }
 
   const filteredEmps=empFilter==='all'?employees:employees.filter(e=>e.id===empFilter);
-  const sortedDates=[...dates].filter(d=>d&&d!=='1970-01-01').sort();
+
+  // Generate ALL dates in the selected range (no gaps)
+  const fromDate=$$('dateFrom').value;
+  const toDate=$$('dateTo').value;
+  const sortedDates=[];
+  if(fromDate&&toDate){
+    const cur=new Date(fromDate+'T12:00:00');
+    const end=new Date(toDate+'T12:00:00');
+    while(cur<=end){
+      sortedDates.push(cur.toISOString().split('T')[0]);
+      cur.setDate(cur.getDate()+1);
+    }
+  } else {
+    // Fallback to dates from data only
+    sortedDates.push(...[...dates].filter(d=>d&&d!=='1970-01-01').sort());
+  }
   if(!sortedDates.length){
     $$('calWrap').innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af">No data for this range.</div>';
     return;
