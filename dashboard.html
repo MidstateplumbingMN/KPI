@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#B45309;color:#fff;border:1px solid #B45309;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -302,7 +302,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.6</span>
+      <span style="font-size:12px;background:#B45309;color:#fff;border:1px solid #B45309;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -331,7 +331,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -473,13 +473,13 @@ tr:hover td{background:#fafafa}
       <div class="cal-legend">
         <span class="cal-legend-title">Legend:</span>
         <span class="cal-legend-item"><span class="cal-swatch" style="background:#f9fafb;border:1px solid #e5e7eb"></span>No activity</span>
-        <span class="cal-legend-item"><span class="cal-swatch" style="background:#DBEAFE"></span>Estimates only</span>
-        <span class="cal-legend-item"><span class="cal-swatch" style="background:#FEF9C3"></span>Jobs in progress</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#DBEAFE"></span>Estimates run, no revenue yet</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#FEF9C3"></span>Jobs in progress / not complete</span>
         <span class="cal-legend-item"><span class="cal-swatch" style="background:#BBF7D0"></span>Revenue collected</span>
-        <span class="cal-legend-item"><span class="cal-swatch" style="background:#166534;"></span>Strong revenue day</span>
-        <span class="cal-legend-item"><span class="cal-swatch" style="background:#FECACA"></span>Completed, unpaid</span>
-        <span class="cal-legend-item"><span style="font-size:11px;font-weight:600;color:#92400E;background:#FEF3C7;padding:1px 5px;border-radius:3px">⚠ due</span>Collected but outstanding</span>
-        <span class="cal-legend-item"><span style="font-size:11px;font-weight:600;color:#1d4ed8;background:#DBEAFE;padding:1px 5px;border-radius:3px">🕐 pending</span>Sold, job not complete yet</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#166534"></span>Strong revenue day</span>
+        <span class="cal-legend-item"><span class="cal-swatch" style="background:#FECACA"></span>Job complete, not yet paid</span>
+        <span class="cal-legend-item"><span style="font-size:11px;font-weight:600;color:#059669;background:#ECFDF5;padding:1px 5px;border-radius:3px">↩ collected later</span>Estimate date — job paid on a later date (retroactive)</span>
+        <span class="cal-legend-item"><span style="font-size:11px;font-weight:600;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:3px">↩ Revenue on estimate date</span>Job done here, revenue credited to earlier estimate</span>
       </div>
       <!-- Controls -->
       <div class="cal-controls">
@@ -1093,26 +1093,36 @@ async function loadAll(){
     const eSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
-      // Try multiple endpoint paths — HCP plan APIs vary by account
-      // No date filter since we want all active plans
+      // HCP Service Plans / Service Agreements live in their own module
+      // Try every known endpoint path — log results to console for debugging
       const endpoints=[
-        '/v2/recurring_services',
-        '/v2/memberships',
+        '/v2/consumer_memberships',
         '/v2/customer_memberships',
+        '/v2/memberships',
+        '/v2/recurring_services',
         '/v2/service_agreements',
         '/v2/agreements',
+        '/v2/contracts',
+        '/v2/maintenance_plans',
+        '/consumer_memberships',
+        '/customer_memberships',
         '/memberships',
-        '/recurring_services',
-        '/service_agreements',
       ];
+      const keys=['consumer_memberships','customer_memberships','recurring_services',
+                  'service_agreements','agreements','contracts','maintenance_plans',
+                  'memberships','data','results'];
       for(const p of endpoints){
         try{
-          const r=await fetchAll(p,['recurring_services','service_agreements','agreements','memberships','customer_memberships','data','results']);
-          console.log(`[Plans] ${p}: ${r.length} results`);
+          // First do a raw fetch to see what keys come back
+          const raw=await hcpGet(p+'?page_size=5');
+          const topKeys=Object.keys(raw||{});
+          console.log(`[Plans] ${p} → keys: ${topKeys.join(', ')}`);
+          const r=await fetchAll(p,keys);
+          console.log(`[Plans] ${p} → ${r.length} items`);
           if(r&&r.length>0) return r;
-        }catch(e){console.log(`[Plans] ${p}: error —`,e.message);}
+        }catch(e){console.log(`[Plans] ${p}: ${e.message}`);}
       }
-      console.log('[Plans] No results from any endpoint');
+      console.log('[Plans] No results — check console for available keys to add');
       return[];
     }
     // Fetch estimates by SCHEDULED date only (when the tech actually ran the appointment)
@@ -1175,7 +1185,7 @@ async function loadAll(){
     $$('debugEmp').textContent=employees.length?JSON.stringify(employees[0],null,2):'No employees';
     $$('debugPlan').textContent=plans.length
       ?`Found ${plans.length} plan(s). First record:\n\n`+JSON.stringify(plans[0],null,2)
-      :'No plans found. Check browser console (F12) for [Plans] log lines showing which endpoints were tried.';
+      :'No plans found.\n\nOpen browser console (F12 → Console) and look for [Plans] lines.\nThey show which endpoint returned what keys — share those lines and I can add the correct one.';
 
     buildAttribution(jobs,estimates);
     populateFilters(jobs,estimates,plans);
@@ -3155,20 +3165,26 @@ function renderCalendar(){
       else if(c.estCount>0) cellClass+='est-only';
 
       // Revenue line
+      // Revenue collected (credited to this estimate date)
       const revDisplay=c.rev>0?`<div class="cal-rev">${dollars(c.rev)}</div>`:'';
-      // Unpaid = completed but not collected
-      const unpaidDisplay=c.unpaid>0?`<div style="font-size:11px;font-weight:600;color:#92400E;background:#FEF3C7;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">⚠ ${dollars(c.unpaid)} due</div>`:'';
-      // Pending = estimate sold, job scheduled but not done yet
-      const pendingDisplay=c.pending>0?`<div style="font-size:11px;font-weight:600;color:#1d4ed8;background:#DBEAFE;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">🕐 ${dollars(c.pending)} pending</div>`:'';
-      // Jobs whose revenue is credited to a different (estimate) date
-      const elsewhereDisplay=elsewhereJobs>0&&c.rev===0?`<div style="font-size:10px;color:#6b7280;font-style:italic">↩ ${elsewhereJobs}j rev on est. date</div>`:'';
-      // Meta line
+      // Job complete but payment not yet collected
+      const unpaidDisplay=c.unpaid>0?`<div style="font-size:11px;font-weight:600;color:#92400E;background:#FEF3C7;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">⚠ ${dollars(c.unpaid)} unpaid</div>`:'';
+      // Job scheduled/in progress, not yet complete
+      const pendingDisplay=c.pending>0?`<div style="font-size:11px;font-weight:600;color:#1d4ed8;background:#DBEAFE;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">🕐 ${dollars(c.pending)} in progress</div>`:'';
+      // Revenue refs = jobs paid on another date, credited back here (retroactive)
+      const refCount=c.items.filter(i=>i.type==='revenue_ref').length;
+      const retroDisplay=refCount>0?`<div style="font-size:10px;font-weight:600;color:#059669;background:#ECFDF5;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">↩ ${refCount} job${refCount>1?'s':''} collected later</div>`:'';
+      // Jobs done here, revenue credited to earlier estimate date
+      const elsewhereDisplay=elsewhereJobs>0&&c.rev===0&&refCount===0?`<div style="font-size:10px;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">↩ Revenue on estimate date</div>`:'';
+      // Plain English counts
+      const jobWord=c.jobCount===1?'1 Job':`${c.jobCount} Jobs`;
+      const estWord=c.estCount===1?'1 Estimate':`${c.estCount} Estimates`;
       const meta=[];
-      if(c.jobCount>0) meta.push(`<span style="color:#374151">🔧 ${c.jobCount}j</span>`);
-      if(c.estCount>0) meta.push(`<span style="color:#374151">📋 ${c.estCount}e</span>`);
+      if(c.jobCount>0) meta.push(`<span>🔧 ${jobWord}</span>`);
+      if(c.estCount>0) meta.push(`<span>📋 ${estWord}</span>`);
 
       row+=`<td class="${cellClass}" onclick="openCalPopup('${d}','${emp.id}','${((emp.first_name||'')+' '+(emp.last_name||'')).trim()}')">
-        ${revDisplay}${unpaidDisplay}${pendingDisplay}${elsewhereDisplay}
+        ${revDisplay}${unpaidDisplay}${pendingDisplay}${retroDisplay}${elsewhereDisplay}
         <div class="cal-meta">${meta.join(' ')}</div>
       </td>`;
     });
@@ -3212,64 +3228,71 @@ function openCalPopup(date, empId, empName){
   const collectedHere=jobs.filter(j=>!j.revenueElsewhere&&j.paid);
   const refsTotal=refs.reduce((s,r)=>s+r.total,0);
 
+  // ---- SECTION: Retroactive revenue (estimate sold here, job paid later) ----
+  const refsHtml=refs.length?`<div class="cal-popup-section">
+    <div class="cal-popup-section-head" style="border-color:#059669">💰 Revenue collected later — credited to this estimate date</div>
+    <div style="font-size:12px;color:#374151;margin-bottom:8px;padding:8px 10px;background:#ECFDF5;border-radius:6px;line-height:1.5">
+      The estimate was run on this date. The job was completed and paid on a <strong>later date</strong> — but the revenue belongs here because this is when the sale happened.
+    </div>
+    ${refs.map(r=>`<div class="cal-popup-item" style="border-left:3px solid #059669;background:#f0fdf4">
+      <div class="cal-popup-item-title">Job #${r.number||'—'} · ${r.customer} <span style="font-size:11px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">✅ Paid ${dollars(r.total)}</span></div>
+      <div class="cal-popup-item-meta">${r.dept} · ${r.emp}</div>
+      <div style="font-size:11px;color:#059669;margin-top:3px">Job completed on ${r.schedDate} · Payment collected then · Revenue credited back to this estimate date</div>
+    </div>`).join('')}
+  </div>`:'';
+
+  // ---- SECTION: Jobs scheduled on this date ----
   const jobsHtml=jobs.length?`<div class="cal-popup-section">
     <div class="cal-popup-section-head">Jobs on this date (${jobs.length})</div>
     ${jobs.map(j=>{
-      const statusBadge=j.paid?'<span style="font-size:11px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">Paid</span>':
-        j.complete?'<span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:99px;font-weight:600">Unpaid</span>':
-        '<span style="font-size:11px;background:#DBEAFE;color:#1d4ed8;padding:1px 6px;border-radius:99px;font-weight:600">In progress</span>';
+      const statusBadge=j.paid
+        ?'<span style="font-size:11px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">✅ Paid</span>'
+        :j.complete
+        ?'<span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:99px;font-weight:600">⚠ Complete — not paid yet</span>'
+        :'<span style="font-size:11px;background:#DBEAFE;color:#1d4ed8;padding:1px 6px;border-radius:99px;font-weight:600">🕐 In progress</span>';
       const revLine=j.revenueElsewhere
-        ?`<div style="font-size:11px;color:#6b7280;margin-top:3px;padding:3px 6px;background:#f9fafb;border-radius:3px">↩ Revenue credited to <strong>${j.revenueDate}</strong> (estimate date)</div>`
-        :j.paid?`<div style="font-size:11px;color:#166534;margin-top:3px">✅ ${dollars(j.total)} credited here</div>`
-        :j.complete?`<div style="font-size:11px;color:#92400E;margin-top:3px">⚠ ${dollars(j.total)} outstanding</div>`
-        :`<div style="font-size:11px;color:#6b7280;margin-top:3px">🕐 ${j.total?dollars(j.total):''} — not yet complete</div>`;
+        ?`<div style="font-size:11px;padding:5px 8px;background:#f9fafb;border-radius:4px;margin-top:4px;color:#374151">
+            💡 <strong>Revenue goes to ${j.revenueDate}</strong> — that's when the estimate was run.
+            This job is shown here because the work happened today.
+          </div>`
+        :j.paid
+        ?`<div style="font-size:11px;color:#166534;margin-top:4px">✅ ${dollars(j.total)} revenue credited to this date</div>`
+        :j.complete
+        ?`<div style="font-size:11px;color:#92400E;margin-top:4px">⚠ ${dollars(j.total)} — job done but payment not yet collected</div>`
+        :`<div style="font-size:11px;color:#6b7280;margin-top:4px">🕐 ${j.total?dollars(j.total):''} — job not yet complete</div>`;
       return`<div class="cal-popup-item" style="border-left:3px solid ${j.paid&&!j.revenueElsewhere?'#16a34a':j.revenueElsewhere?'#9ca3af':j.complete?'#b45309':'#3b82f6'}">
-        <div class="cal-popup-item-title">#${j.number||j.id||'—'} · ${j.customer} ${statusBadge}</div>
-        <div class="cal-popup-item-meta">${j.dept} · Assigned: ${j.emp}</div>
+        <div class="cal-popup-item-title">Job #${j.number||j.id||'—'} · ${j.customer} ${statusBadge}</div>
+        <div class="cal-popup-item-meta">${j.dept} · ${j.emp}</div>
         ${revLine}
-        ${j.reason?`<div class="cal-popup-item-meta" style="color:#5B21B6;margin-top:2px">Attribution: ${j.reason}</div>`:''}
         ${j.notes&&j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,180)}</div>`:''}
       </div>`;
     }).join('')}
   </div>`:'';
 
-  // Revenue refs — jobs that happened elsewhere but revenue is credited HERE
-  const refsHtml=refs.length?`<div class="cal-popup-section">
-    <div class="cal-popup-section-head">💰 Revenue credited here from other dates (${refs.length})</div>
-    <div style="font-size:11px;color:#6b7280;margin-bottom:8px">These jobs were completed on a different date but the revenue is attributed to the estimate date (this date).</div>
-    ${refs.map(r=>`<div class="cal-popup-item" style="border-left:3px solid #16a34a;background:#f0fdf4">
-      <div class="cal-popup-item-title">#${r.number||'—'} · ${r.customer} <span style="font-size:11px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">Paid ${dollars(r.total)}</span></div>
-      <div class="cal-popup-item-meta">${r.dept} · ${r.emp}</div>
-      <div style="font-size:11px;color:#166534;margin-top:3px">${r.note}</div>
-    </div>`).join('')}
-  </div>`:'';
-
+  // ---- SECTION: Estimates run on this date ----
   const estsHtml=ests.length?`<div class="cal-popup-section">
-    <div class="cal-popup-section-head">Estimates run (${ests.length})</div>
+    <div class="cal-popup-section-head">Estimates run on this date (${ests.length})</div>
     ${ests.map(e=>`<div class="cal-popup-item">
-      <div class="cal-popup-item-title">Est #${e.number||'—'} · ${e.customer} ${eBadge(e.status)}</div>
+      <div class="cal-popup-item-title">Estimate #${e.number||'—'} · ${e.customer} ${eBadge(e.status)}</div>
       <div class="cal-popup-item-meta">${e.dept} · ${e.value?dollars(e.value):'—'} · ${e.emp}</div>
       ${e.notes&&e.notes.length?`<div class="cal-popup-item-note">${e.notes[0].slice(0,180)}</div>`:''}
     </div>`).join('')}
   </div>`:'';
 
-  // Summary line
+  // ---- Summary header ----
   const totalRev=c.rev+refsTotal;
-  const revSummary=totalRev>0
-    ?`<span style="color:#166534;font-weight:700">${dollars(totalRev)} total revenue</span>`
-    +'<span style="font-size:11px;color:#9ca3af;margin-left:4px">'
-    +(c.rev>0&&refsTotal>0?`(${dollars(c.rev)} direct + ${dollars(refsTotal)} credited)`:'')+' </span>'
-    :'';
-  const unpaidSummary=c.unpaid?`<span style="color:#92400E;font-weight:700">⚠ ${dollars(c.unpaid)} unpaid</span>`:'';
-  const pendingSummary=c.pending?`<span style="color:#1d4ed8;font-weight:700">🕐 ${dollars(c.pending)} in progress</span>`:'';
+  const revSummary=totalRev>0?`<span style="color:#166534;font-weight:700">${dollars(totalRev)}</span><span style="font-size:11px;color:#9ca3af;margin-left:3px">${refsTotal>0&&c.rev>0?`(${dollars(c.rev)} direct + ${dollars(refsTotal)} retroactive)`:refsTotal>0?'retroactive — paid on a later date':''}</span>`:'<span style="color:#9ca3af">No revenue collected</span>';
+  const unpaidSummary=c.unpaid?`<span style="color:#92400E;font-weight:600">⚠ ${dollars(c.unpaid)} not yet paid</span>`:'';
+  const pendingSummary=c.pending?`<span style="color:#1d4ed8;font-weight:600">🕐 ${dollars(c.pending)} in progress</span>`:'';
 
   $$('calPopup').innerHTML=`
     <div class="cal-popup-header">
       <div>
         <div class="cal-popup-title">${empName}</div>
         <div style="font-size:12px;color:#6b7280;margin-top:2px">${dt}</div>
-        <div style="font-size:12px;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">${revSummary}${unpaidSummary}${pendingSummary}</div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:4px">Mode: ${mode==='estimate'?'Revenue on estimate date':'Revenue on collection date'}</div>
+        <div style="font-size:13px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;align-items:baseline">${revSummary}</div>
+        ${unpaidSummary||pendingSummary?`<div style="font-size:12px;margin-top:4px;display:flex;gap:10px">${unpaidSummary}${pendingSummary}</div>`:''}
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px">Showing: ${mode==='estimate'?'Revenue on estimate date (when it was sold)':'Revenue on collection date (when payment arrived)'}</div>
       </div>
       <span class="cal-popup-close" onclick="closeCalPopup()">✕</span>
     </div>
@@ -3332,9 +3355,11 @@ function renderContest(){
 
   // Terms that should NEVER match certain products to prevent false positives
   const EXCLUSIONS={
-    'smart water leak alarm':['leak repair','fix leak','leaking','leaky','leak detection service','slab leak','pipe leak','roof leak','leak check'],
-    'leak alarm':['leak repair','fix leak','leaking','leaky','leak detection service'],
-    'water leak alarm':['leak repair','leaking pipe','pipe leak'],
+    // Only exclude when the text is clearly about a leak REPAIR, not a product install
+    // Use longer phrases so we don't accidentally exclude valid alarm sales
+    'smart water leak alarm':['leak repair','fix the leak','repaired the leak','repair leak','slab leak','pipe leak','roof leak','leak detection service','found the leak'],
+    'leak alarm':['leak repair','fix the leak','repaired the leak','slab leak','pipe leak'],
+    'water leak alarm':['leak repair','pipe leak','slab leak'],
   };
 
   function fuzzyMatch(product,...fields){
