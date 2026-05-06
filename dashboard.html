@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#B45309;color:#fff;border:1px solid #B45309;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -294,6 +294,11 @@ tr:hover td{background:#fafafa}
 .emp-filter-item input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#1A3A5C}
 .emp-filter-item .emp-role{font-size:10px;color:#9ca3af;margin-left:auto}
 .emp-filter-divider{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;padding:6px 12px 2px;background:#f9fafb}
+/* SERVICE PLAN UPLOAD */
+.plan-upload-box{border:2px dashed #d1d5db;border-radius:10px;padding:28px 24px;text-align:center;background:#fafafa;margin-bottom:16px;transition:border-color .2s,background .2s}
+.plan-upload-box.drag-over{border-color:#1A3A5C;background:#EAF2FB}
+.plan-upload-btn{display:inline-block;padding:9px 20px;background:#1A3A5C;color:#fff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;font-family:Arial,sans-serif}
+.plan-upload-btn:hover{background:#163351}
 </style>
 <body>
 <div class="wrap">
@@ -302,7 +307,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#B45309;color:#fff;border:1px solid #B45309;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.8</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -331,7 +336,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -463,7 +468,27 @@ tr:hover td{background:#fafafa}
       <div class="sec-head">Department Totals</div>
       <div class="dept-grid" id="deptTotals"></div>
       <div class="sec-head">Employee KPI Scorecards</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">Revenue credited to the tech who sold the estimate. Andy Mitchell &amp; Gannon Blaiser are installers — jobs counted, revenue attributed to selling tech.</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="font-size:12px;color:#6b7280;flex:1">Revenue credited to the tech who sold the estimate. Andy Mitchell &amp; Gannon Blaiser are installers — jobs counted, revenue attributed to selling tech.</div>
+        <!-- KPI Employee multi-select -->
+        <div class="emp-filter-wrap" id="kpiEmpFilterWrap">
+          <div class="emp-filter-btn" onclick="toggleKPIEmpFilter(event)" id="kpiEmpFilterBtn">
+            <span id="kpiEmpFilterLabel">👥 All employees</span>
+            <span style="font-size:10px;margin-left:4px">▾</span>
+          </div>
+          <div class="emp-filter-dropdown" id="kpiEmpFilterDropdown" style="display:none">
+            <div class="emp-filter-header">
+              <span style="font-size:12px;font-weight:600;color:#374151">Show in KPIs</span>
+              <div style="display:flex;gap:6px">
+                <button class="emp-filter-action" onclick="kpiEmpSelectAll()">All</button>
+                <button class="emp-filter-action" onclick="kpiEmpSelectNone()">None</button>
+                <button class="emp-filter-action" onclick="kpiEmpSelectTechs()">Techs</button>
+              </div>
+            </div>
+            <div id="kpiEmpCheckboxList"></div>
+          </div>
+        </div>
+      </div>
       <div class="sc-grid" id="scorecards"></div>
     </div>
 
@@ -671,17 +696,40 @@ tr:hover td{background:#fafafa}
 
     <!-- SERVICE PLANS -->
     <div class="panel" id="tab-plans">
-      <div class="metrics" id="planMetrics"></div>
-      <div class="sec-head">Service Plans Sold</div>
-      <div class="filter-bar">
-        <label>Employee:</label><select id="planEmpFilter" onchange="applyPlanFilter()"><option value="">All</option></select>
-        <label>Plan:</label><select id="planTypeFilter" onchange="applyPlanFilter()"><option value="">All</option></select>
-        <button class="clear-btn" onclick="clearPlanFilters()">Clear</button>
+
+      <!-- Upload area -->
+      <div class="plan-upload-box" id="planUploadBox">
+        <div style="font-size:15px;font-weight:700;color:#1A3A5C;margin-bottom:6px">📂 Upload Service Plan / Agreement Data</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:14px;line-height:1.6">
+          Since HCP doesn't expose service plans via API, export your plan data from HCP and upload it here.<br>
+          Accepts <strong>CSV or Excel (.xlsx)</strong>. Expected columns (any order, flexible matching):<br>
+          <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px">Customer Name · Plan Type · Sold By · Date · Amount · Status</code>
+        </div>
+        <label class="plan-upload-btn" for="planFileInput">
+          📁 Choose CSV or Excel file
+          <input type="file" id="planFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handlePlanUpload(this)">
+        </label>
+        <div style="font-size:11px;color:#9ca3af;margin-top:10px">Or drag and drop a file onto this box</div>
+        <div id="planUploadStatus" style="margin-top:10px;font-size:12px"></div>
       </div>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>Customer</th><th>Plan</th><th>Sold by</th><th>Status</th><th>Date</th><th class="r">Value</th></tr></thead>
-        <tbody id="plansBody"></tbody>
-      </table></div>
+
+      <!-- Loaded data view -->
+      <div id="planDataView" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div class="metrics" id="planMetrics" style="margin-bottom:0"></div>
+          <button class="is-btn danger" style="font-size:11px" onclick="clearPlanUpload()">🗑 Clear uploaded data</button>
+        </div>
+        <div class="filter-bar">
+          <label>Employee:</label><select id="planEmpFilter" onchange="applyPlanFilter()"><option value="">All</option></select>
+          <label>Plan:</label><select id="planTypeFilter" onchange="applyPlanFilter()"><option value="">All</option></select>
+          <button class="clear-btn" onclick="clearPlanFilters()">Clear filters</button>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Customer</th><th>Plan</th><th>Sold By</th><th>Status</th><th>Date</th><th class="r">Value</th></tr></thead>
+          <tbody id="plansBody"></tbody>
+        </table></div>
+      </div>
+
     </div>
 
     <!-- DEBUG -->
@@ -731,6 +779,8 @@ function connect(){
   loadISEmailState();
   loadEmpFilter();
   loadCalEmpFilter();
+  loadKPIEmpFilter();
+  loadUploadedPlans();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
   setPr('month',{target:document.querySelector('.preset.active')});
@@ -1093,37 +1143,9 @@ async function loadAll(){
     const eSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
-      // HCP Service Plans / Service Agreements live in their own module
-      // Try every known endpoint path — log results to console for debugging
-      const endpoints=[
-        '/v2/consumer_memberships',
-        '/v2/customer_memberships',
-        '/v2/memberships',
-        '/v2/recurring_services',
-        '/v2/service_agreements',
-        '/v2/agreements',
-        '/v2/contracts',
-        '/v2/maintenance_plans',
-        '/consumer_memberships',
-        '/customer_memberships',
-        '/memberships',
-      ];
-      const keys=['consumer_memberships','customer_memberships','recurring_services',
-                  'service_agreements','agreements','contracts','maintenance_plans',
-                  'memberships','data','results'];
-      for(const p of endpoints){
-        try{
-          // First do a raw fetch to see what keys come back
-          const raw=await hcpGet(p+'?page_size=5');
-          const topKeys=Object.keys(raw||{});
-          console.log(`[Plans] ${p} → keys: ${topKeys.join(', ')}`);
-          const r=await fetchAll(p,keys);
-          console.log(`[Plans] ${p} → ${r.length} items`);
-          if(r&&r.length>0) return r;
-        }catch(e){console.log(`[Plans] ${p}: ${e.message}`);}
-      }
-      console.log('[Plans] No results — check console for available keys to add');
-      return[];
+      // HCP does not expose service plans via REST API (all endpoints return 404)
+      // Plans are detected from estimate options and job descriptions after load
+      return [];
     }
     // Fetch estimates by SCHEDULED date only (when the tech actually ran the appointment)
     // created_at is when the record was made — often days/weeks before the appointment
@@ -1139,37 +1161,70 @@ async function loadAll(){
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
 
-    // If no plans found via API, scan job line items for $19.99 service plan charges
+    // HCP API doesn't expose service plans/agreements via any REST endpoint (all return 404)
+    // Instead, scan SOLD estimate options for Home Club / service agreement sales
+    // These show as approved options at $19.99 or with plan-related names
     if(!_plans.length){
-      const planFromJobs=[];
-      _jobs.forEach(j=>{
-        const lines=j.line_items||j.services||[];
-        lines.forEach(l=>{
-          const price=parseFloat(l.unit_price||l.price||l.total_amount||0);
-          const cents=price>100; // HCP sometimes returns cents
-          const priceD=cents?price/100:price;
-          const name=(l.name||l.description||'').toLowerCase();
-          const isPlan=Math.abs(priceD-19.99)<0.5||
+      const planFromEsts=[];
+      estimates.forEach(e=>{
+        (e.options||[]).forEach(o=>{
+          const price=parseFloat(o.total_amount||0);
+          const priceD=price>100?price/100:price; // handle cents vs dollars
+          const name=(o.name||'').toLowerCase();
+          const notes=(o.notes||[]).map(n=>n.content||'').join(' ').toLowerCase();
+          const status=(o.approval_status||o.status||'').toLowerCase();
+          const sold=status.includes('approved')||status.includes('converted')||
+                     status.includes('created job');
+
+          const isPlan=(Math.abs(priceD-19.99)<1.00) || // $19.99 ± $1
             name.includes('home club')||name.includes('service plan')||
             name.includes('service agreement')||name.includes('membership')||
-            name.includes('maintenance plan');
-          if(isPlan){
-            const emp=getAssignedList(j)[0];
-            planFromJobs.push({
-              id:'plan_'+j.id+'_'+planFromJobs.length,
-              customer:j.customer,
-              name:l.name||'Service Plan',
-              total_amount:1999, // store in cents
+            name.includes('maintenance plan')||name.includes('annual plan')||
+            notes.includes('home club')||notes.includes('service agreement');
+
+          if(isPlan&&sold){
+            const emp=getAssignedList(e)[0];
+            planFromEsts.push({
+              id:'plan_'+e.id+'_'+o.id,
+              customer:e.customer,
+              name:o.name||'Service Plan',
+              total_amount:o.total_amount,
               sold_by:emp,
-              created_at:j.created_at,
-              source:'job_line_item'
+              created_at:e.schedule?.scheduled_start||e.created_at,
+              source:'estimate_option'
             });
           }
         });
       });
-      if(planFromJobs.length){
-        console.log('[Plans] Found',planFromJobs.length,'via job line items ($19.99 scan)');
-        _plans=planFromJobs;
+
+      // Also scan job descriptions for $19.99 / Home Club mentions
+      jobs.forEach(j=>{
+        const desc=(j.description||'').toLowerCase();
+        const notes=j.notes?.map(n=>n.content||'').join(' ').toLowerCase()||'';
+        const total=parseFloat(j.total_amount||0);
+        const totalD=total>100?total/100:total;
+        const isPlan=(Math.abs(totalD-19.99)<1.00)||
+          desc.includes('home club')||desc.includes('service agreement')||
+          desc.includes('service plan')||desc.includes('membership');
+        if(isPlan){
+          const emp=getAssignedList(j)[0];
+          planFromEsts.push({
+            id:'plan_job_'+j.id,
+            customer:j.customer,
+            name:j.description||'Service Plan',
+            total_amount:j.total_amount,
+            sold_by:emp,
+            created_at:j.schedule?.scheduled_start||j.created_at,
+            source:'job'
+          });
+        }
+      });
+
+      if(planFromEsts.length){
+        console.log('[Plans] Found',planFromEsts.length,'via estimate options + job scan');
+        _plans=planFromEsts;
+      } else {
+        console.log('[Plans] None found in estimate options or jobs — service plans may need a wider date range');
       }
     }
 
@@ -1200,7 +1255,15 @@ async function loadAll(){
     buildEmpFilter();
     loadCalEmpFilter();
     buildCalEmpFilter();
+    loadKPIEmpFilter();
+    buildKPIEmpFilter();
     initKPIRange();
+    // Show plan data view if we already have uploaded plans
+    if(_uploadedPlans.length){
+      const box=$$('planUploadBox');const view=$$('planDataView');
+      if(box) box.style.display='none';
+      if(view) view.style.display='block';
+    }
     // Sync to Google Sheets in background
     syncReportToSheets(jobs,estimates,employees,plans,from,to);
 
@@ -1788,6 +1851,76 @@ function renderEstRows(estimates){
 // ============================================================
 // KPI DATE RANGE
 // ============================================================
+// ---- KPI Employee Filter ----
+let _kpiSelectedEmps=new Set();
+
+function buildKPIEmpFilter(){
+  if(!_employees.length) return;
+  const list=$$('kpiEmpCheckboxList');
+  if(!list) return;
+  const nonInstallers=_employees
+    .filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim()))
+    .sort((a,b)=>((a.first_name||'')+(a.last_name||'')).localeCompare((b.first_name||'')+(b.last_name||'')));
+  if(_kpiSelectedEmps.size===0){nonInstallers.forEach(e=>_kpiSelectedEmps.add(e.id));saveKPIEmpFilter();}
+  list.innerHTML='';
+  nonInstallers.forEach(emp=>{
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
+    const color=emp.color_hex?`#${emp.color_hex}`:'#9ca3af';
+    const label=document.createElement('label');
+    label.className='emp-filter-item';
+    label.innerHTML=`<input type="checkbox" value="${emp.id}" ${_kpiSelectedEmps.has(emp.id)?'checked':''} onchange="toggleKPIEmpCheck('${emp.id}',this.checked)">
+      <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+      <span style="flex:1">${name}</span><span class="emp-role">${emp.role||''}</span>`;
+    list.appendChild(label);
+  });
+  updateKPIEmpLabel();
+}
+function toggleKPIEmpCheck(id,checked){
+  if(checked)_kpiSelectedEmps.add(id);else _kpiSelectedEmps.delete(id);
+  saveKPIEmpFilter();updateKPIEmpLabel();
+  if(_jobs.length)renderKPI(_jobs,_estimates,_employees,_plans);
+}
+function kpiEmpSelectAll(){
+  _employees.filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim())).forEach(e=>_kpiSelectedEmps.add(e.id));
+  saveKPIEmpFilter();document.querySelectorAll('#kpiEmpCheckboxList input').forEach(cb=>cb.checked=true);
+  updateKPIEmpLabel();if(_jobs.length)renderKPI(_jobs,_estimates,_employees,_plans);
+}
+function kpiEmpSelectNone(){
+  _kpiSelectedEmps.clear();saveKPIEmpFilter();
+  document.querySelectorAll('#kpiEmpCheckboxList input').forEach(cb=>cb.checked=false);
+  updateKPIEmpLabel();if(_jobs.length)renderKPI(_jobs,_estimates,_employees,_plans);
+}
+function kpiEmpSelectTechs(){
+  _kpiSelectedEmps.clear();
+  _employees.forEach(e=>{
+    const role=(e.role||'').toLowerCase();
+    const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+    if(!INSTALLER_NAMES.includes(name)&&(role.includes('tech')||role.includes('field')))_kpiSelectedEmps.add(e.id);
+  });
+  saveKPIEmpFilter();document.querySelectorAll('#kpiEmpCheckboxList input').forEach(cb=>{cb.checked=_kpiSelectedEmps.has(cb.value);});
+  updateKPIEmpLabel();if(_jobs.length)renderKPI(_jobs,_estimates,_employees,_plans);
+}
+function updateKPIEmpLabel(){
+  const total=_employees.filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim())).length;
+  const sel=_kpiSelectedEmps.size;
+  const label=$$('kpiEmpFilterLabel');const btn=$$('kpiEmpFilterBtn');
+  if(!label)return;
+  if(sel===0||sel===total){label.textContent='👥 All employees';btn?.classList.remove('active');}
+  else{label.textContent=`👥 ${sel} of ${total} shown`;btn?.classList.add('active');}
+}
+function saveKPIEmpFilter(){try{localStorage.setItem('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));}catch(e){}}
+function loadKPIEmpFilter(){try{const s=localStorage.getItem('hcp_kpi_emps');if(s)_kpiSelectedEmps=new Set(JSON.parse(s));}catch(e){}}
+function toggleKPIEmpFilter(e){
+  e.stopPropagation();
+  const dd=$$('kpiEmpFilterDropdown');
+  if(dd)dd.style.display=dd.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  const wrap=$$('kpiEmpFilterWrap');
+  if(wrap&&!wrap.contains(e.target)){const dd=$$('kpiEmpFilterDropdown');if(dd)dd.style.display='none';}
+});
+function isKPIEmpVisible(empId){return _kpiSelectedEmps.size===0||_kpiSelectedEmps.has(empId);}
+
 let _kpiPreset='mtd'; // default
 
 function setKPIPreset(preset, btn){
@@ -1915,10 +2048,10 @@ function renderKPI(jobs,estimates,employees,plans){
   });
 
   const allCards=Object.values(map).filter(e=>e.jobs>0||e.installs>0||e.estimates>0||e.plans>0);
-  // Apply employee visibility filter
+  // Apply KPI employee visibility filter
   const visibleCards=allCards.filter(e=>{
     const emp=_employees.find(x=>{const n=((x.first_name||x.name||'')+' '+(x.last_name||'')).trim();return n===e.name;});
-    return !emp||isEmpVisible(emp.id);
+    return !emp||isKPIEmpVisible(emp.id);
   });
   const techCards=visibleCards.filter(e=>!e.installer).sort((a,b)=>b.revenue-a.revenue);
   const installerCards=visibleCards.filter(e=>e.installer).sort((a,b)=>b.installs-a.installs);
@@ -2210,6 +2343,146 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
   }
 }
+// ============================================================
+// SERVICE PLAN MANUAL UPLOAD
+// ============================================================
+let _uploadedPlans=[];
+
+function loadUploadedPlans(){
+  try{const s=localStorage.getItem('hcp_uploaded_plans');if(s){_uploadedPlans=JSON.parse(s);_plans=_uploadedPlans;}}catch(e){}
+}
+function saveUploadedPlans(){
+  try{localStorage.setItem('hcp_uploaded_plans',JSON.stringify(_uploadedPlans));}catch(e){}
+}
+
+// Drag and drop support
+document.addEventListener('DOMContentLoaded',function(){
+  const box=$$('planUploadBox');
+  if(!box) return;
+  box.addEventListener('dragover',e=>{e.preventDefault();box.classList.add('drag-over');});
+  box.addEventListener('dragleave',()=>box.classList.remove('drag-over'));
+  box.addEventListener('drop',e=>{
+    e.preventDefault();box.classList.remove('drag-over');
+    const file=e.dataTransfer?.files?.[0];
+    if(file) processPlanFile(file);
+  });
+});
+
+function handlePlanUpload(input){
+  const file=input?.files?.[0];
+  if(file) processPlanFile(file);
+}
+
+async function processPlanFile(file){
+  const status=$$('planUploadStatus');
+  if(status) status.innerHTML='<span style="color:#6b7280">Reading file...</span>';
+  try{
+    let rows=[];
+    if(file.name.match(/\.xlsx?$/i)){
+      rows=await parseExcelFile(file);
+    } else {
+      const text=await file.text();
+      rows=parseCSVFile(text);
+    }
+    if(rows.length<2){
+      if(status) status.innerHTML='<span style="color:#dc2626">No data rows found in file.</span>';
+      return;
+    }
+    const plans=mapPlanRows(rows);
+    if(!plans.length){
+      if(status) status.innerHTML='<span style="color:#dc2626">Could not map columns. Make sure your file has recognizable headers like Customer, Plan, Sold By, Date, Amount.</span>';
+      return;
+    }
+    _uploadedPlans=plans;_plans=plans;
+    saveUploadedPlans();
+    if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${plans.length} records from "${file.name}"</span>`;
+    $$('planUploadBox').style.display='none';
+    $$('planDataView').style.display='block';
+    populateFilters(_jobs,_estimates,plans);
+    renderPlans(plans);
+  }catch(err){
+    if(status) status.innerHTML=`<span style="color:#dc2626">Error: ${err.message}</span>`;
+  }
+}
+
+function parseCSVFile(text){
+  return text.split(/\r?\n/).filter(l=>l.trim()).map(line=>{
+    const cols=[];let cur='',inQ=false;
+    for(const ch of line){
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=ch;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+async function parseExcelFile(file){
+  if(typeof XLSX==='undefined'){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload=res;s.onerror=()=>rej(new Error('Could not load Excel parser'));
+      document.head.appendChild(s);
+    });
+  }
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws,{header:1,defval:''}).map(r=>r.map(c=>String(c||'').trim()));
+}
+
+function mapPlanRows(rows){
+  const headers=rows[0].map(h=>String(h).toLowerCase().trim());
+  function findCol(...kws){for(const kw of kws){const i=headers.findIndex(h=>h.includes(kw));if(i>=0)return i;}return-1;}
+  const custCol=findCol('customer','client','name');
+  const planCol=findCol('plan','type','service','agreement','product','description');
+  const soldCol=findCol('sold by','tech','employee','rep','salesperson','staff','sold');
+  const dateCol=findCol('date','sold date','created','start','closed');
+  const amtCol =findCol('amount','price','value','total','cost','revenue');
+  const statCol=findCol('status','active','state');
+  const plans=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    if(!r||r.every(c=>!String(c||'').trim())) continue;
+    const custName=custCol>=0?r[custCol]||'Unknown':'Unknown';
+    const planName=planCol>=0?r[planCol]||'Service Plan':'Service Plan';
+    const soldBy  =soldCol>=0?r[soldCol]||'':'';
+    const dateRaw =dateCol>=0?r[dateCol]||'':'';
+    const amt     =amtCol>=0?parseFloat(String(r[amtCol]).replace(/[$,]/g,''))||19.99:19.99;
+    const status  =statCol>=0?r[statCol]||'Active':'Active';
+    const empMatch=_employees.find(e=>{
+      const n=((e.first_name||'')+' '+(e.last_name||'')).trim().toLowerCase();
+      const sb=soldBy.toLowerCase();
+      return sb&&(n===sb||n.includes(sb)||sb.includes(n.split(' ')[0]));
+    });
+    let dateISO=new Date().toISOString();
+    try{if(dateRaw){const d=new Date(dateRaw);if(!isNaN(d))dateISO=d.toISOString();}}catch(e){}
+    plans.push({
+      id:'upload_'+i,
+      customer:{first_name:custName,last_name:'',id:'upload_cust_'+i},
+      name:planName,
+      total_amount:Math.round(amt*100),
+      sold_by:empMatch||{first_name:soldBy||'Unknown',last_name:'',id:'manual_'+soldBy},
+      created_at:dateISO,
+      status,
+      source:'upload'
+    });
+  }
+  return plans;
+}
+
+function clearPlanUpload(){
+  if(!confirm('Clear uploaded service plan data?')) return;
+  _uploadedPlans=[];_plans=[];
+  saveUploadedPlans();
+  $$('planUploadBox').style.display='';
+  $$('planDataView').style.display='none';
+  const inp=$$('planFileInput');if(inp)inp.value='';
+  renderPlans([]);
+}
+
 // ============================================================
 // DATA MANAGEMENT
 // ============================================================
@@ -3331,8 +3604,9 @@ function renderContest(){
 
   // Product aliases — searching any of these terms matches the others
   const PRODUCT_ALIASES=[
-    // Smart Water Leak Alarm — specific product only, no generic leak terms
-    ['smart water leak alarm','smart water leak','water leak alarm','leak sensor','4 pack alarm','smart leak'],
+    // Smart Water Leak Alarm — EXACT product name only
+    // Only matches "Smart Water Leak Alarm (4 pack)" or very close variants
+    ['smart water leak alarm (4 pack)','smart water leak alarm','smart water leak alarms'],
     ['water softener','water conditioner','water conditioning','kinetico','ecowater','culligan','softener system','smart valve softener','22k softener','30k softener','45k softener','60k softener','whole home softener'],
     ['home club','service agreement','service plan','maintenance plan','club membership','annual plan'],
     ['furnace','heating system','heat system','hvac install','air handler','furnace install'],
@@ -3410,26 +3684,10 @@ function renderContest(){
     if(isJobPaid(j)) revenue[creditId]+=getJobTotal(j);
   });
 
-  // Count from estimates (sold only) — fuzzy match all option text
-  const countedJobIds=new Set(); // track which jobs already counted to avoid double-count
-
-  _estimates.forEach(e=>{
-    const score=fuzzyMatch(product,...estSearchText(e));
-    const match=score>=MATCH_THRESHOLD;
-    if(!match) return;
-    if(!isConv(e)) return; // only count sold estimates
-
-    const empList=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
-    const emp=empList[0];
-    if(!emp) return;
-    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
-    ensureEmp(emp.id,name);
-    // Only count if there isn't an already-counted linked job
-    const linkedJob=_jobs.find(j=>j.original_estimate_id&&
-      (e.options||[]).some(o=>o.id===j.original_estimate_id));
-    if(linkedJob&&countedJobIds.has(linkedJob.id)) return;
-    scores[emp.id]++;
-  });
+  // Contest only counts JOBS — not standalone estimates
+  // An estimate only converts to a sale when the job is done and paid
+  // (Estimates are already linked to jobs via original_estimate_id)
+  // No estimate-only counting here.
 
   // Build sorted leaderboard
   const entries=_employees
@@ -3444,7 +3702,7 @@ function renderContest(){
   const total=entries.reduce((s,e)=>s+e.count,0);
   // Show what was matched for transparency
   const matchedJobs=_jobs.filter(j=>fuzzyMatch(product,...jobSearchText(j))>=MATCH_THRESHOLD);
-  const matchedEsts=_estimates.filter(e=>fuzzyMatch(product,...estSearchText(e))>=MATCH_THRESHOLD&&isConv(e));
+  const matchedEsts=[]; // contest only counts jobs
   const max=entries[0]?.count||1;
   const productLabel=($$('contestProduct')?.value||'').trim();
 
@@ -3474,7 +3732,7 @@ function renderContest(){
   board.innerHTML=`
     <div style="margin-bottom:20px">
       <div class="sec-head">🏆 ${productLabel} — Leaderboard</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">${total} matched · ${matchedJobs.length} jobs + ${matchedEsts.length} estimates · ${$$('dateFrom').value} → ${$$('dateTo').value}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">${total} job${total!==1?'s':''} matched · ${$$('dateFrom').value} → ${$$('dateTo').value}</div>
       <div class="leaderboard-wrap">${lbRows}</div>
     </div>
     <div>
