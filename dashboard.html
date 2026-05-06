@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#D97706;color:#fff;border:1px solid #D97706;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -280,7 +280,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v5.1</span>
+      <span style="font-size:12px;background:#D97706;color:#fff;border:1px solid #D97706;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v5.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -309,10 +309,12 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v5.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v5.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
+      <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
+      <button class="sec-btn no-print" onclick="showDataTools()">⚙ Data</button>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
     </div>
   </div>
@@ -449,14 +451,28 @@ tr:hover td{background:#fafafa}
             <option value="estimate">Revenue on estimate date (who sold it)</option>
             <option value="collected">Revenue on collection date (cash flow)</option>
           </select>
-          <label style="font-size:12px;color:#6b7280;margin-left:8px">Employee:</label>
-          <select id="calEmpFilter" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
-            <option value="all">All employees</option>
-          </select>
+          <label style="font-size:12px;color:#6b7280;margin-left:8px">Employees:</label>
+          <!-- Calendar-specific multi-select dropdown -->
+          <div class="emp-filter-wrap" id="calEmpFilterWrap">
+            <div class="emp-filter-btn" onclick="toggleCalEmpFilter(event)" id="calEmpFilterBtn">
+              <span id="calEmpFilterLabel">👥 All employees</span>
+              <span style="font-size:10px;margin-left:4px">▾</span>
+            </div>
+            <div class="emp-filter-dropdown" id="calEmpFilterDropdown" style="display:none">
+              <div class="emp-filter-header">
+                <span style="font-size:12px;font-weight:600;color:#374151">Show on calendar</span>
+                <div style="display:flex;gap:6px">
+                  <button class="emp-filter-action" onclick="calEmpSelectAll()">All</button>
+                  <button class="emp-filter-action" onclick="calEmpSelectNone()">None</button>
+                  <button class="emp-filter-action" onclick="calEmpSelectTechs()">Techs</button>
+                </div>
+              </div>
+              <div id="calEmpCheckboxList"></div>
+            </div>
+          </div>
         </div>
         <div style="font-size:11px;color:#9ca3af;margin-top:6px">
-          💡 Revenue is backdated to the estimate date when a job converts — cells update automatically when you pull fresh data.
-          Click any cell for details.
+          💡 Revenue is credited to the estimate date when a job converts. Click any cell for details. Use the employee picker to compare specific people side by side.
         </div>
       </div>
       <!-- Calendar table -->
@@ -499,7 +515,84 @@ tr:hover td{background:#fafafa}
       <!-- Opportunity cards -->
       <div id="isCards"></div>
 
-      <!-- Email modal -->
+      <!-- Data Tools Modal -->
+  <div class="is-modal-overlay" id="dataToolsOverlay" onclick="closeDataTools()" style="display:none"></div>
+  <div class="is-modal" id="dataToolsModal" style="display:none;max-width:480px">
+    <div class="is-modal-header">
+      <div class="is-modal-title">⚙ Data Management</div>
+      <span style="font-size:20px;cursor:pointer;color:#9ca3af" onclick="closeDataTools()">✕</span>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Attribution data</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears all confirmed revenue attributions stored in your browser. You'll need to re-confirm jobs in the Attribution tab after your next pull.</div>
+      <div style="font-size:12px;color:#9ca3af;margin-bottom:8px" id="attrStorageInfo"></div>
+      <button class="is-btn danger" style="width:100%" onclick="clearAttributions()">🗑 Clear all attributions</button>
+    </div>
+
+    <div style="margin-bottom:20px;padding-top:16px;border-top:1px solid #f3f4f6">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Inside Sales activity</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears all IS call logs, email history, and opportunity statuses from both browser and Google Sheets.</div>
+      <button class="is-btn danger" style="width:100%" onclick="clearISData()">🗑 Clear Inside Sales data</button>
+    </div>
+
+    <div style="margin-bottom:20px;padding-top:16px;border-top:1px solid #f3f4f6">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Google Sheets — KPI history</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears all rows from the KPI_Scores and Reports tabs in Midstate HCP Data. Jobs, Estimates, and Attribution tabs are always overwritten on pull so they're already clean. Use this to restart KPI tracking from a clean baseline.</div>
+      <button class="is-btn danger" style="width:100%" onclick="clearSheetsHistory()">🗑 Clear KPI &amp; Reports history in Sheets</button>
+    </div>
+
+    <div style="padding-top:16px;border-top:1px solid #f3f4f6">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Full reset</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears everything above in one step — attributions, IS data, and Sheets history. Fresh start.</div>
+      <button class="is-btn danger" style="width:100%;background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700" onclick="fullReset()">⚠ Full reset — clear everything</button>
+    </div>
+
+    <div style="margin-top:12px;padding:10px;background:#f9fafb;border-radius:6px;font-size:11px;color:#6b7280">
+      <strong>Note:</strong> None of these actions affect your Housecall Pro data. They only clear what this dashboard has stored locally and in your Google Sheet.
+    </div>
+  </div>
+
+  <!-- Email modal -->
+      <!-- DATA TOOLS MODAL -->
+      <div class="is-modal-overlay" id="dataToolsOverlay" onclick="closeDataTools()" style="display:none"></div>
+      <div class="is-modal" id="dataToolsModal" style="display:none;max-width:460px">
+        <div class="is-modal-header">
+          <div class="is-modal-title">⚙ Data Management</div>
+          <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeDataTools()">✕</span>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:16px" id="attrStorageInfo"></div>
+
+        <div style="margin-bottom:18px">
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Attribution data</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears confirmed revenue attributions stored in your browser. Re-confirm jobs in the Attribution tab after your next pull.</div>
+          <button class="is-btn danger" style="width:100%" onclick="clearAttributions()">🗑 Clear all attributions</button>
+        </div>
+
+        <div style="margin-bottom:18px;padding-top:14px;border-top:1px solid #f3f4f6">
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Inside Sales activity</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears all call logs, email history, and opportunity statuses from browser and Google Sheets.</div>
+          <button class="is-btn danger" style="width:100%" onclick="clearISData()">🗑 Clear Inside Sales data</button>
+        </div>
+
+        <div style="margin-bottom:18px;padding-top:14px;border-top:1px solid #f3f4f6">
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Google Sheets — KPI history</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears KPI_Scores and Reports tabs in Midstate HCP Data. Jobs, Estimates, and Attribution are always overwritten on pull — already clean.</div>
+          <button class="is-btn danger" style="width:100%" onclick="clearSheetsHistory()">🗑 Clear KPI &amp; Reports history in Sheets</button>
+        </div>
+
+        <div style="padding-top:14px;border-top:1px solid #f3f4f6;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:3px">Full reset</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears everything above in one step. Fresh start.</div>
+          <button class="is-btn" style="width:100%;background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700" onclick="fullReset()">⚠ Full reset — clear everything</button>
+        </div>
+
+        <div style="padding:10px 12px;background:#f9fafb;border-radius:6px;font-size:11px;color:#6b7280">
+          None of these actions affect your Housecall Pro data — only what this dashboard has stored locally and in your Google Sheet.
+        </div>
+      </div>
+
+      <!-- EMAIL MODAL -->
       <div class="is-modal-overlay" id="isModalOverlay" onclick="closeISModal()" style="display:none"></div>
       <div class="is-modal" id="isModal" style="display:none">
         <div class="is-modal-header">
@@ -570,6 +663,7 @@ function connect(){
   loadAttr();
   loadIS();
   loadEmpFilter();
+  loadCalEmpFilter();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
   setPr('month',{target:document.querySelector('.preset.active')});
@@ -656,7 +750,8 @@ function getNormStatus(x){
 function isJobComplete(j){
   const s=getRawStatus(j);
   if(s.includes('refund')||s.includes('void')||s.includes('cancel'))return false;
-  // Complete if status says so OR if there's a completed_at timestamp
+  // HCP uses many "complete" variants: complete, completed, complete unrated, complete rated
+  // Also check completed_at timestamp as the definitive signal
   return s.includes('complete')||s.includes('completed')||hasCompletedAt(j);
 }
 function isJobPaid(j){return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;}
@@ -927,7 +1022,6 @@ async function loadAll(){
   try{
     const jQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const eSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
-    const eCreatedQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
       for(const p of ['/v2/memberships'+cQ,'/v2/customer_memberships'+cQ,'/memberships'+cQ]){
@@ -935,18 +1029,10 @@ async function loadAll(){
       }
       return[];
     }
-    // Fetch estimates by BOTH scheduled date and created date, then deduplicate by ID
+    // Fetch estimates by SCHEDULED date only (when the tech actually ran the appointment)
+    // created_at is when the record was made — often days/weeks before the appointment
     async function fetchEstimates(){
-      const [bySchedule, byCreated] = await Promise.all([
-        fetchAll('/v2/estimates'+eSchedQ,['estimates','data','results']),
-        fetchAll('/v2/estimates'+eCreatedQ,['estimates','data','results']),
-      ]);
-      const seen=new Set();
-      const combined=[];
-      for(const e of [...bySchedule,...byCreated]){
-        if(!seen.has(e.id)){seen.add(e.id);combined.push(e);}
-      }
-      return combined;
+      return fetchAll('/v2/estimates'+eSchedQ,['estimates','data','results']);
     }
     const [jobs,estimates,empRaw,plans]=await Promise.all([
       fetchAll('/v2/jobs'+jQ,['jobs','data','results']),
@@ -980,6 +1066,8 @@ async function loadAll(){
     renderIS();
     updateISBadge();
     buildEmpFilter();
+    loadCalEmpFilter();
+    buildCalEmpFilter();
     // Sync to Google Sheets in background
     syncReportToSheets(jobs,estimates,employees,plans,from,to);
 
@@ -1008,7 +1096,8 @@ function buildAttribution(jobs,estimates){
   const estById={};
   const estByCustomer={}; // custId -> [estimates sorted by date asc]
   estimates.forEach(e=>{
-    estById[e.id]=e;
+    estById[e.id]=e; // csr_ record id
+    (e.options||[]).forEach(o=>{ estById[o.id]=e; }); // est_ option ids → parent estimate
     const cid=getCustId(e);
     if(cid){if(!estByCustomer[cid])estByCustomer[cid]=[];estByCustomer[cid].push(e);}
   });
@@ -1866,6 +1955,69 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
   }
 }
+// ============================================================
+// DATA MANAGEMENT
+// ============================================================
+function showDataTools(){
+  const attrCount=Object.keys(_attr||{}).length;
+  const isCount=Object.values(_isActivity||{}).reduce((s,a)=>s+(a?.length||0),0);
+  const el=$$('attrStorageInfo');
+  if(el) el.textContent=`Currently storing ${attrCount} attribution${attrCount!==1?'s':''} and ${isCount} IS activity log${isCount!==1?'s':''}.`;
+  $$('dataToolsModal').style.display='block';
+  $$('dataToolsOverlay').style.display='block';
+}
+function closeDataTools(){
+  $$('dataToolsModal').style.display='none';
+  $$('dataToolsOverlay').style.display='none';
+}
+function clearAttributions(){
+  if(!confirm('Clear all stored attributions? You\'ll need to re-confirm jobs after your next pull. Cannot be undone.'))return;
+  _attr={};
+  try{localStorage.removeItem('hcp_attr');}catch(e){}
+  if(_jobs.length){buildAttribution(_jobs,_estimates);renderAttr(_jobs,_estimates);}
+  closeDataTools();
+  alert('✅ Attributions cleared. Pull a fresh report and re-confirm in the Attribution tab.');
+}
+function clearISData(){
+  if(!confirm('Clear all Inside Sales data — call logs, emails, opportunity statuses? Also clears from Google Sheets. Cannot be undone.'))return;
+  _isActivity={};_isStatus={};_isConvertedBy={};
+  try{['hcp_is_activity','hcp_is_status','hcp_is_conv'].forEach(k=>localStorage.removeItem(k));}catch(e){}
+  clearSheetsTab('Inside_Sales');
+  clearSheetsTab('IS_Activity');
+  if(_estimates.length) renderIS();
+  updateISBadge();
+  closeDataTools();
+  alert('✅ Inside Sales data cleared.');
+}
+async function clearSheetsTab(tabName){
+  if(!_sheetsProxy)return;
+  try{
+    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      body:JSON.stringify({action:'clearTab',tabName})});
+  }catch(e){console.warn('Sheets clear failed:',tabName,e.message);}
+}
+async function clearSheetsHistory(){
+  if(!confirm('Clear KPI_Scores and Reports history from Google Sheets? Cannot be undone.'))return;
+  const btn=event?.target;
+  if(btn){btn.textContent='Clearing...';btn.disabled=true;}
+  await clearSheetsTab('KPI_Scores');
+  await clearSheetsTab('Reports');
+  if(btn){btn.textContent='🗑 Clear KPI & Reports history in Sheets';btn.disabled=false;}
+  alert('✅ KPI_Scores and Reports tabs cleared. Next pull starts fresh history.');
+}
+async function fullReset(){
+  if(!confirm('⚠ Full reset: clear ALL attributions, Inside Sales data, and Google Sheets KPI history?\n\nYour HCP data is NOT affected. Cannot be undone.'))return;
+  if(!confirm('Last chance — are you sure?'))return;
+  _attr={};_isActivity={};_isStatus={};_isConvertedBy={};
+  try{['hcp_attr','hcp_is_activity','hcp_is_status','hcp_is_conv'].forEach(k=>localStorage.removeItem(k));}catch(e){}
+  await Promise.all([clearSheetsTab('KPI_Scores'),clearSheetsTab('Reports'),clearSheetsTab('Inside_Sales'),clearSheetsTab('IS_Activity')]);
+  if(_jobs.length){buildAttribution(_jobs,_estimates);renderAttr(_jobs,_estimates);}
+  if(_estimates.length) renderIS();
+  updateISBadge();
+  closeDataTools();
+  alert('✅ Full reset complete. Pull a fresh report to start with clean data.');
+}
+
 const IS_PROXY_PLACEHOLDER = ''; // Uses _sheetsProxy from state
 let _isActivity = {};
 let _isStatus   = {};
@@ -2315,6 +2467,87 @@ function closeISModal(){
   $$('isModal').style.display='none';
   $$('isModalOverlay').style.display='none';
 }
+// ============================================================
+// CALENDAR EMPLOYEE FILTER (calendar-specific, independent of global filter)
+// ============================================================
+let _calSelectedEmps=new Set();
+
+function buildCalEmpFilter(){
+  if(!_employees.length) return;
+  const list=$$('calEmpCheckboxList');
+  if(!list) return;
+  const nonInstallers=_employees
+    .filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim()))
+    .sort((a,b)=>((a.first_name||'')+(a.last_name||'')).localeCompare((b.first_name||'')+(b.last_name||'')));
+  // Default all selected on first load
+  if(_calSelectedEmps.size===0){
+    nonInstallers.forEach(e=>_calSelectedEmps.add(e.id));
+    saveCalEmpFilter();
+  }
+  list.innerHTML='';
+  nonInstallers.forEach(emp=>{
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
+    const color=emp.color_hex?`#${emp.color_hex}`:'#9ca3af';
+    const label=document.createElement('label');
+    label.className='emp-filter-item';
+    label.innerHTML=`<input type="checkbox" value="${emp.id}" ${_calSelectedEmps.has(emp.id)?'checked':''} onchange="toggleCalEmpCheck('${emp.id}',this.checked)">
+      <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+      <span style="flex:1">${name}</span><span class="emp-role">${emp.role||''}</span>`;
+    list.appendChild(label);
+  });
+  updateCalEmpLabel();
+}
+
+function toggleCalEmpCheck(empId,checked){
+  if(checked)_calSelectedEmps.add(empId);else _calSelectedEmps.delete(empId);
+  saveCalEmpFilter();updateCalEmpLabel();renderCalendar();
+}
+function calEmpSelectAll(){
+  _employees.filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim()))
+    .forEach(e=>_calSelectedEmps.add(e.id));
+  saveCalEmpFilter();
+  document.querySelectorAll('#calEmpCheckboxList input').forEach(cb=>cb.checked=true);
+  updateCalEmpLabel();renderCalendar();
+}
+function calEmpSelectNone(){
+  _calSelectedEmps.clear();saveCalEmpFilter();
+  document.querySelectorAll('#calEmpCheckboxList input').forEach(cb=>cb.checked=false);
+  updateCalEmpLabel();renderCalendar();
+}
+function calEmpSelectTechs(){
+  _calSelectedEmps.clear();
+  _employees.forEach(e=>{
+    const role=(e.role||'').toLowerCase();
+    const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+    if(!INSTALLER_NAMES.includes(name)&&(role.includes('tech')||role.includes('field')))
+      _calSelectedEmps.add(e.id);
+  });
+  saveCalEmpFilter();
+  document.querySelectorAll('#calEmpCheckboxList input').forEach(cb=>{cb.checked=_calSelectedEmps.has(cb.value);});
+  updateCalEmpLabel();renderCalendar();
+}
+function updateCalEmpLabel(){
+  const total=_employees.filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim())).length;
+  const sel=_calSelectedEmps.size;
+  const label=$$('calEmpFilterLabel');const btn=$$('calEmpFilterBtn');
+  if(!label)return;
+  if(sel===0||sel===total){label.textContent='👥 All employees';btn?.classList.remove('active');}
+  else{label.textContent=`👥 ${sel} of ${total} shown`;btn?.classList.add('active');}
+}
+function saveCalEmpFilter(){try{localStorage.setItem('hcp_cal_emps',JSON.stringify([..._calSelectedEmps]));}catch(e){}}
+function loadCalEmpFilter(){try{const s=localStorage.getItem('hcp_cal_emps');if(s)_calSelectedEmps=new Set(JSON.parse(s));}catch(e){}}
+function toggleCalEmpFilter(e){
+  e.stopPropagation();
+  const dd=$$('calEmpFilterDropdown');
+  if(dd) dd.style.display=dd.style.display==='none'?'block':'none';
+}
+// Close when clicking outside
+document.addEventListener('click',function(e){
+  const wrap=$$('calEmpFilterWrap');
+  if(wrap&&!wrap.contains(e.target)){const dd=$$('calEmpFilterDropdown');if(dd)dd.style.display='none';}
+});
+function isCalEmpVisible(empId){return _calSelectedEmps.size===0||_calSelectedEmps.has(empId);}
+
 function buildCalendarData(jobs, estimates, mode){
   // RULES:
   // 1. Estimates always appear on the date they were RUN (created_at)
@@ -2326,7 +2559,7 @@ function buildCalendarData(jobs, estimates, mode){
 
   const employees = _employees.filter(e=>{
     const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-    return !INSTALLER_NAMES.includes(name) && isEmpVisible(e.id);
+    return !INSTALLER_NAMES.includes(name) && isCalEmpVisible(e.id);
   }).sort((a,b)=>{
     const an=((a.first_name||'')+' '+(a.last_name||'')).trim();
     const bn=((b.first_name||'')+' '+(b.last_name||'')).trim();
@@ -2349,8 +2582,13 @@ function buildCalendarData(jobs, estimates, mode){
   }
 
   // Build estimate lookup by id for fast access
+  // HCP stores original_estimate_id as the OPTION id (est_...) not the estimate record id (csr_...)
+  // So we index both the estimate record ID AND each option ID
   const estById={};
-  estimates.forEach(e=>{ estById[e.id]=e; });
+  estimates.forEach(e=>{
+    estById[e.id]=e; // csr_ id
+    (e.options||[]).forEach(o=>{ estById[o.id]=e; }); // est_ option ids → parent estimate
+  });
 
   // ---- ESTIMATES: show on the date they were RUN (scheduled appointment date)
   // Use scheduled_start first — that's when the tech actually went out
@@ -2588,47 +2826,82 @@ function renderCalendar(){
 // Store calendar data for popup
 let _calCells={}, _calMode='estimate';
 function openCalPopup(date, empId, empName){
-  const {cells}=buildCalendarData(_jobs,_estimates,$$('calRevenueMode')?.value||'estimate');
+  const mode=$$('calRevenueMode')?.value||'estimate';
+  const {cells}=buildCalendarData(_jobs,_estimates,mode);
   const c=cells[`${date}|${empId}`];
   if(!c||!c.items.length) return;
 
   const dt=new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const jobs=c.items.filter(i=>i.type==='job');
   const ests=c.items.filter(i=>i.type==='estimate');
+  const refs=c.items.filter(i=>i.type==='revenue_ref');
+
+  // Revenue breakdown
+  const collectedHere=jobs.filter(j=>!j.revenueElsewhere&&j.paid);
+  const refsTotal=refs.reduce((s,r)=>s+r.total,0);
 
   const jobsHtml=jobs.length?`<div class="cal-popup-section">
-    <div class="cal-popup-section-head">Jobs (${jobs.length})</div>
-    ${jobs.map(j=>`<div class="cal-popup-item" style="${j.revenueElsewhere?'border-left:3px solid #9ca3af;':''}">
-      <div class="cal-popup-item-title">#${j.number||j.id||'—'} · ${j.customer} ${jBadge({work_status:j.status,outstanding_balance:j.paid?0:1})}</div>
-      <div class="cal-popup-item-meta">${j.dept} · ${j.total?dollars(j.total):'—'} · ${j.emp}</div>
-      ${j.revenueElsewhere?`<div class="cal-popup-item-meta" style="color:#6b7280;font-style:italic">↩ Revenue credited to estimate date (${j.revenueDate})</div>`:''}
-      ${j.revNote&&!j.revenueElsewhere?`<div class="cal-popup-item-meta" style="color:#854F0B;font-style:italic">↩ ${j.revNote}</div>`:''}
-      ${j.reason?`<div class="cal-popup-item-meta" style="color:#5B21B6">Reason: ${j.reason}</div>`:''}
-      ${j.notes&&j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,200)}</div>`:''}
+    <div class="cal-popup-section-head">Jobs on this date (${jobs.length})</div>
+    ${jobs.map(j=>{
+      const statusBadge=j.paid?'<span style="font-size:11px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">Paid</span>':
+        j.complete?'<span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:99px;font-weight:600">Unpaid</span>':
+        '<span style="font-size:11px;background:#DBEAFE;color:#1d4ed8;padding:1px 6px;border-radius:99px;font-weight:600">In progress</span>';
+      const revLine=j.revenueElsewhere
+        ?`<div style="font-size:11px;color:#6b7280;margin-top:3px;padding:3px 6px;background:#f9fafb;border-radius:3px">↩ Revenue credited to <strong>${j.revenueDate}</strong> (estimate date)</div>`
+        :j.paid?`<div style="font-size:11px;color:#166534;margin-top:3px">✅ ${dollars(j.total)} credited here</div>`
+        :j.complete?`<div style="font-size:11px;color:#92400E;margin-top:3px">⚠ ${dollars(j.total)} outstanding</div>`
+        :`<div style="font-size:11px;color:#6b7280;margin-top:3px">🕐 ${j.total?dollars(j.total):''} — not yet complete</div>`;
+      return`<div class="cal-popup-item" style="border-left:3px solid ${j.paid&&!j.revenueElsewhere?'#16a34a':j.revenueElsewhere?'#9ca3af':j.complete?'#b45309':'#3b82f6'}">
+        <div class="cal-popup-item-title">#${j.number||j.id||'—'} · ${j.customer} ${statusBadge}</div>
+        <div class="cal-popup-item-meta">${j.dept} · Assigned: ${j.emp}</div>
+        ${revLine}
+        ${j.reason?`<div class="cal-popup-item-meta" style="color:#5B21B6;margin-top:2px">Attribution: ${j.reason}</div>`:''}
+        ${j.notes&&j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,180)}</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`:'';
+
+  // Revenue refs — jobs that happened elsewhere but revenue is credited HERE
+  const refsHtml=refs.length?`<div class="cal-popup-section">
+    <div class="cal-popup-section-head">💰 Revenue credited here from other dates (${refs.length})</div>
+    <div style="font-size:11px;color:#6b7280;margin-bottom:8px">These jobs were completed on a different date but the revenue is attributed to the estimate date (this date).</div>
+    ${refs.map(r=>`<div class="cal-popup-item" style="border-left:3px solid #16a34a;background:#f0fdf4">
+      <div class="cal-popup-item-title">#${r.number||'—'} · ${r.customer} <span style="font-size:11px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">Paid ${dollars(r.total)}</span></div>
+      <div class="cal-popup-item-meta">${r.dept} · ${r.emp}</div>
+      <div style="font-size:11px;color:#166534;margin-top:3px">${r.note}</div>
     </div>`).join('')}
   </div>`:'';
+
   const estsHtml=ests.length?`<div class="cal-popup-section">
-    <div class="cal-popup-section-head">Estimates (${ests.length})</div>
+    <div class="cal-popup-section-head">Estimates run (${ests.length})</div>
     ${ests.map(e=>`<div class="cal-popup-item">
       <div class="cal-popup-item-title">Est #${e.number||'—'} · ${e.customer} ${eBadge(e.status)}</div>
       <div class="cal-popup-item-meta">${e.dept} · ${e.value?dollars(e.value):'—'} · ${e.emp}</div>
-      ${e.notes.length?`<div class="cal-popup-item-note">${e.notes[0].slice(0,200)}</div>`:''}
+      ${e.notes&&e.notes.length?`<div class="cal-popup-item-note">${e.notes[0].slice(0,180)}</div>`:''}
     </div>`).join('')}
   </div>`:'';
 
-  const revTotal=c.rev?`<span style="color:#166534;font-weight:700">${dollars(c.rev)} collected</span>`:'';
-  const unpaidTotal=c.unpaid?`<span style="color:#991B1B;font-weight:700">${dollars(c.unpaid)} unpaid</span>`:'';
+  // Summary line
+  const totalRev=c.rev+refsTotal;
+  const revSummary=totalRev>0
+    ?`<span style="color:#166534;font-weight:700">${dollars(totalRev)} total revenue</span>`
+    +'<span style="font-size:11px;color:#9ca3af;margin-left:4px">'
+    +(c.rev>0&&refsTotal>0?`(${dollars(c.rev)} direct + ${dollars(refsTotal)} credited)`:'')+' </span>'
+    :'';
+  const unpaidSummary=c.unpaid?`<span style="color:#92400E;font-weight:700">⚠ ${dollars(c.unpaid)} unpaid</span>`:'';
+  const pendingSummary=c.pending?`<span style="color:#1d4ed8;font-weight:700">🕐 ${dollars(c.pending)} in progress</span>`:'';
 
   $$('calPopup').innerHTML=`
     <div class="cal-popup-header">
       <div>
         <div class="cal-popup-title">${empName}</div>
         <div style="font-size:12px;color:#6b7280;margin-top:2px">${dt}</div>
-        <div style="font-size:13px;margin-top:6px;display:flex;gap:10px">${revTotal}${unpaidTotal}</div>
+        <div style="font-size:12px;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">${revSummary}${unpaidSummary}${pendingSummary}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px">Mode: ${mode==='estimate'?'Revenue on estimate date':'Revenue on collection date'}</div>
       </div>
       <span class="cal-popup-close" onclick="closeCalPopup()">✕</span>
     </div>
-    ${jobsHtml}${estsHtml}`;
+    ${refsHtml}${jobsHtml}${estsHtml}`;
   $$('calPopup').style.display='block';
   $$('calOverlay').style.display='block';
 }
