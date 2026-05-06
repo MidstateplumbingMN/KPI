@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#D97706;color:#fff;border:1px solid #D97706;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#166534;color:#fff;border:1px solid #166534;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -257,7 +257,29 @@ tr:hover td{background:#fafafa}
 .cal-popup-item-title{font-weight:600;color:#111827;margin-bottom:3px}
 .cal-popup-item-meta{color:#6b7280;font-size:11px}
 .cal-popup-item-note{margin-top:4px;padding:4px 8px;background:#fffbeb;border-left:2px solid #fbbf24;font-size:11px;color:#374151}
-/* EMPLOYEE FILTER DROPDOWN */
+/* CONTEST / BRACKET */
+.bracket-wrap{overflow-x:auto;padding:10px 0}
+.bracket{display:flex;gap:0;align-items:stretch}
+.bracket-round{display:flex;flex-direction:column;justify-content:space-around;min-width:160px;padding:0 8px;position:relative}
+.bracket-round-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;text-align:center;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f3f4f6}
+.bracket-match{background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin:6px 0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.bracket-slot{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px;border-bottom:1px solid #f3f4f6}
+.bracket-slot:last-child{border-bottom:none}
+.bracket-slot.winner{background:#EAF3DE;font-weight:700;color:#166534}
+.bracket-slot.loser{color:#9ca3af;text-decoration:line-through}
+.bracket-slot.bye{color:#d1d5db;font-style:italic}
+.bracket-seed{font-size:10px;color:#9ca3af;width:14px;text-align:right;flex-shrink:0}
+.bracket-name{flex:1;font-weight:500}
+.bracket-score{font-size:13px;font-weight:700;color:#1A3A5C;min-width:24px;text-align:right}
+.bracket-connector{width:16px;flex-shrink:0;position:relative}
+.leaderboard-wrap{margin-bottom:24px}
+.leaderboard-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px}
+.leaderboard-rank{font-size:20px;width:32px;text-align:center;flex-shrink:0}
+.leaderboard-name{flex:1;font-size:14px;font-weight:600;color:#111827}
+.leaderboard-bar-wrap{width:160px;background:#f3f4f6;border-radius:99px;height:8px;overflow:hidden}
+.leaderboard-bar{height:8px;border-radius:99px;background:#E8640A;transition:width .4s}
+.leaderboard-count{font-size:16px;font-weight:800;color:#1A3A5C;min-width:40px;text-align:right}
+.leaderboard-rev{font-size:12px;color:#6b7280;min-width:80px;text-align:right}
 .emp-filter-wrap{position:relative;display:inline-block}
 .emp-filter-btn{display:flex;align-items:center;gap:4px;font-size:12px;padding:5px 12px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;white-space:nowrap;color:#374151;font-family:Arial,sans-serif}
 .emp-filter-btn:hover{background:#f9fafb;border-color:#1A3A5C}
@@ -280,7 +302,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#D97706;color:#fff;border:1px solid #D97706;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v5.6</span>
+      <span style="font-size:12px;background:#166534;color:#fff;border:1px solid #166534;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -309,7 +331,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v5.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -356,6 +378,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" onclick="showTab('cal')">📅 Calendar</button>
       <button class="tab" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
       <button class="tab" onclick="showTab('plans')">Service Plans</button>
+      <button class="tab" onclick="showTab('contest')">🏆 Contest</button>
       <button class="tab" onclick="showTab('debug')">Raw Data</button>
     </div>
 
@@ -422,6 +445,21 @@ tr:hover td{background:#fafafa}
 
     <!-- KPI -->
     <div class="panel" id="tab-kpi">
+      <!-- KPI Date Range Controls -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+        <label style="font-size:12px;font-weight:600;color:#374151">KPI Period:</label>
+        <button class="preset active" id="kpiPresetMTD" onclick="setKPIPreset('mtd',this)">Month to date</button>
+        <button class="preset" id="kpiPresetWTD" onclick="setKPIPreset('wtd',this)">Week to date</button>
+        <button class="preset" id="kpiPresetYTD" onclick="setKPIPreset('ytd',this)">Year to date</button>
+        <button class="preset" id="kpiPresetAll" onclick="setKPIPreset('all',this)">Full range</button>
+        <div style="display:flex;gap:6px;align-items:center;margin-left:8px">
+          <label style="font-size:12px;color:#6b7280">Custom:</label>
+          <input type="date" id="kpiFrom" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:4px" onchange="setKPIPreset('custom',null)">
+          <span style="font-size:12px;color:#6b7280">to</span>
+          <input type="date" id="kpiTo" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:4px" onchange="setKPIPreset('custom',null)">
+        </div>
+        <span style="font-size:11px;color:#9ca3af;margin-left:4px" id="kpiRangeLabel"></span>
+      </div>
       <div class="sec-head">Department Totals</div>
       <div class="dept-grid" id="deptTotals"></div>
       <div class="sec-head">Employee KPI Scorecards</div>
@@ -603,6 +641,32 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
+    <!-- CONTEST -->
+    <div class="panel" id="tab-contest">
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:3px">Product / Service to track</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" id="contestProduct" placeholder="e.g. Leak Detector, Water Softener, Club Membership" style="font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;width:280px">
+            <select onchange="if(this.value){$$('contestProduct').value=this.value;this.value='';}" style="font-size:12px;padding:7px 8px;border:1px solid #d1d5db;border-radius:5px">
+              <option value="">Quick pick...</option>
+              <option value="Smart Water Leak Alarm">Smart Water Leak Alarm (4 pack)</option>
+              <option value="leak alarm">Leak Alarm (generic)</option>
+              <option value="water softener">Water Softener / Conditioner</option>
+              <option value="home club">Home Club Membership</option>
+              <option value="water heater">Water Heater</option>
+              <option value="furnace">Furnace</option>
+              <option value="air conditioner">Air Conditioner</option>
+              <option value="drain cleaning">Drain Cleaning</option>
+            </select>
+          </div>
+        </div>
+        <button class="pull-btn" onclick="renderContest()" style="margin-bottom:0">🏆 Run Contest</button>
+        <div style="font-size:11px;color:#9ca3af">Uses jobs &amp; estimates from the current pulled date range</div>
+      </div>
+      <div id="contestBoard"></div>
+    </div>
+
     <!-- SERVICE PLANS -->
     <div class="panel" id="tab-plans">
       <div class="metrics" id="planMetrics"></div>
@@ -662,6 +726,7 @@ function connect(){
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
   loadIS();
+  loadISEmailState();
   loadEmpFilter();
   loadCalEmpFilter();
   document.getElementById('authScreen').style.display='none';
@@ -685,7 +750,7 @@ function fmt(d){return d.toISOString().split('T')[0];}
 function fmtD(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch(e){return s;}}
 function $$(id){return document.getElementById(id);}
 function centsToD(n){const v=parseFloat(n)||0;return v>500?v/100:v;}
-function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function getJobTotal(j){return centsToD(j.total_amount??j.invoice_total??0);}
 function getEstTotal(e){
   if(e.options&&e.options.length){
@@ -973,9 +1038,10 @@ function applyEmpFilter(){
 
 
 function showTab(t){
-  const n=['jobs','estimates','attr','kpi','cal','is','plans','debug'];
+  const n=['jobs','estimates','attr','kpi','cal','is','plans','contest','debug'];
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
-  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-cal','tab-is','tab-plans','tab-debug'][i]==='tab-'+t));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-cal','tab-is','tab-plans','tab-contest','tab-debug'][i]==='tab-'+t));
+  if(t==='contest') renderContest();
 }
 function printReport(){
   const active=document.querySelectorAll('.panel.active');
@@ -1024,9 +1090,26 @@ async function loadAll(){
     const eSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
-      for(const p of ['/v2/memberships'+cQ,'/v2/customer_memberships'+cQ,'/memberships'+cQ]){
-        try{const r=await fetchAll(p,['memberships','customer_memberships','data','results']);if(r.length||r!==null)return r;}catch(e){}
+      // Try multiple endpoint paths — HCP plan APIs vary by account
+      // No date filter since we want all active plans
+      const endpoints=[
+        '/v2/recurring_services',
+        '/v2/memberships',
+        '/v2/customer_memberships',
+        '/v2/service_agreements',
+        '/v2/agreements',
+        '/memberships',
+        '/recurring_services',
+        '/service_agreements',
+      ];
+      for(const p of endpoints){
+        try{
+          const r=await fetchAll(p,['recurring_services','service_agreements','agreements','memberships','customer_memberships','data','results']);
+          console.log(`[Plans] ${p}: ${r.length} results`);
+          if(r&&r.length>0) return r;
+        }catch(e){console.log(`[Plans] ${p}: error —`,e.message);}
       }
+      console.log('[Plans] No results from any endpoint');
       return[];
     }
     // Fetch estimates by SCHEDULED date only (when the tech actually ran the appointment)
@@ -1053,7 +1136,9 @@ async function loadAll(){
     $$('debugJob').textContent=jobs.length?JSON.stringify(jobs[0],null,2):'No jobs';
     $$('debugEst').textContent=estimates.length?JSON.stringify(estimates[0],null,2):'No estimates';
     $$('debugEmp').textContent=employees.length?JSON.stringify(employees[0],null,2):'No employees';
-    $$('debugPlan').textContent=plans.length?JSON.stringify(plans[0],null,2):'No memberships returned';
+    $$('debugPlan').textContent=plans.length
+      ?`Found ${plans.length} plan(s). First record:\n\n`+JSON.stringify(plans[0],null,2)
+      :'No plans found. Check browser console (F12) for [Plans] log lines showing which endpoints were tried.';
 
     buildAttribution(jobs,estimates);
     populateFilters(jobs,estimates,plans);
@@ -1068,6 +1153,7 @@ async function loadAll(){
     buildEmpFilter();
     loadCalEmpFilter();
     buildCalEmpFilter();
+    initKPIRange();
     // Sync to Google Sheets in background
     syncReportToSheets(jobs,estimates,employees,plans,from,to);
 
@@ -1369,31 +1455,81 @@ function renderAttr(jobs,estimates){
       }
     }
     const reasonOpts=REASON_OPTIONS.map(r=>`<option value="${r.key}" ${r.key===rec.key?'selected':''}>${r.label}</option>`).join('');
-    const jobNotesHtml=jobNotes.length?`<div class="notes-box" style="margin-bottom:10px"><div class="notes-label">Job notes</div>${jobNotes.slice(0,3).map(n=>`<div>${n.slice(0,150)}${n.length>150?'…':''}</div>`).join('')}</div>`:'';
+
+    // Customer info
+    const cust=j.customer||{};
+    const custPhone=cust.mobile_number||cust.home_number||cust.work_number||'';
+    const custEmail=cust.email||'';
+    const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
+    const custInfoHtml=`<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:12px">
+      <div style="font-weight:700;color:#111827;margin-bottom:4px">${getCust(j)}</div>
+      ${addr?`<div style="color:#6b7280">📍 ${addr}</div>`:''}
+      ${custPhone?`<div style="color:#6b7280">📞 ${custPhone}</div>`:''}
+      ${custEmail?`<div style="color:#6b7280">✉ ${custEmail}</div>`:''}
+      ${cust.notes?`<div style="color:#6b7280;margin-top:4px;font-style:italic">${cust.notes.slice(0,120)}</div>`:''}
+    </div>`;
+
+    const jobNotesHtml=jobNotes.length?`<div class="notes-box" style="margin-bottom:10px"><div class="notes-label">Job notes</div>${jobNotes.slice(0,3).map(n=>`<div>${n.slice(0,180)}${n.length>180?'…':''}</div>`).join('')}</div>`:'';
+
+    // Build all-employees selector for manual override
+    const allTechs=_employees.filter(e=>!INSTALLER_IDS.has(e.id));
+    const manualOpts=allTechs.map(e=>{
+      const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
+      return`<option value="${e.id}" data-name="${n}">${n}</option>`;
+    }).join('');
+
     card.innerHTML=`
       <div class="attr-header">
         <div>
           <div class="attr-job">#${j.job_number||j.id||'—'} · ${getCust(j)}</div>
           <div class="attr-meta">${getDept(j)} · ${fmtD(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}${isJobPaid(j)?'<span style="margin-left:6px;font-size:11px;background:#EAF3DE;color:#3B6D11;padding:2px 7px;border-radius:99px;font-weight:600">💰 Paid</span>':isJobComplete(j)?'<span style="margin-left:6px;font-size:11px;background:#FAEEDA;color:#854F0B;padding:2px 7px;border-radius:99px;font-weight:600">⚠️ Unpaid</span>':''}</div>
         </div>
-        <div class="attr-amount">${total?dollars(total):'$0'}</div>
+        <div class="attr-amount">${total?dollars(total):'$0.00'}</div>
       </div>
+      ${custInfoHtml}
       ${jobNotesHtml}
       <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Who ran the estimate &amp; gets revenue credit?</div>
       <div class="attr-candidates">${optionsHtml}</div>
+      <div style="margin-top:8px;padding:8px 10px;background:#f0f9ff;border:1px solid #BAE6FD;border-radius:6px;font-size:12px">
+        <div style="font-weight:600;color:#0369A1;margin-bottom:4px">Override — assign to any employee:</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="manualEmpSel_${j.id}" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+            <option value="">— select to override —</option>
+            ${manualOpts}
+          </select>
+          <button class="is-btn primary" style="white-space:nowrap;font-size:11px" onclick="applyManualOverride('${j.id}')">Assign</button>
+        </div>
+      </div>
       <div class="reason-box">
         <div class="reason-label">Why is this being attributed this way?</div>
         <div class="reason-rec"><span class="rec-icon">${rec.icon}</span><span>Recommended: ${rec.text}</span></div>
         <select class="reason-select" id="reason_${j.id}">${reasonOpts}</select>
         <textarea class="reason-notes" id="notes_${j.id}" placeholder="Optional notes (e.g. customer mentioned Gordy by name when they called in)…"></textarea>
       </div>
-      <div style="margin-top:10px">
+      <div style="margin-top:10px;display:flex;gap:8px">
         <button class="attr-confirm-btn" onclick="confirmFromCard('${j.id}')">Confirm credit →</button>
         <button class="attr-skip-btn" onclick="skipAttribution('${j.id}')">Skip for now</button>
       </div>`;
     container.appendChild(card);
   });
   renderPatternStats();
+}
+function applyManualOverride(jobId){
+  const sel=document.querySelector(`#manualEmpSel_${jobId}`);
+  if(!sel||!sel.value)return;
+  const techId=sel.value;
+  const techName=sel.options[sel.selectedIndex]?.getAttribute('data-name')||sel.options[sel.selectedIndex]?.text||'Unknown';
+  // Check the radio that matches, or store directly
+  const radios=document.querySelectorAll(`input[name="attr_${jobId}"]`);
+  let matched=false;
+  radios.forEach(r=>{if(r.value===techId){r.checked=true;matched=true;}});
+  if(!matched){
+    // Tech not in candidate list — set reason to manual and confirm directly
+    const reasonEl=document.querySelector(`#reason_${jobId}`);
+    const notesEl=document.querySelector(`#notes_${jobId}`);
+    if(reasonEl) reasonEl.value='other';
+    confirmAttribution(jobId,techId,techName,'other',notesEl?.value||'Manual override via employee selector');
+  }
 }
 function confirmFromCard(jobId){
   const selected=document.querySelector(`input[name="attr_${jobId}"]:checked`);
@@ -1602,7 +1738,79 @@ function renderEstRows(estimates){
 // ============================================================
 // RENDER KPI
 // ============================================================
+// ============================================================
+// KPI DATE RANGE
+// ============================================================
+let _kpiPreset='mtd'; // default
+
+function setKPIPreset(preset, btn){
+  _kpiPreset=preset;
+  document.querySelectorAll('#tab-kpi .preset').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(preset!=='custom'){
+    const today=new Date();
+    let from,to=today.toISOString().split('T')[0];
+    if(preset==='mtd'){
+      from=new Date(today.getFullYear(),today.getMonth(),1).toISOString().split('T')[0];
+    } else if(preset==='wtd'){
+      const d=new Date(today);d.setDate(d.getDate()-d.getDay()); // Sunday start
+      from=d.toISOString().split('T')[0];
+    } else if(preset==='ytd'){
+      from=new Date(today.getFullYear(),0,1).toISOString().split('T')[0];
+    } else { // all — use the main report range
+      from=$$('dateFrom').value;
+      to=$$('dateTo').value;
+    }
+    const kpiFrom=$$('kpiFrom'),kpiTo=$$('kpiTo');
+    if(kpiFrom) kpiFrom.value=from;
+    if(kpiTo) kpiTo.value=to;
+  } else {
+    // Custom — find the custom button and mark active
+    $$('kpiPresetMTD')?.classList.remove('active');
+    $$('kpiPresetWTD')?.classList.remove('active');
+    $$('kpiPresetYTD')?.classList.remove('active');
+    $$('kpiPresetAll')?.classList.remove('active');
+  }
+  if(_jobs.length) renderKPI(_jobs,_estimates,_employees,_plans);
+}
+
+function getKPIDateRange(){
+  const from=$$('kpiFrom')?.value||$$('dateFrom')?.value||'';
+  const to=$$('kpiTo')?.value||$$('dateTo')?.value||'';
+  return{from,to};
+}
+
+function filterByKPIRange(items, dateGetter){
+  const{from,to}=getKPIDateRange();
+  if(!from||!to) return items;
+  const f=new Date(from+'T00:00:00'), t=new Date(to+'T23:59:59');
+  return items.filter(item=>{
+    const d=new Date(dateGetter(item)||0);
+    return d>=f&&d<=t;
+  });
+}
+
+function initKPIRange(){
+  // Default to MTD
+  const today=new Date();
+  const from=new Date(today.getFullYear(),today.getMonth(),1).toISOString().split('T')[0];
+  const to=today.toISOString().split('T')[0];
+  const kpiFrom=$$('kpiFrom'),kpiTo=$$('kpiTo');
+  if(kpiFrom&&!kpiFrom.value) kpiFrom.value=from;
+  if(kpiTo&&!kpiTo.value) kpiTo.value=to;
+  const label=$$('kpiRangeLabel');
+  if(label) label.textContent=`${from} → ${to}`;
+}
+
 function renderKPI(jobs,estimates,employees,plans){
+  // Update range label
+  const{from,to}=getKPIDateRange();
+  const label=$$('kpiRangeLabel');
+  if(label) label.textContent=from&&to?`${from} → ${to}`:'';
+
+  // Filter jobs and estimates to KPI date range
+  const kpiJobs=filterByKPIRange(jobs,j=>j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+  const kpiEsts=filterByKPIRange(estimates,e=>e.schedule?.scheduled_start||e.created_at);
   // Build per-employee stats
   const map={};
   employees.forEach(emp=>{
@@ -1617,8 +1825,8 @@ function renderKPI(jobs,estimates,employees,plans){
       jobs:0,installs:0,revenue:0,depts:{},estimates:0,converted:0,plans:0};
   }
 
-  // Revenue attribution from jobs (only paid & complete)
-  jobs.forEach(j=>{
+  // Revenue attribution from jobs (only paid & complete) — filtered to KPI date range
+  kpiJobs.forEach(j=>{
     const allEmps=getAssignedList(j);
     // Count installs for installers
     allEmps.forEach(e=>{
@@ -1641,7 +1849,7 @@ function renderKPI(jobs,estimates,employees,plans){
       }
     }
   });
-  estimates.forEach(e=>{
+  kpiEsts.forEach(e=>{
     const all=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
     all.forEach(emp=>{
       if(!emp)return;
@@ -2170,8 +2378,11 @@ function buildISCard(e){
   const estId=e.id;
   const total=getEstTotal(e);
   const status=_isStatus[estId]||'open';
+  const emailStatus=_isEmailStatuses[estId]||'pending';
+  const hasDraft=!!_isEmailDrafts[estId];
   const conv=isConv(e);
-  const days=Math.floor((Date.now()-new Date(e.created_at||0))/(1000*60*60*24));
+  const schedDate=e.schedule?.scheduled_start||e.created_at;
+  const days=Math.floor((Date.now()-new Date(schedDate||0))/(1000*60*60*24));
   const daysBadgeClass=days<=7?'is-days-fresh':days<=21?'is-days-warm':'is-days-hot';
   const daysLabel=days<=7?`${days}d ago`:days<=21?`${days}d ago — follow up soon!`:`${days}d ago — urgent!`;
   const dept=getDept(e);
@@ -2184,6 +2395,11 @@ function buildISCard(e){
   const activity=_isActivity[estId]||[];
 
   const cardStatus=conv?'is-converted':status==='lost'?'is-lost':'is-open';
+
+  // Email status badge
+  const emailStatusColors={pending:'#9ca3af',followed_up:'#2563eb',declined:'#dc2626',sold:'#16a34a'};
+  const emailStatusLabels={pending:'📬 Not contacted',followed_up:'📧 Followed up',declined:'❌ Declined',sold:'✅ Sold'};
+  const emailStatusBadge=`<span style="font-size:11px;font-weight:600;color:${emailStatusColors[emailStatus]};background:#f9fafb;border:1px solid ${emailStatusColors[emailStatus]}33;padding:2px 8px;border-radius:99px">${emailStatusLabels[emailStatus]||emailStatus}</span>`;
 
   // Activity log HTML
   const activityIcons={call:'📞',email:'📧',note:'📝',converted:'✅',lost:'❌'};
@@ -2200,20 +2416,19 @@ function buildISCard(e){
     </div>`).join('')}
   </div>`:'';
 
-  // Log form (shown inline when open)
   const logFormId=`is-log-${estId}`;
-
   const card=document.createElement('div');
   card.className=`is-card ${cardStatus}`;
   card.id=`is-card-${estId}`;
   card.innerHTML=`
     <div class="is-card-header">
-      <div>
+      <div style="flex:1">
         <div class="is-card-title">
           ${cust}
           <span class="is-days-badge ${daysBadgeClass}">${daysLabel}</span>
         </div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:2px">Est #${e.estimate_number||e.id||'—'} · ${dept} · Ran by ${tech}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px">Est #${e.estimate_number||e.id||'—'} · ${dept} · ${tech}</div>
+        <div style="margin-top:6px">${emailStatusBadge}</div>
       </div>
       <div class="is-card-value">${dollars(total)}</div>
     </div>
@@ -2224,9 +2439,18 @@ function buildISCard(e){
       <strong>Options:</strong> ${e.options?.length||1}
       ${estNotes.length?`<div style="margin-top:4px;padding:4px 8px;background:#fffbeb;border-left:2px solid #fbbf24;border-radius:2px;font-size:11px">${estNotes[0].slice(0,180)}${estNotes[0].length>180?'…':''}</div>`:''}
     </div>
-    ${status==='open'&&!conv?`<div class="is-actions">
+    ${status==='open'&&!conv?`
+    <!-- Email status controls -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;background:#f8fafc;border-radius:6px;border:1px solid #e5e7eb">
+      <span style="font-size:12px;font-weight:600;color:#374151;margin-right:4px">Follow-up status:</span>
+      <button class="is-btn ${emailStatus==='pending'?'primary':''}" style="font-size:11px;padding:3px 10px" onclick="setISEmailStatus('${estId}','pending')">📬 Pending</button>
+      <button class="is-btn ${emailStatus==='followed_up'?'primary':''}" style="font-size:11px;padding:3px 10px;${emailStatus==='followed_up'?'background:#2563eb;color:#fff;border-color:#2563eb':''}" onclick="setISEmailStatus('${estId}','followed_up')">📧 Followed up</button>
+      <button class="is-btn ${emailStatus==='declined'?'danger':''}" style="font-size:11px;padding:3px 10px;${emailStatus==='declined'?'background:#dc2626;color:#fff;border-color:#dc2626':''}" onclick="setISEmailStatus('${estId}','declined')">❌ Declined</button>
+      <button class="is-btn" style="font-size:11px;padding:3px 10px;${emailStatus==='sold'?'background:#16a34a;color:#fff;border-color:#16a34a':''}" onclick="setISEmailStatus('${estId}','sold')">✅ Sold</button>
+    </div>
+    <div class="is-actions">
       <button class="is-btn primary" onclick="toggleISLogForm('${estId}','call')">📞 Log call</button>
-      <button class="is-btn email" onclick="openEmailModal('${estId}')">✉ Generate email</button>
+      <button class="is-btn email" onclick="openEmailModal('${estId}')">${hasDraft?'✉ View/edit email':'✉ Generate email'}</button>
       <button class="is-btn success" onclick="markISConverted('${estId}')">✅ Mark converted by IS</button>
       <button class="is-btn danger" onclick="markISLost('${estId}')">❌ Not interested</button>
     </div>
@@ -2318,113 +2542,221 @@ function updateISBadge(){
 // ---- EMAIL MODAL ----
 let _isEmailEstId=null;
 let _isEmailTone='friendly';
+let _isEmailDrafts={}; // estId -> {text, tone, generatedAt}
+let _isEmailStatuses={}; // estId -> 'pending'|'followed_up'|'declined'|'sold'
+
+function loadISEmailState(){
+  try{
+    const d=localStorage.getItem('hcp_is_email_drafts');
+    const s=localStorage.getItem('hcp_is_email_statuses');
+    if(d) _isEmailDrafts=JSON.parse(d);
+    if(s) _isEmailStatuses=JSON.parse(s);
+  }catch(e){}
+}
+function saveISEmailState(){
+  try{
+    localStorage.setItem('hcp_is_email_drafts',JSON.stringify(_isEmailDrafts));
+    localStorage.setItem('hcp_is_email_statuses',JSON.stringify(_isEmailStatuses));
+  }catch(e){}
+}
+function setISEmailStatus(estId, status){
+  _isEmailStatuses[estId]=status;
+  saveISEmailState();
+  renderIS();
+}
 
 function openEmailModal(estId){
   _isEmailEstId=estId;
-  _isEmailTone='friendly';
-  $$('isModalTitle').textContent='Generate Follow-up Email';
+  $$('isModalTitle').textContent='Follow-up Email';
+  const draft=_isEmailDrafts[estId];
+  const e=_estimates.find(x=>x.id===estId);
+  if(!e) return;
+
+  const cust=getCust(e);
+  const firstName=(e.customer?.first_name||cust.split(' ')[0]||'there').trim();
+  const schedDate=fmtD(e.schedule?.scheduled_start||e.created_at);
+  const dept=getDept(e);
+  const tech=getAssigned(e);
+  const opts=e.options||[];
+  const optLines=opts.length>1
+    ? opts.map((o,i)=>`Option ${i+1}: ${o.name||'Option '+(i+1)} — ${dollars(getEstTotal(o))}`).join('\n')
+    : `Estimate total: ${dollars(getEstTotal(e))}`;
+
   $$('isModalBody').innerHTML=`
-    <div style="font-size:12px;color:#6b7280;margin-bottom:12px">
-      Choose a tone, then generate. The email is customized to the customer, estimate details, and department.
+    <div style="font-size:12px;color:#6b7280;margin-bottom:10px">
+      Customize and generate a follow-up email for <strong>${cust}</strong> · ${schedDate}
+      ${draft?`<span style="color:#059669;margin-left:4px">✓ Draft saved ${fmtD(draft.generatedAt)}</span>`:''}
     </div>
-    <div class="is-tone-btns">
-      <button class="is-tone-btn active" onclick="setISTone('friendly',this)">Friendly check-in</button>
-      <button class="is-tone-btn" onclick="setISTone('helpful',this)">Helpful &amp; informative</button>
-      <button class="is-tone-btn" onclick="setISTone('value',this)">Value-focused</button>
-      <button class="is-tone-btn" onclick="setISTone('brief',this)">Quick &amp; brief</button>
+
+    <!-- Template selector -->
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px">Email style:</label>
+      <div class="is-tone-btns">
+        <button class="is-tone-btn active" id="isToneV1" onclick="selectEmailTemplate(1,this)">Balanced &amp; Professional</button>
+        <button class="is-tone-btn" id="isToneV2" onclick="selectEmailTemplate(2,this)">Friendly &amp; Helpful</button>
+        <button class="is-tone-btn" id="isToneV3" onclick="selectEmailTemplate(3,this)">Urgency-focused</button>
+        <button class="is-tone-btn" id="isToneV4" onclick="selectEmailTemplate(4,this)">Short &amp; Direct</button>
+      </div>
     </div>
-    <div class="is-email-preview loading" id="isEmailPreview">Click Generate to create your email...</div>
-    <div class="is-copy-row">
-      <button class="is-btn primary" onclick="generateISEmail()">✨ Generate</button>
-      <button class="is-btn" id="isCopyBtn" style="display:none" onclick="copyISEmail()">📋 Copy email</button>
-      <button class="is-btn" id="isMailBtn" style="display:none" onclick="openMailClient()">📧 Open in mail</button>
-      <button class="is-btn success" id="isLogEmailBtn" style="display:none" onclick="logISEmail()">✅ Log as sent</button>
+
+    <!-- Promotion selector -->
+    <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:11px;font-weight:700;color:#374151">Promotion to include:</label>
+      <select id="isPromoSelect" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;flex:1" onchange="refreshEmailPreview()">
+        <option value="none">— No promotion —</option>
+        <option value="homeclub">Home Club 10% savings</option>
+        <option value="50off">$50 off water conditioning system</option>
+        <option value="100off">$100 off water conditioning system</option>
+        <option value="250off">$250 off water conditioning system</option>
+        <option value="custom">Custom (type below)</option>
+      </select>
+      <input type="number" id="isPromoExpiry" min="1" max="90" value="14" style="width:60px;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="refreshEmailPreview()">
+      <span style="font-size:12px;color:#6b7280">days</span>
+    </div>
+    <input type="text" id="isPromoCustom" style="display:none;width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;margin-bottom:8px;box-sizing:border-box" placeholder="Describe your custom promotion..." oninput="refreshEmailPreview()">
+
+    <!-- Email preview -->
+    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em">Preview</div>
+    <div class="is-email-preview" id="isEmailPreview" contenteditable="true" style="min-height:180px">${draft?draft.text:''}</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:3px">You can edit the text above before sending.</div>
+
+    <div class="is-copy-row" style="margin-top:10px">
+      <button class="is-btn" id="isCopyBtn" onclick="copyISEmail()">📋 Copy</button>
+      <button class="is-btn" id="isMailBtn" onclick="openMailClient()">📧 Open in mail</button>
+      <button class="is-btn success" id="isLogEmailBtn" onclick="logISEmail()">✅ Log as sent</button>
     </div>`;
+
+  // Show/hide custom promo field
+  document.getElementById('isPromoSelect').addEventListener('change',function(){
+    const customEl=document.getElementById('isPromoCustom');
+    if(customEl) customEl.style.display=this.value==='custom'?'block':'none';
+  });
+
   $$('isModal').style.display='block';
   $$('isModalOverlay').style.display='block';
-  // Auto-generate immediately
-  generateISEmail();
+  // Generate immediately
+  selectEmailTemplate(1, document.getElementById('isToneV1'));
 }
 
-function setISTone(tone, btn){
-  _isEmailTone=tone;
+let _currentTemplate=1;
+function selectEmailTemplate(n, btn){
+  _currentTemplate=n;
   document.querySelectorAll('.is-tone-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  generateISEmail();
+  if(btn) btn.classList.add('active');
+  refreshEmailPreview();
 }
 
-async function generateISEmail(){
+function refreshEmailPreview(){
   const e=_estimates.find(x=>x.id===_isEmailEstId);
   if(!e) return;
   const preview=$$('isEmailPreview');
-  preview.className='is-email-preview loading';
-  preview.textContent='Generating personalized email...';
-  $$('isCopyBtn').style.display='none';
-  $$('isMailBtn').style.display='none';
-  $$('isLogEmailBtn').style.display='none';
+  if(!preview) return;
 
   const cust=getCust(e);
-  const firstName=e.customer?.first_name||cust.split(' ')[0]||'there';
-  const total=getEstTotal(e);
+  const firstName=(e.customer?.first_name||cust.split(' ')[0]||'there').trim();
+  const schedDate=fmtD(e.schedule?.scheduled_start||e.created_at);
   const dept=getDept(e);
-  const days=Math.floor((Date.now()-new Date(e.created_at||0))/(1000*60*60*24));
   const tech=getAssigned(e);
-  const estNotes=getEstNotes(e).join(' ').slice(0,200);
-  const options=e.options||[];
-  const optSummary=options.length>1?`There are ${options.length} options ranging from ${dollars(Math.min(...options.map(o=>getEstTotal(o))))} to ${dollars(Math.max(...options.map(o=>getEstTotal(o))))}.`:`The estimate is ${dollars(total)}.`;
-  const deptWord=dept.toLowerCase()==='hvac'?'HVAC/heating & cooling':dept.toLowerCase()==='plumbing'?'plumbing':'home services';
-  const urgency=days<=7?'recently sent':days<=21?'sent a couple weeks ago':'sent a while back';
-  const toneInstructions={
-    friendly:'Write a warm, friendly, conversational follow-up. Not pushy. Feel like a helpful neighbor.',
-    helpful:'Focus on being informative and helpful — offer to clarify options, answer questions.',
-    value:'Emphasize the Home Club 10% savings and the value of moving forward.',
-    brief:'Very short — 3-4 sentences max. Casual and easy to read on mobile.'
+  const opts=e.options||[];
+  const deptWord=dept.toLowerCase().includes('hvac')?'HVAC/heating & cooling':dept.toLowerCase().includes('plumb')?'plumbing':'home services';
+  const optSummary=opts.length>1
+    ? `You had ${opts.length} options presented: `+opts.map((o,i)=>`${o.name||'Option '+(i+1)} (${dollars(getEstTotal(o))})`).join(', ')+'.'
+    : `Your estimate total was ${dollars(getEstTotal(e))}.`;
+
+  const promo=document.getElementById('isPromoSelect')?.value||'none';
+  const days=document.getElementById('isPromoExpiry')?.value||'14';
+  const customPromo=document.getElementById('isPromoCustom')?.value||'';
+
+  let promoLine='';
+  if(promo==='homeclub') promoLine=`As always, our Home Club members save 10% on services — it's a great way to reduce your overall cost while enjoying priority service and added benefits throughout the year.`;
+  else if(promo==='50off') promoLine=`For a limited time, we're offering $50 off a new water conditioning system when you schedule within the next ${days} days.`;
+  else if(promo==='100off') promoLine=`For a limited time, we're offering $100 off a new water conditioning system when you schedule within the next ${days} days.`;
+  else if(promo==='250off') promoLine=`For a limited time, we're offering $250 off a new water conditioning system when you schedule within the next ${days} days.`;
+  else if(promo==='custom'&&customPromo) promoLine=customPromo;
+
+  const templates={
+    1: // Balanced & Professional
+`Hi ${firstName},
+
+I wanted to follow up on the estimate ${tech} recently provided for your ${deptWord} on ${schedDate} and see if you had any questions or needed help reviewing your options.
+
+${optSummary}
+${promoLine?`
+${promoLine}
+`:''}
+If you're considering moving forward, I'd be happy to walk through any details or help you decide on the best option. Please reply to this email or give us a call — I'd love to help.
+
+Thank you for the opportunity to earn your business.
+
+Best regards,
+Bob Danaher
+Midstate Plumbing, Heating & Cooling
+651-480-1195`,
+
+    2: // Friendly & Helpful
+`Hi ${firstName},
+
+Just checking in on the estimate from your ${schedDate} visit to see if you had any questions or needed help deciding on the best option for your ${deptWord} project.
+
+${optSummary}
+${promoLine?`
+${promoLine}
+`:''}
+I'm here to make this as easy as possible — let me know how I can help. Looking forward to hearing from you!
+
+Thank you,
+Bob Danaher
+Midstate Plumbing, Heating & Cooling
+651-480-1195`,
+
+    3: // Urgency-focused
+`Hi ${firstName},
+
+I wanted to follow up on your ${deptWord} estimate from ${schedDate} and see if you're ready to move forward.
+
+${optSummary}
+${promoLine?`
+${promoLine}
+`:''}
+If you'd like to take advantage of this or have any questions, just reply to this email — I'm happy to help you get scheduled.
+
+We appreciate the opportunity to work with you.
+
+Best,
+Bob Danaher
+Midstate Plumbing, Heating & Cooling
+651-480-1195`,
+
+    4: // Short & Direct
+`Hi ${firstName},
+
+Just a quick follow-up on your ${deptWord} estimate from ${schedDate}. ${optSummary}
+${promoLine?`
+${promoLine}
+`:''}
+Please reply anytime — I'd be glad to help you move forward.
+
+Thank you,
+Bob Danaher
+Midstate Plumbing, Heating & Cooling
+651-480-1195`
   };
 
-  const prompt=`You are Bob Danaher, the marketing coordinator at Midstate Plumbing, Heating & Cooling in Hastings, MN (651-480-1195). Write a follow-up email to a customer about their estimate.
+  preview.textContent=templates[_currentTemplate]||templates[1];
 
-Customer: ${firstName} ${cust.includes(' ')?cust.split(' ').slice(1).join(' '):''}
-Department: ${deptWord}
-Estimate amount: ${dollars(total)}
-${optSummary}
-Estimate sent: ${days} days ago (${urgency})
-Tech who ran it: ${tech}
-${estNotes?`Estimate notes: ${estNotes}`:''}
-
-Tone instruction: ${toneInstructions[_isEmailTone]}
-
-Requirements:
-- Open with "Hi ${firstName},"
-- Reference the ${deptWord} estimate specifically (mention the amount ${dollars(total)})
-- Mention Home Club 10% savings naturally (not forced)
-- Keep it personal and warm — not corporate
-- Close with "Best regards,\\nBob\\nMidstate Plumbing, Heating & Cooling\\n651-480-1195"
-- No subject line — just the email body
-- DO NOT use placeholders like [name] or [date] — write it fully
-- 3-5 short paragraphs max`;
-
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:600,
-        messages:[{role:'user',content:prompt}]
-      })
-    });
-    const data=await res.json();
-    const text=data.content?.map(c=>c.text||'').join('')||'Could not generate email.';
-    preview.className='is-email-preview';
-    preview.textContent=text.trim();
-    $$('isCopyBtn').style.display='';
-    $$('isMailBtn').style.display='';
-    $$('isLogEmailBtn').style.display='';
-  }catch(err){
-    preview.className='is-email-preview';
-    preview.textContent='Error generating email: '+err.message;
-  }
+  // Save as draft
+  _isEmailDrafts[_isEmailEstId]={
+    text:preview.textContent,
+    template:_currentTemplate,
+    promo,
+    generatedAt:new Date().toISOString()
+  };
+  saveISEmailState();
 }
+
+function generateISEmail(){ refreshEmailPreview(); }
+function setISTone(tone,btn){ selectEmailTemplate(_currentTemplate,btn); }
+
 
 function copyISEmail(){
   const text=$$('isEmailPreview').textContent;
@@ -2456,7 +2788,10 @@ function logISEmail(){
   const item={type:'email',outcome:'Email sent',notes:`Generated follow-up: "${body}..."`,date:new Date().toISOString(),by:'Bob'};
   if(!_isActivity[_isEmailEstId])_isActivity[_isEmailEstId]=[];
   _isActivity[_isEmailEstId].push(item);
+  // Auto-set email status to followed up
+  _isEmailStatuses[_isEmailEstId]='followed_up';
   saveIS();
+  saveISEmailState();
   syncISActivityToSheets(_isEmailEstId,item);
   closeISModal();
   renderIS();
@@ -2908,6 +3243,241 @@ function openCalPopup(date, empId, empName){
 function closeCalPopup(){
   $$('calPopup').style.display='none';
   $$('calOverlay').style.display='none';
+}
+
+// ============================================================
+// CONTEST / TOURNAMENT BRACKET
+// ============================================================
+function renderContest(){
+  const product=($$('contestProduct')?.value||'').toLowerCase().trim();
+  const board=$$('contestBoard');
+  if(!board) return;
+
+  if(!_jobs.length&&!_estimates.length){
+    board.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Pull a report first to load contest data.</div>';
+    return;
+  }
+  if(!product){
+    board.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Enter a product or service name above and click Run Contest.</div>';
+    return;
+  }
+
+  // Score each non-installer employee
+  const scores={};
+  const revenue={};
+  function ensureEmp(id,name){
+    if(!scores[id]){scores[id]=0;revenue[id]=0;}
+  }
+
+  // Product aliases — searching any of these terms matches the others
+  const PRODUCT_ALIASES=[
+    // Smart Water Leak Alarm — specific product, do NOT match generic "leak" or "leak repair"
+    ['smart water leak alarm','smart water leak','leak alarm','water leak alarm','leak sensor','leak detector alarm','flo by moen','phyn','4 pack alarm'],
+    ['water softener','water conditioner','water conditioning','kinetico','ecowater','culligan','softener system'],
+    ['home club','service agreement','service plan','maintenance plan','club membership','annual plan'],
+    ['furnace','heating system','heat system','hvac install','air handler','furnace install'],
+    ['air conditioner','ac install','cooling system','heat pump','ac unit','air conditioning install'],
+    ['water heater','hot water heater','water tank','tankless water','water heater install'],
+    ['drain cleaning','hydro jet','jetting','drain auger','drain snake','clear drain'],
+  ];
+
+  function expandProduct(term){
+    const t=term.toLowerCase();
+    for(const group of PRODUCT_ALIASES){
+      if(group.some(a=>t.includes(a)||a.includes(t))){
+        return group; // return all aliases in this group
+      }
+    }
+    return[t];
+  }
+
+  // Terms that should NEVER match certain products to prevent false positives
+  const EXCLUSIONS={
+    'smart water leak alarm':['leak repair','fix leak','leaking','leaky','leak detection service','slab leak','pipe leak','roof leak','leak check'],
+    'leak alarm':['leak repair','fix leak','leaking','leaky','leak detection service'],
+    'water leak alarm':['leak repair','leaking pipe','pipe leak'],
+  };
+
+  function fuzzyMatch(product,...fields){
+    const terms=expandProduct(product);
+    const haystack=fields.join(' ').toLowerCase();
+
+    // Check exclusions first — if any exclusion phrase is present, skip this record
+    const excList=EXCLUSIONS[product.toLowerCase()]||[];
+    if(excList.some(ex=>haystack.includes(ex))) return 0;
+
+    // Check each alias
+    for(const term of terms){
+      if(haystack.includes(term)) return 100;
+    }
+    // Word-level matching against primary term
+    const words=product.split(/\s+/).filter(w=>w.length>2);
+    if(words.length>1&&words.every(w=>haystack.includes(w))) return 80;
+    const hits=words.filter(w=>haystack.includes(w)).length;
+    if(words.length>0&&hits/words.length>=0.6) return 50+Math.round(hits/words.length*30);
+    return 0;
+  }
+  function jobSearchText(j){
+    const li=(j.line_items||[]).map(l=>(l.name||l.description||l.product_name||'')).join(' ');
+    const svc=(j.services||[]).map(s=>(s.name||s.description||'')).join(' ');
+    return[j.description||'',getJobNotes(j).join(' '),li,svc];
+  }
+  function estSearchText(e){
+    const optNames=(e.options||[]).map(o=>o.name||'').join(' ');
+    const optNotes=(e.options||[]).flatMap(o=>(o.notes||[]).map(n=>n.content||'')).join(' ');
+    const optLines=(e.options||[]).flatMap(o=>(o.line_items||o.services||[]).map(l=>l.name||l.description||'')).join(' ');
+    return[e.description||'',getEstNotes(e).join(' '),optNames,optNotes,optLines];
+  }
+  const MATCH_THRESHOLD=50;
+
+  // Count from jobs — fuzzy match description, notes, and line items
+  _jobs.forEach(j=>{
+    const score=fuzzyMatch(product,...jobSearchText(j));
+    if(score<MATCH_THRESHOLD) return;
+
+    const empList=getAssignedList(j).filter(e=>!INSTALLER_IDS.has(e.id));
+    const attr=_jobAttribution[j.id];
+    const creditId=attr?.techId&&attr.techId!=='skip'?attr.techId:empList[0]?.id;
+    const creditEmp=_employees.find(e=>e.id===creditId);
+    if(!creditEmp) return;
+    const name=((creditEmp.first_name||'')+' '+(creditEmp.last_name||'')).trim();
+    ensureEmp(creditId,name);
+    scores[creditId]++;
+    if(isJobPaid(j)) revenue[creditId]+=getJobTotal(j);
+  });
+
+  // Count from estimates (sold only) — fuzzy match all option text
+  const countedJobIds=new Set(); // track which jobs already counted to avoid double-count
+
+  _estimates.forEach(e=>{
+    const score=fuzzyMatch(product,...estSearchText(e));
+    const match=score>=MATCH_THRESHOLD;
+    if(!match) return;
+    if(!isConv(e)) return; // only count sold estimates
+
+    const empList=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
+    const emp=empList[0];
+    if(!emp) return;
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
+    ensureEmp(emp.id,name);
+    // Only count if there isn't an already-counted linked job
+    const linkedJob=_jobs.find(j=>j.original_estimate_id&&
+      (e.options||[]).some(o=>o.id===j.original_estimate_id));
+    if(linkedJob&&countedJobIds.has(linkedJob.id)) return;
+    scores[emp.id]++;
+  });
+
+  // Build sorted leaderboard
+  const entries=_employees
+    .filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim()))
+    .map(e=>{
+      const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+      const color=e.color_hex?`#${e.color_hex}`:'#9ca3af';
+      return{id:e.id,name,color,count:scores[e.id]||0,rev:revenue[e.id]||0};
+    })
+    .sort((a,b)=>b.count-a.count||b.rev-a.rev);
+
+  const total=entries.reduce((s,e)=>s+e.count,0);
+  // Show what was matched for transparency
+  const matchedJobs=_jobs.filter(j=>fuzzyMatch(product,...jobSearchText(j))>=MATCH_THRESHOLD);
+  const matchedEsts=_estimates.filter(e=>fuzzyMatch(product,...estSearchText(e))>=MATCH_THRESHOLD&&isConv(e));
+  const max=entries[0]?.count||1;
+  const productLabel=($$('contestProduct')?.value||'').trim();
+
+  // ---- LEADERBOARD ----
+  const medals=['🥇','🥈','🥉'];
+  const lbRows=entries.map((e,i)=>{
+    const pct=max>0?Math.round(e.count/max*100):0;
+    const medal=i<3&&e.count>0?medals[i]:`<span style="font-size:13px;color:#9ca3af">${i+1}</span>`;
+    return`<div class="leaderboard-row" style="${i===0&&e.count>0?'border:2px solid #E8640A;background:#FFF7F0':''}">
+      <div class="leaderboard-rank">${medal}</div>
+      <div>
+        <span style="width:10px;height:10px;border-radius:50%;background:${e.color};display:inline-block;margin-right:6px;vertical-align:middle"></span>
+        <span class="leaderboard-name">${e.name}</span>
+      </div>
+      <div class="leaderboard-bar-wrap"><div class="leaderboard-bar" style="width:${pct}%;background:${i===0?'#E8640A':i===1?'#1A3A5C':i===2?'#6b7280':'#d1d5db'}"></div></div>
+      <div class="leaderboard-count">${e.count}<span style="font-size:11px;font-weight:400;color:#9ca3af"> sold</span></div>
+      <div class="leaderboard-rev">${e.rev>0?dollars(e.rev):''}</div>
+    </div>`;
+  }).join('');
+
+  // ---- TOURNAMENT BRACKET ----
+  // Build bracket from entries with at least some activity (pad with byes)
+  const active=entries.filter(e=>e.count>0||e.rev>0);
+  const bracket=buildBracket(active.length>0?active:entries.slice(0,8));
+  const bracketHtml=renderBracketHTML(bracket);
+
+  board.innerHTML=`
+    <div style="margin-bottom:20px">
+      <div class="sec-head">🏆 ${productLabel} — Leaderboard</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">${total} matched · ${matchedJobs.length} jobs + ${matchedEsts.length} estimates · ${$$('dateFrom').value} → ${$$('dateTo').value}</div>
+      <div class="leaderboard-wrap">${lbRows}</div>
+    </div>
+    <div>
+      <div class="sec-head">🎯 Tournament Bracket</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">Head-to-head matchups based on sales count. Higher seed advances.</div>
+      <div class="bracket-wrap">${bracketHtml}</div>
+    </div>`;
+}
+
+function buildBracket(entries){
+  // Seed by count desc, pad to next power of 2
+  const seeded=[...entries].sort((a,b)=>b.count-a.count||b.rev-a.rev);
+  let size=1;
+  while(size<seeded.length) size*=2;
+  while(seeded.length<size) seeded.push({name:'BYE',count:-1,rev:0,color:'#e5e7eb',bye:true});
+
+  // Round 1 matchups (1 vs last, 2 vs second-last, etc.)
+  const rounds=[];
+  let current=[];
+  for(let i=0;i<size/2;i++){
+    current.push([seeded[i],seeded[size-1-i]]);
+  }
+  rounds.push(current);
+
+  // Simulate remaining rounds — higher count advances
+  while(current.length>1){
+    const next=[];
+    for(let i=0;i<current.length;i+=2){
+      const m1=current[i],m2=current[i+1]||[[{name:'BYE',bye:true,count:-1}]];
+      const w1=m1[0].bye?m1[1]:m1[1].bye?m1[0]:m1[0].count>=m1[1].count?m1[0]:m1[1];
+      const w2=Array.isArray(m2[0])?m2[0][0]:m2[0].bye?m2[1]:m2[1].bye?m2[0]:m2[0].count>=m2[1].count?m2[0]:m2[1];
+      next.push([w1,w2]);
+    }
+    rounds.push(next);
+    current=next;
+  }
+  return{rounds,seeded};
+}
+
+function renderBracketHTML({rounds,seeded}){
+  const roundNames={0:'Round 1',1:'Quarterfinals',2:'Semifinals',3:'Finals'};
+  const lastIdx=rounds.length-1;
+
+  return`<div class="bracket">
+    ${rounds.map((matches,ri)=>`
+      <div class="bracket-round">
+        <div class="bracket-round-label">${roundNames[ri]||`Round ${ri+1}`}</div>
+        ${matches.map(([a,b])=>{
+          const aWin=!a.bye&&!b.bye?a.count>=b.count:!a.bye;
+          const bWin=!aWin;
+          const isChamp=ri===lastIdx;
+          return`<div class="bracket-match" style="${isChamp?'border:2px solid #E8640A':''}">
+            <div class="bracket-slot ${a.bye?'bye':aWin&&!b.bye?'winner':'loser'}">
+              <span class="bracket-seed">${a.bye?'':''}</span>
+              <span class="bracket-name">${a.bye?'—':a.name.split(' ')[0]}</span>
+              <span class="bracket-score">${a.bye?'':a.count>0?a.count:'0'}</span>
+            </div>
+            <div class="bracket-slot ${b.bye?'bye':bWin&&!a.bye?'winner':'loser'}">
+              <span class="bracket-seed">${b.bye?'':''}</span>
+              <span class="bracket-name">${b.bye?'—':b.name.split(' ')[0]}</span>
+              <span class="bracket-score">${b.bye?'':b.count>0?b.count:'0'}</span>
+            </div>
+            ${isChamp?`<div style="text-align:center;padding:4px;background:#FFF7F0;font-size:11px;font-weight:700;color:#E8640A">🏆 Champion</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`).join('')}
+  </div>`;
 }
 </script>
 </body>
