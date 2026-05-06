@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#166534;color:#fff;border:1px solid #166534;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -302,7 +302,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#166534;color:#fff;border:1px solid #166534;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.3</span>
+      <span style="font-size:12px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -331,7 +331,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -377,8 +377,8 @@ tr:hover td{background:#fafafa}
       <button class="tab" onclick="showTab('kpi')">Employee KPIs</button>
       <button class="tab" onclick="showTab('cal')">📅 Calendar</button>
       <button class="tab" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
-      <button class="tab" onclick="showTab('plans')">Service Plans</button>
       <button class="tab" onclick="showTab('contest')">🏆 Contest</button>
+      <button class="tab" onclick="showTab('plans')">Service Plans</button>
       <button class="tab" onclick="showTab('debug')">Raw Data</button>
     </div>
 
@@ -1038,9 +1038,9 @@ function applyEmpFilter(){
 
 
 function showTab(t){
-  const n=['jobs','estimates','attr','kpi','cal','is','plans','contest','debug'];
+  const n=['jobs','estimates','attr','kpi','cal','is','contest','plans','debug'];
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
-  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-cal','tab-is','tab-plans','tab-contest','tab-debug'][i]==='tab-'+t));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-cal','tab-is','tab-contest','tab-plans','tab-debug'][i]==='tab-'+t));
   if(t==='contest') renderContest();
 }
 function printReport(){
