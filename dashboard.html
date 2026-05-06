@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -302,7 +302,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.4</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v6.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -331,7 +331,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v6.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -651,8 +651,10 @@ tr:hover td{background:#fafafa}
             <select onchange="if(this.value){$$('contestProduct').value=this.value;this.value='';}" style="font-size:12px;padding:7px 8px;border:1px solid #d1d5db;border-radius:5px">
               <option value="">Quick pick...</option>
               <option value="Smart Water Leak Alarm">Smart Water Leak Alarm (4 pack)</option>
-              <option value="leak alarm">Leak Alarm (generic)</option>
-              <option value="water softener">Water Softener / Conditioner</option>
+              <option value="water softener">Water Softener</option>
+              <option value="Smart Valve Softener">Smart Valve Softener</option>
+              <option value="RO System">RO / Drinking Water System</option>
+              <option value="Carbon Filter">Carbon Filter / Filtration</option>
               <option value="home club">Home Club Membership</option>
               <option value="water heater">Water Heater</option>
               <option value="furnace">Furnace</option>
@@ -1040,7 +1042,8 @@ function applyEmpFilter(){
 function showTab(t){
   const n=['jobs','estimates','attr','kpi','cal','is','contest','plans','debug'];
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
-  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['tab-jobs','tab-estimates','tab-attr','tab-kpi','tab-cal','tab-is','tab-contest','tab-plans','tab-debug'][i]==='tab-'+t));
+  // Use id-based matching — immune to panel order in HTML
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+t));
   if(t==='contest') renderContest();
 }
 function printReport(){
@@ -1125,6 +1128,40 @@ async function loadAll(){
     ]);
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
+
+    // If no plans found via API, scan job line items for $19.99 service plan charges
+    if(!_plans.length){
+      const planFromJobs=[];
+      _jobs.forEach(j=>{
+        const lines=j.line_items||j.services||[];
+        lines.forEach(l=>{
+          const price=parseFloat(l.unit_price||l.price||l.total_amount||0);
+          const cents=price>100; // HCP sometimes returns cents
+          const priceD=cents?price/100:price;
+          const name=(l.name||l.description||'').toLowerCase();
+          const isPlan=Math.abs(priceD-19.99)<0.5||
+            name.includes('home club')||name.includes('service plan')||
+            name.includes('service agreement')||name.includes('membership')||
+            name.includes('maintenance plan');
+          if(isPlan){
+            const emp=getAssignedList(j)[0];
+            planFromJobs.push({
+              id:'plan_'+j.id+'_'+planFromJobs.length,
+              customer:j.customer,
+              name:l.name||'Service Plan',
+              total_amount:1999, // store in cents
+              sold_by:emp,
+              created_at:j.created_at,
+              source:'job_line_item'
+            });
+          }
+        });
+      });
+      if(planFromJobs.length){
+        console.log('[Plans] Found',planFromJobs.length,'via job line items ($19.99 scan)');
+        _plans=planFromJobs;
+      }
+    }
 
     // Identify installer IDs
     INSTALLER_IDS.clear();
@@ -3271,12 +3308,14 @@ function renderContest(){
 
   // Product aliases — searching any of these terms matches the others
   const PRODUCT_ALIASES=[
-    // Smart Water Leak Alarm — specific product, do NOT match generic "leak" or "leak repair"
-    ['smart water leak alarm','smart water leak','leak alarm','water leak alarm','leak sensor','leak detector alarm','flo by moen','phyn','4 pack alarm'],
-    ['water softener','water conditioner','water conditioning','kinetico','ecowater','culligan','softener system'],
+    // Smart Water Leak Alarm — specific product only, no generic leak terms
+    ['smart water leak alarm','smart water leak','water leak alarm','leak sensor','4 pack alarm','smart leak'],
+    ['water softener','water conditioner','water conditioning','kinetico','ecowater','culligan','softener system','smart valve softener','22k softener','30k softener','45k softener','60k softener','whole home softener'],
     ['home club','service agreement','service plan','maintenance plan','club membership','annual plan'],
     ['furnace','heating system','heat system','hvac install','air handler','furnace install'],
     ['air conditioner','ac install','cooling system','heat pump','ac unit','air conditioning install'],
+    ['ro system','reverse osmosis','drinking water system','5 stage ro','northstar','pentair fresh','under sink','ro filtration'],
+    ['carbon filter','carbon filtration','whole home carbon','carbon softener suite','chlorine filter'],
     ['water heater','hot water heater','water tank','tankless water','water heater install'],
     ['drain cleaning','hydro jet','jetting','drain auger','drain snake','clear drain'],
   ];
