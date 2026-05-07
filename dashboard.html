@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#DC2626;color:#fff;border:1px solid #DC2626;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -280,6 +280,18 @@ tr:hover td{background:#fafafa}
 .leaderboard-bar{height:8px;border-radius:99px;background:#E8640A;transition:width .4s}
 .leaderboard-count{font-size:16px;font-weight:800;color:#1A3A5C;min-width:40px;text-align:right}
 .leaderboard-rev{font-size:12px;color:#6b7280;min-width:80px;text-align:right}
+/* UNPAID JOBS */
+.unpaid-card{background:#fff;border:1px solid #FECACA;border-left:4px solid #DC2626;border-radius:8px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:box-shadow .15s}
+.unpaid-card:hover{box-shadow:0 2px 8px rgba(220,38,38,.15)}
+.unpaid-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.unpaid-card-title{font-size:14px;font-weight:700;color:#111827}
+.unpaid-card-amount{font-size:16px;font-weight:800;color:#DC2626;white-space:nowrap}
+.unpaid-card-meta{font-size:12px;color:#6b7280;margin-top:4px;line-height:1.5}
+.unpaid-detail-section{margin-bottom:14px}
+.unpaid-detail-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;border-left:3px solid #DC2626;padding-left:8px;margin-bottom:8px}
+.unpaid-note-item{padding:6px 10px;background:#fffbeb;border-left:2px solid #fbbf24;border-radius:2px;font-size:12px;color:#374151;margin-bottom:5px;line-height:1.5}
+.unpaid-history-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f9fafb;font-size:12px}
+.unpaid-history-item:last-child{border-bottom:none}
 .emp-filter-wrap{position:relative;display:inline-block}
 .emp-filter-btn{display:flex;align-items:center;gap:4px;font-size:12px;padding:5px 12px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;white-space:nowrap;color:#374151;font-family:Arial,sans-serif}
 .emp-filter-btn:hover{background:#f9fafb;border-color:#1A3A5C}
@@ -294,6 +306,11 @@ tr:hover td{background:#fafafa}
 .emp-filter-item input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#1A3A5C}
 .emp-filter-item .emp-role{font-size:10px;color:#9ca3af;margin-left:auto}
 .emp-filter-divider{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;padding:6px 12px 2px;background:#f9fafb}
+/* CONTEST TAGS */
+.contest-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;font-size:12px;font-weight:600;cursor:default}
+.contest-tag-remove{cursor:pointer;opacity:.6;font-size:14px;line-height:1}.contest-tag-remove:hover{opacity:1}
+.contest-section{margin-bottom:32px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+.contest-section-head{background:#1A3A5C;color:#fff;padding:12px 16px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
 /* SERVICE PLAN UPLOAD */
 .plan-upload-box{border:2px dashed #d1d5db;border-radius:10px;padding:28px 24px;text-align:center;background:#fafafa;margin-bottom:16px;transition:border-color .2s,background .2s}
 .plan-upload-box.drag-over{border-color:#1A3A5C;background:#EAF2FB}
@@ -307,7 +324,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.1</span>
+      <span style="font-size:12px;background:#DC2626;color:#fff;border:1px solid #DC2626;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -336,10 +353,11 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
+      <button class="sec-btn no-print" id="summaryBtn" style="display:none" onclick="openSummaryReport()">📊 Summary Report</button>
       <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
       <button class="sec-btn no-print" onclick="showDataTools()">⚙ Data</button>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
@@ -383,6 +401,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" onclick="showTab('cal')">📅 Calendar</button>
       <button class="tab" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
       <button class="tab" onclick="showTab('contest')">🏆 Contest</button>
+      <button class="tab" id="unpaidTab" onclick="showTab('unpaid')">⚠ Unpaid Jobs</button>
       <button class="tab" onclick="showTab('plans')">Service Plans</button>
       <button class="tab" onclick="showTab('debug')">Raw Data</button>
     </div>
@@ -508,6 +527,7 @@ tr:hover td{background:#fafafa}
       </div>
       <!-- Controls -->
       <div class="cal-controls">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <label style="font-size:12px;color:#6b7280">View:</label>
           <select id="calRevenueMode" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
@@ -533,6 +553,8 @@ tr:hover td{background:#fafafa}
               <div id="calEmpCheckboxList"></div>
             </div>
           </div>
+        </div>
+        <button onclick="printCalendar()" style="white-space:nowrap;font-size:12px;padding:5px 14px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;color:#374151">🖨 Print Calendar</button>
         </div>
         <div style="font-size:11px;color:#9ca3af;margin-top:6px">
           💡 Revenue is credited to the estimate date when a job converts. Click any cell for details. Use the employee picker to compare specific people side by side.
@@ -655,6 +677,21 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
 
+      <!-- SUMMARY REPORT MODAL -->
+      <div class="is-modal-overlay" id="summaryOverlay" onclick="closeSummaryReport()" style="display:none"></div>
+      <div class="is-modal" id="summaryModal" style="display:none;max-width:720px;max-height:90vh">
+        <div class="is-modal-header">
+          <div class="is-modal-title">📊 Executive Summary Report</div>
+          <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeSummaryReport()">✕</span>
+        </div>
+        <div id="summaryPreview" style="font-size:13px;line-height:1.7;color:#374151;overflow-y:auto;max-height:60vh;padding:4px 0"></div>
+        <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid #f3f4f6">
+          <button class="pull-btn" onclick="printSummaryReport()">🖨 Print / PDF</button>
+          <button class="is-btn primary" onclick="downloadSummaryDocx()">📄 Download Word Doc</button>
+          <button class="is-btn" onclick="closeSummaryReport()">Close</button>
+        </div>
+      </div>
+
       <!-- EMAIL MODAL -->
       <div class="is-modal-overlay" id="isModalOverlay" onclick="closeISModal()" style="display:none"></div>
       <div class="is-modal" id="isModal" style="display:none">
@@ -668,30 +705,53 @@ tr:hover td{background:#fafafa}
 
     <!-- CONTEST -->
     <div class="panel" id="tab-contest">
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:3px">Product / Service to track</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <input type="text" id="contestProduct" placeholder="e.g. Leak Detector, Water Softener, Club Membership" style="font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;width:280px">
-            <select onchange="if(this.value){$$('contestProduct').value=this.value;this.value='';}" style="font-size:12px;padding:7px 8px;border:1px solid #d1d5db;border-radius:5px">
-              <option value="">Quick pick...</option>
-              <option value="Smart Water Leak Alarm">Smart Water Leak Alarm (4 pack)</option>
-              <option value="water softener">Water Softener</option>
-              <option value="Smart Valve Softener">Smart Valve Softener</option>
-              <option value="RO System">RO / Drinking Water System</option>
-              <option value="Carbon Filter">Carbon Filter / Filtration</option>
-              <option value="home club">Home Club Membership</option>
-              <option value="water heater">Water Heater</option>
-              <option value="furnace">Furnace</option>
-              <option value="air conditioner">Air Conditioner</option>
-              <option value="drain cleaning">Drain Cleaning</option>
-            </select>
-          </div>
+      <div style="padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#1A3A5C;margin-bottom:10px">🏆 Contest Tracker — Track multiple products simultaneously</div>
+
+        <!-- Active contest items -->
+        <div id="contestTags" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:32px"></div>
+
+        <!-- Add new item -->
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="contestProduct" placeholder="Add product or service..." style="font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;width:240px" onkeydown="if(event.key==='Enter')addContestItem()">
+          <select onchange="if(this.value){$$('contestProduct').value=this.value;this.value='';$$('contestProduct').focus();}" style="font-size:12px;padding:7px 8px;border:1px solid #d1d5db;border-radius:5px">
+            <option value="">Quick pick...</option>
+            <option value="Smart Water Leak Alarm (4 pack)">Smart Water Leak Alarm (4 pack)</option>
+            <option value="Service Plans">Service Plans (uploaded)</option>
+            <option value="water softener">Water Softener</option>
+            <option value="Smart Valve Softener">Smart Valve Softener</option>
+            <option value="RO System">RO / Drinking Water System</option>
+            <option value="Carbon Filter">Carbon Filter / Filtration</option>
+            <option value="home club">Home Club Membership</option>
+            <option value="water heater">Water Heater</option>
+            <option value="furnace">Furnace</option>
+            <option value="air conditioner">Air Conditioner</option>
+            <option value="drain cleaning">Drain Cleaning</option>
+          </select>
+          <button class="is-btn primary" onclick="addContestItem()" style="padding:7px 14px">+ Add</button>
+          <button class="pull-btn" onclick="renderContest()" style="padding:7px 18px">🏆 Run Contest</button>
+          <button class="is-btn" onclick="clearContestItems()" style="padding:7px 12px;font-size:11px">Clear all</button>
         </div>
-        <button class="pull-btn" onclick="renderContest()" style="margin-bottom:0">🏆 Run Contest</button>
-        <div style="font-size:11px;color:#9ca3af">Uses jobs &amp; estimates from the current pulled date range</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:8px">
+          Add multiple products — each gets its own leaderboard and bracket. "Service Plans" uses your uploaded plan data.
+        </div>
       </div>
       <div id="contestBoard"></div>
+    </div>
+
+    <!-- UNPAID JOBS -->
+    <div class="panel" id="tab-unpaid">
+      <div class="metrics" id="unpaidMetrics"></div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Jobs that are complete but payment has not been collected. Click any job for full details.</div>
+      <div class="filter-bar">
+        <label>Dept:</label><select id="unpaidDeptFilter" onchange="renderUnpaid()"><option value="">All</option></select>
+        <label>Tech:</label><select id="unpaidEmpFilter" onchange="renderUnpaid()"><option value="">All</option></select>
+        <button class="clear-btn" onclick="$$('unpaidDeptFilter').value='';$$('unpaidEmpFilter').value='';renderUnpaid()">Clear</button>
+      </div>
+      <div id="unpaidList"></div>
+      <!-- Unpaid Job Detail Popup -->
+      <div class="is-modal-overlay" id="unpaidOverlay" onclick="closeUnpaidDetail()" style="display:none"></div>
+      <div class="is-modal" id="unpaidDetail" style="display:none;max-width:580px"></div>
     </div>
 
     <!-- SERVICE PLANS -->
@@ -1252,6 +1312,7 @@ async function loadAll(){
     renderCalendar();
     renderIS();
     updateISBadge();
+    renderUnpaid();
     buildEmpFilter();
     loadCalEmpFilter();
     buildCalEmpFilter();
@@ -1269,6 +1330,7 @@ async function loadAll(){
 
     $$('main').style.display='block';
     $$('printBtn').style.display='';
+    $$('summaryBtn').style.display='';
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -2344,8 +2406,248 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   }
 }
 // ============================================================
-// SERVICE PLAN MANUAL UPLOAD
+// CALENDAR PRINT
 // ============================================================
+function printCalendar(){
+  const wrap=$$('calWrap');
+  if(!wrap){alert('No calendar loaded. Pull a report first.');return;}
+  const mode=$$('calRevenueMode')?.value==='estimate'?'Revenue on estimate date (who sold it)':'Revenue on collection date (cash flow)';
+  const from=$$('dateFrom')?.value||'', to=$$('dateTo')?.value||'';
+  const win=window.open('','_blank','width=1200,height=900');
+  win.document.write(`<!DOCTYPE html><html><head><title>Midstate Calendar ${from} to ${to}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;background:#fff;color:#374151}
+    @page{size:landscape;margin:0.4in}
+    @media print{body{margin:0}}
+    .print-header{padding:10px 0 8px;border-bottom:3px solid #1A3A5C;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-end}
+    .print-title{font-size:18px;font-weight:700;color:#1A3A5C}
+    .print-sub{font-size:11px;color:#6b7280}
+    .cal-table{border-collapse:collapse;width:100%;font-size:10px}
+    .cal-table th{background:#1A3A5C;color:#fff;padding:5px 4px;text-align:center;font-size:9px;white-space:nowrap;border:1px solid #fff}
+    .cal-table th.date-col{text-align:left;min-width:72px}
+    .cal-table td.date-cell{background:#f9fafb;font-size:9px;font-weight:600;padding:3px 5px;border-right:2px solid #cbd5e1;border-bottom:1px solid #d1d5db;white-space:nowrap}
+    .cal-table tr.weekend td.date-cell{color:#9ca3af;background:#f1f0eb}
+    .cal-table tr.today td.date-cell{background:#FFF9DB;color:#854F0B;font-weight:800}
+    .cal-cell{padding:3px 4px;border:1px solid #d1d5db;vertical-align:top;min-width:80px}
+    .cal-cell.empty{background:#f9fafb}
+    .cal-cell.est-only{background:#DBEAFE}
+    .cal-cell.in-progress{background:#FEF9C3}
+    .cal-cell.paid-low{background:#BBF7D0}
+    .cal-cell.paid-high{background:#16a34a;color:#fff}
+    .cal-cell.unpaid{background:#FECACA}
+    .cal-cell.mixed{background:linear-gradient(135deg,#BBF7D0 50%,#FECACA 50%)}
+    .cal-rev{font-size:10px;font-weight:700;color:#166534;line-height:1.2}
+    .cal-meta{font-size:9px;color:#6b7280;margin-top:1px}
+    .cal-cell.paid-high .cal-rev,.cal-cell.paid-high .cal-meta{color:#fff!important}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:9px}
+    .leg-item{display:flex;align-items:center;gap:3px}
+    .leg-sw{width:10px;height:10px;border-radius:2px;display:inline-block;border:1px solid #e5e7eb}
+  </style></head><body>
+  <div class="print-header">
+    <div>
+      <div class="print-title">🏠 Midstate Plumbing, Heating & Cooling — Calendar</div>
+      <div class="print-sub">${from} to ${to} &nbsp;·&nbsp; ${mode}</div>
+    </div>
+    <div class="print-sub" style="text-align:right">651-480-1195 &nbsp;·&nbsp; Hastings, MN<br>Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+  </div>
+  ${wrap.innerHTML}
+  <div class="legend">
+    <span class="leg-item"><span class="leg-sw" style="background:#DBEAFE"></span>Estimates only</span>
+    <span class="leg-item"><span class="leg-sw" style="background:#FEF9C3"></span>In progress</span>
+    <span class="leg-item"><span class="leg-sw" style="background:#BBF7D0"></span>Revenue collected</span>
+    <span class="leg-item"><span class="leg-sw" style="background:#16a34a"></span>Strong revenue</span>
+    <span class="leg-item"><span class="leg-sw" style="background:#FECACA"></span>Unpaid</span>
+  </div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// ============================================================
+// UNPAID JOBS TAB
+// ============================================================
+function getUnpaidJobs(){
+  const dept=$$('unpaidDeptFilter')?.value||'';
+  const emp=$$('unpaidEmpFilter')?.value||'';
+  return _jobs.filter(j=>{
+    if(!isJobComplete(j)||isJobPaid(j)||isJobRefunded(j)) return false;
+    if(dept&&getDept(j)!==dept) return false;
+    if(emp&&getAssigned(j)!==emp) return false;
+    return true;
+  }).sort((a,b)=>getJobTotal(b)-getJobTotal(a));
+}
+
+function renderUnpaid(){
+  if(!_jobs.length){
+    const el=$$('unpaidList');
+    if(el) el.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Pull a report to load job data.</div>';
+    return;
+  }
+  const unpaid=getUnpaidJobs();
+  const totalOwed=unpaid.reduce((s,j)=>s+getJobTotal(j),0);
+
+  // Metrics
+  const metricsEl=$$('unpaidMetrics');
+  if(metricsEl) metricsEl.innerHTML=`
+    <div class="metric" style="border-left:3px solid #DC2626"><div class="metric-label">Unpaid Jobs</div><div class="metric-value" style="color:#DC2626">${unpaid.length}</div><div class="metric-sub">Complete, not collected</div></div>
+    <div class="metric" style="border-left:3px solid #DC2626"><div class="metric-label">Total Outstanding</div><div class="metric-value" style="color:#DC2626">${dollars(totalOwed)}</div><div class="metric-sub">Revenue awaiting collection</div></div>
+    <div class="metric"><div class="metric-label">Avg Outstanding</div><div class="metric-value">${unpaid.length?dollars(totalOwed/unpaid.length):'—'}</div><div class="metric-sub">Per unpaid job</div></div>`;
+
+  // Populate filters
+  const depts=[...new Set(_jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)).map(getDept))].sort();
+  const emps=[...new Set(_jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)).map(getAssigned))].sort();
+  const deptSel=$$('unpaidDeptFilter');
+  const empSel=$$('unpaidEmpFilter');
+  if(deptSel){const cur=deptSel.value;deptSel.innerHTML='<option value="">All Depts</option>'+depts.map(d=>`<option ${d===cur?'selected':''}>${d}</option>`).join('');deptSel.value=cur;}
+  if(empSel){const cur=empSel.value;empSel.innerHTML='<option value="">All Techs</option>'+emps.map(e=>`<option ${e===cur?'selected':''}>${e}</option>`).join('');empSel.value=cur;}
+
+  // Update badge
+  const tab=$$('unpaidTab');
+  if(tab) tab.innerHTML=unpaid.length>0?`⚠ Unpaid Jobs <span class="badge-count">${unpaid.length}</span>`:'⚠ Unpaid Jobs';
+
+  const container=$$('unpaidList');
+  if(!container) return;
+  if(!unpaid.length){
+    container.innerHTML='<div style="text-align:center;padding:2rem;color:#22c55e;font-size:14px;font-weight:600">✅ No unpaid jobs in this date range!</div>';
+    return;
+  }
+
+  container.innerHTML=unpaid.map(j=>{
+    const total=getJobTotal(j);
+    const completedAt=j.work_timestamps?.completed_at||j.completed_at||'';
+    const daysSince=completedAt?Math.floor((Date.now()-new Date(completedAt))/(1000*60*60*24)):null;
+    const urgency=daysSince===null?'':daysSince<=3?'<span style="background:#EAF3DE;color:#166534;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">New</span>':daysSince<=14?`<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue</span>`:`<span style="background:#FECACA;color:#DC2626;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue ⚠</span>`;
+    const notes=getJobNotes(j);
+    const cust=j.customer||{};
+    const phone=cust.mobile_number||cust.home_number||'';
+    return`<div class="unpaid-card" onclick="openUnpaidDetail('${j.id}')">
+      <div class="unpaid-card-header">
+        <div>
+          <div class="unpaid-card-title">${getCust(j)} ${urgency}</div>
+          <div class="unpaid-card-meta">
+            Job #${j.job_number||j.id||'—'} · ${getDept(j)} · ${getAssigned(j)}<br>
+            ${j.address?.street?j.address.street+', '+j.address.city:''}
+            ${phone?` · 📞 ${phone}`:''}
+            ${completedAt?` · Completed ${fmtD(completedAt)}`:''}
+          </div>
+          ${notes.length?`<div class="unpaid-note-item" style="margin-top:6px">${notes[0].slice(0,140)}${notes[0].length>140?'…':''}</div>`:''}
+        </div>
+        <div class="unpaid-card-amount">${dollars(total)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openUnpaidDetail(jobId){
+  const j=_jobs.find(x=>x.id===jobId);
+  if(!j) return;
+  const total=getJobTotal(j);
+  const cust=j.customer||{};
+  const phone=cust.mobile_number||cust.home_number||cust.work_number||'';
+  const email=cust.email||'';
+  const addr=j.address?[j.address.street,j.address.street_line_2,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
+  const notes=getJobNotes(j);
+  const completedAt=j.work_timestamps?.completed_at||j.completed_at||'';
+  const startedAt=j.work_timestamps?.started_at||'';
+  const omwAt=j.work_timestamps?.on_my_way_at||'';
+  const schedStart=j.schedule?.scheduled_start||'';
+  const techs=getAssignedList(j);
+  const attr=_jobAttribution[j.id];
+  const daysSince=completedAt?Math.floor((Date.now()-new Date(completedAt))/(1000*60*60*24)):null;
+
+  // Build history timeline
+  const timeline=[];
+  if(schedStart) timeline.push({icon:'📅',label:'Scheduled',date:schedStart});
+  if(omwAt) timeline.push({icon:'🚗',label:'Tech on the way',date:omwAt});
+  if(startedAt) timeline.push({icon:'🔧',label:'Work started',date:startedAt});
+  if(completedAt) timeline.push({icon:'✅',label:'Job completed',date:completedAt});
+  if(j.created_at) timeline.push({icon:'📝',label:'Job created',date:j.created_at});
+
+  $$('unpaidDetail').innerHTML=`
+    <div class="is-modal-header">
+      <div>
+        <div class="is-modal-title">Job #${j.job_number||j.id||'—'} · ${getCust(j)}</div>
+        <div style="font-size:12px;color:#DC2626;font-weight:600;margin-top:2px">⚠ ${dollars(total)} outstanding${daysSince!==null?` · ${daysSince} day${daysSince!==1?'s':''} since completion`:''}</div>
+      </div>
+      <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeUnpaidDetail()">✕</span>
+    </div>
+
+    <!-- Customer Info -->
+    <div class="unpaid-detail-section">
+      <div class="unpaid-detail-head">Customer</div>
+      <div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:4px">${getCust(j)}</div>
+      ${addr?`<div style="font-size:12px;color:#6b7280">📍 ${addr}</div>`:''}
+      ${phone?`<div style="font-size:12px;color:#6b7280">📞 <a href="tel:${phone}" style="color:#1A3A5C">${phone}</a></div>`:''}
+      ${email?`<div style="font-size:12px;color:#6b7280">✉ <a href="mailto:${email}" style="color:#1A3A5C">${email}</a></div>`:''}
+      ${cust.notes?`<div style="font-size:12px;color:#6b7280;margin-top:4px;font-style:italic">${cust.notes}</div>`:''}
+    </div>
+
+    <!-- Job Info -->
+    <div class="unpaid-detail-section">
+      <div class="unpaid-detail-head">Job Details</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+        <div><span style="color:#9ca3af">Department:</span> <strong>${getDept(j)}</strong></div>
+        <div><span style="color:#9ca3af">Status:</span> <strong>${getNormStatus(j)}</strong></div>
+        <div><span style="color:#9ca3af">Total:</span> <strong style="color:#DC2626">${dollars(total)}</strong></div>
+        <div><span style="color:#9ca3af">Outstanding:</span> <strong style="color:#DC2626">${dollars(parseFloat(j.outstanding_balance)||0)}</strong></div>
+        ${j.description?`<div style="grid-column:1/-1"><span style="color:#9ca3af">Description:</span> ${j.description}</div>`:''}
+      </div>
+    </div>
+
+    <!-- Technicians -->
+    <div class="unpaid-detail-section">
+      <div class="unpaid-detail-head">Technicians</div>
+      ${techs.map(e=>{
+        const name=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'Unknown';
+        const color=e.color_hex?`#${e.color_hex}`:'#9ca3af';
+        const isInstaller=INSTALLER_IDS.has(e.id);
+        const isSeller=attr?.techId===e.id;
+        return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+          <span style="font-weight:600">${name}</span>
+          <span style="font-size:11px;color:#6b7280">${e.role||''}</span>
+          ${isInstaller?'<span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:99px">Installer</span>':''}
+          ${isSeller?'<span style="font-size:10px;background:#EAF3DE;color:#166534;padding:1px 6px;border-radius:99px">Revenue credit</span>':''}
+        </div>`;
+      }).join('')||'<div style="font-size:12px;color:#9ca3af">No technicians assigned</div>'}
+    </div>
+
+    <!-- History Timeline -->
+    ${timeline.length?`<div class="unpaid-detail-section">
+      <div class="unpaid-detail-head">History</div>
+      ${timeline.sort((a,b)=>new Date(a.date)-new Date(b.date)).map(t=>`
+        <div class="unpaid-history-item">
+          <span style="font-size:16px;width:24px;text-align:center">${t.icon}</span>
+          <div>
+            <div style="font-weight:600;color:#374151">${t.label}</div>
+            <div style="color:#9ca3af">${new Date(t.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+
+    <!-- Notes -->
+    ${notes.length?`<div class="unpaid-detail-section">
+      <div class="unpaid-detail-head">Notes (${notes.length})</div>
+      ${notes.map(n=>`<div class="unpaid-note-item">${n}</div>`).join('')}
+    </div>`:''}
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:8px;margin-top:4px">
+      ${phone?`<a href="tel:${phone}" class="is-btn primary" style="text-decoration:none;text-align:center">📞 Call customer</a>`:''}
+      ${email?`<a href="mailto:${email}?subject=Your recent service with Midstate Plumbing" class="is-btn" style="text-decoration:none;text-align:center">✉ Email customer</a>`:''}
+      <button class="is-btn" onclick="closeUnpaidDetail()">Close</button>
+    </div>`;
+
+  $$('unpaidDetail').style.display='block';
+  $$('unpaidOverlay').style.display='block';
+}
+
+function closeUnpaidDetail(){
+  $$('unpaidDetail').style.display='none';
+  $$('unpaidOverlay').style.display='none';
+}
+
 let _uploadedPlans=[];
 
 function loadUploadedPlans(){
@@ -3123,8 +3425,367 @@ function closeISModal(){
   $$('isModalOverlay').style.display='none';
 }
 // ============================================================
-// CALENDAR EMPLOYEE FILTER (calendar-specific, independent of global filter)
+// EXECUTIVE SUMMARY REPORT
 // ============================================================
+function buildSummaryData(){
+  const from=$$('dateFrom').value, to=$$('dateTo').value;
+  const jobs=_jobs, ests=_estimates, emps=_employees;
+
+  // Revenue
+  const paidJobs=jobs.filter(isJobPaid);
+  const unpaidJobs=jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j));
+  const inProgressJobs=jobs.filter(j=>!isJobComplete(j)&&!isJobRefunded(j));
+  const totalRev=paidJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const totalUnpaid=unpaidJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const totalPipeline=inProgressJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const avgJob=paidJobs.length?totalRev/paidJobs.length:0;
+
+  // Estimates
+  const soldEsts=ests.filter(isConv);
+  const convRate=ests.length?Math.round(soldEsts.length/ests.length*100):0;
+  const totalEstValue=ests.reduce((s,e)=>s+getEstTotal(e),0);
+
+  // By department
+  const depts={};
+  paidJobs.forEach(j=>{
+    const d=getDept(j);const attr=_jobAttribution[j.id];
+    if(!depts[d])depts[d]={rev:0,jobs:0};
+    depts[d].rev+=getJobTotal(j);depts[d].jobs++;
+  });
+
+  // Per tech scorecards
+  const techMap={};
+  function ensureTech(id,name){if(!techMap[id])techMap[id]={name,rev:0,jobs:0,ests:0,converted:0,plans:0};}
+  paidJobs.forEach(j=>{
+    const attr=_jobAttribution[j.id];
+    if(attr?.techId&&attr.techId!=='skip'){
+      const id=attr.techId,name=attr.techName||'Unknown';
+      ensureTech(id,name);
+      techMap[id].rev+=getJobTotal(j);techMap[id].jobs++;
+    }
+  });
+  ests.forEach(e=>{
+    const empList=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
+    const emp=empList[0];if(!emp)return;
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
+    ensureTech(emp.id,name);
+    techMap[emp.id].ests++;
+    if(isConv(e))techMap[emp.id].converted++;
+  });
+  _plans.forEach(p=>{
+    const emp=p.sold_by;if(!emp)return;
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
+    ensureTech(emp.id||'plan_'+name,name);
+    techMap[emp.id||'plan_'+name].plans++;
+  });
+  const techCards=Object.values(techMap)
+    .filter(t=>!INSTALLER_NAMES.includes(t.name))
+    .sort((a,b)=>b.rev-a.rev);
+
+  // Inside Sales
+  const isOpps=ests.filter(e=>getEstTotal(e)>=1000&&!isConv(e)&&(_isStatus[e.id]||'open')==='open');
+  const isConverted=Object.values(_isStatus).filter(v=>v==='converted').length;
+
+  return{from,to,totalRev,totalUnpaid,totalPipeline,avgJob,
+    totalJobs:jobs.length,paidJobs:paidJobs.length,
+    totalEsts:ests.length,soldEsts:soldEsts.length,convRate,totalEstValue,
+    depts,techCards,plans:_plans.length,isOpps:isOpps.length,isConverted,
+    generated:new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})};
+}
+
+function openSummaryReport(){
+  const d=buildSummaryData();
+  $$('summaryPreview').innerHTML=renderSummaryHTML(d);
+  $$('summaryModal').style.display='block';
+  $$('summaryOverlay').style.display='block';
+}
+function closeSummaryReport(){
+  $$('summaryModal').style.display='none';
+  $$('summaryOverlay').style.display='none';
+}
+
+function renderSummaryHTML(d){
+  const deptRows=Object.entries(d.depts).sort((a,b)=>b[1].rev-a[1].rev)
+    .map(([name,v])=>`<tr><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6">${name}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-weight:600">${dollars(v.rev)}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;color:#6b7280">${v.jobs} jobs</td></tr>`).join('');
+
+  const techRows=d.techCards.map((t,i)=>{
+    const cr=t.ests>0?Math.round(t.converted/t.ests*100):0;
+    const score=Math.min(100,
+      (t.jobs>0?35:0)+
+      (t.ests>0?Math.round(t.converted/t.ests*25):0)+
+      Math.min(25,Math.round(Math.min(t.rev/(t.jobs||1),500)/500*25))+
+      Math.min(15,t.plans*5));
+    const scoreBg=score>=75?'#EAF3DE':score>=50?'#FEF9C3':'#FECACA';
+    const scoreColor=score>=75?'#166534':score>=50?'#854F0B':'#991B1B';
+    return`<tr style="background:${i%2===0?'#fff':'#f9fafb'}">
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;font-weight:600">${t.name}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;font-weight:700;color:#1A3A5C">${dollars(t.rev)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">${t.jobs}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">${t.ests}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">${cr}%</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">${t.plans}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6"><span style="background:${scoreBg};color:${scoreColor};padding:2px 8px;border-radius:99px;font-weight:700;font-size:12px">${score}</span></td>
+    </tr>`;}).join('');
+
+  return`
+  <div style="font-family:Arial,sans-serif">
+    <!-- Header -->
+    <div style="background:#1A3A5C;color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:16px">
+      <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.08em">Midstate Plumbing, Heating & Cooling</div>
+      <div style="font-size:20px;font-weight:700;margin:4px 0">Executive Summary Report</div>
+      <div style="font-size:12px;opacity:.8">${d.from} — ${d.to} &nbsp;·&nbsp; Generated ${d.generated}</div>
+    </div>
+
+    <!-- Revenue overview -->
+    <div style="font-size:13px;font-weight:700;color:#1A3A5C;text-transform:uppercase;letter-spacing:.06em;border-left:4px solid #E8640A;padding-left:10px;margin-bottom:10px">Revenue Overview</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      ${[
+        ['Total Revenue Collected',dollars(d.totalRev),'#EAF3DE','#166534'],
+        ['Jobs Completed',`${d.paidJobs} of ${d.totalJobs}`,'#EFF6FF','#1d4ed8'],
+        ['Avg Job Value',dollars(d.avgJob),'#F3E8FF','#7C3AED'],
+        ['Outstanding (Unpaid)',dollars(d.totalUnpaid),'#FEF3C7','#92400E'],
+      ].map(([label,val,bg,color])=>`<div style="background:${bg};border-radius:8px;padding:12px 14px">
+        <div style="font-size:11px;color:${color};font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
+        <div style="font-size:20px;font-weight:800;color:${color}">${val}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Estimates -->
+    <div style="font-size:13px;font-weight:700;color:#1A3A5C;text-transform:uppercase;letter-spacing:.06em;border-left:4px solid #E8640A;padding-left:10px;margin-bottom:10px">Estimates</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      ${[
+        ['Estimates Run',d.totalEsts,'#f9fafb','#374151'],
+        ['Estimates Sold',d.soldEsts,'#EAF3DE','#166534'],
+        ['Conversion Rate',d.convRate+'%',d.convRate>=40?'#EAF3DE':d.convRate>=25?'#FEF3C7':'#FECACA',d.convRate>=40?'#166534':d.convRate>=25?'#92400E':'#991B1B'],
+      ].map(([label,val,bg,color])=>`<div style="background:${bg};border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px">
+        <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
+        <div style="font-size:22px;font-weight:800;color:${color}">${val}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Department breakdown -->
+    ${Object.keys(d.depts).length?`
+    <div style="font-size:13px;font-weight:700;color:#1A3A5C;text-transform:uppercase;letter-spacing:.06em;border-left:4px solid #E8640A;padding-left:10px;margin-bottom:10px">Revenue by Department</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+      <thead><tr style="background:#1A3A5C;color:#fff"><th style="padding:8px 10px;text-align:left">Department</th><th style="padding:8px 10px;text-align:left">Revenue</th><th style="padding:8px 10px;text-align:left">Jobs</th></tr></thead>
+      <tbody>${deptRows}</tbody>
+    </table>`:''}
+
+    <!-- Tech scorecards -->
+    <div style="font-size:13px;font-weight:700;color:#1A3A5C;text-transform:uppercase;letter-spacing:.06em;border-left:4px solid #E8640A;padding-left:10px;margin-bottom:10px">Employee Scorecards</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+      <thead><tr style="background:#1A3A5C;color:#fff">
+        <th style="padding:8px 10px;text-align:left">Technician</th>
+        <th style="padding:8px 10px;text-align:left">Revenue</th>
+        <th style="padding:8px 10px;text-align:left">Jobs</th>
+        <th style="padding:8px 10px;text-align:left">Estimates</th>
+        <th style="padding:8px 10px;text-align:left">Conv%</th>
+        <th style="padding:8px 10px;text-align:left">Plans</th>
+        <th style="padding:8px 10px;text-align:left">Score</th>
+      </tr></thead>
+      <tbody>${techRows}</tbody>
+    </table>
+
+    <!-- Inside Sales -->
+    <div style="font-size:13px;font-weight:700;color:#1A3A5C;text-transform:uppercase;letter-spacing:.06em;border-left:4px solid #E8640A;padding-left:10px;margin-bottom:10px">Inside Sales</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      ${[
+        ['Open Opportunities',d.isOpps,'≥$1,000 not yet sold'],
+        ['Converted by IS',d.isConverted,'Closed by inside sales'],
+        ['Service Plans Sold',d.plans,'Uploaded plan records'],
+      ].map(([label,val,sub])=>`<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px">
+        <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
+        <div style="font-size:22px;font-weight:800;color:#1A3A5C">${val}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px">${sub}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Footer -->
+    <div style="font-size:11px;color:#9ca3af;text-align:center;padding-top:10px;border-top:1px solid #f3f4f6">
+      Midstate Plumbing, Heating & Cooling · 3500 Cannon St Ste 100, Hastings, MN 55033 · 651-480-1195<br>
+      Generated by HCP KPI Dashboard · ${d.generated}
+    </div>
+  </div>`;
+}
+
+function printSummaryReport(){
+  const content=$$('summaryPreview').innerHTML;
+  const win=window.open('','_blank','width=800,height=900');
+  win.document.write(`<!DOCTYPE html><html><head><title>Summary Report</title>
+    <style>body{font-family:Arial,sans-serif;margin:20px;color:#374151}@media print{body{margin:0}}</style>
+    </head><body>${content}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  win.document.close();
+}
+
+async function downloadSummaryDocx(){
+  const btn=event.target;
+  btn.textContent='Building...';btn.disabled=true;
+  try{
+    const d=buildSummaryData();
+    await generateSummaryDocx(d);
+  }catch(err){
+    alert('Error generating Word doc: '+err.message);
+  }
+  btn.textContent='📄 Download Word Doc';btn.disabled=false;
+}
+
+async function generateSummaryDocx(d){
+  // Load docx library
+  if(typeof docx==='undefined'){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/docx/9.5.1/docx.umd.min.js';
+      s.onload=res;s.onerror=()=>rej(new Error('Could not load docx library'));
+      document.head.appendChild(s);
+    });
+  }
+  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,
+         AlignmentType,WidthType,ShadingType,BorderStyle,HeadingLevel,
+         PageNumber,Footer,NumberFormat}=docx;
+
+  const navy='1A3A5C', orange='E8640A', gray='6b7280', lightGray='F3F4F6';
+  const border={style:BorderStyle.SINGLE,size:1,color:'CCCCCC'};
+  const borders={top:border,bottom:border,left:border,right:border};
+  const cellMargins={top:80,bottom:80,left:120,right:120};
+  const W=9360; // content width in DXA
+
+  function hdrCell(text,w){
+    return new TableCell({borders,width:{size:w,type:WidthType.DXA},
+      shading:{fill:navy,type:ShadingType.CLEAR},margins:cellMargins,
+      children:[new Paragraph({alignment:AlignmentType.LEFT,children:[
+        new TextRun({text,bold:true,color:'FFFFFF',font:'Arial',size:20})]})]});
+  }
+  function dataCell(text,w,bold=false,color='000000'){
+    return new TableCell({borders,width:{size:w,type:WidthType.DXA},
+      margins:cellMargins,
+      children:[new Paragraph({children:[
+        new TextRun({text:String(text||'—'),bold,color,font:'Arial',size:20})]})]});
+  }
+  function sectionHead(text){
+    return new Paragraph({spacing:{before:280,after:100},
+      border:{bottom:{style:BorderStyle.SINGLE,size:6,color:orange,space:1}},
+      children:[new TextRun({text,bold:true,font:'Arial',size:26,color:navy})]});
+  }
+  function metricTable(items,cols=2){
+    const colW=Math.floor(W/cols);
+    const rows=[];
+    for(let i=0;i<items.length;i+=cols){
+      const cells=items.slice(i,i+cols).map(([label,val,sub])=>
+        new TableCell({borders,width:{size:colW,type:WidthType.DXA},
+          shading:{fill:lightGray,type:ShadingType.CLEAR},margins:{top:120,bottom:120,left:160,right:160},
+          children:[
+            new Paragraph({children:[new TextRun({text:label,font:'Arial',size:18,color:gray,bold:true})]}),
+            new Paragraph({children:[new TextRun({text:val,font:'Arial',size:32,bold:true,color:navy})]}),
+            ...(sub?[new Paragraph({children:[new TextRun({text:sub,font:'Arial',size:16,color:'9CA3AF'})]})]:[]),
+          ]}));
+      while(cells.length<cols) cells.push(new TableCell({borders,width:{size:colW,type:WidthType.DXA},children:[new Paragraph({children:[new TextRun({text:'',font:'Arial'})]})] }));
+      rows.push(new TableRow({children:cells}));
+    }
+    return new Table({width:{size:W,type:WidthType.DXA},columnWidths:Array(cols).fill(colW),rows});
+  }
+
+  // Score color helper
+  function scoreColor(score){return score>=75?'166534':score>=50?'854F0B':'991B1B';}
+
+  // Build scorecard table
+  const scCols=[2000,1500,700,1200,700,700,560];
+  const scTable=new Table({width:{size:W,type:WidthType.DXA},columnWidths:scCols,rows:[
+    new TableRow({children:[
+      hdrCell('Technician',scCols[0]),hdrCell('Revenue',scCols[1]),hdrCell('Jobs',scCols[2]),
+      hdrCell('Estimates',scCols[3]),hdrCell('Conv%',scCols[4]),hdrCell('Plans',scCols[5]),hdrCell('Score',scCols[6]),
+    ]}),
+    ...d.techCards.map((t,i)=>{
+      const cr=t.ests>0?Math.round(t.converted/t.ests*100):0;
+      const score=Math.min(100,(t.jobs>0?35:0)+(t.ests>0?Math.round(t.converted/t.ests*25):0)+Math.min(25,Math.round(Math.min(t.rev/(t.jobs||1),500)/500*25))+Math.min(15,t.plans*5));
+      const fill=i%2===0?'FFFFFF':'F9FAFB';
+      function dc(txt,w,bold=false,clr='000000'){return new TableCell({borders,width:{size:w,type:WidthType.DXA},shading:{fill,type:ShadingType.CLEAR},margins:cellMargins,children:[new Paragraph({children:[new TextRun({text:String(txt||'—'),bold,color:clr,font:'Arial',size:20})]})]}); }
+      return new TableRow({children:[
+        dc(t.name,scCols[0],true,navy),dc(dollars(t.rev),scCols[1],true),dc(t.jobs,scCols[2]),
+        dc(t.ests,scCols[3]),dc(cr+'%',scCols[4]),dc(t.plans,scCols[5]),
+        dc(score,scCols[6],true,scoreColor(score)),
+      ]});
+    })
+  ]});
+
+  // Dept table
+  const deptEntries=Object.entries(d.depts).sort((a,b)=>b[1].rev-a[1].rev);
+  const deptColW=[4680,2340,2340];
+  const deptTable=new Table({width:{size:W,type:WidthType.DXA},columnWidths:deptColW,rows:[
+    new TableRow({children:[hdrCell('Department',deptColW[0]),hdrCell('Revenue',deptColW[1]),hdrCell('Jobs',deptColW[2])]}),
+    ...deptEntries.map(([name,v],i)=>{
+      const fill=i%2===0?'FFFFFF':'F9FAFB';
+      function dc(t,w,b=false){return new TableCell({borders,width:{size:w,type:WidthType.DXA},shading:{fill,type:ShadingType.CLEAR},margins:cellMargins,children:[new Paragraph({children:[new TextRun({text:String(t||'—'),bold:b,font:'Arial',size:20})]})]}); }
+      return new TableRow({children:[dc(name,deptColW[0],true),dc(dollars(v.rev),deptColW[1],true),dc(v.jobs,deptColW[2])]});
+    })
+  ]});
+
+  const doc=new Document({
+    styles:{default:{document:{run:{font:'Arial',size:22}}}},
+    sections:[{
+      properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
+      footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[
+        new TextRun({text:'Midstate Plumbing, Heating & Cooling  ·  651-480-1195  ·  Page ',font:'Arial',size:18,color:gray}),
+        new TextRun({children:[PageNumber.CURRENT],font:'Arial',size:18,color:gray}),
+      ]})]})},
+      children:[
+        // Cover header
+        new Paragraph({spacing:{after:0},children:[new TextRun({text:'MIDSTATE PLUMBING, HEATING & COOLING',font:'Arial',size:20,bold:true,color:gray})]}),
+        new Paragraph({spacing:{after:60},border:{bottom:{style:BorderStyle.SINGLE,size:12,color:navy}},children:[new TextRun({text:'Executive Summary Report',font:'Arial',size:40,bold:true,color:navy})]}),
+        new Paragraph({spacing:{after:240},children:[new TextRun({text:`Period: ${d.from} — ${d.to}     Generated: ${d.generated}`,font:'Arial',size:20,color:gray})]}),
+
+        // Revenue
+        sectionHead('Revenue Overview'),
+        new Paragraph({spacing:{after:120}}),
+        metricTable([
+          ['Total Revenue Collected',dollars(d.totalRev),'Paid & complete'],
+          ['Jobs Completed',`${d.paidJobs} / ${d.totalJobs}`,'Paid of total pulled'],
+          ['Average Job Value',dollars(d.avgJob),'Per completed job'],
+          ['Outstanding (Unpaid)',dollars(d.totalUnpaid),'Complete, awaiting payment'],
+        ],2),
+        new Paragraph({spacing:{after:200}}),
+
+        // Estimates
+        sectionHead('Estimates & Conversion'),
+        new Paragraph({spacing:{after:120}}),
+        metricTable([
+          ['Estimates Run',String(d.totalEsts),''],
+          ['Estimates Sold',String(d.soldEsts),''],
+          ['Conversion Rate',d.convRate+'%',d.convRate>=40?'Above target':d.convRate>=25?'Near target':'Below target'],
+        ],3),
+        new Paragraph({spacing:{after:200}}),
+
+        // Departments
+        ...(deptEntries.length?[sectionHead('Revenue by Department'),new Paragraph({spacing:{after:120}}),deptTable,new Paragraph({spacing:{after:200}})]:[]),
+
+        // Scorecards
+        sectionHead('Employee Scorecards'),
+        new Paragraph({spacing:{after:80},children:[new TextRun({text:'Revenue credited to the selling tech (estimate date). Score: completion %, conversion %, avg job value, plans sold.',font:'Arial',size:18,color:gray})]}),
+        new Paragraph({spacing:{after:120}}),
+        scTable,
+        new Paragraph({spacing:{after:200}}),
+
+        // Inside Sales
+        sectionHead('Inside Sales'),
+        new Paragraph({spacing:{after:120}}),
+        metricTable([
+          ['Open Opportunities',String(d.isOpps),'≥$1,000 not yet sold'],
+          ['Converted by IS',String(d.isConverted),'Closed by Bob'],
+          ['Service Plans Sold',String(d.plans),'Uploaded records'],
+        ],3),
+      ]
+    }]
+  });
+
+  const buffer=await Packer.toBuffer(doc);
+  const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`Midstate_Summary_${d.from}_to_${d.to}.docx`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
 let _calSelectedEmps=new Set();
 
 function buildCalEmpFilter(){
@@ -3581,8 +4242,62 @@ function closeCalPopup(){
 // ============================================================
 // CONTEST / TOURNAMENT BRACKET
 // ============================================================
+// Contest state
+let _contestItems=[]; // [{label, product, color, isPlans}]
+const CONTEST_COLORS=['#1A3A5C','#E8640A','#059669','#7C3AED','#DC2626','#0891B2','#D97706','#BE185D'];
+
+function loadContestItems(){
+  try{const s=localStorage.getItem('hcp_contest_items');if(s)_contestItems=JSON.parse(s);}catch(e){}
+  renderContestTags();
+}
+function saveContestItems(){
+  try{localStorage.setItem('hcp_contest_items',JSON.stringify(_contestItems));}catch(e){}
+}
+
+function addContestItem(){
+  const input=$$('contestProduct');
+  const val=(input?.value||'').trim();
+  if(!val) return;
+  if(_contestItems.some(i=>i.label.toLowerCase()===val.toLowerCase())){
+    input.value='';return; // already added
+  }
+  const isPlans=val.toLowerCase().includes('service plan')||val.toLowerCase().includes('home club membership');
+  const color=CONTEST_COLORS[_contestItems.length%CONTEST_COLORS.length];
+  _contestItems.push({label:val,product:val,color,isPlans});
+  saveContestItems();
+  renderContestTags();
+  input.value='';
+}
+
+function removeContestItem(idx){
+  _contestItems.splice(idx,1);
+  // Reassign colors
+  _contestItems.forEach((item,i)=>{item.color=CONTEST_COLORS[i%CONTEST_COLORS.length];});
+  saveContestItems();
+  renderContestTags();
+}
+
+function clearContestItems(){
+  _contestItems=[];saveContestItems();renderContestTags();
+  $$('contestBoard').innerHTML='';
+}
+
+function renderContestTags(){
+  const container=$$('contestTags');
+  if(!container) return;
+  if(!_contestItems.length){
+    container.innerHTML='<span style="font-size:12px;color:#9ca3af;padding:4px 0">No items added yet — add products above</span>';
+    return;
+  }
+  container.innerHTML=_contestItems.map((item,i)=>
+    `<span class="contest-tag" style="background:${item.color}22;border:1.5px solid ${item.color};color:${item.color}">
+      ${item.label}
+      <span class="contest-tag-remove" onclick="removeContestItem(${i})">✕</span>
+    </span>`
+  ).join('');
+}
+
 function renderContest(){
-  const product=($$('contestProduct')?.value||'').toLowerCase().trim();
   const board=$$('contestBoard');
   if(!board) return;
 
@@ -3590,10 +4305,20 @@ function renderContest(){
     board.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Pull a report first to load contest data.</div>';
     return;
   }
-  if(!product){
-    board.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Enter a product or service name above and click Run Contest.</div>';
+  if(!_contestItems.length){
+    board.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Add at least one product above and click Run Contest.</div>';
     return;
   }
+
+  // Build all sections as HTML and set at once
+  board.innerHTML=_contestItems.map(item=>renderContestSection(item)).join('');
+}
+
+function renderContestSection(item){
+  const product=item.product.toLowerCase().trim();
+  const isPlans=item.isPlans||product.includes('service plan')||product.includes('home club membership');
+  // dummy product to trigger scoping below
+  const _product=product;
 
   // Score each non-installer employee
   const scores={};
@@ -3668,7 +4393,61 @@ function renderContest(){
   }
   const MATCH_THRESHOLD=50;
 
-  // Count from jobs — fuzzy match description, notes, and line items
+  // ---- SERVICE PLANS: count from uploaded plan data ----
+  if(isPlans){
+    _plans.forEach(p=>{
+      const emp=p.sold_by;
+      if(!emp||INSTALLER_IDS.has(emp.id)) return;
+      const empId=emp.id||'plan_manual_'+((emp.first_name||'')+(emp.last_name||''));
+      const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'Unknown';
+      ensureEmp(empId,name);
+      scores[empId]++;
+      const val=parseFloat(p.total_amount||0);
+      revenue[empId]+=(val>100?val/100:val); // handle cents vs dollars
+    });
+    // Return early — plans only come from uploaded data, not jobs
+    const entries=_employees
+      .filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim()))
+      .map(e=>{
+        const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+        // Also check manual plan entries that may not match employee IDs exactly
+        const manualKey='plan_manual_'+name.replace(/\s/g,'');
+        const count=(scores[e.id]||0)+(scores[manualKey]||0);
+        const rev=(revenue[e.id]||0)+(revenue[manualKey]||0);
+        const color=e.color_hex?`#${e.color_hex}`:'#9ca3af';
+        return{id:e.id,name,color,count,rev};
+      })
+      .sort((a,b)=>b.count-a.count||b.rev-a.rev);
+    const total=entries.reduce((s,e)=>s+e.count,0);
+    const max=entries[0]?.count||1;
+    const medals=['🥇','🥈','🥉'];
+    const lbRows=entries.map((e,i)=>{
+      const pct=max>0?Math.round(e.count/max*100):0;
+      const medal=i<3&&e.count>0?medals[i]:`<span style="font-size:13px;color:#9ca3af">${i+1}</span>`;
+      return`<div class="leaderboard-row" style="${i===0&&e.count>0?`border:2px solid ${item.color};background:${item.color}11`:''}">
+        <div class="leaderboard-rank">${medal}</div>
+        <div><span style="width:10px;height:10px;border-radius:50%;background:${e.color};display:inline-block;margin-right:6px;vertical-align:middle"></span>
+        <span class="leaderboard-name">${e.name}</span></div>
+        <div class="leaderboard-bar-wrap"><div class="leaderboard-bar" style="width:${pct}%;background:${item.color}"></div></div>
+        <div class="leaderboard-count">${e.count}<span style="font-size:11px;font-weight:400;color:#9ca3af"> sold</span></div>
+        <div class="leaderboard-rev">${e.rev>0?dollars(e.rev):''}</div>
+      </div>`;
+    }).join('');
+    const active=entries.filter(e=>e.count>0);
+    const bracket=buildBracket(active.length>0?active:entries.slice(0,8));
+    const bracketHtml=renderBracketHTML(bracket);
+    return`<div style="margin-bottom:28px;border:2px solid ${item.color};border-radius:10px;overflow:hidden">
+      <div style="background:${item.color};color:#fff;padding:12px 16px;font-size:15px;font-weight:700">
+        🏆 ${item.label} <span style="font-size:12px;font-weight:400;opacity:.8;margin-left:8px">${total} sold · from uploaded service plan data</span>
+      </div>
+      <div style="padding:16px">
+        <div class="leaderboard-wrap">${lbRows||'<div style="padding:12px;color:#9ca3af;font-size:13px">No plan data found. Upload a service plan file in the Service Plans tab first.</div>'}</div>
+        ${active.length>1?`<div class="sec-head" style="font-size:12px;margin-top:16px">Tournament Bracket</div><div class="bracket-wrap">${bracketHtml}</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  // ---- JOBS: count from pulled HCP data ----
   _jobs.forEach(j=>{
     const score=fuzzyMatch(product,...jobSearchText(j));
     if(score<MATCH_THRESHOLD) return;
@@ -3704,7 +4483,7 @@ function renderContest(){
   const matchedJobs=_jobs.filter(j=>fuzzyMatch(product,...jobSearchText(j))>=MATCH_THRESHOLD);
   const matchedEsts=[]; // contest only counts jobs
   const max=entries[0]?.count||1;
-  const productLabel=($$('contestProduct')?.value||'').trim();
+  const productLabel=item.label;
 
   // ---- LEADERBOARD ----
   const medals=['🥇','🥈','🥉'];
@@ -3724,22 +4503,19 @@ function renderContest(){
   }).join('');
 
   // ---- TOURNAMENT BRACKET ----
-  // Build bracket from entries with at least some activity (pad with byes)
   const active=entries.filter(e=>e.count>0||e.rev>0);
   const bracket=buildBracket(active.length>0?active:entries.slice(0,8));
   const bracketHtml=renderBracketHTML(bracket);
 
-  board.innerHTML=`
-    <div style="margin-bottom:20px">
-      <div class="sec-head">🏆 ${productLabel} — Leaderboard</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">${total} job${total!==1?'s':''} matched · ${$$('dateFrom').value} → ${$$('dateTo').value}</div>
-      <div class="leaderboard-wrap">${lbRows}</div>
+  return`<div style="margin-bottom:28px;border:2px solid ${item.color};border-radius:10px;overflow:hidden">
+    <div style="background:${item.color};color:#fff;padding:12px 16px;font-size:15px;font-weight:700">
+      🏆 ${productLabel} <span style="font-size:12px;font-weight:400;opacity:.8;margin-left:8px">${total} job${total!==1?'s':''} sold · ${$$('dateFrom').value} → ${$$('dateTo').value}</span>
     </div>
-    <div>
-      <div class="sec-head">🎯 Tournament Bracket</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">Head-to-head matchups based on sales count. Higher seed advances.</div>
-      <div class="bracket-wrap">${bracketHtml}</div>
-    </div>`;
+    <div style="padding:16px">
+      <div class="leaderboard-wrap">${lbRows||'<div style="padding:12px;color:#9ca3af;font-size:13px">No matching jobs found in this date range.</div>'}</div>
+      ${active.length>1?`<div style="font-size:13px;font-weight:700;color:#374151;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.04em;font-size:11px">Tournament Bracket</div><div class="bracket-wrap">${bracketHtml}</div>`:''}
+    </div>
+  </div>`;
 }
 
 function buildBracket(entries){
