@@ -6,17 +6,36 @@
 <title>HCP KPI Dashboard — Midstate Plumbing</title>
 <style>
 @media print {
-  body{background:#fff!important}
-  .top-right,.date-row,.tabs,.filter-bar,.disc-btn,.pull-btn,.preset,.no-print{display:none!important}
-  .wrap{max-width:100%;padding:0}
-  .panel{display:block!important}
-  .panel:not(.active){page-break-before:always}
-  .tbl-wrap{overflow:visible!important;border:1px solid #e5e7eb}
-  table{min-width:0!important;font-size:11px}
-  .sc-grid{grid-template-columns:repeat(3,1fr)}
-  .metric-value{font-size:18px}
+  body{background:#fff!important;font-size:11px}
+  .top-right,.date-row,.tabs,.filter-bar,.disc-btn,.pull-btn,.preset,.no-print,
+  .emp-filter-wrap,.cal-controls,.cal-legend,.is-actions,.is-modal,.is-modal-overlay,
+  .cal-popup,.plan-upload-btn,#planUploadBox,.is-tone-btns,.is-copy-row,.sec-btn,
+  button:not(.print-keep),.badge-count,select{display:none!important}
+  .wrap{max-width:100%;padding:0;margin:0}
+  .panel{display:block!important;page-break-before:always;padding-top:12px}
+  .panel.active{page-break-before:avoid}
+  .panel:first-of-type{page-break-before:avoid}
+  .tbl-wrap{overflow:visible!important}
+  table{width:100%;min-width:0!important;font-size:10px;border-collapse:collapse}
+  th{background:#1A3A5C!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9px;padding:4px 6px}
+  td{padding:4px 6px;border-bottom:1px solid #f3f4f6;font-size:10px}
+  .sc-grid{grid-template-columns:repeat(3,1fr)!important;gap:6px}
+  .sc-card{break-inside:avoid;border:1px solid #e5e7eb;padding:8px}
+  .metric-value{font-size:16px}
+  .metric{break-inside:avoid}
+  .metrics{flex-wrap:wrap;gap:6px}
   .print-header{display:block!important}
-  .auth-card,.err-bar,.status-bar,#tab-debug,#tab-plans{display:none!important}
+  .auth-card,.err-bar,.status-bar,#tab-debug{display:none!important}
+  .goal-periods{grid-template-columns:repeat(5,1fr)!important;gap:6px}
+  .goal-period-card{break-inside:avoid;padding:8px}
+  .goal-hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cal-table{font-size:8px}
+  .cal-table th{font-size:7px;padding:2px}
+  .cal-cell{padding:2px 3px;font-size:8px}
+  .cal-cell.paid-high,.cal-cell.est-only,.cal-cell.paid-low,.cal-cell.unpaid,.cal-cell.in-progress{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .unpaid-card{break-inside:avoid;margin-bottom:6px;border-left:3px solid #DC2626}
+  .is-card{break-inside:avoid;margin-bottom:6px}
+  .leaderboard-row{break-inside:avoid}
 }
 @media screen{.print-header{display:none}}
 *{box-sizing:border-box}
@@ -37,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -292,6 +311,48 @@ tr:hover td{background:#fafafa}
 .unpaid-note-item{padding:6px 10px;background:#fffbeb;border-left:2px solid #fbbf24;border-radius:2px;font-size:12px;color:#374151;margin-bottom:5px;line-height:1.5}
 .unpaid-history-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f9fafb;font-size:12px}
 .unpaid-history-item:last-child{border-bottom:none}
+/* GOAL TRACKER */
+.goal-hero{background:linear-gradient(135deg,#1A3A5C 0%,#0f2338 60%,#1a2f4a 100%);border-radius:12px;padding:28px 32px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
+.goal-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(232,100,10,.3) 0%,transparent 70%);border-radius:50%}
+.goal-hero-title{font-size:13px;text-transform:uppercase;letter-spacing:.1em;opacity:.7;margin-bottom:6px}
+.goal-hero-rev{font-size:36px;font-weight:900;margin-bottom:4px}
+.goal-hero-sub{font-size:13px;opacity:.7}
+.goal-ring-wrap{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.goal-ring-svg{flex-shrink:0}
+.goal-ring-stats{flex:1;min-width:200px}
+.goal-ring-stat{margin-bottom:12px}
+.goal-ring-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7;margin-bottom:2px}
+.goal-ring-val{font-size:20px;font-weight:800}
+.goal-ring-pct{font-size:13px;opacity:.8;margin-left:6px}
+.goal-periods{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.goal-period-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;position:relative;overflow:hidden}
+.goal-period-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px}
+.goal-period-card.annual::after{background:linear-gradient(90deg,#1A3A5C,#2a5a8c)}
+.goal-period-card.quarterly::after{background:linear-gradient(90deg,#7C3AED,#a855f7)}
+.goal-period-card.monthly::after{background:linear-gradient(90deg,#E8640A,#f97316)}
+.goal-period-card.weekly::after{background:linear-gradient(90deg,#059669,#10b981)}
+.goal-period-card.daily::after{background:linear-gradient(90deg,#0369A1,#0ea5e9)}
+.goal-period-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:6px}
+.goal-period-target{font-size:12px;color:#6b7280;margin-bottom:8px}
+.goal-period-actual{font-size:22px;font-weight:800;color:#111827;margin-bottom:8px}
+.goal-period-bar{height:8px;background:#f3f4f6;border-radius:99px;overflow:hidden;margin-bottom:6px}
+.goal-period-fill{height:8px;border-radius:99px;transition:width 1s ease}
+.goal-period-pct{font-size:12px;font-weight:700}
+.goal-pace{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:20px}
+.goal-pace-head{font-size:13px;font-weight:700;color:#374151;margin-bottom:12px}
+.goal-pace-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.goal-pace-row:last-child{border-bottom:none}
+.goal-pace-label{color:#6b7280}
+.goal-pace-val{font-weight:700;color:#111827}
+.goal-pace-diff{font-size:12px;padding:2px 8px;border-radius:99px;font-weight:600}
+.ahead{background:#EAF3DE;color:#166534}
+.behind{background:#FECACA;color:#991B1B}
+.on-track{background:#DBEAFE;color:#1d4ed8}
+/* PRINT REPORT SELECTOR */
+.print-check-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.print-check-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;font-size:13px}
+.print-check-item:hover{background:#f9fafb}
+.print-check-item input{width:16px;height:16px;accent-color:#1A3A5C;cursor:pointer}
 .emp-filter-wrap{position:relative;display:inline-block}
 .emp-filter-btn{display:flex;align-items:center;gap:4px;font-size:12px;padding:5px 12px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;white-space:nowrap;color:#374151;font-family:Arial,sans-serif}
 .emp-filter-btn:hover{background:#f9fafb;border-color:#1A3A5C}
@@ -324,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.6</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -353,10 +414,10 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
-      <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
+      <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
       <button class="sec-btn no-print" id="summaryBtn" style="display:none" onclick="openSummaryReport()">📊 Summary Report</button>
       <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
       <button class="sec-btn no-print" onclick="showDataTools()">⚙ Data</button>
@@ -398,6 +459,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" onclick="showTab('estimates')">Estimates</button>
       <button class="tab" id="attrTab" onclick="showTab('attr')">Attribution</button>
       <button class="tab" onclick="showTab('kpi')">Employee KPIs</button>
+      <button class="tab" onclick="showTab('goals')">🎯 Goals</button>
       <button class="tab" onclick="showTab('cal')">📅 Calendar</button>
       <button class="tab" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
       <button class="tab" onclick="showTab('contest')">🏆 Contest</button>
@@ -509,6 +571,11 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
       <div class="sc-grid" id="scorecards"></div>
+    </div>
+
+    <!-- GOALS -->
+    <div class="panel" id="tab-goals">
+      <div id="goalsContent"></div>
     </div>
 
     <!-- CALENDAR -->
@@ -698,6 +765,31 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
 
+      <!-- PRINT REPORT SELECTOR MODAL -->
+      <div class="is-modal-overlay" id="printSelectorOverlay" onclick="closePrintSelector()" style="display:none"></div>
+      <div class="is-modal" id="printSelectorModal" style="display:none;max-width:480px">
+        <div class="is-modal-header">
+          <div class="is-modal-title">🖨 Print / PDF Report</div>
+          <span style="font-size:20px;cursor:pointer;color:#9ca3af" onclick="closePrintSelector()">✕</span>
+        </div>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:14px">Select which sections to include:</div>
+        <div class="print-check-list" id="printCheckList">
+          <label class="print-check-item"><input type="checkbox" value="jobs" checked> 📋 Jobs &amp; Revenue</label>
+          <label class="print-check-item"><input type="checkbox" value="estimates" checked> 📊 Estimates</label>
+          <label class="print-check-item"><input type="checkbox" value="kpi" checked> 👤 Employee KPIs</label>
+          <label class="print-check-item"><input type="checkbox" value="goals"> 🎯 Goals Tracker</label>
+          <label class="print-check-item"><input type="checkbox" value="cal"> 📅 Calendar</label>
+          <label class="print-check-item"><input type="checkbox" value="is"> 📞 Inside Sales</label>
+          <label class="print-check-item"><input type="checkbox" value="unpaid"> ⚠ Unpaid Jobs</label>
+          <label class="print-check-item"><input type="checkbox" value="plans"> 📋 Service Plans</label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid #f3f4f6">
+          <button class="pull-btn" onclick="executePrint()">🖨 Print selected</button>
+          <button class="is-btn" onclick="closePrintSelector()">Cancel</button>
+          <button class="is-btn" style="margin-left:auto;font-size:11px" onclick="toggleAllPrintSections()">Toggle all</button>
+        </div>
+      </div>
+
       <!-- EMAIL MODAL -->
       <div class="is-modal-overlay" id="isModalOverlay" onclick="closeISModal()" style="display:none"></div>
       <div class="is-modal" id="isModal" style="display:none">
@@ -848,6 +940,7 @@ function connect(){
   loadCalEmpFilter();
   loadKPIEmpFilter();
   loadUploadedPlans();
+  loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
   setPr('month',{target:document.querySelector('.preset.active')});
@@ -1157,11 +1250,12 @@ function applyEmpFilter(){
 
 
 function showTab(t){
-  const n=['jobs','estimates','attr','kpi','cal','is','contest','plans','debug'];
+  const n=['jobs','estimates','attr','kpi','goals','cal','is','contest','unpaid','plans','debug'];
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
-  // Use id-based matching — immune to panel order in HTML
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+t));
   if(t==='contest') renderContest();
+  if(t==='unpaid') renderUnpaid();
+  if(t==='goals') renderGoals();
 }
 function printReport(){
   const active=document.querySelectorAll('.panel.active');
@@ -2098,7 +2192,11 @@ function renderKPI(jobs,estimates,employees,plans){
       }
     }
   });
+  const kpiCountedEsts=new Set();
   kpiEsts.forEach(e=>{
+    // Deduplicate: one estimate record = one count, regardless of options
+    if(kpiCountedEsts.has(e.id)) return;
+    kpiCountedEsts.add(e.id);
     const all=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
     all.forEach(emp=>{
       if(!emp)return;
@@ -2412,59 +2510,507 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
   }
 }
+
+// ============================================================
+// GOAL TRACKER
+// ============================================================
+const ANNUAL_GOAL = 3000000;
+const GOALS = {
+  annual:    { target: 3000000,  label: 'Annual',    color: '#1A3A5C', period: 'year'    },
+  quarterly: { target: 750000,   label: 'Quarterly', color: '#7C3AED', period: 'quarter' },
+  monthly:   { target: 250000,   label: 'Monthly',   color: '#E8640A', period: 'month'   },
+  weekly:    { target: 57692,    label: 'Weekly',    color: '#059669', period: 'week'     },
+  daily:     { target: 8219,     label: 'Daily',     color: '#0369A1', period: 'day'      },
+};
+
+function getRevenueForPeriod(period){
+  const now = new Date();
+  const paidJobs = _jobs.filter(isJobPaid);
+
+  function jobDate(j){ return new Date(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at); }
+
+  if(period==='year'){
+    return paidJobs.filter(j=>jobDate(j).getFullYear()===now.getFullYear()).reduce((s,j)=>s+getJobTotal(j),0);
+  }
+  if(period==='quarter'){
+    const q=Math.floor(now.getMonth()/3);
+    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&Math.floor(d.getMonth()/3)===q; }).reduce((s,j)=>s+getJobTotal(j),0);
+  }
+  if(period==='month'){
+    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth(); }).reduce((s,j)=>s+getJobTotal(j),0);
+  }
+  if(period==='week'){
+    const startOfWeek=new Date(now); startOfWeek.setDate(now.getDate()-now.getDay()); startOfWeek.setHours(0,0,0,0);
+    return paidJobs.filter(j=>jobDate(j)>=startOfWeek).reduce((s,j)=>s+getJobTotal(j),0);
+  }
+  if(period==='day'){
+    const today=now.toISOString().split('T')[0];
+    return paidJobs.filter(j=>jobDate(j).toISOString().split('T')[0]===today).reduce((s,j)=>s+getJobTotal(j),0);
+  }
+  return 0;
+}
+
+function getDaysElapsed(period){
+  const now=new Date();
+  if(period==='year')  return Math.floor((now-(new Date(now.getFullYear(),0,1)))/864e5)+1;
+  if(period==='quarter'){ const q=Math.floor(now.getMonth()/3); return Math.floor((now-(new Date(now.getFullYear(),q*3,1)))/864e5)+1; }
+  if(period==='month') return now.getDate();
+  if(period==='week')  return now.getDay()||7;
+  if(period==='day')   return 1;
+}
+function getDaysTotal(period){
+  const now=new Date();
+  if(period==='year')  return 365;
+  if(period==='quarter'){ const q=Math.floor(now.getMonth()/3); const start=new Date(now.getFullYear(),q*3,1); const end=new Date(now.getFullYear(),q*3+3,1); return Math.round((end-start)/864e5); }
+  if(period==='month') return new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  if(period==='week')  return 7;
+  if(period==='day')   return 1;
+}
+function getPaceTarget(period){ return GOALS[period].target*(getDaysElapsed(period)/getDaysTotal(period)); }
+
+function renderRing(actual, target, color, size=160){
+  const pct=Math.min(actual/target,1);
+  const r=58, cx=80, cy=80, circumference=2*Math.PI*r;
+  const strokeDash=circumference*pct;
+  const overachieved=actual>target;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 160 160" class="goal-ring-svg">
+    <defs>
+      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${color};stop-opacity:1"/>
+        <stop offset="100%" style="stop-color:${color}aa;stop-opacity:1"/>
+      </linearGradient>
+    </defs>
+    <!-- Track -->
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f3f4f6" stroke-width="14"/>
+    <!-- Progress -->
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="url(#ringGrad)" stroke-width="14"
+      stroke-dasharray="${strokeDash} ${circumference}"
+      stroke-dashoffset="${circumference*0.25}"
+      stroke-linecap="round"
+      style="transition:stroke-dasharray 1.2s ease"/>
+    ${overachieved?`<circle cx="${cx}" cy="${cy}" r="66" fill="none" stroke="${color}33" stroke-width="4" stroke-dasharray="4 6"/>`:'' }
+    <!-- Center text -->
+    <text x="${cx}" y="${cy-8}" text-anchor="middle" font-family="Arial" font-weight="900" font-size="22" fill="${color}">${Math.round(pct*100)}%</text>
+    <text x="${cx}" y="${cy+12}" text-anchor="middle" font-family="Arial" font-size="10" fill="#6b7280">of goal</text>
+    ${overachieved?`<text x="${cx}" y="${cy+28}" text-anchor="middle" font-family="Arial" font-size="9" fill="${color}" font-weight="700">EXCEEDED ✓</text>`:''}
+  </svg>`;
+}
+
+function renderGoals(){
+  const el=$$('goalsContent');
+  if(!el) return;
+
+  const now=new Date();
+  const annualActual=getRevenueForPeriod('year');
+  const annualPct=annualActual/ANNUAL_GOAL;
+  const annualPace=getPaceTarget('annual');
+  const paceGap=annualActual-annualPace;
+  const dayOfYear=getDaysElapsed('year');
+  const daysLeft=365-dayOfYear;
+  const projectedAnnual=dayOfYear>0?annualActual/dayOfYear*365:0;
+  const projectedColor=projectedAnnual>=ANNUAL_GOAL?'#166534':projectedAnnual>=ANNUAL_GOAL*0.8?'#92400E':'#991B1B';
+  const usedData=_jobs.length>0;
+
+  // Period cards
+  const periodCards=Object.entries(GOALS).map(([key,g])=>{
+    const actual=getRevenueForPeriod(g.period);
+    const pct=Math.min(actual/g.target,1);
+    const pctN=Math.round(pct*100);
+    const pace=getPaceTarget(key);
+    const diff=actual-pace;
+    const diffLabel=Math.abs(diff)<100?'On pace':diff>0?`+${dollars(diff)} ahead`:`${dollars(Math.abs(diff))} behind`;
+    const diffClass=Math.abs(diff)<100?'on-track':diff>0?'ahead':'behind';
+    const barColor=pctN>=100?'#166534':pctN>=70?g.color:pctN>=40?'#E8640A':'#DC2626';
+    return`<div class="goal-period-card ${key}">
+      <div class="goal-period-label">${g.label}</div>
+      <div class="goal-period-target">Target: <strong>${dollars(g.target)}</strong></div>
+      <div class="goal-period-actual" style="color:${barColor}">${usedData?dollars(actual):'—'}</div>
+      <div class="goal-period-bar"><div class="goal-period-fill" style="width:${usedData?pctN:0}%;background:${barColor}"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="goal-period-pct" style="color:${barColor}">${usedData?pctN+'%':'—'}</span>
+        ${usedData&&key!=='annual'?`<span class="goal-pace-diff ${diffClass}" style="font-size:10px">${diffLabel}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Pace table
+  const paceRows=[
+    ['Days elapsed (YTD)',`${dayOfYear} of 365`,''],
+    ['Days remaining',`${daysLeft}`,''],
+    ['Revenue collected YTD',dollars(annualActual),annualActual>=annualPace?'ahead':'behind'],
+    ['Pace target (should have)',dollars(annualPace),''],
+    ['Pace gap',`${paceGap>=0?'+':''}${dollars(Math.abs(paceGap))}`,paceGap>=0?'ahead':'behind'],
+    ['Projected annual (at this rate)',dollars(projectedAnnual),projectedAnnual>=ANNUAL_GOAL?'ahead':'behind'],
+    ['To hit goal by year end',daysLeft>0?dollars(Math.max(0,ANNUAL_GOAL-annualActual)/daysLeft)+'/day needed':'—',''],
+  ].map(([label,val,cls])=>`<div class="goal-pace-row">
+    <span class="goal-pace-label">${label}</span>
+    <span class="goal-pace-val ${cls?`goal-pace-diff ${cls}`:''}">${val}</span>
+  </div>`).join('');
+
+  el.innerHTML=`
+    <!-- HERO -->
+    <div class="goal-hero">
+      <div class="goal-ring-wrap">
+        ${renderRing(annualActual,ANNUAL_GOAL,'#E8640A',180)}
+        <div class="goal-ring-stats">
+          <div class="goal-hero-title">2026 Annual Revenue Goal</div>
+          <div class="goal-hero-rev">${usedData?dollars(annualActual):'Pull a report to load'}</div>
+          <div class="goal-hero-sub">of ${dollars(ANNUAL_GOAL)} goal &nbsp;·&nbsp; ${Math.round(annualPct*100)}% complete</div>
+          <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+            <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
+              <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Projected Annual</div>
+              <div style="font-size:18px;font-weight:800;color:${projectedColor==='#166534'?'#86efac':projectedColor==='#92400E'?'#fcd34d':'#fca5a5'}">${usedData?dollars(projectedAnnual):'—'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
+              <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Remaining</div>
+              <div style="font-size:18px;font-weight:800">${usedData?dollars(Math.max(0,ANNUAL_GOAL-annualActual)):'—'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
+              <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Days Left</div>
+              <div style="font-size:18px;font-weight:800">${daysLeft}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERIOD CARDS -->
+    <div class="goal-periods">${periodCards}</div>
+
+    <!-- PACE TABLE -->
+    <div class="goal-pace">
+      <div class="goal-pace-head">📈 Pace Analysis — Are we on track?</div>
+      ${usedData?paceRows:'<div style="color:#9ca3af;font-size:13px">Pull a report with YTD data to see pace analysis.</div>'}
+    </div>
+
+    <!-- VISUAL BAR CHART — Revenue by month (YTD) -->
+    ${usedData?renderMonthlyBars():''}
+  `;
+}
+
+function renderMonthlyBars(){
+  const now=new Date();
+  const currentYear=now.getFullYear();
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthlyTarget=250000;
+
+  // Aggregate paid jobs by month
+  const byMonth=new Array(12).fill(0);
+  _jobs.filter(isJobPaid).forEach(j=>{
+    const d=new Date(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+    if(d.getFullYear()===currentYear) byMonth[d.getMonth()]+=getJobTotal(j);
+  });
+
+  const maxVal=Math.max(...byMonth,monthlyTarget)*1.1;
+  const bars=byMonth.map((v,i)=>{
+    const isPast=i<now.getMonth()||(i===now.getMonth());
+    const pct=v/maxVal*100;
+    const targetPct=monthlyTarget/maxVal*100;
+    const isOver=v>=monthlyTarget;
+    const barColor=!isPast?'#e5e7eb':isOver?'#059669':v>monthlyTarget*0.7?'#E8640A':'#DC2626';
+    return`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0">
+      <div style="font-size:10px;font-weight:700;color:${isPast?'#374151':'#9ca3af'}">${v>0?dollars(v).replace('$','$').replace(',000','k').replace(',','.'):'—'}</div>
+      <div style="width:100%;background:#f3f4f6;border-radius:4px;height:80px;position:relative;display:flex;align-items:flex-end">
+        <div style="width:100%;border-radius:4px 4px 0 0;background:${barColor};height:${pct}%;transition:height .8s ease;position:relative">
+          ${isOver?`<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:12px">✓</div>`:''}
+        </div>
+        <!-- Target line -->
+        <div style="position:absolute;bottom:${targetPct}%;left:0;right:0;border-top:2px dashed #9ca3af;z-index:2"></div>
+      </div>
+      <div style="font-size:9px;color:${isPast?'#374151':'#9ca3af'};text-align:center">${monthNames[i]}</div>
+    </div>`;
+  }).join('');
+
+  return`<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-top:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#374151">📊 Monthly Revenue vs. $250K Target</div>
+      <div style="display:flex;gap:12px;font-size:11px;color:#6b7280;align-items:center">
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:24px;border-top:2px dashed #9ca3af"></span>$250K target</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:12px;height:12px;background:#059669;border-radius:2px"></span>At/above goal</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:12px;height:12px;background:#DC2626;border-radius:2px"></span>Below goal</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:flex-end;height:120px">${bars}</div>
+  </div>`;
+}
+
+
+// ============================================================
+// PRINT REPORT SELECTOR
+// ============================================================
+function openPrintSelector(){
+  $$('printSelectorModal').style.display='block';
+  $$('printSelectorOverlay').style.display='block';
+}
+function closePrintSelector(){
+  $$('printSelectorModal').style.display='none';
+  $$('printSelectorOverlay').style.display='none';
+}
+function toggleAllPrintSections(){
+  const cbs=document.querySelectorAll('#printCheckList input[type=checkbox]');
+  const anyUnchecked=[...cbs].some(cb=>!cb.checked);
+  cbs.forEach(cb=>cb.checked=anyUnchecked);
+}
+function executePrint(){
+  closePrintSelector();
+  const selected=new Set([...document.querySelectorAll('#printCheckList input:checked')].map(cb=>cb.value));
+
+  // Build print HTML
+  const sections=[];
+  const from=$$('dateFrom')?.value||'';const to=$$('dateTo')?.value||'';
+
+  if(selected.has('jobs')) sections.push(buildPrintSection('Jobs & Revenue',document.getElementById('tab-jobs')));
+  if(selected.has('estimates')) sections.push(buildPrintSection('Estimates',document.getElementById('tab-estimates')));
+  if(selected.has('kpi')) sections.push(buildPrintSection('Employee KPIs',document.getElementById('tab-kpi')));
+  if(selected.has('goals')) sections.push(buildPrintSection('Goals Tracker',document.getElementById('tab-goals')));
+  if(selected.has('cal')) sections.push(buildPrintSection('Calendar',document.getElementById('tab-cal')));
+  if(selected.has('is')) sections.push(buildPrintSection('Inside Sales',document.getElementById('tab-is')));
+  if(selected.has('unpaid')) sections.push(buildPrintSection('Unpaid Jobs',document.getElementById('tab-unpaid')));
+  if(selected.has('plans')) sections.push(buildPrintSection('Service Plans',document.getElementById('tab-plans')));
+
+  const win=window.open('','_blank','width=1000,height=900');
+  win.document.write(`<!DOCTYPE html><html><head><title>Midstate Report ${from} to ${to}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#333;background:#fff}
+    @page{size:letter;margin:0.5in}
+    @media print{.no-print{display:none!important}.page-break{page-break-before:always}}
+    .report-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:10px;margin-bottom:16px}
+    .report-title{font-size:20px;font-weight:700;color:#1A3A5C}
+    .report-meta{font-size:11px;color:#666;text-align:right}
+    .section-head{font-size:14px;font-weight:700;color:#1A3A5C;border-left:4px solid #E8640A;padding:4px 0 4px 10px;margin:16px 0 10px}
+    .section-wrap{margin-bottom:20px}
+    /* Metrics */
+    .metrics{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .metric{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;min-width:120px}
+    .metric-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+    .metric-value{font-size:18px;font-weight:800;color:#111}
+    .metric-sub{font-size:10px;color:#9ca3af}
+    /* Tables */
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px}
+    th{background:#1A3A5C!important;color:#fff!important;padding:5px 8px;text-align:left;font-size:10px}
+    td{padding:5px 8px;border-bottom:1px solid #f3f4f6}
+    tr:nth-child(even) td{background:#f9fafb}
+    /* Scorecards */
+    .sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .sc-card{border:1px solid #e5e7eb;border-radius:6px;padding:10px;break-inside:avoid}
+    .sc-name{font-size:12px;font-weight:700;color:#1A3A5C;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #E8640A}
+    .sc-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0}
+    .sc-key{color:#6b7280}.sc-val{font-weight:600}
+    /* Goal rings - simplified for print */
+    .goal-periods{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .goal-period-card{border:1px solid #e5e7eb;border-radius:6px;padding:10px;text-align:center;break-inside:avoid}
+    .goal-period-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:4px}
+    .goal-period-actual{font-size:16px;font-weight:800;color:#1A3A5C;margin:4px 0}
+    .goal-period-bar{height:6px;background:#f3f4f6;border-radius:99px;margin:4px 0}
+    .goal-period-fill{height:6px;border-radius:99px}
+    /* Cal table */
+    .cal-table{font-size:9px}
+    .cal-table th{font-size:8px;padding:3px}
+    .cal-table td{padding:3px;font-size:9px}
+    /* Unpaid cards */
+    .unpaid-card{border:1px solid #FECACA;border-left:3px solid #DC2626;border-radius:4px;padding:8px;margin-bottom:6px;break-inside:avoid}
+    /* IS cards */
+    .is-card{border:1px solid #e5e7eb;border-radius:4px;padding:8px;margin-bottom:6px;break-inside:avoid}
+    .is-card.is-converted{border-left:3px solid #16a34a}
+    .is-card.is-open{border-left:3px solid #E8640A}
+    /* hide interactive elements */
+    button,select,input,.cal-legend,.emp-filter-wrap,.is-actions,.cal-controls,.filter-bar,
+    .is-modal,.is-modal-overlay,.cal-popup,.sec-btn,.pull-btn,.preset,.badge-count,
+    #planUploadBox,.plan-upload-btn,.is-tone-btns,.is-copy-row,.unpaid-detail-section .is-btn,
+    .goal-pace-diff{display:none!important}
+    .cal-rev{font-size:10px;font-weight:700;color:#166534}
+    .cal-meta{font-size:8px;color:#555}
+    .cal-cell{padding:2px 3px;border:1px solid #ccc;vertical-align:top;font-size:9px}
+    .cal-cell.paid-high{background:#1B5E20!important;color:#fff!important}
+    .cal-cell.est-only{background:#BBDEFB!important}
+    .cal-cell.paid-low{background:#C8E6C9!important}
+    .cal-cell.unpaid{background:#FFCDD2!important}
+    .cal-cell.in-progress{background:#FFF9C4!important}
+  </style></head><body>
+  <div class="report-header">
+    <div>
+      <div class="report-title">&#127968; Midstate Plumbing, Heating &amp; Cooling</div>
+      <div style="font-size:12px;color:#555;margin-top:3px">KPI Report &nbsp;·&nbsp; ${from} to ${to}</div>
+    </div>
+    <div class="report-meta">
+      651-480-1195 &nbsp;·&nbsp; Hastings, MN<br>
+      Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+    </div>
+  </div>
+  ${sections.map((s,i)=>`<div class="section-wrap${i>0?' page-break':''}">${s}</div>`).join('')}
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+function buildPrintSection(title, panel){
+  if(!panel) return '';
+  // Clone and strip interactive cruft
+  const clone=panel.cloneNode(true);
+  clone.querySelectorAll('.no-print,button:not(.print-keep),select,.emp-filter-dropdown,.cal-popup,.is-modal,.is-modal-overlay,.plan-upload-btn,#planUploadBox,.is-actions,.is-tone-btns,.is-copy-row,.cal-controls,.cal-legend,.filter-bar,.sec-head ~ .filter-bar').forEach(el=>el.remove());
+  // Remove empty modal overlays
+  clone.querySelectorAll('[style*="display:none"]').forEach(el=>el.remove());
+  return`<div class="section-head">${title}</div>${clone.innerHTML}`;
+}
+
 // ============================================================
 // CALENDAR PRINT
 // ============================================================
 function printCalendar(){
-  const wrap=$$('calWrap');
-  if(!wrap){alert('No calendar loaded. Pull a report first.');return;}
-  const mode=$$('calRevenueMode')?.value==='estimate'?'Revenue on estimate date (who sold it)':'Revenue on collection date (cash flow)';
+  if(!_jobs.length&&!_estimates.length){alert('No data loaded. Pull a report first.');return;}
+  const mode=$$('calRevenueMode')?.value||'estimate';
+  const modeLabel=mode==='estimate'?'Revenue on estimate date (who sold it)':'Revenue on collection date (cash flow)';
   const from=$$('dateFrom')?.value||'', to=$$('dateTo')?.value||'';
-  const win=window.open('','_blank','width=1200,height=900');
-  win.document.write(`<!DOCTYPE html><html><head><title>Midstate Calendar ${from} to ${to}</title>
+
+  // Build fresh calendar data for print
+  const {dates,employees,cells}=buildCalendarData(_jobs,_estimates,mode);
+  const filteredEmps=employees;
+
+  // All dates in range
+  const sortedDates=[];
+  if(from&&to){
+    const cur=new Date(from+'T12:00:00'),end=new Date(to+'T12:00:00');
+    while(cur<=end){sortedDates.push(cur.toISOString().split('T')[0]);cur.setDate(cur.getDate()+1);}
+  } else {
+    sortedDates.push(...[...dates].filter(d=>d&&d!=='1970-01-01').sort());
+  }
+
+  const today=new Date().toISOString().split('T')[0];
+  const allRevs=filteredEmps.flatMap(emp=>sortedDates.map(d=>(cells[`${d}|${emp.id}`]?.rev||0))).filter(v=>v>0);
+  const avgRev=allRevs.length?allRevs.reduce((a,b)=>a+b,0)/allRevs.length:0;
+  const highThreshold=Math.max(avgRev*1.5,500);
+
+  // Column totals
+  const colTotals={};
+  filteredEmps.forEach(e=>{colTotals[e.id]={rev:0,jobs:0,ests:0};});
+
+  // Build rows
+  let bodyRows='';
+  sortedDates.forEach(d=>{
+    const dt=new Date(d+'T12:00:00');
+    const dow=dt.getDay();
+    const isWeekend=dow===0||dow===6;
+    const isToday=d===today;
+    const dayLabel=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const rowStyle=isToday?'background:#FFFDE7':isWeekend?'background:#F5F5F5':'';
+
+    let rowCells=`<td style="font-size:9px;font-weight:700;padding:4px 6px;border:1px solid #ccc;white-space:nowrap;${rowStyle}${isToday?'color:#B45309;':isWeekend?'color:#9E9E9E;':''}background:${isToday?'#FFFDE7':isWeekend?'#F5F5F5':'#FAFAFA'}">${dayLabel}</td>`;
+
+    filteredEmps.forEach(emp=>{
+      const c=cells[`${d}|${emp.id}`];
+      if(!c||(!c.rev&&!c.jobCount&&!c.estCount&&!c.unpaid&&!c.pending)){
+        rowCells+=`<td style="border:1px solid #ddd;background:#fafafa"></td>`;
+        return;
+      }
+      colTotals[emp.id].rev+=c.rev;
+      colTotals[emp.id].jobs+=c.jobCount;
+      colTotals[emp.id].ests+=c.estCount;
+
+      const refs=c.items.filter(i=>i.type==='revenue_ref');
+      const refRev=refs.reduce((s,r)=>s+r.total,0);
+      const totalCollected=c.rev; // revenue already includes retroactive
+
+      // Cell background — force color printing with explicit inline styles
+      const isHighRev=c.rev>=highThreshold;
+      let bg,fg='#000';
+      if(isHighRev){bg='#1B5E20';fg='#fff';}
+      else if(c.rev>0&&c.unpaid>0){bg='#FFF9C4';}
+      else if(c.rev>0){bg='#C8E6C9';}
+      else if(c.unpaid>0){bg='#FFCDD2';}
+      else if(c.pending>0||c.jobCount>0){bg='#FFF9C4';}
+      else if(c.estCount>0){bg='#BBDEFB';}
+      else{bg='#fff';}
+
+      // TOTAL COLLECTED — large, clear, primary number
+      const revLine=totalCollected>0
+        ?`<div style="font-size:12px;font-weight:900;color:${isHighRev?'#fff':'#1B5E20'};line-height:1.1">&#36;${(totalCollected).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`
+        :'';
+
+      // Retroactive — black checkmark, bold, clearly explains money came from estimate date
+      const retroLine=refs.length>0
+        ?`<div style="font-size:8.5px;font-weight:700;color:${isHighRev?'#C8E6C9':'#000'};margin-top:2px;border-top:1px solid ${isHighRev?'rgba(255,255,255,0.3)':'#ccc'};padding-top:2px">&#10003; ${refs.length} job${refs.length>1?'s':''} paid on est. date (${dollars(refRev)} incl. above)</div>`
+        :'';
+
+      // Unpaid — red triangle
+      const unpaidLine=c.unpaid>0
+        ?`<div style="font-size:8.5px;font-weight:700;color:#B71C1C;margin-top:1px">&#9651; ${dollars(c.unpaid)} unpaid</div>`
+        :'';
+
+      // Pending
+      const pendingLine=c.pending>0
+        ?`<div style="font-size:8.5px;color:#0D47A1;margin-top:1px">&#8987; ${dollars(c.pending)} pending</div>`
+        :'';
+
+      // Jobs & Estimates counts — full words, clear
+      const jCount=c.jobCount>0?`${c.jobCount} Job${c.jobCount!==1?'s':''}`:'' ;
+      const eCount=c.estCount>0?`${c.estCount} Est${c.estCount!==1?'s':''}`:'' ;
+      const metaLine=`<div style="font-size:8px;color:${isHighRev?'rgba(255,255,255,0.75)':'#555'};margin-top:2px">${[jCount,eCount].filter(Boolean).join(' · ')}</div>`;
+
+      rowCells+=`<td style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;border:1px solid #999;padding:3px 4px;vertical-align:top;background:${bg};color:${fg}">${revLine}${retroLine}${unpaidLine}${pendingLine}${metaLine}</td>`;
+    });
+    bodyRows+=`<tr>${rowCells}</tr>`;
+  });
+
+  // Totals row
+  let totalsRow=`<tr style="background:#E3F2FD"><td style="font-size:9px;font-weight:700;padding:4px 6px;border:1px solid #ccc">TOTALS</td>`;
+  filteredEmps.forEach(emp=>{
+    const t=colTotals[emp.id];
+    totalsRow+=`<td style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;border:1px solid #999;padding:4px;background:#BBDEFB;text-align:center">
+      <div style="font-size:12px;font-weight:900;color:#0D47A1">${t.rev>0?dollars(t.rev):'—'}</div>
+      <div style="font-size:8px;color:#333;margin-top:2px">${t.jobs>0?t.jobs+' Job'+(t.jobs!==1?'s':''):''} ${t.ests>0?'· '+t.ests+' Est'+(t.ests!==1?'s':''):''}</div>
+    </td>`;
+  });
+  totalsRow+='</tr>';
+
+  // Grand total collected
+  const grandTotal=Object.values(colTotals).reduce((s,t)=>s+t.rev,0);
+
+  const win=window.open('','_blank','width=1400,height=900');
+  win.document.write(`<!DOCTYPE html><html><head><title>Midstate Calendar ${from}–${to}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:11px;background:#fff;color:#374151}
-    @page{size:landscape;margin:0.4in}
-    @media print{body{margin:0}}
-    .print-header{padding:10px 0 8px;border-bottom:3px solid #1A3A5C;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-end}
-    .print-title{font-size:18px;font-weight:700;color:#1A3A5C}
-    .print-sub{font-size:11px;color:#6b7280}
-    .cal-table{border-collapse:collapse;width:100%;font-size:10px}
-    .cal-table th{background:#1A3A5C;color:#fff;padding:5px 4px;text-align:center;font-size:9px;white-space:nowrap;border:1px solid #fff}
-    .cal-table th.date-col{text-align:left;min-width:72px}
-    .cal-table td.date-cell{background:#f9fafb;font-size:9px;font-weight:600;padding:3px 5px;border-right:2px solid #cbd5e1;border-bottom:1px solid #d1d5db;white-space:nowrap}
-    .cal-table tr.weekend td.date-cell{color:#9ca3af;background:#f1f0eb}
-    .cal-table tr.today td.date-cell{background:#FFF9DB;color:#854F0B;font-weight:800}
-    .cal-cell{padding:3px 4px;border:1px solid #d1d5db;vertical-align:top;min-width:80px}
-    .cal-cell.empty{background:#f9fafb}
-    .cal-cell.est-only{background:#DBEAFE}
-    .cal-cell.in-progress{background:#FEF9C3}
-    .cal-cell.paid-low{background:#BBF7D0}
-    .cal-cell.paid-high{background:#16a34a;color:#fff}
-    .cal-cell.unpaid{background:#FECACA}
-    .cal-cell.mixed{background:linear-gradient(135deg,#BBF7D0 50%,#FECACA 50%)}
-    .cal-rev{font-size:10px;font-weight:700;color:#166534;line-height:1.2}
-    .cal-meta{font-size:9px;color:#6b7280;margin-top:1px}
-    .cal-cell.paid-high .cal-rev,.cal-cell.paid-high .cal-meta{color:#fff!important}
-    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:9px}
-    .leg-item{display:flex;align-items:center;gap:3px}
-    .leg-sw{width:10px;height:10px;border-radius:2px;display:inline-block;border:1px solid #e5e7eb}
+    body{font-family:Arial,sans-serif;font-size:10px;background:#fff;color:#333}
+    @page{size:landscape;margin:0.35in}
+    @media print{
+      body{margin:0}
+      *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+      td,th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+    }
+    table{border-collapse:collapse;width:100%}
+    th{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#1A3A5C!important;color:#fff!important;padding:5px 4px;font-size:9px;border:1px solid #0d2240;text-align:center;white-space:nowrap}
+    th.date-th{text-align:left;min-width:68px}
+    .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:9px;align-items:center}
+    .leg{display:flex;align-items:center;gap:3px}
+    .sw{width:12px;height:12px;border-radius:2px;display:inline-block;border:1px solid #ccc;flex-shrink:0}
   </style></head><body>
-  <div class="print-header">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:8px;border-bottom:3px solid #1A3A5C;margin-bottom:8px">
     <div>
-      <div class="print-title">🏠 Midstate Plumbing, Heating & Cooling — Calendar</div>
-      <div class="print-sub">${from} to ${to} &nbsp;·&nbsp; ${mode}</div>
+      <div style="font-size:16px;font-weight:700;color:#1A3A5C">&#127968; Midstate Plumbing, Heating &amp; Cooling</div>
+      <div style="font-size:11px;color:#555;margin-top:2px">Calendar &nbsp;·&nbsp; ${from} to ${to} &nbsp;·&nbsp; ${modeLabel}</div>
     </div>
-    <div class="print-sub" style="text-align:right">651-480-1195 &nbsp;·&nbsp; Hastings, MN<br>Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+    <div style="text-align:right;font-size:10px;color:#555">
+      <div style="font-size:14px;font-weight:800;color:#1B5E20">Total Collected: ${dollars(grandTotal)}</div>
+      <div>651-480-1195 &nbsp;·&nbsp; Hastings, MN</div>
+      <div>Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+    </div>
   </div>
-  ${wrap.innerHTML}
+  <table>
+    <thead><tr>
+      <th class="date-th">Date</th>
+      ${filteredEmps.map(e=>`<th>${((e.first_name||'')+' '+(e.last_name||'')).trim()}</th>`).join('')}
+    </tr></thead>
+    <tbody>${bodyRows}${totalsRow}</tbody>
+  </table>
   <div class="legend">
-    <span class="leg-item"><span class="leg-sw" style="background:#DBEAFE"></span>Estimates only</span>
-    <span class="leg-item"><span class="leg-sw" style="background:#FEF9C3"></span>In progress</span>
-    <span class="leg-item"><span class="leg-sw" style="background:#BBF7D0"></span>Revenue collected</span>
-    <span class="leg-item"><span class="leg-sw" style="background:#16a34a"></span>Strong revenue</span>
-    <span class="leg-item"><span class="leg-sw" style="background:#FECACA"></span>Unpaid</span>
+    <strong>Legend:</strong>
+    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#1B5E20"></span>Strong revenue day</span>
+    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#E8F5E9"></span>Revenue collected</span>
+    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#E3F2FD"></span>Estimates only</span>
+    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#FFFDE7"></span>In progress</span>
+    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#FFEBEE"></span>Unpaid</span>
+    <span class="leg"><strong>&#10003;</strong> = Paid on later date, credited to estimate date</span>
+    <span class="leg"><strong>&#9651;</strong> = Completed but not yet paid</span>
   </div>
   <script>window.onload=function(){window.print();}<\/script>
   </body></html>`);
@@ -2474,6 +3020,29 @@ function printCalendar(){
 // ============================================================
 // UNPAID JOBS TAB
 // ============================================================
+// ---- Unpaid job tracking state ----
+let _unpaidNotes={};   // jobId -> string
+let _unpaidStatus={};  // jobId -> 'pending'|'contacted'|'partial'|'collected'
+let _unpaidPayments={}; // jobId -> [{amount, date, note}]
+
+function loadUnpaidState(){
+  try{
+    const n=localStorage.getItem('hcp_unpaid_notes');
+    const s=localStorage.getItem('hcp_unpaid_status');
+    const p=localStorage.getItem('hcp_unpaid_payments');
+    if(n)_unpaidNotes=JSON.parse(n);
+    if(s)_unpaidStatus=JSON.parse(s);
+    if(p)_unpaidPayments=JSON.parse(p);
+  }catch(e){}
+}
+function saveUnpaidState(){
+  try{
+    localStorage.setItem('hcp_unpaid_notes',JSON.stringify(_unpaidNotes));
+    localStorage.setItem('hcp_unpaid_status',JSON.stringify(_unpaidStatus));
+    localStorage.setItem('hcp_unpaid_payments',JSON.stringify(_unpaidPayments));
+  }catch(e){}
+}
+
 function getUnpaidJobs(){
   const dept=$$('unpaidDeptFilter')?.value||'';
   const emp=$$('unpaidEmpFilter')?.value||'';
@@ -2640,10 +3209,68 @@ function openUnpaidDetail(jobId){
     </div>`:''}
 
     <!-- Action buttons -->
-    <div style="display:flex;gap:8px;margin-top:4px">
-      ${phone?`<a href="tel:${phone}" class="is-btn primary" style="text-decoration:none;text-align:center">📞 Call customer</a>`:''}
-      ${email?`<a href="mailto:${email}?subject=Your recent service with Midstate Plumbing" class="is-btn" style="text-decoration:none;text-align:center">✉ Email customer</a>`:''}
+    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+      ${phone?`<a href="tel:${phone}" class="is-btn primary" style="text-decoration:none;text-align:center">📞 Call</a>`:''}
+      ${email?`<a href="mailto:${email}?subject=Your recent service with Midstate Plumbing" class="is-btn" style="text-decoration:none;text-align:center">✉ Email</a>`:''}
+      <button class="is-btn email" onclick="printUnpaidTicket('${j.id}')">🖨 Print ticket</button>
       <button class="is-btn" onclick="closeUnpaidDetail()">Close</button>
+    </div>
+
+    <!-- Status & tracking -->
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f3f4f6">
+      <div class="unpaid-detail-head" style="border-color:#1A3A5C">Collection Status & Notes</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        ${['pending','contacted','partial','collected'].map(s=>`
+          <button class="is-btn ${(_unpaidStatus['${j.id}']||'pending')===s?'primary':''}"
+            style="font-size:11px;padding:3px 10px${(_unpaidStatus['${j.id}']||'pending')===s?';background:#1A3A5C;color:#fff':''}"
+            onclick="setUnpaidStatus('${j.id}','${s}')">
+            ${{pending:'⏳ Pending',contacted:'📞 Contacted',partial:'💵 Partial',collected:'✅ Collected'}[s]}
+          </button>`).join('')}
+      </div>
+      <textarea id="unpaidNote_${j.id}" rows="2" style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;resize:vertical;font-family:Arial,sans-serif;margin-bottom:6px"
+        placeholder="Notes about collection attempts...">${_unpaidNotes[j.id]||''}</textarea>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="is-btn primary" style="font-size:12px" onclick="saveUnpaidNote('${j.id}')">Save note</button>
+      </div>
+
+      <!-- Payment collection log -->
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Log a payment received:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <input type="number" id="payAmt_${j.id}" placeholder="Amount $" step="0.01" style="width:120px;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+        <input type="date" id="payDate_${j.id}" value="${new Date().toISOString().split('T')[0]}" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+        <input type="text" id="payNote_${j.id}" placeholder="Note (e.g. check #1234)" style="flex:1;min-width:120px;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+        <button class="is-btn success" style="font-size:12px" onclick="logUnpaidPayment('${j.id}',${total})">Log payment</button>
+      </div>
+
+      <!-- Existing payments -->
+      ${(_unpaidPayments[j.id]||[]).length?`
+      <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:4px">Payments collected</div>
+      ${(_unpaidPayments[j.id]||[]).map(p=>`
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f3f4f6">
+          <span style="color:#166534;font-weight:600">${dollars(p.amount)}</span>
+          <span style="color:#6b7280">${p.date}</span>
+          <span>${p.note||''}</span>
+        </div>`).join('')}
+      <div style="font-size:12px;font-weight:700;color:#166534;margin-top:4px">
+        Total collected: ${dollars((_unpaidPayments[j.id]||[]).reduce((s,p)=>s+p.amount,0))} 
+        of ${dollars(total)}
+      </div>`:''}
+
+      <!-- Request for payment script -->
+      <div style="margin-top:12px">
+        <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Payment request message:</div>
+        <div style="font-size:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px;line-height:1.7;color:#374151" id="paymentScript_${j.id}">
+Hi ${getCust(j).split(' ')[0]},<br><br>
+I'm following up regarding your recent ${getDept(j)} service completed on ${completedAt?fmtD(completedAt):''}. Your invoice of <strong>${dollars(total)}</strong> is now due.<br><br>
+Please give us a call at <strong>651-480-1195</strong> or reply to this message to arrange payment at your convenience. We accept check, credit card, and online payment.<br><br>
+Thank you for choosing Midstate Plumbing, Heating & Cooling. We appreciate your business.<br><br>
+Best regards,<br>
+Bob Danaher<br>
+Midstate Plumbing, Heating & Cooling<br>
+651-480-1195
+        </div>
+        <button class="is-btn" style="font-size:11px;margin-top:6px" onclick="copyPaymentScript('${j.id}')">📋 Copy message</button>
+      </div>
     </div>`;
 
   $$('unpaidDetail').style.display='block';
@@ -2653,6 +3280,130 @@ function openUnpaidDetail(jobId){
 function closeUnpaidDetail(){
   $$('unpaidDetail').style.display='none';
   $$('unpaidOverlay').style.display='none';
+}
+
+function setUnpaidStatus(jobId, status){
+  _unpaidStatus[jobId]=status;
+  saveUnpaidState();
+  // Re-open the detail to refresh buttons
+  const j=_jobs.find(x=>x.id===jobId);
+  if(j) openUnpaidDetail(jobId);
+}
+
+function saveUnpaidNote(jobId){
+  const el=document.getElementById('unpaidNote_'+jobId);
+  if(!el) return;
+  _unpaidNotes[jobId]=el.value;
+  saveUnpaidState();
+  el.style.border='1px solid #16a34a';
+  setTimeout(()=>{if(el)el.style.border='1px solid #d1d5db';},1500);
+}
+
+function logUnpaidPayment(jobId, total){
+  const amt=parseFloat(document.getElementById('payAmt_'+jobId)?.value||0);
+  if(!amt||amt<=0){alert('Enter a payment amount.');return;}
+  const date=document.getElementById('payDate_'+jobId)?.value||new Date().toISOString().split('T')[0];
+  const note=document.getElementById('payNote_'+jobId)?.value||'';
+  if(!_unpaidPayments[jobId])_unpaidPayments[jobId]=[];
+  _unpaidPayments[jobId].push({amount:amt,date,note,logged:new Date().toISOString()});
+  _unpaidStatus[jobId]='partial';
+  // If total collected >= job total, mark as collected
+  const totalPaid=_unpaidPayments[jobId].reduce((s,p)=>s+p.amount,0);
+  if(totalPaid>=total) _unpaidStatus[jobId]='collected';
+  saveUnpaidState();
+  openUnpaidDetail(jobId); // refresh
+}
+
+function copyPaymentScript(jobId){
+  const el=document.getElementById('paymentScript_'+jobId);
+  if(!el) return;
+  const text=el.innerText;
+  navigator.clipboard?.writeText(text).then(()=>alert('Message copied!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);alert('Message copied!');
+  });
+}
+
+function printUnpaidTicket(jobId){
+  const j=_jobs.find(x=>x.id===jobId);
+  if(!j) return;
+  const total=getJobTotal(j);
+  const cust=j.customer||{};
+  const phone=cust.mobile_number||cust.home_number||'';
+  const email=cust.email||'';
+  const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
+  const notes=getJobNotes(j);
+  const completedAt=j.work_timestamps?.completed_at||j.completed_at||'';
+  const techs=getAssignedList(j).map(e=>((e.first_name||'')+' '+(e.last_name||'')).trim()).join(', ');
+  const payments=_unpaidPayments[jobId]||[];
+  const totalPaid=payments.reduce((s,p)=>s+p.amount,0);
+  const remaining=Math.max(0,total-totalPaid);
+  const statusLabel={pending:'Pending',contacted:'Contacted',partial:'Partial payment received',collected:'Collected'}[_unpaidStatus[jobId]||'pending'];
+  const noteText=_unpaidNotes[jobId]||'';
+
+  const win=window.open('','_blank','width=600,height=800');
+  win.document.write(`<!DOCTYPE html><html><head><title>Invoice #${j.invoice_number||j.job_number||j.id}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:24px}
+    @page{size:letter;margin:0.5in}@media print{body{padding:0}button{display:none}}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1A3A5C;padding-bottom:12px;margin-bottom:16px}
+    .logo{font-size:18px;font-weight:700;color:#1A3A5C}.sub{font-size:11px;color:#555;margin-top:3px}
+    .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:11px}
+    .unpaid-badge{background:#FECACA;color:#B91C1C}
+    h3{font-size:13px;font-weight:700;color:#1A3A5C;border-left:3px solid #E8640A;padding-left:8px;margin:14px 0 6px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px}
+    .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f3f4f6}
+    .total-box{background:#FECACA;border-radius:6px;padding:12px;margin-top:12px;text-align:center}
+    .total-amt{font-size:24px;font-weight:800;color:#B91C1C}
+    .note{background:#fffbeb;border-left:3px solid #fbbf24;padding:8px 10px;border-radius:2px;font-size:12px;margin-bottom:6px}
+    .payment-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid #f3f4f6}
+  </style></head><body>
+  <div class="header">
+    <div>
+      <div class="logo">&#127968; Midstate Plumbing, Heating & Cooling</div>
+      <div class="sub">3500 Cannon St Ste 100, Hastings, MN 55033 &nbsp;·&nbsp; 651-480-1195</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:15px;font-weight:700">Job #${j.job_number||j.id||'—'}</div>
+      <div class="badge unpaid-badge">&#9651; PAYMENT DUE</div>
+      <div style="font-size:11px;color:#555;margin-top:4px">Status: ${statusLabel}</div>
+      <div style="font-size:11px;color:#555">Printed: ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+    </div>
+  </div>
+
+  <h3>Customer</h3>
+  <div class="grid">
+    <div><strong>${getCust(j)}</strong><br>${addr}<br>${phone?'📞 '+phone:''}</div>
+    <div>${email?'✉ '+email:''}</div>
+  </div>
+
+  <h3>Job Details</h3>
+  <div class="row"><span>Department</span><strong>${getDept(j)}</strong></div>
+  <div class="row"><span>Technician(s)</span><strong>${techs||'—'}</strong></div>
+  <div class="row"><span>Completed</span><strong>${completedAt?fmtD(completedAt):'—'}</strong></div>
+  ${j.description?`<div class="row"><span>Description</span><span>${j.description}</span></div>`:''}
+
+  ${notes.length?`<h3>Notes</h3>${notes.map(n=>`<div class="note">${n}</div>`).join('')}`:''}
+
+  ${payments.length?`<h3>Payments Received</h3>
+    ${payments.map(p=>`<div class="payment-row"><span style="color:#166534;font-weight:600">${dollars(p.amount)}</span><span>${p.date}</span><span>${p.note||''}</span></div>`).join('')}
+    <div class="row" style="margin-top:4px"><span>Total paid</span><strong style="color:#166534">${dollars(totalPaid)}</strong></div>`:''}
+
+  ${noteText?`<h3>Collection Notes</h3><div class="note">${noteText}</div>`:''}
+
+  <div class="total-box">
+    <div style="font-size:12px;color:#B91C1C;font-weight:600;margin-bottom:4px">BALANCE DUE</div>
+    <div class="total-amt">${dollars(remaining)}</div>
+    <div style="font-size:11px;color:#B91C1C;margin-top:4px">Original invoice: ${dollars(total)}</div>
+  </div>
+
+  <div style="margin-top:16px;font-size:11px;color:#555;text-align:center">
+    Payment due upon receipt. Questions? Call 651-480-1195 or visit midstateplumbing.com
+  </div>
+  <button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px">Print / Save PDF</button>
+  </body></html>`);
+  win.document.close();
 }
 
 let _uploadedPlans=[];
@@ -3974,9 +4725,14 @@ function buildCalendarData(jobs, estimates, mode){
   });
 
   // ---- ESTIMATES: show on the date they were RUN (scheduled appointment date)
-  // Use scheduled_start first — that's when the tech actually went out
-  // Fall back to created_at only if no scheduled date exists
+  // One estimate = one count regardless of how many options it has
+  // Deduplicate by estimate record ID (csr_...) to prevent option records being counted separately
+  const countedEstIds=new Set();
   estimates.forEach(e=>{
+    // Skip if this estimate has already been counted (deduplicate options)
+    if(countedEstIds.has(e.id)) return;
+    countedEstIds.add(e.id);
+
     const d=fmtKey(e.schedule?.scheduled_start||e.created_at);
     if(!d) return;
     dates.add(d);
@@ -4001,8 +4757,10 @@ function buildCalendarData(jobs, estimates, mode){
     const complete=isJobComplete(j);
 
     // Get the job's actual scheduled date (when the tech goes out)
-    const schedDate=fmtKey(j.schedule?.scheduled_start||j.created_at);
-    if(!schedDate) return;
+    // ONLY use scheduled_start — created_at is when the job was entered, not when work happens
+    // This prevents jobs from appearing on wrong dates (e.g. Lukas 4/17 issue)
+    const schedDate=fmtKey(j.schedule?.scheduled_start);
+    if(!schedDate) return; // skip unscheduled jobs — no date to show on calendar
     dates.add(schedDate);
 
     // Get the revenue attribution date
@@ -4037,6 +4795,14 @@ function buildCalendarData(jobs, estimates, mode){
 
     // ---- Write to SCHEDULED DATE (where the work happens) ----
     if(revEmpId){
+      // Handle multiple appointments — show job on each appointment date
+      const appointments=j.schedule?.appointments||[];
+      const extraDates=new Set();
+      appointments.forEach(appt=>{
+        const apptDate=fmtKey(appt.start_time||appt.scheduled_start||appt.window_start);
+        if(apptDate&&apptDate!==schedDate){extraDates.add(apptDate);dates.add(apptDate);}
+      });
+
       const schedCell=getCell(schedDate, revEmpId);
 
       if(isOnSameDate){
@@ -4061,6 +4827,22 @@ function buildCalendarData(jobs, estimates, mode){
         revenueDate:revDate,
         revNote:!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:'',
         source:attr?.source,reason:_attr[j.id]?.reason
+      });
+
+      // Also show job on any additional appointment dates (multi-visit jobs)
+      extraDates.forEach(apptDate=>{
+        const apptCell=getCell(apptDate, revEmpId);
+        apptCell.jobCount++;
+        apptCell.items.push({
+          type:'job',date:apptDate,schedDate,revDate,
+          id:j.id,number:j.job_number,customer:getCust(j),
+          status:jobStatus,total:0,paid,complete, // $0 — revenue shown on primary date
+          unpaid:false,pending:false,
+          dept:getDept(j),notes:getJobNotes(j),emp:revEmpName,
+          revenueElsewhere:true,revenueDate:schedDate,
+          revNote:`Additional visit · Revenue on ${schedDate}`,
+          source:attr?.source
+        });
       });
     }
 
@@ -4393,7 +5175,13 @@ function renderContest(){
   }
 
   // Build all sections as HTML and set at once
-  board.innerHTML=_contestItems.map(item=>renderContestSection(item)).join('');
+  const sections=_contestItems.map(item=>renderContestSection(item));
+  if(sections.length>1){
+    // Side by side for 2+ categories
+    board.innerHTML=`<div style="display:grid;grid-template-columns:repeat(${Math.min(sections.length,2)},1fr);gap:16px">${sections.join('')}</div>`;
+  } else {
+    board.innerHTML=sections.join('');
+  }
 }
 
 function renderContestSection(item){
@@ -4515,16 +5303,13 @@ function renderContestSection(item){
         <div class="leaderboard-rev">${e.rev>0?dollars(e.rev):''}</div>
       </div>`;
     }).join('');
-    const active=entries.filter(e=>e.count>0);
-    const bracket=buildBracket(active.length>0?active:entries.slice(0,8));
-    const bracketHtml=renderBracketHTML(bracket);
     return`<div style="margin-bottom:28px;border:2px solid ${item.color};border-radius:10px;overflow:hidden">
       <div style="background:${item.color};color:#fff;padding:12px 16px;font-size:15px;font-weight:700">
         🏆 ${item.label} <span style="font-size:12px;font-weight:400;opacity:.8;margin-left:8px">${total} sold · from uploaded service plan data</span>
       </div>
       <div style="padding:16px">
         <div class="leaderboard-wrap">${lbRows||'<div style="padding:12px;color:#9ca3af;font-size:13px">No plan data found. Upload a service plan file in the Service Plans tab first.</div>'}</div>
-        ${active.length>1?`<div class="sec-head" style="font-size:12px;margin-top:16px">Tournament Bracket</div><div class="bracket-wrap">${bracketHtml}</div>`:''}
+  
       </div>
     </div>`;
   }
@@ -4584,18 +5369,13 @@ function renderContestSection(item){
     </div>`;
   }).join('');
 
-  // ---- TOURNAMENT BRACKET ----
-  const active=entries.filter(e=>e.count>0||e.rev>0);
-  const bracket=buildBracket(active.length>0?active:entries.slice(0,8));
-  const bracketHtml=renderBracketHTML(bracket);
-
   return`<div style="margin-bottom:28px;border:2px solid ${item.color};border-radius:10px;overflow:hidden">
     <div style="background:${item.color};color:#fff;padding:12px 16px;font-size:15px;font-weight:700">
       🏆 ${productLabel} <span style="font-size:12px;font-weight:400;opacity:.8;margin-left:8px">${total} job${total!==1?'s':''} sold · ${$$('dateFrom').value} → ${$$('dateTo').value}</span>
     </div>
     <div style="padding:16px">
       <div class="leaderboard-wrap">${lbRows||'<div style="padding:12px;color:#9ca3af;font-size:13px">No matching jobs found in this date range.</div>'}</div>
-      ${active.length>1?`<div style="font-size:13px;font-weight:700;color:#374151;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.04em;font-size:11px">Tournament Bracket</div><div class="bracket-wrap">${bracketHtml}</div>`:''}
+
     </div>
   </div>`;
 }
