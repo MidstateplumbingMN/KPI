@@ -37,7 +37,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#DC2626;color:#fff;border:1px solid #DC2626;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#059669;color:#fff;border:1px solid #059669;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -324,7 +324,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#DC2626;color:#fff;border:1px solid #DC2626;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.4</span>
+      <span style="font-size:12px;background:#059669;color:#fff;border:1px solid #059669;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -353,7 +353,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="printReport()">🖨 Print / PDF</button>
@@ -762,8 +762,9 @@ tr:hover td{background:#fafafa}
         <div style="font-size:15px;font-weight:700;color:#1A3A5C;margin-bottom:6px">📂 Upload Service Plan / Agreement Data</div>
         <div style="font-size:12px;color:#6b7280;margin-bottom:14px;line-height:1.6">
           Since HCP doesn't expose service plans via API, export your plan data from HCP and upload it here.<br>
-          Accepts <strong>CSV or Excel (.xlsx)</strong>. Expected columns (any order, flexible matching):<br>
-          <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px">Customer Name · Plan Type · Sold By · Date · Amount · Status</code>
+          Accepts <strong>CSV or Excel (.xlsx)</strong>. Works with HCP's built-in export formats:<br>
+          <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px">HCP Aggregate: "Sold by" + "Plans sold" count per tech</code><br>
+          <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px;margin-top:3px;display:inline-block">Detailed: Customer · Plan Type · Sold By · Date · Amount</code>
         </div>
         <label class="plan-upload-btn" for="planFileInput">
           📁 Choose CSV or Excel file
@@ -2697,7 +2698,8 @@ async function processPlanFile(file){
     }
     _uploadedPlans=plans;_plans=plans;
     saveUploadedPlans();
-    if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${plans.length} records from "${file.name}"</span>`;
+    const isAgg=plans.length>0&&plans[0].source==='upload_aggregate';
+    if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${plans.length} plan record${plans.length!==1?'s':''} from "${file.name}"${isAgg?' (expanded from aggregate report)':''}</span>`;
     $$('planUploadBox').style.display='none';
     $$('planDataView').style.display='block';
     populateFilters(_jobs,_estimates,plans);
@@ -2736,8 +2738,53 @@ async function parseExcelFile(file){
 }
 
 function mapPlanRows(rows){
-  const headers=rows[0].map(h=>String(h).toLowerCase().trim());
+  const headers=rows[0].map(h=>String(h||'').toLowerCase().trim());
+
   function findCol(...kws){for(const kw of kws){const i=headers.findIndex(h=>h.includes(kw));if(i>=0)return i;}return-1;}
+
+  // Detect HCP aggregate format: "Sold by" + "Plans sold" — expand into individual records
+  const soldByCol=findCol('sold by','sold_by','employee','tech','rep','staff','name');
+  const countCol =findCol('plans sold','count','sold','quantity','qty','total');
+  const isAggregateFormat=soldByCol>=0&&countCol>=0;
+
+  if(isAggregateFormat){
+    // HCP aggregate export: one row per tech with a count — expand into individual plan records
+    const plans=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];
+      if(!r||r.every(c=>!String(c||'').trim())) continue;
+      const soldBy=String(r[soldByCol]||'').trim();
+      if(!soldBy||soldBy.toLowerCase()==='total') continue; // skip total row
+      const count=parseInt(String(r[countCol]||'0').replace(/[^0-9]/g,''))||0;
+      if(count===0) continue;
+
+      // Match to employee
+      const empMatch=_employees.find(e=>{
+        const n=((e.first_name||'')+' '+(e.last_name||'')).trim().toLowerCase();
+        const sb=soldBy.toLowerCase();
+        // Handle "Office Staff" as Victoria Ellsworth or skip
+        if(sb==='office staff') return e.role&&e.role.toLowerCase().includes('office');
+        return n===sb||sb.includes(n.split(' ')[0].toLowerCase())||n.includes(sb.split(' ')[0].toLowerCase());
+      });
+
+      // Create one plan record per unit sold
+      for(let j=0;j<count;j++){
+        plans.push({
+          id:'upload_'+i+'_'+j,
+          customer:{first_name:'Home Club Member',last_name:'',id:'upload_cust_'+i+'_'+j},
+          name:'Home Club Maintenance',
+          total_amount:1999, // $19.99 in cents
+          sold_by:empMatch||{first_name:soldBy,last_name:'',id:'manual_'+soldBy.replace(/\s/g,'_')},
+          created_at:new Date().toISOString(),
+          status:'Active',
+          source:'upload_aggregate'
+        });
+      }
+    }
+    return plans;
+  }
+
+  // Detailed format: one row per plan sold (customer name, date, etc.)
   const custCol=findCol('customer','client','name');
   const planCol=findCol('plan','type','service','agreement','product','description');
   const soldCol=findCol('sold by','tech','employee','rep','salesperson','staff','sold');
@@ -2749,7 +2796,7 @@ function mapPlanRows(rows){
     const r=rows[i];
     if(!r||r.every(c=>!String(c||'').trim())) continue;
     const custName=custCol>=0?r[custCol]||'Unknown':'Unknown';
-    const planName=planCol>=0?r[planCol]||'Service Plan':'Service Plan';
+    const planName=planCol>=0?r[planCol]||'Home Club Maintenance':'Home Club Maintenance';
     const soldBy  =soldCol>=0?r[soldCol]||'':'';
     const dateRaw =dateCol>=0?r[dateCol]||'':'';
     const amt     =amtCol>=0?parseFloat(String(r[amtCol]).replace(/[$,]/g,''))||19.99:19.99;
@@ -2757,7 +2804,7 @@ function mapPlanRows(rows){
     const empMatch=_employees.find(e=>{
       const n=((e.first_name||'')+' '+(e.last_name||'')).trim().toLowerCase();
       const sb=soldBy.toLowerCase();
-      return sb&&(n===sb||n.includes(sb)||sb.includes(n.split(' ')[0]));
+      return sb&&(n===sb||n.includes(sb.split(' ')[0])||sb.includes(n.split(' ')[0]));
     });
     let dateISO=new Date().toISOString();
     try{if(dateRaw){const d=new Date(dateRaw);if(!isNaN(d))dateISO=d.toISOString();}}catch(e){}
@@ -4333,7 +4380,7 @@ function renderContestSection(item){
     // Only matches "Smart Water Leak Alarm (4 pack)" or very close variants
     ['smart water leak alarm (4 pack)','smart water leak alarm','smart water leak alarms'],
     ['water softener','water conditioner','water conditioning','kinetico','ecowater','culligan','softener system','smart valve softener','22k softener','30k softener','45k softener','60k softener','whole home softener'],
-    ['home club','service agreement','service plan','maintenance plan','club membership','annual plan'],
+    ['home club','home club maintenance','service agreement','service plan','maintenance plan','club membership','annual plan'],
     ['furnace','heating system','heat system','hvac install','air handler','furnace install'],
     ['air conditioner','ac install','cooling system','heat pump','ac unit','air conditioning install'],
     ['ro system','reverse osmosis','drinking water system','5 stage ro','northstar','pentair fresh','under sink','ro filtration'],
