@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.2</span>
+      <span style="font-size:12px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,11 +414,12 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.2</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
       <button class="sec-btn no-print" id="summaryBtn" style="display:none" onclick="openSummaryReport()">📊 Summary Report</button>
+      <button class="sec-btn no-print refresh-all-btn" id="refreshAllBtn" style="display:none" onclick="refreshAll()">↻ Refresh all</button>
       <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
       <button class="sec-btn no-print" onclick="showDataTools()">⚙ Data</button>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
@@ -526,7 +527,10 @@ tr:hover td{background:#fafafa}
       <div class="sec-head">Attribution Pattern Stats</div>
       <p style="font-size:12px;color:#6b7280;margin-top:0">Based on confirmed attributions. Use these to spot-check that patterns make sense.</p>
       <div class="pattern-grid" id="patternStats"></div>
-      <div class="sec-head">Jobs Needing Revenue Attribution</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="sec-head" style="margin:0">Jobs Needing Revenue Attribution</div>
+        <button onclick="refreshAttr()" style="font-size:11px;padding:3px 10px;border:1px solid #1A3A5C;border-radius:4px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:600">↻ Refresh</button>
+      </div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
         <p style="font-size:12px;color:#6b7280;margin:0;flex:1">These jobs need a revenue credit decision. Review and confirm or override. Paid jobs are prioritized.</p>
         <div style="position:relative">
@@ -565,7 +569,10 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="sec-head">Department Totals</div>
       <div class="dept-grid" id="deptTotals"></div>
-      <div class="sec-head">Employee KPI Scorecards</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="sec-head" style="margin:0">Employee KPI Scorecards</div>
+        <button onclick="refreshKPI()" style="font-size:11px;padding:3px 10px;border:1px solid #1A3A5C;border-radius:4px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:600">↻ Refresh</button>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
         <div style="font-size:12px;color:#6b7280;flex:1">Revenue credited to the tech who sold the estimate. Andy Mitchell &amp; Gannon Blaiser are installers — jobs counted, revenue attributed to selling tech.</div>
         <!-- KPI Employee multi-select -->
@@ -592,6 +599,9 @@ tr:hover td{background:#fafafa}
 
     <!-- GOALS -->
     <div class="panel" id="tab-goals">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
+        <button onclick="printGoals()" style="font-size:12px;padding:5px 14px;border:1px solid #1A3A5C;border-radius:5px;background:#1A3A5C;color:#fff;cursor:pointer;font-weight:600">🖨 Print Goals</button>
+      </div>
       <div id="goalsContent"></div>
     </div>
 
@@ -621,7 +631,7 @@ tr:hover td{background:#fafafa}
           <label style="font-size:12px;color:#6b7280;margin-left:8px">Sort techs by:</label>
           <select id="calEmpSort" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
             <option value="name">Name A–Z</option>
-            <option value="dept">Department</option>
+            <option value="dept">Department (inferred from jobs)</option>
             <option value="revenue">Revenue (high–low)</option>
           </select>
           <label style="font-size:12px;color:#6b7280;margin-left:8px">Employees:</label>
@@ -943,6 +953,17 @@ let _jobs=[], _estimates=[], _employees=[], _plans=[];
 let _attr = {};
 const INSTALLER_IDS = new Set(); // populated from employee list by name
 const INSTALLER_NAMES = ['Andy Mitchell','Gannon Blaiser'];
+// Gannon became an installer ~30 days ago — his pre-transition sales still count
+// Jobs/estimates BEFORE his transition date credit him as seller
+const GANNON_TRANSITION = new Date();
+GANNON_TRANSITION.setDate(GANNON_TRANSITION.getDate() - 30);
+GANNON_TRANSITION.setHours(0,0,0,0);
+
+function isGannonSellingTech(dateStr){
+  // Returns true if the date is before Gannon's installer transition
+  if(!dateStr) return false;
+  return new Date(dateStr) < GANNON_TRANSITION;
+}
 let _jobSort={col:'scheduled',dir:'desc'};
 let _estSort={col:'created_at',dir:'desc'};
 
@@ -1523,6 +1544,7 @@ async function loadAll(){
     $$('main').style.display='block';
     $$('printBtn').style.display='';
     $$('summaryBtn').style.display='';
+    $$('refreshAllBtn').style.display='';
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -1553,10 +1575,21 @@ function buildAttribution(jobs,estimates){
   });
   Object.values(estByCustomer).forEach(arr=>arr.sort((a,b)=>new Date(a.schedule?.scheduled_start||a.created_at)-new Date(b.schedule?.scheduled_start||b.created_at)));
 
-  // Get selling tech from estimate (skip installers)
+  // Get selling tech from estimate
+  // Gannon counts as seller for estimates before his installer transition date
   function getSellerFromEst(est){
-    const emps=getAssignedList(est).filter(e=>!INSTALLER_IDS.has(e.id));
-    const e=emps.length?emps[0]:getAssignedList(est)[0];
+    const estDate=est.schedule?.scheduled_start||est.created_at||'';
+    const gannonStillSelling=isGannonSellingTech(estDate);
+    const emps=getAssignedList(est).filter(e=>{
+      if(INSTALLER_IDS.has(e.id)){
+        // Gannon: allow as seller for pre-transition estimates
+        const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+        if(name==='Gannon Blaiser'&&gannonStillSelling) return true;
+        return false;
+      }
+      return true;
+    });
+    const e=emps.length?emps[0]:null;
     if(!e)return null;
     return{id:e.id,name:((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?'};
   }
@@ -1641,6 +1674,21 @@ function buildAttribution(jobs,estimates){
     return{text:'Possible match — please verify before confirming',icon:'❓',key:'needs_review'};
   }
 
+  // Attribution rule: Gannon's pre-transition sold estimates under $700
+  // that became paid jobs → credit Gannon as seller
+  function gannonCreditCheck(j, est){
+    if(!est) return false;
+    const jobTotal=getJobTotal(j);
+    if(jobTotal>=700) return false; // only sub-$700 jobs
+    const estDate=est.schedule?.scheduled_start||est.created_at||'';
+    if(!isGannonSellingTech(estDate)) return false; // only pre-transition
+    const gannon=getAssignedList(est).find(e=>{
+      const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+      return name==='Gannon Blaiser';
+    });
+    return !!gannon;
+  }
+
   jobs.forEach(j=>{
     const jid=j.id;
     // Use scheduled_start as the job date — this is when the tech actually went out
@@ -1663,7 +1711,21 @@ function buildAttribution(jobs,estimates){
     // 2. Direct link via original_estimate_id
     const linkedEstId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
     if(linkedEstId&&estById[linkedEstId]){
-      const seller=getSellerFromEst(estById[linkedEstId]);
+      const linkedEst=estById[linkedEstId];
+      // Special case: Gannon's pre-transition sub-$700 estimates — credit him directly
+      if(isJobPaid(j)&&gannonCreditCheck(j, linkedEst)){
+        const gannonEmp=getAssignedList(linkedEst).find(e=>{
+          const n=((e.first_name||'')+' '+(e.last_name||'')).trim();
+          return n==='Gannon Blaiser';
+        });
+        if(gannonEmp){
+          const n=((gannonEmp.first_name||'')+' '+(gannonEmp.last_name||'')).trim();
+          _jobAttribution[jid]={techId:gannonEmp.id,techName:n,dept,source:'gannon_transition',
+            recommendation:{text:`Gannon sold pre-transition · ${dollars(jobTotal)} under $700 threshold`,icon:'✓',key:'gannon_transition'},candidates:[]};
+          return;
+        }
+      }
+      const seller=getSellerFromEst(linkedEst);
       if(seller){
         _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'linked',candidates:[]};
         return;
@@ -1771,11 +1833,19 @@ function renderAttr(jobs,estimates){
   const statusF=$$('attrStatusFilter')?.value||'unresolved';
 
   // Filter jobs based on status selection
+  // Date filter for attribution — use the KPI date range
+  const attrFrom=$$('dateFrom')?.value||'';
+  const attrTo=$$('dateTo')?.value||'';
   let filtered=jobs.filter(j=>{
     if(isJobCanceled(j)) return false;
+    // Apply date filter so Dec 2025 jobs don't show in 2026 YTD view
+    if(attrFrom&&attrTo){
+      const jd=j.schedule?.scheduled_start||j.created_at||'';
+      if(jd<attrFrom||jd>attrTo) return false;
+    }
     const attr=_jobAttribution[j.id];
-    if(statusF==='unresolved') return attr?.source==='unresolved';
-    if(statusF==='confirmed') return attr&&attr.source!=='unresolved';
+    if(statusF==='unresolved') return !attr||attr.source==='unresolved';
+    if(statusF==='confirmed') return attr&&attr.source!=='unresolved'&&attr.source!=='no_estimate';
     if(statusF==='paid') return isJobPaid(j);
     return true; // 'all'
   });
@@ -2289,6 +2359,8 @@ function renderKPI(jobs,estimates,employees,plans){
   // Filter jobs and estimates to KPI date range
   const kpiJobs=filterByKPIRange(jobs,j=>j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at).filter(j=>!isJobCanceled(j));
   const kpiEsts=filterByKPIRange(estimates,e=>e.schedule?.scheduled_start||e.created_at);
+  // For KPI: Gannon's pre-transition estimates count toward his scorecard
+  // His post-transition jobs count as installer (revenue to selling tech, job count to Gannon)
   // Build per-employee stats
   const map={};
   employees.forEach(emp=>{
@@ -2334,10 +2406,17 @@ function renderKPI(jobs,estimates,employees,plans){
   });
   const kpiCountedEsts=new Set();
   kpiEsts.forEach(e=>{
-    // Deduplicate: one estimate record = one count, regardless of options
     if(kpiCountedEsts.has(e.id)) return;
     kpiCountedEsts.add(e.id);
-    const all=getAssignedList(e).filter(x=>!INSTALLER_IDS.has(x.id));
+    const estDate=e.schedule?.scheduled_start||e.created_at||'';
+    // Include Gannon as selling tech for pre-transition estimates
+    const all=getAssignedList(e).filter(x=>{
+      if(INSTALLER_IDS.has(x.id)){
+        const name=((x.first_name||'')+' '+(x.last_name||'')).trim();
+        return name==='Gannon Blaiser'&&isGannonSellingTech(estDate);
+      }
+      return true;
+    });
     all.forEach(emp=>{
       if(!emp)return;
       const n=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'?';
@@ -2366,6 +2445,8 @@ function renderKPI(jobs,estimates,employees,plans){
   // Apply KPI employee visibility filter
   const visibleCards=allCards.filter(e=>{
     const emp=_employees.find(x=>{const n=((x.first_name||x.name||'')+' '+(x.last_name||'')).trim();return n===e.name;});
+    // Always show Gannon — he has pre-transition sales to display
+    if(e.name==='Gannon Blaiser') return true;
     return !emp||isKPIEmpVisible(emp.id);
   });
   const techCards=visibleCards.filter(e=>!e.installer).sort((a,b)=>b.revenue-a.revenue);
@@ -2772,13 +2853,32 @@ function renderGoals(){
   // Calculate workdays (M-F) remaining in 2026
   function countWorkdaysRemaining(){
     const today=new Date();today.setHours(0,0,0,0);
-    const yearEnd=new Date(today.getFullYear(),11,31);
+    const yr=today.getFullYear();
+    const yearEnd=new Date(yr,11,31);
+    // US holidays observed by Midstate (fixed-date + nearest-Monday rule)
+    function nthDay(yr,mo,n,dow){// nth weekday of month
+      const d=new Date(yr,mo,1);d.setDate(d.getDate()+(dow-d.getDay()+7)%7+(n-1)*7);return d;
+    }
+    const holidays=[
+      new Date(yr,0,1),   // New Year's Day
+      nthDay(yr,4,4,1),   // Memorial Day (last Monday of May)
+      new Date(yr,6,4),   // Independence Day
+      nthDay(yr,8,1,1),   // Labor Day (first Monday of Sep)
+      nthDay(yr,10,4,4),  // Thanksgiving (4th Thursday of Nov)
+      new Date(yr,11,25), // Christmas
+    ].map(h=>{
+      // If holiday falls on Sat → observe Fri; Sun → observe Mon
+      const dow=h.getDay();
+      if(dow===6){h=new Date(h);h.setDate(h.getDate()-1);}
+      if(dow===0){h=new Date(h);h.setDate(h.getDate()+1);}
+      return h.toDateString();
+    });
     let workdays=0;
     const d=new Date(today);
-    d.setDate(d.getDate()+1); // start from tomorrow
+    d.setDate(d.getDate()+1);
     while(d<=yearEnd){
       const dow=d.getDay();
-      if(dow>=1&&dow<=5) workdays++;
+      if(dow>=1&&dow<=5&&!holidays.includes(d.toDateString())) workdays++;
       d.setDate(d.getDate()+1);
     }
     return workdays;
@@ -3193,6 +3293,79 @@ function printKPI(){
   win.document.close();
 }
 
+
+function printGoals(){
+  const content=$$('goalsContent');
+  if(!content||!_jobs.length){alert('Pull a report first.');return;}
+  const win=window.open('','_blank','width=900,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><title>Goals — Midstate Plumbing</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#111827;background:#fff;padding:0.4in}
+    @page{size:letter portrait;margin:0}
+    @media print{body{padding:0.35in}button{display:none!important}}
+    .goal-hero{background:#1A3A5C;color:#fff;border-radius:10px;padding:20px 24px;margin-bottom:16px}
+    .goal-hero-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;opacity:.7;margin-bottom:4px}
+    .goal-hero-rev{font-size:30px;font-weight:900;margin-bottom:3px}
+    .goal-hero-sub{font-size:11px;opacity:.7}
+    .goal-ring-wrap{display:flex;gap:20px;align-items:center}
+    .goal-ring-stats{flex:1}
+    .goal-ring-stat{margin-bottom:8px}
+    .goal-periods{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+    .goal-period-card{border:1px solid #e5e7eb;border-radius:8px;padding:10px}
+    .goal-period-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:4px}
+    .goal-period-target{font-size:10px;color:#6b7280;margin-bottom:5px}
+    .goal-period-actual{font-size:18px;font-weight:800;color:#1A3A5C;margin-bottom:5px}
+    .goal-period-bar{height:6px;background:#f3f4f6;border-radius:99px;margin-bottom:4px}
+    .goal-period-fill{height:6px;border-radius:99px}
+    .goal-period-pct{font-size:11px;font-weight:700}
+    .goal-pace{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:14px}
+    .goal-pace-head{font-size:12px;font-weight:700;color:#374151;margin-bottom:8px}
+    .goal-pace-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:11px}
+    .goal-pace-row:last-child{border-bottom:none}
+    .goal-pace-label{color:#6b7280}
+    .goal-pace-val{font-weight:600}
+    .ahead{background:#EAF3DE;color:#166534;padding:1px 6px;border-radius:99px}
+    .behind{background:#FECACA;color:#991B1B;padding:1px 6px;border-radius:99px}
+    .on-track{background:#DBEAFE;color:#1d4ed8;padding:1px 6px;border-radius:99px}
+    .goal-pace-diff{font-size:10px;padding:1px 6px;border-radius:99px}
+    .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3A5C;padding-bottom:8px;margin-bottom:14px}
+  </style></head><body>
+  <div class="header">
+    <div>
+      <div style="font-size:16px;font-weight:800;color:#1A3A5C">🏠 Midstate Plumbing — Revenue Goals</div>
+      <div style="font-size:10px;color:#6b7280">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
+  </div>
+  ${content.innerHTML}
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+function refreshKPI(){
+  if(!_jobs.length){alert('Pull a report first.');return;}
+  buildAttribution(_jobs,_estimates);
+  renderKPI(_jobs,_estimates,_employees,_plans);
+}
+function refreshAttr(){
+  if(!_jobs.length){alert('Pull a report first.');return;}
+  buildAttribution(_jobs,_estimates);
+  renderAttr(_jobs,_estimates);
+}
+function refreshAll(){
+  if(!_jobs.length){alert('Pull a report first.');return;}
+  buildAttribution(_jobs,_estimates);
+  renderKPI(_jobs,_estimates,_employees,_plans);
+  renderAttr(_jobs,_estimates);
+  renderCalendar();
+  renderIS();
+  renderUnpaid();
+  renderGoals();
+  const btn=$$('refreshAllBtn');
+  if(btn){btn.textContent='✓ Done';setTimeout(()=>btn.textContent='↻ Refresh all',1500);}
+}
 
 function printCalendar(){
   if(!_jobs.length&&!_estimates.length){alert('No data loaded. Pull a report first.');return;}
@@ -3947,12 +4120,16 @@ function closeDataTools(){
   $$('dataToolsOverlay').style.display='none';
 }
 function clearAttributions(){
-  if(!confirm('Clear all stored attributions? You\'ll need to re-confirm jobs after your next pull. Cannot be undone.'))return;
-  _attr={};
-  try{localStorage.removeItem('hcp_attr');}catch(e){}
+  if(!confirm('Clear attributions?\n\nManually confirmed attributions will be KEPT — only auto-detected ones are cleared.\n\nContinue?'))return;
+  // Preserve manually confirmed attributions
+  const manual={};
+  Object.entries(_attr).forEach(([id,a])=>{if(a.confirmed||a.source==='manual')manual[id]=a;});
+  _attr=manual;
+  saveAttr();
   if(_jobs.length){buildAttribution(_jobs,_estimates);renderAttr(_jobs,_estimates);}
+  renderKPI(_jobs,_estimates,_employees,_plans);
   closeDataTools();
-  alert('✅ Attributions cleared. Pull a fresh report and re-confirm in the Attribution tab.');
+  alert(`✅ Auto-attributions cleared. ${Object.keys(manual).length} manually confirmed attributions preserved.`);
 }
 function clearISData(){
   if(!confirm('Clear Inside Sales call logs and opportunity statuses?\n\nNote: Email drafts, sent status, and follow-up tracking are NEVER cleared — they are preserved permanently to prevent re-sending.\n\nCannot be undone.'))return;
@@ -5208,12 +5385,27 @@ function buildCalendarData(jobs, estimates, mode){
     return !INSTALLER_NAMES.includes(name) && isCalEmpVisible(e.id);
   }).sort((a,b)=>{
     if(calSortMode==='dept'){
-      // Sort by role/department then name
-      const ar=(a.role||'').toLowerCase();const br=(b.role||'').toLowerCase();
-      const deptOrder=['hvac','plumb','drain','office','admin'];
-      const ai=deptOrder.findIndex(d=>ar.includes(d));
-      const bi=deptOrder.findIndex(d=>br.includes(d));
-      const da=ai>=0?ai:99,db=bi>=0?bi:99;
+      // Use employee's actual department from their job history, not just role string
+      // Look at what departments they run most frequently
+      function empDept(emp){
+        const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
+        const role=(emp.role||'').toLowerCase();
+        // Role-based first
+        if(role.includes('hvac')||role.includes('heat')||role.includes('cool')) return 0;
+        if(role.includes('plumb')) return 1;
+        if(role.includes('drain')) return 2;
+        if(role.includes('office')||role.includes('admin')) return 3;
+        // Infer from job history
+        const empJobs=_jobs.filter(j=>getAssignedList(j).some(e=>e.id===emp.id));
+        const depts=empJobs.map(getDept).filter(Boolean);
+        const counts={};depts.forEach(d=>{counts[d]=(counts[d]||0)+1;});
+        const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+        if(top.toLowerCase().includes('hvac')) return 0;
+        if(top.toLowerCase().includes('plumb')) return 1;
+        if(top.toLowerCase().includes('drain')) return 2;
+        return 4;
+      }
+      const da=empDept(a),db=empDept(b);
       if(da!==db) return da-db;
     }
     if(calSortMode==='revenue'){
@@ -5817,11 +6009,21 @@ function renderContestSection(item){
       revenue[empId]+=(val>100?val/100:val); // handle cents vs dollars
     });
     // Return early — plans only come from uploaded data, not jobs
-    const entries=_employees
-      .filter(e=>!INSTALLER_NAMES.includes(((e.first_name||'')+' '+(e.last_name||'')).trim()))
+      // Contest excludes inside sales / office staff from alarm/field product counts
+  // Bob Danaher is IS coordinator — his alarm sales should be attributed to the field tech
+  const CONTEST_OFFICE=['Bob Danaher','Victoria Ellsworth'];
+  function isContestExcluded(empName){ return CONTEST_OFFICE.includes(empName); }
+
+  const entries=_employees
+      .filter(e=>{
+        const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+        if(INSTALLER_NAMES.includes(name)) return false;
+        // For non-plan contests, exclude office/IS staff
+        if(!isPlans&&isContestExcluded(name)) return false;
+        return true;
+      })
       .map(e=>{
         const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-        // Also check manual plan entries that may not match employee IDs exactly
         const manualKey='plan_manual_'+name.replace(/\s/g,'');
         const count=(scores[e.id]||0)+(scores[manualKey]||0);
         const rev=(revenue[e.id]||0)+(revenue[manualKey]||0);
@@ -5835,13 +6037,30 @@ function renderContestSection(item){
     const lbRows=entries.map((e,i)=>{
       const pct=max>0?Math.round(e.count/max*100):0;
       const medal=i<3&&e.count>0?medals[i]:`<span style="font-size:13px;color:#9ca3af">${i+1}</span>`;
-      return`<div class="leaderboard-row" style="${i===0&&e.count>0?`border:2px solid ${item.color};background:${item.color}11`:''}">
+      // Build customer list for drill-down
+    const matchedCustomers=isPlans
+      ? (_plans||[]).filter(p=>{
+          const pn=((p.sold_by?.first_name||'')+' '+(p.sold_by?.last_name||'')).trim();
+          return pn===e.name||pn.includes(e.name.split(' ')[0]);
+        }).map(p=>getCust(p)||p.customer?.first_name||'Unknown')
+      : _jobs.filter(j=>{
+          const score=fuzzyMatch(product,...jobSearchText(j));
+          if(score<MATCH_THRESHOLD) return false;
+          const attr=_jobAttribution[j.id];
+          return attr?.techId===e.id||(!attr&&getAssigned(j)===e.name);
+        }).map(j=>getCust(j));
+    const custListId=`contest_cust_${e.id.replace(/[^a-z0-9]/gi,'_')}`;
+
+    return`<div class="leaderboard-row" style="${i===0&&e.count>0?`border:2px solid ${item.color};background:${item.color}11`:''}">
         <div class="leaderboard-rank">${medal}</div>
-        <div><span style="width:10px;height:10px;border-radius:50%;background:${e.color};display:inline-block;margin-right:6px;vertical-align:middle"></span>
+        <div style="flex:1"><span style="width:10px;height:10px;border-radius:50%;background:${e.color};display:inline-block;margin-right:6px;vertical-align:middle"></span>
         <span class="leaderboard-name">${e.name}</span></div>
         <div class="leaderboard-bar-wrap"><div class="leaderboard-bar" style="width:${pct}%;background:${item.color}"></div></div>
-        <div class="leaderboard-count">${e.count}<span style="font-size:11px;font-weight:400;color:#9ca3af"> sold</span></div>
+        <div class="leaderboard-count" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px" onclick="document.getElementById('${custListId}').style.display=document.getElementById('${custListId}').style.display==='none'?'block':'none'" title="Click to see customers">${e.count}<span style="font-size:11px;font-weight:400;color:#9ca3af"> sold</span></div>
         <div class="leaderboard-rev">${e.rev>0?dollars(e.rev):''}</div>
+      </div>
+      <div id="${custListId}" style="display:none;margin:-6px 0 4px 42px;padding:6px 10px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;font-size:11px;color:#374151">
+        ${matchedCustomers.length?matchedCustomers.map(n=>`<div style="padding:1px 0">• ${n}</div>`).join(''):'<div style="color:#9ca3af">No customers found</div>'}
       </div>`;
     }).join('');
     return`<div style="margin-bottom:28px;border:2px solid ${item.color};border-radius:10px;overflow:hidden">
