@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.8</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -527,7 +527,21 @@ tr:hover td{background:#fafafa}
       <p style="font-size:12px;color:#6b7280;margin-top:0">Based on confirmed attributions. Use these to spot-check that patterns make sense.</p>
       <div class="pattern-grid" id="patternStats"></div>
       <div class="sec-head">Jobs Needing Revenue Attribution</div>
-      <p style="font-size:12px;color:#6b7280;margin-top:0">These jobs need a revenue credit decision. Review the recommendation and confirm or override. Paid jobs are prioritized.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <p style="font-size:12px;color:#6b7280;margin:0;flex:1">These jobs need a revenue credit decision. Review and confirm or override. Paid jobs are prioritized.</p>
+        <div style="position:relative">
+          <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:12px;pointer-events:none">🔍</span>
+          <input type="text" id="attrSearch" placeholder="Search customer, tech, job #..." 
+            style="font-size:12px;padding:6px 8px 6px 26px;border:1px solid #d1d5db;border-radius:5px;width:240px"
+            oninput="renderAttr(_jobs,_estimates)">
+        </div>
+        <select id="attrStatusFilter" style="font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="renderAttr(_jobs,_estimates)">
+          <option value="unresolved">Needs confirmation</option>
+          <option value="all">All jobs</option>
+          <option value="confirmed">Confirmed only</option>
+          <option value="paid">Paid only</option>
+        </select>
+      </div>
       <div id="attrList"></div>
     </div>
 
@@ -903,6 +917,12 @@ tr:hover td{background:#fafafa}
     <!-- DEBUG -->
     <div class="panel" id="tab-debug">
       <p style="font-size:12px;color:#6b7280;margin-top:0">Raw API responses for field name reference.</p>
+      <div class="sec-head">Customer lookup</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="debugCustSearch" placeholder="Search customer name..." style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;flex:1">
+        <button onclick="runDebugSearch()" class="pull-btn" style="height:30px;font-size:12px;padding:0 12px">Search</button>
+      </div>
+      <pre class="debug-pre" id="debugCustResult" style="max-height:200px">Enter a customer name above to find their jobs and estimates in the pulled data.</pre>
       <div class="sec-head">First job</div><pre class="debug-pre" id="debugJob">—</pre>
       <div class="sec-head">First estimate</div><pre class="debug-pre" id="debugEst">—</pre>
       <div class="sec-head">First employee</div><pre class="debug-pre" id="debugEmp">—</pre>
@@ -1085,12 +1105,14 @@ function isConv(e){
     return e.options.some(o=>{
       const s=(o.approval_status||o.status||'').toLowerCase();
       return s==='approved'||s==='pro approved'||s==='customer approved'||
-             s==='created job from estimate'||s==='converted';
+             s==='created job from estimate'||s==='converted'||
+             s==='complete'||s==='completed'||s==='done';
     });
   }
   const s=(e.status||e.work_status||'').toLowerCase();
   return s==='created job from estimate'||s==='approved'||s==='pro approved'||
-         s==='customer approved'||s==='converted'||s==='job_scheduled'||!!e.job_id;
+         s==='customer approved'||s==='converted'||s==='job_scheduled'||
+         s==='complete'||s==='completed'||s==='done'||!!e.job_id;
 }
 function isApprovedStatus(s){
   const v=(s||'').toLowerCase();
@@ -1338,7 +1360,8 @@ async function loadAll(){
   $$('main').style.display='none';
   $$('statusBar').textContent='Fetching from Housecall Pro...';
   try{
-    const jQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
+    const jSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
+    const jCreatedQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     const eSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
@@ -1346,13 +1369,39 @@ async function loadAll(){
       // Plans are detected from estimate options and job descriptions after load
       return [];
     }
-    // Fetch estimates by SCHEDULED date only (when the tech actually ran the appointment)
-    // created_at is when the record was made — often days/weeks before the appointment
+    // Fetch estimates by SCHEDULED date — and also by created_at as fallback
+    // This catches estimates where scheduled_start is outside the range but created_at is in it
     async function fetchEstimates(){
-      return fetchAll('/v2/estimates'+eSchedQ,['estimates','data','results']);
+      const [bySched, byCreated]=await Promise.all([
+        fetchAll('/v2/estimates'+eSchedQ,['estimates','data','results']),
+        fetchAll('/v2/estimates'+cQ,['estimates','data','results'])
+      ]);
+      // Merge and deduplicate by estimate id
+      const seen=new Set();
+      const merged=[];
+      [...bySched,...byCreated].forEach(e=>{
+        if(!seen.has(e.id)){seen.add(e.id);merged.push(e);}
+      });
+      return merged;
     }
+    // Fetch jobs by BOTH scheduled_start and created_at date ranges
+    // This catches jobs that were created in the period but scheduled outside it (or unscheduled)
+    async function fetchJobs(){
+      const [bySchedule, byCreated]=await Promise.all([
+        fetchAll('/v2/jobs'+jSchedQ,['jobs','data','results']),
+        fetchAll('/v2/jobs'+jCreatedQ,['jobs','data','results'])
+      ]);
+      // Merge and deduplicate by job id
+      const seen=new Set();
+      const merged=[];
+      [...bySchedule,...byCreated].forEach(j=>{
+        if(!seen.has(j.id)){seen.add(j.id);merged.push(j);}
+      });
+      return merged;
+    }
+
     const [jobs,estimates,empRaw,plans]=await Promise.all([
-      fetchAll('/v2/jobs'+jQ,['jobs','data','results']),
+      fetchJobs(),
       fetchEstimates(),
       hcpGet('/v2/employees?page_size=100'),
       tryPlans()
@@ -1435,6 +1484,10 @@ async function loadAll(){
     });
 
     $$('debugJob').textContent=jobs.length?JSON.stringify(jobs[0],null,2):'No jobs';
+    // Debug: find any Wampfler-related jobs and log
+    const debugCust=jobs.filter(j=>getCust(j).toLowerCase().includes('wampfler'));
+    if(debugCust.length) console.log('[Debug] Wampfler jobs found:',debugCust.length,debugCust.map(j=>({id:j.id,num:j.job_number,total:getJobTotal(j),status:getNormStatus(j),sched:j.schedule?.scheduled_start,created:j.created_at})));
+    else console.log('[Debug] No Wampfler jobs in this pull — check date range covers Mar 9 2026');
     $$('debugEst').textContent=estimates.length?JSON.stringify(estimates[0],null,2):'No estimates';
     $$('debugEmp').textContent=employees.length?JSON.stringify(employees[0],null,2):'No employees';
     $$('debugPlan').textContent=plans.length
@@ -1498,7 +1551,7 @@ function buildAttribution(jobs,estimates){
     const cid=getCustId(e);
     if(cid){if(!estByCustomer[cid])estByCustomer[cid]=[];estByCustomer[cid].push(e);}
   });
-  Object.values(estByCustomer).forEach(arr=>arr.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)));
+  Object.values(estByCustomer).forEach(arr=>arr.sort((a,b)=>new Date(a.schedule?.scheduled_start||a.created_at)-new Date(b.schedule?.scheduled_start||b.created_at)));
 
   // Get selling tech from estimate (skip installers)
   function getSellerFromEst(est){
@@ -1515,8 +1568,12 @@ function buildAttribution(jobs,estimates){
 
   // Score how well an estimate matches a job (higher = better match)
   function scoreMatch(j, est, jDate, jobTotal, jobTechIds, jobDept){
-    const estDate=new Date(est.created_at||0);
-    if(estDate>jDate) return null;
+    // Use the estimate's actual appointment date (scheduled_start) not when it was created in HCP
+    const estDate=new Date(est.schedule?.scheduled_start||est.created_at||0);
+    // Allow estimates up to 1 day AFTER job date (same-day or slightly later)
+    // HCP sometimes creates the job before the estimate in the same visit
+    const allowedFuture=new Date(jDate.getTime()+24*60*60*1000);
+    if(estDate>allowedFuture) return null;
 
     const seller=getSellerFromEst(est);
     if(!seller) return null;
@@ -1524,6 +1581,7 @@ function buildAttribution(jobs,estimates){
     const estTotal=getEstTotal(est);
     const estDept=getDept(est);
     const daysDiff=Math.max(0,(jDate-estDate)/(1000*60*60*24));
+    // If estimate is same day or very close, treat as same-day regardless of hour order
     const techMatch=jobTechIds.has(seller.id);
     const approved=isConv(est);
     const deptMatch=jobDept&&estDept&&jobDept.toLowerCase()===estDept.toLowerCase();
@@ -1557,7 +1615,7 @@ function buildAttribution(jobs,estimates){
       else if(pct<0.50) score+=2;
     }
 
-    return score>=25?{score,seller,estDept,deptMatch,techMatch,approved,daysDiff}:null;
+    return score>=20?{score,seller,estDept,deptMatch,techMatch,approved,daysDiff}:null;
   }
 
   // Generate recommended reason string based on signals
@@ -1585,7 +1643,9 @@ function buildAttribution(jobs,estimates){
 
   jobs.forEach(j=>{
     const jid=j.id;
-    const jDate=new Date(j.created_at||j.schedule?.scheduled_start||0);
+    // Use scheduled_start as the job date — this is when the tech actually went out
+    // created_at is when the job was entered in HCP (often before or after the actual visit)
+    const jDate=new Date(j.schedule?.scheduled_start||j.work_timestamps?.completed_at||j.created_at||0);
     const custId=getCustId(j);
     const dept=getDept(j);
     const jobTotal=getJobTotal(j);
@@ -1611,8 +1671,15 @@ function buildAttribution(jobs,estimates){
     }
 
     // 3. Score all estimates for this customer
-    if(custId&&estByCustomer[custId]){
-      const custEsts=estByCustomer[custId];
+    // Try by customer ID first, then fall back to name match
+    const custEsts=custId&&estByCustomer[custId]
+      ? estByCustomer[custId]
+      : Object.values(estByCustomer).flat().filter(e=>{
+          const eName=getCust(e).toLowerCase();
+          const jName=getCust(j).toLowerCase();
+          return eName&&jName&&eName===jName;
+        });
+    if(custEsts&&custEsts.length){
 
       // Score every estimate
       const scored=custEsts.map(est=>{
@@ -1700,21 +1767,51 @@ const REASON_OPTIONS=[
   {key:'other',              label:'📝 Other (add notes below)'},
 ];
 function renderAttr(jobs,estimates){
-  const unresolved=jobs.filter(j=>_jobAttribution[j.id]?.source==='unresolved')
-    .sort((a,b)=>{
-      // Paid first, then unpaid complete, then in progress
-      const pa=isJobPaid(a)?0:isJobComplete(a)?1:2;
-      const pb=isJobPaid(b)?0:isJobComplete(b)?1:2;
-      if(pa!==pb)return pa-pb;
-      return new Date(b.created_at||0)-new Date(a.created_at||0);
+  const searchQ=($$('attrSearch')?.value||'').toLowerCase().trim();
+  const statusF=$$('attrStatusFilter')?.value||'unresolved';
+
+  // Filter jobs based on status selection
+  let filtered=jobs.filter(j=>{
+    if(isJobCanceled(j)) return false;
+    const attr=_jobAttribution[j.id];
+    if(statusF==='unresolved') return attr?.source==='unresolved';
+    if(statusF==='confirmed') return attr&&attr.source!=='unresolved';
+    if(statusF==='paid') return isJobPaid(j);
+    return true; // 'all'
+  });
+
+  // Apply search
+  if(searchQ){
+    filtered=filtered.filter(j=>{
+      const attr=_jobAttribution[j.id];
+      const hay=[
+        getCust(j),
+        attr?.techName||'',
+        getAssigned(j),
+        j.job_number||j.id||'',
+        getDept(j),
+        getJobNotes(j).join(' '),
+        j.description||'',
+      ].join(' ').toLowerCase();
+      return hay.includes(searchQ);
     });
+  }
+
+  // Sort: paid first, then unpaid complete, then in progress, then by date
+  filtered.sort((a,b)=>{
+    const pa=isJobPaid(a)?0:isJobComplete(a)?1:2;
+    const pb=isJobPaid(b)?0:isJobComplete(b)?1:2;
+    if(pa!==pb)return pa-pb;
+    return new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0);
+  });
+
   const container=$$('attrList');
-  if(!unresolved.length){
-    container.innerHTML='<div class="no-attr">✅ All paid jobs have been attributed. Good to go!</div>';
+  if(!filtered.length){
+    container.innerHTML=`<div class="no-attr">${searchQ?`No jobs match "${searchQ}"`:'✅ All jobs in this category have been attributed!'}</div>`;
     renderPatternStats();return;
   }
   container.innerHTML='';
-  unresolved.forEach(j=>{
+  filtered.forEach(j=>{
     const attr=_jobAttribution[j.id];
     const total=getJobTotal(j);
     const jobNotes=getJobNotes(j);
@@ -1991,7 +2088,7 @@ function renderJobRows(jobs){
   const sorted=sortItems(jobs,_jobSort.col,_jobSort.dir);
   const tb=$$('jobsBody');tb.innerHTML='';
   if(!sorted.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af">No jobs match filters</td></tr>';return;}
-  sorted.slice(0,150).forEach(j=>{
+  sorted.forEach(j=>{ // show all jobs — no arbitrary limit
     const sched=j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):j.scheduled_start?fmtD(j.scheduled_start):'—';
     const total=getJobTotal(j);
     const norm=getNormStatus(j);
@@ -2034,7 +2131,7 @@ function renderEstRows(estimates){
   const sorted=sortItems(estimates,_estSort.col,_estSort.dir);
   const tb=$$('estBody');tb.innerHTML='';
   if(!sorted.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#9ca3af">No estimates match filters</td></tr>';return;}
-  sorted.slice(0,150).forEach(e=>{
+  sorted.forEach(e=>{ // show all estimates
     const created=e.created_at?fmtD(e.created_at):e.schedule?.scheduled_start?fmtD(e.schedule.scheduled_start):'—';
     const total=getEstTotal(e);
     const converted=isConv(e);
@@ -2221,7 +2318,11 @@ function renderKPI(jobs,estimates,employees,plans){
     // Return visits ($0 jobs) don't add revenue but still count as a job
     if(isJobPaid(j)){
       const attr=_jobAttribution[j.id];
-      if(attr&&attr.techId&&attr.techId!=='skip'&&map[attr.techId]){
+      if(attr&&attr.techId&&attr.techId!=='skip'){
+        // Ensure the tech exists in map even if they had no estimates in the KPI period
+        if(!map[attr.techId]){
+          ensure(attr.techId,attr.techName||'Unknown','');
+        }
         const rev=getJobRevenue(j); // 0 for return visits
         const dept=getDept(j);
         map[attr.techId].revenue+=rev;
@@ -2958,6 +3059,26 @@ function buildPrintSection(title, panel){
 // ============================================================
 // PRINT KPI — one page, landscape
 // ============================================================
+function runDebugSearch(){
+  const q=($$('debugCustSearch')?.value||'').toLowerCase().trim();
+  const out=$$('debugCustResult');
+  if(!q||!out) return;
+  const jobs=_jobs.filter(j=>getCust(j).toLowerCase().includes(q));
+  const ests=_estimates.filter(e=>getCust(e).toLowerCase().includes(q));
+  if(!jobs.length&&!ests.length){
+    out.textContent=`No jobs or estimates found for "${q}" in the pulled date range.\n\nThis means either:\n1. The date range doesn't cover when their job was scheduled or created\n2. Try pulling a wider date range (e.g. This Year)\n3. Check their job dates in HCP directly`;
+    return;
+  }
+  const jobLines=jobs.map(j=>`JOB #${j.job_number||j.id} · ${getCust(j)} · ${getNormStatus(j)} · ${dollars(getJobTotal(j))}\n     Sched: ${j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):'none'} · Created: ${fmtD(j.created_at)} · Completed: ${j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):'—'}\n     Tech: ${getAssigned(j)} · Revenue→: ${_jobAttribution[j.id]?.techName||'not attributed'} (${_jobAttribution[j.id]?.source||'?'})`);
+  const estLines=ests.map(e=>`EST #${e.estimate_number||e.id} · ${getCust(e)} · ${getEstDisplayStatus(e)} · ${dollars(getEstTotal(e))}\n     Sched: ${e.schedule?.scheduled_start?fmtD(e.schedule.scheduled_start):'none'} · Tech: ${getAssigned(e)} · Converted: ${isConv(e)?'YES':'no'} · Options: ${e.options?.length||0}`);
+  out.textContent=[
+    `=== ${jobs.length} Job(s) for "${q}" ===`,
+    ...jobLines,
+    `\n=== ${ests.length} Estimate(s) for "${q}" ===`,
+    ...estLines
+  ].join('\n');
+}
+
 function printKPI(){
   const from=$$('kpiFrom')?.value||$$('dateFrom')?.value||'';
   const to=$$('kpiTo')?.value||$$('dateTo')?.value||'';
