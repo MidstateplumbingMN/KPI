@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.6</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -547,6 +547,7 @@ tr:hover td{background:#fafafa}
           <input type="date" id="kpiTo" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:4px" onchange="setKPIPreset('custom',null)">
         </div>
         <span style="font-size:11px;color:#9ca3af;margin-left:4px" id="kpiRangeLabel"></span>
+        <button onclick="printKPI()" style="margin-left:auto;white-space:nowrap;font-size:12px;padding:5px 14px;border:1px solid #1A3A5C;border-radius:5px;background:#1A3A5C;color:#fff;cursor:pointer;font-family:Arial,sans-serif;font-weight:600">🖨 Print KPI</button>
       </div>
       <div class="sec-head">Department Totals</div>
       <div class="dept-grid" id="deptTotals"></div>
@@ -651,6 +652,12 @@ tr:hover td{background:#fafafa}
 
       <!-- Controls -->
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div style="position:relative;flex:1;min-width:200px;max-width:320px">
+          <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;pointer-events:none">🔍</span>
+          <input type="text" id="isSearch" placeholder="Search customer, tech, notes..." 
+            style="width:100%;font-size:12px;padding:6px 8px 6px 28px;border:1px solid #d1d5db;border-radius:5px"
+            oninput="renderIS()">
+        </div>
         <label style="font-size:12px;color:#6b7280">Min value:</label>
         <select id="isMinVal" onchange="renderIS()" style="font-size:12px;padding:5px 8px">
           <option value="1000">$1,000+</option>
@@ -2660,6 +2667,23 @@ function renderGoals(){
   const paceGap=annualActual-annualPace;
   const dayOfYear=getDaysElapsed('year');
   const daysLeft=365-dayOfYear;
+
+  // Calculate workdays (M-F) remaining in 2026
+  function countWorkdaysRemaining(){
+    const today=new Date();today.setHours(0,0,0,0);
+    const yearEnd=new Date(today.getFullYear(),11,31);
+    let workdays=0;
+    const d=new Date(today);
+    d.setDate(d.getDate()+1); // start from tomorrow
+    while(d<=yearEnd){
+      const dow=d.getDay();
+      if(dow>=1&&dow<=5) workdays++;
+      d.setDate(d.getDate()+1);
+    }
+    return workdays;
+  }
+  const workdaysLeft=countWorkdaysRemaining();
+  const revenuePerWorkday=workdaysLeft>0?Math.max(0,ANNUAL_GOAL-annualActual)/workdaysLeft:0;
   const projectedAnnual=dayOfYear>0?annualActual/dayOfYear*365:0;
   const projectedColor=projectedAnnual>=ANNUAL_GOAL?'#166534':projectedAnnual>=ANNUAL_GOAL*0.8?'#92400E':'#991B1B';
   const usedData=_jobs.length>0;
@@ -2698,14 +2722,16 @@ function renderGoals(){
   // Pace table
   const paceRows=[
     ['Days elapsed (YTD)',`${dayOfYear} of 365`,''],
-    ['Days remaining',`${daysLeft}`,''],
+    ['Calendar days remaining',`${daysLeft}`,''],
+    ['Workdays remaining (M–F)',`${workdaysLeft}`,''],
     ['Revenue collected YTD',dollars(annualActual),annualActual>=annualPace?'ahead':'behind'],
     ['Outstanding (unpaid, complete jobs)',dollars(totalOutstanding),''],
     ['Collected + outstanding combined',dollars(annualWithOutstanding),annualWithOutstanding>=annualPace?'ahead':'behind'],
     ['Pace target (should have collected)',dollars(annualPace),''],
     ['Pace gap',`${paceGap>=0?'+':''}${dollars(Math.abs(paceGap))}`,paceGap>=0?'ahead':'behind'],
     ['Projected annual (at current rate)',dollars(projectedAnnual),projectedAnnual>=ANNUAL_GOAL?'ahead':'behind'],
-    ['Daily rate needed to hit goal',daysLeft>0?dollars(Math.max(0,ANNUAL_GOAL-annualActual)/daysLeft)+'/day':'—',''],
+    ['Needed per workday to hit goal',workdaysLeft>0?dollars(revenuePerWorkday)+'/workday':'—',''],
+    ['Needed per calendar day to hit goal',daysLeft>0?dollars(Math.max(0,ANNUAL_GOAL-annualActual)/daysLeft)+'/day':'—',''],
   ].map(([label,val,cls])=>`<div class="goal-pace-row">
     <span class="goal-pace-label">${label}</span>
     <span class="goal-pace-val ${cls?`goal-pace-diff ${cls}`:''}">${val}</span>
@@ -2737,6 +2763,7 @@ function renderGoals(){
             <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
               <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Days Left</div>
               <div style="font-size:18px;font-weight:800">${daysLeft}</div>
+              <div style="font-size:10px;opacity:.7;margin-top:2px">${workdaysLeft} workdays (M–F)</div>
             </div>
             ${usedData&&totalOutstanding>0?`
             <div style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px 14px">
@@ -2929,8 +2956,91 @@ function buildPrintSection(title, panel){
 }
 
 // ============================================================
-// CALENDAR PRINT
+// PRINT KPI — one page, landscape
 // ============================================================
+function printKPI(){
+  const from=$$('kpiFrom')?.value||$$('dateFrom')?.value||'';
+  const to=$$('kpiTo')?.value||$$('dateTo')?.value||'';
+  const rangeLabel=$$('kpiRangeLabel')?.textContent||`${from} → ${to}`;
+
+  // Clone scorecard grid and dept totals
+  const scGrid=document.getElementById('scorecards');
+  const deptGrid=document.getElementById('deptTotals');
+  if(!scGrid){alert('No KPI data loaded. Pull a report first.');return;}
+
+  const scClone=scGrid.cloneNode(true);
+  const deptClone=deptGrid?deptGrid.cloneNode(true):null;
+
+  // Strip interactive elements from clone
+  scClone.querySelectorAll('button,select,input,.no-print,.plans-row button').forEach(el=>el.remove());
+  if(deptClone) deptClone.querySelectorAll('button,select,input').forEach(el=>el.remove());
+
+  const win=window.open('','_blank','width=1100,height=850');
+  win.document.write(`<!DOCTYPE html><html><head><title>KPI Scorecards ${from} to ${to}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    body{font-family:Arial,sans-serif;font-size:10px;color:#111827;background:#fff;padding:14px}
+    @page{size:landscape;margin:0.35in}
+    @media print{body{padding:0}button{display:none!important}}
+
+    /* Header */
+    .kpi-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:8px;margin-bottom:12px}
+    .kpi-title{font-size:17px;font-weight:700;color:#1A3A5C}
+    .kpi-meta{font-size:10px;color:#6b7280;text-align:right;line-height:1.6}
+
+    /* Dept totals */
+    .dept-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .dept-card{background:#EAF2FB;border-radius:6px;padding:8px 12px;min-width:120px}
+    .dept-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#1A3A5C;margin-bottom:2px;letter-spacing:.04em}
+    .dept-value{font-size:15px;font-weight:800;color:#1A3A5C}
+    .dept-sub{font-size:9px;color:#6b7280}
+
+    /* Scorecards — tight grid to fit one page */
+    .sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+    .sc-card{border:1px solid #e5e7eb;border-radius:7px;padding:9px 10px;break-inside:avoid;position:relative;overflow:hidden}
+    .sc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+    .sc-name{font-size:11px;font-weight:800;color:#1A3A5C;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #f3f4f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+    .sc-metric{display:flex;flex-direction:column;padding:3px 5px;background:#f9fafb;border-radius:3px}
+    .sc-val{font-size:13px;font-weight:800;color:#111827;line-height:1}
+    .sc-lbl{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:.03em;margin-top:1px}
+    .sc-revenue{font-size:15px;font-weight:900;color:#1A3A5C;margin-bottom:6px}
+    .score-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:9px;font-weight:700;margin-top:5px}
+    .score-green{background:#EAF3DE;color:#166534}
+    .score-yellow{background:#FEF9C3;color:#854F0B}
+    .score-red{background:#FECACA;color:#991B1B}
+    .dept-badge{font-size:8px;background:#EAF2FB;color:#1A3A5C;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600}
+    .plans-row{background:#faf5ff;margin:5px -10px -9px;padding:4px 10px;border-radius:0 0 7px 7px;border-top:1px solid #e9d5ff;font-size:9px;color:#5B21B6;font-weight:600}
+    .bar-wrap{height:4px;background:#f3f4f6;border-radius:99px;margin-top:5px;overflow:hidden}
+    .bar-fill{height:4px;border-radius:99px}
+    .installer-card .sc-name{color:#6b7280}
+  </style></head><body>
+
+  <div class="kpi-header">
+    <div>
+      <div class="kpi-title">🏠 Midstate Plumbing — Employee KPI Scorecards</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:3px">${rangeLabel}</div>
+    </div>
+    <div class="kpi-meta">
+      651-480-1195 · Hastings, MN<br>
+      Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}
+    </div>
+  </div>
+
+  ${deptClone?`<div class="dept-grid">${deptClone.innerHTML}</div>`:''}
+
+  <div class="sc-grid">${scClone.innerHTML}</div>
+
+  <div style="margin-top:10px;font-size:9px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:6px">
+    Revenue credited to the selling tech (estimate date). Score = completion + conversion rate + avg job value + plans sold (max 100).
+  </div>
+
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+
 function printCalendar(){
   if(!_jobs.length&&!_estimates.length){alert('No data loaded. Pull a report first.');return;}
   const mode=$$('calRevenueMode')?.value||'estimate';
@@ -3849,6 +3959,8 @@ function getISOpportunities(){
   // Build set of customer IDs who have a paid job — they've already moved forward
   const custIdsWithPaidJob=new Set(_jobs.filter(isJobPaid).map(getCustId).filter(Boolean));
 
+  const searchQ=($$('isSearch')?.value||'').toLowerCase().trim();
+
   return _estimates.filter(e=>{
     const total=getEstTotal(e);
     if(total<minVal) return false;
@@ -3862,6 +3974,20 @@ function getISOpportunities(){
     if(statusF==='open'){
       const custId=getCustId(e);
       if(custId&&custIdsWithPaidJob.has(custId)) return false;
+    }
+    // Search filter — customer name, tech, notes, estimate number, department
+    if(searchQ){
+      const hay=[
+        getCust(e),
+        getAssigned(e),
+        getDept(e),
+        e.estimate_number||'',
+        getEstNotes(e).join(' '),
+        (e.options||[]).map(o=>o.name||'').join(' '),
+        e.customer?.email||'',
+        e.customer?.mobile_number||e.customer?.home_number||'',
+      ].join(' ').toLowerCase();
+      if(!hay.includes(searchQ)) return false;
     }
     return true;
   }).sort((a,b)=>getEstTotal(b)-getEstTotal(a));
