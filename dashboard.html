@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.1</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.2</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.2</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3084,79 +3084,111 @@ function printKPI(){
   const to=$$('kpiTo')?.value||$$('dateTo')?.value||'';
   const rangeLabel=$$('kpiRangeLabel')?.textContent||`${from} → ${to}`;
 
-  // Clone scorecard grid and dept totals
   const scGrid=document.getElementById('scorecards');
   const deptGrid=document.getElementById('deptTotals');
   if(!scGrid){alert('No KPI data loaded. Pull a report first.');return;}
 
   const scClone=scGrid.cloneNode(true);
   const deptClone=deptGrid?deptGrid.cloneNode(true):null;
-
-  // Strip interactive elements from clone
   scClone.querySelectorAll('button,select,input,.no-print,.plans-row button').forEach(el=>el.remove());
   if(deptClone) deptClone.querySelectorAll('button,select,input').forEach(el=>el.remove());
 
-  const win=window.open('','_blank','width=1100,height=850');
+  // Count visible cards to choose column count
+  const cardCount=scClone.querySelectorAll('.sc-card').length;
+  const cols=cardCount<=6?3:cardCount<=9?3:cardCount<=12?4:4;
+
+  const win=window.open('','_blank','width=850,height=1100');
   win.document.write(`<!DOCTYPE html><html><head><title>KPI Scorecards ${from} to ${to}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-    body{font-family:Arial,sans-serif;font-size:10px;color:#111827;background:#fff;padding:14px}
-    @page{size:landscape;margin:0.35in}
-    @media print{body{padding:0}button{display:none!important}}
+    html,body{width:100%;height:100%;background:#fff;font-family:Arial,sans-serif;color:#111827}
+    @page{size:letter portrait;margin:0}
+    @media print{button{display:none!important}}
+
+    /* Outer wrapper — fills exactly one letter page */
+    .page{
+      width:8.5in;
+      min-height:11in;
+      max-height:11in;
+      padding:0.4in 0.45in;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
 
     /* Header */
-    .kpi-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:8px;margin-bottom:12px}
-    .kpi-title{font-size:17px;font-weight:700;color:#1A3A5C}
-    .kpi-meta{font-size:10px;color:#6b7280;text-align:right;line-height:1.6}
+    .kpi-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:6px;margin-bottom:8px;flex-shrink:0}
+    .kpi-title{font-size:15px;font-weight:800;color:#1A3A5C;line-height:1.2}
+    .kpi-meta{font-size:9px;color:#6b7280;text-align:right;line-height:1.5}
 
     /* Dept totals */
-    .dept-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-    .dept-card{background:#EAF2FB;border-radius:6px;padding:8px 12px;min-width:120px}
-    .dept-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#1A3A5C;margin-bottom:2px;letter-spacing:.04em}
-    .dept-value{font-size:15px;font-weight:800;color:#1A3A5C}
-    .dept-sub{font-size:9px;color:#6b7280}
+    .dept-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0}
+    .dept-card{background:#EAF2FB;border-radius:5px;padding:5px 10px;min-width:100px}
+    .dept-label{font-size:8px;font-weight:700;text-transform:uppercase;color:#1A3A5C;letter-spacing:.04em}
+    .dept-value{font-size:13px;font-weight:800;color:#1A3A5C}
+    .dept-sub{font-size:8px;color:#6b7280}
 
-    /* Scorecards — tight grid to fit one page */
-    .sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
-    .sc-card{border:1px solid #e5e7eb;border-radius:7px;padding:9px 10px;break-inside:avoid;position:relative;overflow:hidden}
-    .sc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-    .sc-name{font-size:11px;font-weight:800;color:#1A3A5C;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #f3f4f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .sc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:3px}
-    .sc-metric{display:flex;flex-direction:column;padding:3px 5px;background:#f9fafb;border-radius:3px}
-    .sc-val{font-size:13px;font-weight:800;color:#111827;line-height:1}
-    .sc-lbl{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:.03em;margin-top:1px}
-    .sc-revenue{font-size:15px;font-weight:900;color:#1A3A5C;margin-bottom:6px}
-    .score-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:9px;font-weight:700;margin-top:5px}
+    /* Scorecard grid — fills remaining space */
+    .sc-grid{
+      display:grid;
+      grid-template-columns:repeat(${cols},1fr);
+      gap:5px;
+      flex:1;
+      align-content:start;
+    }
+    .sc-card{
+      border:1px solid #e5e7eb;
+      border-radius:6px;
+      padding:7px 8px;
+      break-inside:avoid;
+      position:relative;
+      overflow:hidden;
+      font-size:9px;
+    }
+    .sc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#1A3A5C}
+    .sc-card.installer::before{background:#9ca3af}
+    .sc-name{font-size:10px;font-weight:800;color:#1A3A5C;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid #f3f4f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sc-card.installer .sc-name{color:#6b7280}
+    .sc-revenue{font-size:14px;font-weight:900;color:#1A3A5C;margin-bottom:4px;line-height:1}
+    .sc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:4px}
+    .sc-metric{display:flex;flex-direction:column;padding:3px 4px;background:#f9fafb;border-radius:3px}
+    .sc-val{font-size:11px;font-weight:800;color:#111827;line-height:1}
+    .sc-lbl{font-size:7px;color:#9ca3af;text-transform:uppercase;letter-spacing:.03em;margin-top:1px}
+    .score-badge{display:inline-block;padding:1px 6px;border-radius:99px;font-size:8px;font-weight:700}
     .score-green{background:#EAF3DE;color:#166534}
     .score-yellow{background:#FEF9C3;color:#854F0B}
     .score-red{background:#FECACA;color:#991B1B}
-    .dept-badge{font-size:8px;background:#EAF2FB;color:#1A3A5C;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600}
-    .plans-row{background:#faf5ff;margin:5px -10px -9px;padding:4px 10px;border-radius:0 0 7px 7px;border-top:1px solid #e9d5ff;font-size:9px;color:#5B21B6;font-weight:600}
-    .bar-wrap{height:4px;background:#f3f4f6;border-radius:99px;margin-top:5px;overflow:hidden}
-    .bar-fill{height:4px;border-radius:99px}
-    .installer-card .sc-name{color:#6b7280}
+    .dept-badge{font-size:7px;background:#EAF2FB;color:#1A3A5C;padding:1px 4px;border-radius:3px;margin-left:3px;font-weight:600}
+    .bar-wrap{height:3px;background:#f3f4f6;border-radius:99px;margin-top:4px;overflow:hidden}
+    .bar-fill{height:3px;border-radius:99px}
+    .plans-row{background:#faf5ff;margin:4px -8px -7px;padding:3px 8px;border-radius:0 0 6px 6px;border-top:1px solid #e9d5ff;font-size:8px;color:#5B21B6;font-weight:600}
+    .footer{font-size:8px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:5px;margin-top:6px;flex-shrink:0}
   </style></head><body>
-
-  <div class="kpi-header">
-    <div>
-      <div class="kpi-title">🏠 Midstate Plumbing — Employee KPI Scorecards</div>
-      <div style="font-size:11px;color:#6b7280;margin-top:3px">${rangeLabel}</div>
+  <div class="page">
+    <div class="kpi-header">
+      <div>
+        <div class="kpi-title">🏠 Midstate Plumbing — Employee KPI Scorecards</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:2px">${rangeLabel}</div>
+      </div>
+      <div class="kpi-meta">
+        651-480-1195 · Hastings, MN<br>
+        Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}
+      </div>
     </div>
-    <div class="kpi-meta">
-      651-480-1195 · Hastings, MN<br>
-      Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}
-    </div>
+    ${deptClone?`<div class="dept-grid">${deptClone.innerHTML}</div>`:''}
+    <div class="sc-grid">${scClone.innerHTML}</div>
+    <div class="footer">Revenue credited to the selling tech (estimate date). Score = jobs completed + conversion rate + avg job value + plans sold (max 100). ${cardCount} employees shown.</div>
   </div>
-
-  ${deptClone?`<div class="dept-grid">${deptClone.innerHTML}</div>`:''}
-
-  <div class="sc-grid">${scClone.innerHTML}</div>
-
-  <div style="margin-top:10px;font-size:9px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:6px">
-    Revenue credited to the selling tech (estimate date). Score = completion + conversion rate + avg job value + plans sold (max 100).
-  </div>
-
-  <script>window.onload=function(){window.print();}<\/script>
+  <script>window.onload=function(){
+    // Auto-scale to fit if content overflows
+    const page=document.querySelector('.page');
+    if(page){
+      const scale=Math.min(1, 10.2/page.scrollHeight*96);
+      if(scale<1) page.style.transform='scale('+scale+')';
+      page.style.transformOrigin='top left';
+    }
+    window.print();
+  }<\/script>
   </body></html>`);
   win.document.close();
 }
