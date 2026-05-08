@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#059669;color:#fff;border:1px solid #059669;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v7.9</span>
+      <span style="font-size:12px;background:#059669;color:#fff;border:1px solid #059669;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v7.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -427,10 +427,12 @@ tr:hover td{background:#fafafa}
   <div class="date-row">
     <label>From</label><input type="date" id="dateFrom"/>
     <label>To</label><input type="date" id="dateTo"/>
-    <button class="preset" onclick="setPr('today',event)">Today</button>
-    <button class="preset" onclick="setPr('week',event)">This week</button>
-    <button class="preset active" onclick="setPr('month',event)">This month</button>
-    <button class="preset" onclick="setPr('last30',event)">Last 30 days</button>
+    <button class="preset" onclick="setPr('today',event)">📅 Today</button>
+    <button class="preset" onclick="setPr('week',event)">📅 This week</button>
+    <button class="preset active" onclick="setPr('month',event)">📅 This month</button>
+    <button class="preset" onclick="setPr('quarter',event)">📅 This quarter</button>
+    <button class="preset" onclick="setPr('year',event)">📅 This year</button>
+    <button class="preset" onclick="setPr('last30',event)">Last 30d</button>
     <!-- Employee filter dropdown -->
     <div class="emp-filter-wrap no-print" id="empFilterWrap" style="display:none">
       <div class="emp-filter-btn" onclick="toggleEmpFilter(event)" id="empFilterBtn">
@@ -972,10 +974,12 @@ function getEstTotal(e){
              s==='created job from estimate'||s==='converted';
     });
     if(appr.length){
-      // Sum all approved options
+      // SUM all approved options — a customer CAN buy multiple options
+      // (e.g. water softener + filter system on one estimate visit)
+      // This is intentional and not double-counting
       return centsToD(appr.reduce((sum,o)=>sum+parseFloat(o.total_amount||0),0));
     }
-    // No approved option — show highest value as potential sale amount
+    // No approved option — show highest value option as potential amount
     return centsToD(Math.max(...e.options.map(o=>parseFloat(o.total_amount||0)||0)));
   }
   return centsToD(e.total_amount??e.invoice_total??0);
@@ -1034,10 +1038,32 @@ function isJobComplete(j){
 function isJobPaid(j){return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;}
 function isJobRefunded(j){const s=getRawStatus(j);return s.includes('refund')||s.includes('void');}
 
+// A return visit / callback job has $0 invoice total — it's completing prior work, not a new sale
+// Revenue should only be counted on jobs where money actually changed hands
+function isReturnVisit(j){
+  const total=getJobTotal(j);
+  const desc=(j.description||j.job_type||'').toLowerCase();
+  // Zero-dollar job = return visit / no charge / callback
+  if(total===0) return true;
+  // Explicit return/callback language in description
+  if(desc.includes('return')&&(desc.includes('visit')||desc.includes('call')||desc.includes('trip'))) return true;
+  if(desc.includes('no charge')||desc.includes('warranty')||desc.includes('callback')) return true;
+  return false;
+}
+
+// Get the "root" job or estimate this job belongs to
+// HCP links return visits via original_estimate_id pointing to the original job's linked estimate
+function getJobRevenue(j){
+  // Return visits: no revenue to report (work was already sold)
+  if(isReturnVisit(j)) return 0;
+  return getJobTotal(j);
+}
+
 function jBadge(j){
   const norm=typeof j==='string'?j:getNormStatus(j);
-  if(norm==='Paid')return`<span class="badge bg">Paid</span>`;
-  if(norm==='Unpaid')return`<span class="badge ba">Unpaid</span>`;
+  const returnBadge=typeof j!=='string'&&isReturnVisit(j)?`<span class="badge" style="background:#f3f4f6;color:#6b7280;margin-left:3px">Return visit</span>`:'';
+  if(norm==='Paid')return`<span class="badge bg">Paid</span>${returnBadge}`;
+  if(norm==='Unpaid')return`<span class="badge ba">Unpaid</span>${returnBadge}`;
   if(norm==='Refunded')return`<span class="badge bgr">Refunded</span>`;
   if(norm==='Scheduled')return`<span class="badge bb">Scheduled</span>`;
   if(norm==='Canceled')return`<span class="badge br">Canceled</span>`;
@@ -1104,12 +1130,15 @@ function deptBadge(d){
 
 function showErr(m){const e=$$('errMsg');e.textContent=m;e.style.display=m?'block':'none';}
 function setPr(p,e){
-  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.date-row .preset').forEach(b=>b.classList.remove('active'));
   if(e&&e.target)e.target.classList.add('active');
   const now=new Date();let from=new Date(now);
-  if(p==='week')from.setDate(now.getDate()-now.getDay());
-  else if(p==='month')from=new Date(now.getFullYear(),now.getMonth(),1);
-  else if(p==='last30')from.setDate(now.getDate()-30);
+  if(p==='today'){from=new Date(now);}
+  else if(p==='week'){from.setDate(now.getDate()-now.getDay());}
+  else if(p==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);}
+  else if(p==='quarter'){const q=Math.floor(now.getMonth()/3);from=new Date(now.getFullYear(),q*3,1);}
+  else if(p==='year'){from=new Date(now.getFullYear(),0,1);}
+  else if(p==='last30'){from.setDate(now.getDate()-30);}
   $$('dateFrom').value=fmt(from);$$('dateTo').value=fmt(now);
 }
 // ---- Employee filter ----
@@ -2180,10 +2209,11 @@ function renderKPI(jobs,estimates,employees,plans){
       else{map[e.id].jobs++;}
     });
     // Credit revenue only to attributed tech, only if paid
+    // Return visits ($0 jobs) don't add revenue but still count as a job
     if(isJobPaid(j)){
       const attr=_jobAttribution[j.id];
       if(attr&&attr.techId&&attr.techId!=='skip'&&map[attr.techId]){
-        const rev=getJobTotal(j);
+        const rev=getJobRevenue(j); // 0 for return visits
         const dept=getDept(j);
         map[attr.techId].revenue+=rev;
         if(!map[attr.techId].depts[dept])map[attr.techId].depts[dept]={revenue:0,jobs:0};
@@ -2210,8 +2240,15 @@ function renderKPI(jobs,estimates,employees,plans){
     const e=p.sold_by||p.employee||p.pro||p.assigned_employee;
     if(!e)return;
     const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
-    ensure(e.id,n,e.role);
-    map[e.id].plans++;
+    // For manually uploaded plans, find real employee by name match
+    const realEmp=employees.find(x=>{
+      const xn=((x.first_name||'')+' '+(x.last_name||'')).trim().toLowerCase();
+      return xn===n.toLowerCase()||xn.includes(n.toLowerCase().split(' ')[0]);
+    });
+    const useId=realEmp?.id||e.id;
+    const useRole=realEmp?.role||e.role||'';
+    ensure(useId,n,useRole);
+    if(map[useId]) map[useId].plans++;
   });
 
   const allCards=Object.values(map).filter(e=>e.jobs>0||e.installs>0||e.estimates>0||e.plans>0);
@@ -2473,7 +2510,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
   // Summary
   const paidJobs=jobs.filter(isJobPaid);
-  const totalRev=paidJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const totalRev=paidJobs.reduce((s,j)=>s+getJobRevenue(j),0);
   const convEsts=estimates.filter(isConv);
   const openIS=estimates.filter(e=>getEstTotal(e)>=1000&&!isConv(e)&&(_isStatus[e.id]||'open')==='open').length;
   const summary={
@@ -2530,22 +2567,22 @@ function getRevenueForPeriod(period){
   function jobDate(j){ return new Date(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at); }
 
   if(period==='year'){
-    return paidJobs.filter(j=>jobDate(j).getFullYear()===now.getFullYear()).reduce((s,j)=>s+getJobTotal(j),0);
+    return paidJobs.filter(j=>jobDate(j).getFullYear()===now.getFullYear()).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   if(period==='quarter'){
     const q=Math.floor(now.getMonth()/3);
-    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&Math.floor(d.getMonth()/3)===q; }).reduce((s,j)=>s+getJobTotal(j),0);
+    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&Math.floor(d.getMonth()/3)===q; }).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   if(period==='month'){
-    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth(); }).reduce((s,j)=>s+getJobTotal(j),0);
+    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth(); }).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   if(period==='week'){
     const startOfWeek=new Date(now); startOfWeek.setDate(now.getDate()-now.getDay()); startOfWeek.setHours(0,0,0,0);
-    return paidJobs.filter(j=>jobDate(j)>=startOfWeek).reduce((s,j)=>s+getJobTotal(j),0);
+    return paidJobs.filter(j=>jobDate(j)>=startOfWeek).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   if(period==='day'){
     const today=now.toISOString().split('T')[0];
-    return paidJobs.filter(j=>jobDate(j).toISOString().split('T')[0]===today).reduce((s,j)=>s+getJobTotal(j),0);
+    return paidJobs.filter(j=>jobDate(j).toISOString().split('T')[0]===today).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   return 0;
 }
@@ -3261,8 +3298,9 @@ function openUnpaidDetail(jobId){
         <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Payment request message:</div>
         <div style="font-size:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px;line-height:1.7;color:#374151" id="paymentScript_${j.id}">
 Hi ${getCust(j).split(' ')[0]},<br><br>
-I'm following up regarding your recent ${getDept(j)} service completed on ${completedAt?fmtD(completedAt):''}. Your invoice of <strong>${dollars(total)}</strong> is now due.<br><br>
-Please give us a call at <strong>651-480-1195</strong> or reply to this message to arrange payment at your convenience. We accept check, credit card, and online payment.<br><br>
+I'm following up regarding your recent ${getDept(j)} service completed on ${completedAt?fmtD(completedAt):''}. Your invoice of <strong>${dollars(total)}</strong> is currently due.<br><br>
+We kindly ask that you complete payment within <strong>30 days</strong> of service completion. Please give us a call at <strong>651-480-1195</strong> or reply to this message to arrange payment. We accept check, credit card, and online payment.<br><br>
+If you have any questions about your invoice or would like to discuss payment options, please don't hesitate to reach out — we're happy to help.<br><br>
 Thank you for choosing Midstate Plumbing, Heating & Cooling. We appreciate your business.<br><br>
 Best regards,<br>
 Bob Danaher<br>
@@ -3757,6 +3795,10 @@ function getISOpportunities(){
   const minVal=parseFloat($$('isMinVal')?.value||'1000');
   const statusF=$$('isStatusFilter')?.value||'open';
   const deptF=$$('isDeptFilter')?.value||'';
+
+  // Build set of customer IDs who have a paid job — they've already moved forward
+  const custIdsWithPaidJob=new Set(_jobs.filter(isJobPaid).map(getCustId).filter(Boolean));
+
   return _estimates.filter(e=>{
     const total=getEstTotal(e);
     if(total<minVal) return false;
@@ -3766,6 +3808,11 @@ function getISOpportunities(){
     if(statusF==='converted'&&status!=='converted') return false;
     if(statusF==='lost'&&status!=='lost') return false;
     if(deptF&&getDept(e)!==deptF) return false;
+    // Hide customers who already have a paid job (work is done — don't contact)
+    if(statusF==='open'){
+      const custId=getCustId(e);
+      if(custId&&custIdsWithPaidJob.has(custId)) return false;
+    }
     return true;
   }).sort((a,b)=>getEstTotal(b)-getEstTotal(a));
 }
@@ -3877,6 +3924,7 @@ function buildISCard(e){
     <div class="is-actions">
       <button class="is-btn primary" onclick="toggleISLogForm('${estId}','call')">📞 Log call</button>
       <button class="is-btn email" onclick="openEmailModal('${estId}')">${hasDraft?'✉ View/edit email':'✉ Generate email'}</button>
+      <button class="is-btn" onclick="openISHistory('${estId}')" style="font-size:11px">📋 Account history</button>
       <button class="is-btn success" onclick="markISConverted('${estId}')">✅ Mark converted by IS</button>
       <button class="is-btn danger" onclick="markISLost('${estId}')">❌ Not interested</button>
     </div>
@@ -3886,6 +3934,46 @@ function buildISCard(e){
     :'<div style="font-size:12px;color:#dc2626;font-weight:600;margin-bottom:6px">❌ Not interested / Lost</div>'}
     ${activityHtml}`;
   return card;
+}
+
+function openISHistory(estId){
+  const e=_estimates.find(x=>x.id===estId);
+  if(!e) return;
+  const custId=getCustId(e);
+  const custName=getCust(e);
+
+  // Find all jobs and estimates for this customer
+  const custJobs=_jobs.filter(j=>getCustId(j)===custId||getCust(j)===custName).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const custEsts=_estimates.filter(x=>getCustId(x)===custId||getCust(x)===custName).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  const jobRows=custJobs.map(j=>`
+    <div style="padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:6px;${isJobPaid(j)?'border-left:3px solid #16a34a':isJobComplete(j)?'border-left:3px solid #f59e0b':'border-left:3px solid #3b82f6'}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:600">Job #${j.job_number||j.id||'—'}</span>
+        <span style="font-size:13px;font-weight:700;color:${isJobPaid(j)?'#166534':'#374151'}">${dollars(getJobTotal(j))}</span>
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-top:3px">${getDept(j)} · ${getAssigned(j)} · ${fmtD(j.schedule?.scheduled_start||j.created_at)} · <strong>${getNormStatus(j)}</strong></div>
+      ${j.description?`<div style="font-size:11px;color:#374151;margin-top:2px">${j.description}</div>`:''}
+    </div>`).join('')||'<div style="font-size:12px;color:#9ca3af">No jobs found for this customer</div>';
+
+  const estRows=custEsts.map(x=>`
+    <div style="padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:6px;${isConv(x)?'border-left:3px solid #16a34a':'border-left:3px solid #9ca3af'}">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:13px;font-weight:600">Est #${x.estimate_number||x.id||'—'}</span>
+        <span style="font-size:13px;font-weight:700">${dollars(getEstTotal(x))}</span>
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-top:3px">${getDept(x)} · ${getAssigned(x)} · ${fmtD(x.schedule?.scheduled_start||x.created_at)} · ${eBadge(getEstDisplayStatus(x))}</div>
+    </div>`).join('')||'<div style="font-size:12px;color:#9ca3af">No estimates found</div>';
+
+  $$('isModalTitle').textContent=`Account History — ${custName}`;
+  $$('isModalBody').innerHTML=`
+    <div style="font-size:12px;color:#6b7280;margin-bottom:14px">${custJobs.length} job${custJobs.length!==1?'s':''} · ${custEsts.length} estimate${custEsts.length!==1?'s':''} in the pulled date range</div>
+    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Jobs</div>
+    ${jobRows}
+    <div style="font-size:12px;font-weight:700;color:#374151;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em">Estimates</div>
+    ${estRows}`;
+  $$('isModal').style.display='block';
+  $$('isModalOverlay').style.display='block';
 }
 
 function toggleISLogForm(estId, type){
@@ -4028,16 +4116,17 @@ function openEmailModal(estId){
     <!-- Promotion selector -->
     <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <label style="font-size:11px;font-weight:700;color:#374151">Promotion to include:</label>
-      <select id="isPromoSelect" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;flex:1" onchange="refreshEmailPreview()">
+      <select id="isPromoType" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="refreshEmailPreview();updatePromoCalc()">
         <option value="none">— No promotion —</option>
-        <option value="homeclub">Home Club 10% savings</option>
-        <option value="50off">$50 off water conditioning system</option>
-        <option value="100off">$100 off water conditioning system</option>
-        <option value="250off">$250 off water conditioning system</option>
+        <option value="pct">% off (percentage)</option>
+        <option value="dollar">$ off (fixed amount)</option>
+        <option value="homeclub">Home Club membership 10%</option>
         <option value="custom">Custom (type below)</option>
       </select>
-      <input type="number" id="isPromoExpiry" min="1" max="90" value="14" style="width:60px;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="refreshEmailPreview()">
-      <span style="font-size:12px;color:#6b7280">days</span>
+      <input type="number" id="isPromoAmount" min="1" placeholder="Amt" style="width:70px;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;display:none" oninput="refreshEmailPreview();updatePromoCalc()">
+      <span id="isPromoCalcDisplay" style="font-size:11px;color:#059669;font-weight:600"></span>
+      <label style="font-size:12px;color:#6b7280;margin-left:6px">Expires:</label>
+      <input type="date" id="isPromoExpiry" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="refreshEmailPreview()">
     </div>
     <input type="text" id="isPromoCustom" style="display:none;width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;margin-bottom:8px;box-sizing:border-box" placeholder="Describe your custom promotion..." oninput="refreshEmailPreview()">
 
@@ -4089,16 +4178,36 @@ function refreshEmailPreview(){
     ? `You had ${opts.length} options presented: `+opts.map((o,i)=>`${o.name||'Option '+(i+1)} (${dollars(getEstTotal(o))})`).join(', ')+'.'
     : `Your estimate total was ${dollars(getEstTotal(e))}.`;
 
-  const promo=document.getElementById('isPromoSelect')?.value||'none';
-  const days=document.getElementById('isPromoExpiry')?.value||'14';
+  const promoType=document.getElementById('isPromoType')?.value||'none';
+  const promoAmt=parseFloat(document.getElementById('isPromoAmount')?.value||0)||0;
+  const expiryDate=document.getElementById('isPromoExpiry')?.value||'';
   const customPromo=document.getElementById('isPromoCustom')?.value||'';
+  const expiryStr=expiryDate?new Date(expiryDate).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'';
+  const expiryLine=expiryStr?` This offer expires ${expiryStr}.`:'';
+
+  // Calculate dollar savings for % off
+  const estimateTotal=getEstTotal(_estimates.find(x=>x.id===_isEmailEstId)||{});
+  const pctSavings=promoType==='pct'&&promoAmt>0?estimateTotal*(promoAmt/100):0;
 
   let promoLine='';
-  if(promo==='homeclub') promoLine=`As always, our Home Club members save 10% on services — it's a great way to reduce your overall cost while enjoying priority service and added benefits throughout the year.`;
-  else if(promo==='50off') promoLine=`For a limited time, we're offering $50 off a new water conditioning system when you schedule within the next ${days} days.`;
-  else if(promo==='100off') promoLine=`For a limited time, we're offering $100 off a new water conditioning system when you schedule within the next ${days} days.`;
-  else if(promo==='250off') promoLine=`For a limited time, we're offering $250 off a new water conditioning system when you schedule within the next ${days} days.`;
-  else if(promo==='custom'&&customPromo) promoLine=customPromo;
+  const fuelLine=`With the ongoing rise in fuel and material costs, locking in your service now is a smart way to protect your budget.`;
+  if(promoType==='pct'&&promoAmt>0){
+    promoLine=`For a limited time, we're offering ${promoAmt}% off your service${pctSavings>0?` — that's a savings of ${dollars(pctSavings)} on your estimate`:''}.${expiryLine} ${fuelLine}`;
+  } else if(promoType==='dollar'&&promoAmt>0){
+    promoLine=`For a limited time, we're offering $${promoAmt} off when you schedule your service.${expiryLine} ${fuelLine}`;
+  } else if(promoType==='homeclub'){
+    promoLine=`As always, our Home Club members save 10% on all services — and with fuel and material costs continuing to rise, now is a great time to lock in your savings. ${expiryLine||''}`;
+  } else if(promoType==='custom'&&customPromo){
+    promoLine=`${customPromo} ${fuelLine}`;
+  }
+
+  // Subject lines per template
+  const subjects={
+    1:`Following up on your ${deptWord} estimate — Midstate Plumbing`,
+    2:`Quick check-in on your ${deptWord} estimate — Midstate`,
+    3:`Limited-time offer on your ${deptWord} estimate`,
+    4:`Quick follow-up — your ${deptWord} estimate`
+  };
 
   const templates={
     1: // Balanced & Professional
@@ -4168,7 +4277,8 @@ Midstate Plumbing, Heating & Cooling
 651-480-1195`
   };
 
-  preview.textContent=templates[_currentTemplate]||templates[1];
+  const subj=subjects[_currentTemplate]||subjects[1];
+  preview.textContent='Subject: '+subj+'\n\n'+(templates[_currentTemplate]||templates[1]);
 
   // Save as draft
   _isEmailDrafts[_isEmailEstId]={
@@ -4180,6 +4290,24 @@ Midstate Plumbing, Heating & Cooling
   saveISEmailState();
 }
 
+function updatePromoCalc(){
+  const type=document.getElementById('isPromoType')?.value||'none';
+  const amtEl=document.getElementById('isPromoAmount');
+  const calcEl=document.getElementById('isPromoCalcDisplay');
+  if(amtEl) amtEl.style.display=(type==='pct'||type==='dollar')?'':'none';
+  if(calcEl){
+    const amt=parseFloat(amtEl?.value||0)||0;
+    const e=_estimates.find(x=>x.id===_isEmailEstId);
+    const total=e?getEstTotal(e):0;
+    if(type==='pct'&&amt>0&&total>0){
+      calcEl.textContent=`saves ${dollars(total*amt/100)}`;
+    } else if(type==='dollar'&&amt>0){
+      calcEl.textContent=`$${amt} savings`;
+    } else {
+      calcEl.textContent='';
+    }
+  }
+}
 function generateISEmail(){ refreshEmailPreview(); }
 function setISTone(tone,btn){ selectEmailTemplate(_currentTemplate,btn); }
 
@@ -4202,11 +4330,22 @@ function openMailClient(){
   const e=_estimates.find(x=>x.id===_isEmailEstId);
   if(!e)return;
   const custEmail=e.customer?.email||'';
-  const body=$$('isEmailPreview').textContent;
-  const dept=getDept(e);
-  const subject=`Following up on your ${dept} estimate — Midstate Plumbing`;
-  const mailto=`mailto:${custEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.open(mailto,'_blank');
+  const fullText=$$('isEmailPreview').textContent||'';
+  // Extract subject if present at top of preview
+  const subjectMatch=fullText.match(/^Subject:\s*(.+)/);
+  const subject=subjectMatch?subjectMatch[1].trim():`Following up on your ${getDept(e)} estimate — Midstate Plumbing`;
+  // Body = everything after the subject line
+  const body=fullText.replace(/^Subject:[^\n]*\n\n/,'');
+  // Try Gmail compose first, fall back to mailto
+  const isGmail=window.location.hostname.includes('gmail')||true; // always try Gmail
+  const gmailUrl=`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(custEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailtoUrl=`mailto:${custEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // Open Gmail compose in new tab
+  const win=window.open(gmailUrl,'_blank');
+  if(!win){
+    // Popup blocked — fall back to mailto
+    window.location.href=mailtoUrl;
+  }
 }
 
 function logISEmail(){
@@ -4239,7 +4378,7 @@ function buildSummaryData(){
   const paidJobs=jobs.filter(isJobPaid);
   const unpaidJobs=jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j));
   const inProgressJobs=jobs.filter(j=>!isJobComplete(j)&&!isJobRefunded(j));
-  const totalRev=paidJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const totalRev=paidJobs.reduce((s,j)=>s+getJobRevenue(j),0);
   const totalUnpaid=unpaidJobs.reduce((s,j)=>s+getJobTotal(j),0);
   const totalPipeline=inProgressJobs.reduce((s,j)=>s+getJobTotal(j),0);
   const avgJob=paidJobs.length?totalRev/paidJobs.length:0;
@@ -4803,16 +4942,19 @@ function buildCalendarData(jobs, estimates, mode){
         if(apptDate&&apptDate!==schedDate){extraDates.add(apptDate);dates.add(apptDate);}
       });
 
+      // Return visit / callback = $0 job — show on calendar but no revenue
+      const isReturn=isReturnVisit(j);
+      const jobRevenue=isReturn?0:total;
+
       const schedCell=getCell(schedDate, revEmpId);
 
       if(isOnSameDate){
         // Revenue and work on same date — normal case
-        if(paid) schedCell.rev+=total;
+        if(paid) schedCell.rev+=jobRevenue;
         else if(complete) schedCell.unpaid+=total;
         else schedCell.pending+=total>0?total:0;
       } else {
         // Work on this date, but revenue goes to a different (estimate) date
-        // Show the job but mark revenue as credited elsewhere
         if(complete&&!paid) schedCell.unpaid+=total; // still show unpaid here
       }
 
@@ -4820,12 +4962,14 @@ function buildCalendarData(jobs, estimates, mode){
       schedCell.items.push({
         type:'job',date:schedDate,schedDate,revDate,
         id:j.id,number:j.job_number,customer:getCust(j),
-        status:jobStatus,total,paid,complete,
-        unpaid:complete&&!paid,pending:!complete&&total>0,
+        status:jobStatus,total:jobRevenue,paid,complete,
+        unpaid:complete&&!paid&&!isReturn,
+        pending:!complete&&total>0&&!isReturn,
         dept:getDept(j),notes:getJobNotes(j),emp:revEmpName,
-        revenueElsewhere:!isOnSameDate&&paid,
+        revenueElsewhere:!isOnSameDate&&paid&&!isReturn,
         revenueDate:revDate,
-        revNote:!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:'',
+        revNote:isReturn?'Return visit / no charge':(!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:''),
+        isReturn,
         source:attr?.source,reason:_attr[j.id]?.reason
       });
 
@@ -4836,26 +4980,29 @@ function buildCalendarData(jobs, estimates, mode){
         apptCell.items.push({
           type:'job',date:apptDate,schedDate,revDate,
           id:j.id,number:j.job_number,customer:getCust(j),
-          status:jobStatus,total:0,paid,complete, // $0 — revenue shown on primary date
+          status:jobStatus,total:0,paid,complete,
           unpaid:false,pending:false,
           dept:getDept(j),notes:getJobNotes(j),emp:revEmpName,
           revenueElsewhere:true,revenueDate:schedDate,
-          revNote:`Additional visit · Revenue on ${schedDate}`,
+          revNote:isReturn?'Return visit / no charge':`Additional visit · Revenue on ${schedDate}`,
+          isReturn,
           source:attr?.source
         });
       });
     }
 
     // ---- Write revenue to ESTIMATE DATE (different from sched date) ----
-    if(revDate&&revDate!==schedDate&&revEmpId&&paid){
+    // Return visits never contribute revenue
+    if(revDate&&revDate!==schedDate&&revEmpId&&paid&&!isReturnVisit(j)){
+      const jobRevenue=getJobRevenue(j);
       dates.add(revDate);
       const revCell=getCell(revDate, revEmpId);
-      revCell.rev+=total;
+      revCell.rev+=jobRevenue;
       // Add a revenue reference item (not a duplicate job entry)
       revCell.items.push({
         type:'revenue_ref',date:revDate,schedDate,
         id:j.id,number:j.job_number,customer:getCust(j),
-        status:jobStatus,total,paid,dept:getDept(j),emp:revEmpName,
+        status:jobStatus,total:jobRevenue,paid,dept:getDept(j),emp:revEmpName,
         note:`Job completed ${schedDate} · Revenue credited here`
       });
     }
@@ -5052,6 +5199,10 @@ function openCalPopup(date, empId, empName){
         ?`<div style="font-size:11px;padding:5px 8px;background:#f9fafb;border-radius:4px;margin-top:4px;color:#374151">
             💡 <strong>Revenue goes to ${j.revenueDate}</strong> — that's when the estimate was run.
             This job is shown here because the work happened today.
+          </div>`
+        :j.isReturn
+        ?`<div style="font-size:11px;padding:5px 8px;background:#f3f4f6;border-radius:4px;margin-top:4px;color:#6b7280">
+            🔄 <strong>Return visit / no charge</strong> — $0 invoice. Revenue was already collected on the original job.
           </div>`
         :j.paid
         ?`<div style="font-size:11px;color:#166534;margin-top:4px">✅ ${dollars(j.total)} revenue credited to this date</div>`
@@ -5261,7 +5412,10 @@ function renderContestSection(item){
     const optLines=(e.options||[]).flatMap(o=>(o.line_items||o.services||[]).map(l=>l.name||l.description||'')).join(' ');
     return[e.description||'',getEstNotes(e).join(' '),optNames,optNotes,optLines];
   }
-  const MATCH_THRESHOLD=50;
+  // For exact product names like Smart Water Leak Alarm, use strict threshold
+  // For shorter/common terms, use lower threshold to catch variations
+  const isExactProduct=product.toLowerCase().includes('smart water leak')||product.length>20;
+  const MATCH_THRESHOLD=isExactProduct?40:50; // slightly lower for specific products
 
   // ---- SERVICE PLANS: count from uploaded plan data ----
   if(isPlans){
