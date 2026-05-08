@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.8</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3313,49 +3313,98 @@ function printKPI(){
 function printGoals(){
   const content=$$('goalsContent');
   if(!content||!_jobs.length){alert('Pull a report first.');return;}
-  const win=window.open('','_blank','width=900,height=1100');
+
+  // Clone and strip elements that are too tall for one page
+  const clone=content.cloneNode(true);
+  // Remove monthly bar chart (too tall — omit from one-pager)
+  clone.querySelectorAll('button,select,input,.no-print').forEach(el=>el.remove());
+  // Hide the monthly bar chart section
+  const charts=clone.querySelectorAll('[style*="border:1px solid #e5e7eb;border-radius:10px"]');
+  charts.forEach(el=>{if(el.textContent.includes('Monthly Revenue')) el.style.display='none';});
+
+  const styles=[...document.styleSheets].map(ss=>{
+    try{return [...ss.cssRules].map(r=>r.cssText).join('\n');}catch(e){return '';}
+  }).join('\n');
+
+  const win=window.open('','_blank','width=850,height=1100');
   win.document.write(`<!DOCTYPE html><html><head><title>Goals — Midstate Plumbing</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-    body{font-family:Arial,sans-serif;font-size:11px;color:#111827;background:#fff;padding:0.4in}
     @page{size:letter portrait;margin:0}
-    @media print{body{padding:0.35in}button{display:none!important}}
-    .goal-hero{background:#1A3A5C;color:#fff;border-radius:10px;padding:20px 24px;margin-bottom:16px}
-    .goal-hero-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;opacity:.7;margin-bottom:4px}
-    .goal-hero-rev{font-size:30px;font-weight:900;margin-bottom:3px}
-    .goal-hero-sub{font-size:11px;opacity:.7}
-    .goal-ring-wrap{display:flex;gap:20px;align-items:center}
-    .goal-ring-stats{flex:1}
-    .goal-ring-stat{margin-bottom:8px}
-    .goal-periods{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
-    .goal-period-card{border:1px solid #e5e7eb;border-radius:8px;padding:10px}
-    .goal-period-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:4px}
-    .goal-period-target{font-size:10px;color:#6b7280;margin-bottom:5px}
-    .goal-period-actual{font-size:18px;font-weight:800;color:#1A3A5C;margin-bottom:5px}
-    .goal-period-bar{height:6px;background:#f3f4f6;border-radius:99px;margin-bottom:4px}
-    .goal-period-fill{height:6px;border-radius:99px}
-    .goal-period-pct{font-size:11px;font-weight:700}
-    .goal-pace{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:14px}
-    .goal-pace-head{font-size:12px;font-weight:700;color:#374151;margin-bottom:8px}
-    .goal-pace-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:11px}
-    .goal-pace-row:last-child{border-bottom:none}
-    .goal-pace-label{color:#6b7280}
-    .goal-pace-val{font-weight:600}
-    .ahead{background:#EAF3DE;color:#166534;padding:1px 6px;border-radius:99px}
-    .behind{background:#FECACA;color:#991B1B;padding:1px 6px;border-radius:99px}
-    .on-track{background:#DBEAFE;color:#1d4ed8;padding:1px 6px;border-radius:99px}
-    .goal-pace-diff{font-size:10px;padding:1px 6px;border-radius:99px}
-    .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3A5C;padding-bottom:8px;margin-bottom:14px}
+    html,body{width:8.5in;height:11in;overflow:hidden;background:#fff;font-family:Arial,sans-serif}
+    @media print{button{display:none!important}}
+
+    /* Page wrapper — exact letter size */
+    .page{
+      width:8.5in;
+      height:11in;
+      max-height:11in;
+      padding:0.35in 0.4in;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    /* Header */
+    .print-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:7px;margin-bottom:10px;flex-shrink:0}
+    .print-title{font-size:16px;font-weight:800;color:#1A3A5C}
+
+    /* All goal content fills remaining space */
+    .goals-body{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:8px}
+
+    /* Inject all dashboard styles */
+    ${styles}
+
+    /* Compact overrides for print */
+    .goal-hero{padding:12px 16px!important;margin-bottom:0!important;border-radius:8px!important;flex-shrink:0}
+    .goal-hero-rev{font-size:26px!important;margin-bottom:2px!important}
+    .goal-hero-title{font-size:10px!important;margin-bottom:2px!important}
+    .goal-hero-sub{font-size:10px!important}
+    .goal-ring-wrap{gap:12px!important}
+    .goal-ring-stats>div{margin-top:8px!important}
+    .goal-ring-stats>div>div{padding:6px 10px!important}
+    .goal-ring-stats>div>div>div:first-child{font-size:9px!important}
+    .goal-ring-stats>div>div>div:last-child{font-size:15px!important}
+
+    .goal-periods{gap:5px!important;margin-bottom:0!important;flex-shrink:0}
+    .goal-period-card{padding:7px 8px!important;border-radius:6px!important}
+    .goal-period-label{font-size:8px!important;margin-bottom:2px!important}
+    .goal-period-target{font-size:9px!important;margin-bottom:3px!important}
+    .goal-period-actual{font-size:15px!important;margin-bottom:3px!important}
+    .goal-period-bar{height:5px!important;margin-bottom:3px!important}
+    .goal-period-pct{font-size:10px!important}
+
+    .goal-pace{padding:8px 10px!important;margin-bottom:0!important;flex-shrink:0;border-radius:6px!important}
+    .goal-pace-head{font-size:11px!important;margin-bottom:5px!important}
+    .goal-pace-row{padding:3px 0!important;font-size:10px!important}
+    .goal-pace-diff{font-size:9px!important}
+
+    /* Hide bar chart on print */
+    .goals-body > div:last-child{display:none!important}
   </style></head><body>
-  <div class="header">
-    <div>
-      <div style="font-size:16px;font-weight:800;color:#1A3A5C">🏠 Midstate Plumbing — Revenue Goals</div>
-      <div style="font-size:10px;color:#6b7280">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
+  <div class="page">
+    <div class="print-header">
+      <div>
+        <div class="print-title">🏠 Midstate Plumbing, Heating & Cooling — Revenue Goals</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:2px">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
+      </div>
+      <div style="font-size:10px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
     </div>
-    <div style="font-size:10px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
+    <div class="goals-body">${clone.innerHTML}</div>
   </div>
-  ${content.innerHTML}
-  <script>window.onload=function(){window.print();}<\/script>
+  <script>window.onload=function(){
+    // Auto-scale down if content overflows the page
+    const page=document.querySelector('.page');
+    if(page){
+      const ratio=Math.min(1, (11*96-70) / page.scrollHeight);
+      if(ratio<0.99){
+        page.style.transform='scale('+ratio.toFixed(3)+')';
+        page.style.transformOrigin='top left';
+        page.style.width=(8.5/ratio)+'in';
+      }
+    }
+    window.print();
+  }<\/script>
   </body></html>`);
   win.document.close();
 }
