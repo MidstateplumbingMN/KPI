@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#059669;color:#fff;border:1px solid #059669;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#059669;color:#fff;border:1px solid #059669;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.1</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1037,8 +1037,10 @@ function isJobComplete(j){
 }
 function isJobPaid(j){return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;}
 function isJobRefunded(j){const s=getRawStatus(j);return s.includes('refund')||s.includes('void');}
+function isJobCanceled(j){const s=getRawStatus(j);return s.includes('cancel')||s.includes('deleted');}
+function isJobExcluded(j){return isJobRefunded(j)||isJobCanceled(j);}
 
-// A return visit / callback job has $0 invoice total — it's completing prior work, not a new sale
+// Return visit / callback = $0 job — it's completing prior work, not a new sale
 // Revenue should only be counted on jobs where money actually changed hands
 function isReturnVisit(j){
   const total=getJobTotal(j);
@@ -2181,7 +2183,7 @@ function renderKPI(jobs,estimates,employees,plans){
   if(label) label.textContent=from&&to?`${from} → ${to}`:'';
 
   // Filter jobs and estimates to KPI date range
-  const kpiJobs=filterByKPIRange(jobs,j=>j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+  const kpiJobs=filterByKPIRange(jobs,j=>j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at).filter(j=>!isJobCanceled(j));
   const kpiEsts=filterByKPIRange(estimates,e=>e.schedule?.scheduled_start||e.created_at);
   // Build per-employee stats
   const map={};
@@ -2648,6 +2650,14 @@ function renderGoals(){
   const projectedColor=projectedAnnual>=ANNUAL_GOAL?'#166534':projectedAnnual>=ANNUAL_GOAL*0.8?'#92400E':'#991B1B';
   const usedData=_jobs.length>0;
 
+  // Outstanding payments — complete jobs not yet collected
+  const outstandingJobs=_jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)&&!isJobCanceled(j));
+  const totalOutstanding=outstandingJobs.reduce((s,j)=>s+getJobTotal(j),0);
+  const outstandingCount=outstandingJobs.length;
+  // If outstanding were collected, how would that move the annual number?
+  const annualWithOutstanding=annualActual+totalOutstanding;
+  const annualWithPct=Math.round(annualWithOutstanding/ANNUAL_GOAL*100);
+
   // Period cards
   const periodCards=Object.entries(GOALS).map(([key,g])=>{
     const actual=getRevenueForPeriod(g.period);
@@ -2667,6 +2677,7 @@ function renderGoals(){
         <span class="goal-period-pct" style="color:${barColor}">${usedData?pctN+'%':'—'}</span>
         ${usedData&&key!=='annual'?`<span class="goal-pace-diff ${diffClass}" style="font-size:10px">${diffLabel}</span>`:''}
       </div>
+      <div style="font-size:10px;color:#6b7280;margin-top:4px">Collected only</div>
     </div>`;
   }).join('');
 
@@ -2675,10 +2686,12 @@ function renderGoals(){
     ['Days elapsed (YTD)',`${dayOfYear} of 365`,''],
     ['Days remaining',`${daysLeft}`,''],
     ['Revenue collected YTD',dollars(annualActual),annualActual>=annualPace?'ahead':'behind'],
-    ['Pace target (should have)',dollars(annualPace),''],
+    ['Outstanding (unpaid, complete jobs)',dollars(totalOutstanding),''],
+    ['Collected + outstanding combined',dollars(annualWithOutstanding),annualWithOutstanding>=annualPace?'ahead':'behind'],
+    ['Pace target (should have collected)',dollars(annualPace),''],
     ['Pace gap',`${paceGap>=0?'+':''}${dollars(Math.abs(paceGap))}`,paceGap>=0?'ahead':'behind'],
-    ['Projected annual (at this rate)',dollars(projectedAnnual),projectedAnnual>=ANNUAL_GOAL?'ahead':'behind'],
-    ['To hit goal by year end',daysLeft>0?dollars(Math.max(0,ANNUAL_GOAL-annualActual)/daysLeft)+'/day needed':'—',''],
+    ['Projected annual (at current rate)',dollars(projectedAnnual),projectedAnnual>=ANNUAL_GOAL?'ahead':'behind'],
+    ['Daily rate needed to hit goal',daysLeft>0?dollars(Math.max(0,ANNUAL_GOAL-annualActual)/daysLeft)+'/day':'—',''],
   ].map(([label,val,cls])=>`<div class="goal-pace-row">
     <span class="goal-pace-label">${label}</span>
     <span class="goal-pace-val ${cls?`goal-pace-diff ${cls}`:''}">${val}</span>
@@ -2690,22 +2703,32 @@ function renderGoals(){
       <div class="goal-ring-wrap">
         ${renderRing(annualActual,ANNUAL_GOAL,'#E8640A',180)}
         <div class="goal-ring-stats">
-          <div class="goal-hero-title">2026 Annual Revenue Goal</div>
+          <div class="goal-hero-title">2026 Annual Revenue Goal — Collected Only</div>
           <div class="goal-hero-rev">${usedData?dollars(annualActual):'Pull a report to load'}</div>
-          <div class="goal-hero-sub">of ${dollars(ANNUAL_GOAL)} goal &nbsp;·&nbsp; ${Math.round(annualPct*100)}% complete</div>
-          <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+          <div class="goal-hero-sub">of ${dollars(ANNUAL_GOAL)} goal &nbsp;·&nbsp; ${Math.round(annualPct*100)}% collected</div>
+          ${usedData&&totalOutstanding>0?`
+          <div style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);border-radius:8px;padding:8px 12px;margin-top:10px;font-size:12px">
+            <span style="color:#fcd34d;font-weight:700">⚠ ${dollars(totalOutstanding)} outstanding</span>
+            <span style="color:rgba(255,255,255,.7);margin-left:6px">${outstandingCount} complete job${outstandingCount!==1?'s':''} not yet paid · would put you at ${annualWithPct}%</span>
+          </div>`:''}
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
             <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
               <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Projected Annual</div>
               <div style="font-size:18px;font-weight:800;color:${projectedColor==='#166534'?'#86efac':projectedColor==='#92400E'?'#fcd34d':'#fca5a5'}">${usedData?dollars(projectedAnnual):'—'}</div>
             </div>
             <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
-              <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Remaining</div>
+              <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Still to collect</div>
               <div style="font-size:18px;font-weight:800">${usedData?dollars(Math.max(0,ANNUAL_GOAL-annualActual)):'—'}</div>
             </div>
             <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:10px 14px">
               <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em">Days Left</div>
               <div style="font-size:18px;font-weight:800">${daysLeft}</div>
             </div>
+            ${usedData&&totalOutstanding>0?`
+            <div style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px 14px">
+              <div style="font-size:10px;color:#fcd34d;text-transform:uppercase;letter-spacing:.06em">Outstanding</div>
+              <div style="font-size:18px;font-weight:800;color:#fcd34d">${dollars(totalOutstanding)}</div>
+            </div>`:''}
           </div>
         </div>
       </div>
@@ -2716,7 +2739,7 @@ function renderGoals(){
 
     <!-- PACE TABLE -->
     <div class="goal-pace">
-      <div class="goal-pace-head">📈 Pace Analysis — Are we on track?</div>
+      <div class="goal-pace-head">📈 Pace Analysis — Collected revenue only</div>
       ${usedData?paceRows:'<div style="color:#9ca3af;font-size:13px">Pull a report with YTD data to see pace analysis.</div>'}
     </div>
 
@@ -4377,7 +4400,7 @@ function buildSummaryData(){
   // Revenue
   const paidJobs=jobs.filter(isJobPaid);
   const unpaidJobs=jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j));
-  const inProgressJobs=jobs.filter(j=>!isJobComplete(j)&&!isJobRefunded(j));
+  const inProgressJobs=jobs.filter(j=>!isJobComplete(j)&&!isJobExcluded(j));
   const totalRev=paidJobs.reduce((s,j)=>s+getJobRevenue(j),0);
   const totalUnpaid=unpaidJobs.reduce((s,j)=>s+getJobTotal(j),0);
   const totalPipeline=inProgressJobs.reduce((s,j)=>s+getJobTotal(j),0);
@@ -4888,7 +4911,8 @@ function buildCalendarData(jobs, estimates, mode){
 
   // ---- JOBS: show on scheduled date, credit revenue on estimate or collection date ----
   jobs.forEach(j=>{
-    if(isJobRefunded(j)) return; // exclude refunds entirely
+    // Exclude canceled, deleted, refunded, and voided jobs from the calendar
+    if(isJobExcluded(j)) return;
 
     const attr=_jobAttribution[j.id];
     const total=getJobTotal(j);
