@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.3</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v8.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v8.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -692,7 +692,7 @@ tr:hover td{background:#fafafa}
 
     <div style="margin-bottom:20px;padding-top:16px;border-top:1px solid #f3f4f6">
       <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Inside Sales activity</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears all IS call logs, email history, and opportunity statuses from both browser and Google Sheets.</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears call logs and opportunity statuses. Email follow-up history is preserved separately and survives all resets.</div>
       <button class="is-btn danger" style="width:100%" onclick="clearISData()">🗑 Clear Inside Sales data</button>
     </div>
 
@@ -886,7 +886,7 @@ tr:hover td{background:#fafafa}
           <button class="clear-btn" onclick="clearPlanFilters()">Clear filters</button>
         </div>
         <div class="tbl-wrap"><table>
-          <thead><tr><th>Customer</th><th>Plan</th><th>Sold By</th><th>Status</th><th>Date</th><th class="r">Value</th></tr></thead>
+          <thead><tr><th>Customer</th><th>Plan</th><th>Sold By</th><th>Status</th><th>Date Sold</th></tr></thead>
           <tbody id="plansBody"></tbody>
         </table></div>
       </div>
@@ -2238,7 +2238,8 @@ function renderKPI(jobs,estimates,employees,plans){
       if(isConv(e))map[emp.id].converted++;
     });
   });
-  plans.forEach(p=>{
+  // Only count ACTIVE plans in KPI scorecards
+  plans.filter(isPlanActive).forEach(p=>{
     const e=p.sold_by||p.employee||p.pro||p.assigned_employee;
     if(!e)return;
     const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
@@ -2343,30 +2344,43 @@ function getPlanSoldBy(p){const e=p.sold_by||p.employee||p.pro||p.assigned_emplo
 function getPlanCust(p){if(p.customer){const c=p.customer;return((c.first_name||'')+' '+(c.last_name||'')).trim()||c.name||c.company_name||'—';}return p.customer_name||'—';}
 function getPlanStatus(p){return p.status||p.membership_status||'';}
 function getPlanTotal(p){const raw=p.price??p.total_amount??p.amount??p.value??null;if(raw===null)return 0;const n=parseFloat(raw)||0;return n>500?n/100:n;}
-function getPlanFiltered(){const ef=$$('planEmpFilter').value,tf=$$('planTypeFilter').value;return _plans.filter(p=>{if(ef&&getPlanSoldBy(p)!==ef)return false;if(tf&&getPlanName(p)!==tf)return false;return true;});}
-function applyPlanFilter(){renderPlanRows(getPlanFiltered());}
+function getPlanFiltered(source){const pool=source||_plans.filter(isPlanActive);const ef=$$('planEmpFilter').value,tf=$$('planTypeFilter').value;return pool.filter(p=>{if(ef&&getPlanSoldBy(p)!==ef)return false;if(tf&&getPlanName(p)!==tf)return false;return true;});}
+function applyPlanFilter(){renderPlanRows(getPlanFiltered(_plans.filter(isPlanActive)));}
 function clearPlanFilters(){$$('planEmpFilter').value='';$$('planTypeFilter').value='';applyPlanFilter();}
 
+function isPlanActive(p){
+  const s=(getPlanStatus(p)||'').toLowerCase();
+  // Only count active plans — canceled, expired, inactive are excluded
+  return s===''||s==='active'||s==='paid'||s==='current'||s==='enrolled';
+}
+
 function renderPlans(plans){
-  const total=plans.length;
-  const totalVal=plans.reduce((s,p)=>s+getPlanTotal(p),0);
+  // Only show active plans
+  const activePlans=plans.filter(isPlanActive);
+  const inactive=plans.length-activePlans.length;
+  const total=activePlans.length;
   $$('planMetrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Plans sold</div><div class="metric-value">${total}</div></div>
-    <div class="metric"><div class="metric-label">Plan revenue</div><div class="metric-value">${dollars(totalVal)}</div></div>
-    <div class="metric"><div class="metric-label">Avg plan value</div><div class="metric-value">${total?dollars(totalVal/total):'—'}</div></div>`;
-  if(!total)$$('planMetrics').innerHTML+='<div style="font-size:12px;color:#9ca3af;grid-column:1/-1;padding:8px">Memberships endpoint not available — check Raw Data tab.</div>';
-  renderPlanRows(getPlanFiltered());
+    <div class="metric"><div class="metric-label">Active plans</div><div class="metric-value">${total}</div><div class="metric-sub">Active memberships only</div></div>
+    ${inactive>0?`<div class="metric"><div class="metric-label">Inactive / canceled</div><div class="metric-value" style="color:#9ca3af">${inactive}</div><div class="metric-sub">Not counted</div></div>`:''}
+    <div class="metric"><div class="metric-label">Total uploaded</div><div class="metric-value">${plans.length}</div><div class="metric-sub">All records</div></div>`;
+  if(!total&&!plans.length)$$('planMetrics').innerHTML+='<div style="font-size:12px;color:#9ca3af;grid-column:1/-1;padding:8px">Upload a service plan CSV in the section above to see memberships.</div>';
+  // Pass active-only to table, but apply text filters on top
+  renderPlanRows(getPlanFiltered(activePlans));
 }
 function renderPlanRows(plans){
   const tb=$$('plansBody');tb.innerHTML='';
-  if(!plans.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#9ca3af">No plans found</td></tr>';return;}
+  if(!plans.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">No active plans found</td></tr>';return;}
   plans.forEach(p=>{
-    const s=getPlanStatus(p);const v=s.toLowerCase();
-    let badge=`<span class="badge bgr">${s||'—'}</span>`;
-    if(v==='active'||v==='paid')badge=`<span class="badge bg">${s}</span>`;
-    else if(v.includes('cancel'))badge=`<span class="badge br">${s}</span>`;
+    const s=getPlanStatus(p)||'Active';const v=s.toLowerCase();
+    let badge=`<span class="badge bgr">${s}</span>`;
+    if(v==='active'||v==='paid')badge=`<span class="badge bg">Active</span>`;
+    else if(v.includes('cancel'))badge=`<span class="badge br">Canceled</span>`;
+    const soldBy=getPlanSoldBy(p);
+    const soldByDisplay=(!soldBy||soldBy==='Unknown'||soldBy==='—')?'<span style="color:#9ca3af;font-style:italic">—</span>':soldBy;
+    const custDisplay=getPlanCust(p);
+    const dateDisplay=p.created_at?fmtD(p.created_at):p.start_date?fmtD(p.start_date):'—';
     const t=document.createElement('tr');
-    t.innerHTML=`<td>${getPlanCust(p)}</td><td style="color:#1A3A5C;font-weight:500">${getPlanName(p)||'—'}</td><td style="color:#6b7280">${getPlanSoldBy(p)}</td><td>${badge}</td><td style="color:#6b7280">${p.created_at?fmtD(p.created_at):p.start_date?fmtD(p.start_date):'—'}</td><td class="r" style="font-weight:600">${getPlanTotal(p)?dollars(getPlanTotal(p)):'—'}</td>`;
+    t.innerHTML=`<td style="font-weight:500">${custDisplay}</td><td style="color:#1A3A5C;font-weight:500">${getPlanName(p)||'—'}</td><td style="color:#6b7280">${soldByDisplay}</td><td>${badge}</td><td style="color:#6b7280">${dateDisplay}</td>`;
     tb.appendChild(t);
   });
 }
@@ -3561,9 +3575,11 @@ function mapPlanRows(rows){
   function findCol(...kws){for(const kw of kws){const i=headers.findIndex(h=>h.includes(kw));if(i>=0)return i;}return-1;}
 
   // Detect HCP aggregate format: "Sold by" + "Plans sold" — expand into individual records
-  const soldByCol=findCol('sold by','sold_by','employee','tech','rep','staff','name');
-  const countCol =findCol('plans sold','count','sold','quantity','qty','total');
-  const isAggregateFormat=soldByCol>=0&&countCol>=0;
+  // IMPORTANT: 'plans sold' must match exactly — don't match 'sold by' column as count col
+  const soldByCol=findCol('sold by','sold_by');
+  const countCol =findCol('plans sold','plans_sold');  // exact match only — not 'sold' alone
+  // Also require that countCol is different from soldByCol
+  const isAggregateFormat=soldByCol>=0&&countCol>=0&&soldByCol!==countCol;
 
   if(isAggregateFormat){
     // HCP aggregate export: one row per tech with a count — expand into individual plan records
@@ -3613,12 +3629,14 @@ function mapPlanRows(rows){
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
     if(!r||r.every(c=>!String(c||'').trim())) continue;
-    const custName=custCol>=0?r[custCol]||'Unknown':'Unknown';
-    const planName=planCol>=0?r[planCol]||'Home Club Maintenance':'Home Club Maintenance';
-    const soldBy  =soldCol>=0?r[soldCol]||'':'';
-    const dateRaw =dateCol>=0?r[dateCol]||'':'';
+    const custName=custCol>=0?String(r[custCol]||'').trim()||'—':'—';
+    const planName=planCol>=0?String(r[planCol]||'').trim()||'Home Club Maintenance':'Home Club Maintenance';
+    const soldByRaw=soldCol>=0?String(r[soldCol]||'').trim():'';
+    // Treat "Unknown" sold_by as blank — no tech to attribute
+    const soldBy=(!soldByRaw||soldByRaw.toLowerCase()==='unknown')?'':soldByRaw;
+    const dateRaw =dateCol>=0?String(r[dateCol]||'').trim():'';
     const amt     =amtCol>=0?parseFloat(String(r[amtCol]).replace(/[$,]/g,''))||19.99:19.99;
-    const status  =statCol>=0?r[statCol]||'Active':'Active';
+    const status  =statCol>=0?String(r[statCol]||'').trim()||'Active':'Active';
     const empMatch=_employees.find(e=>{
       const n=((e.first_name||'')+' '+(e.last_name||'')).trim().toLowerCase();
       const sb=soldBy.toLowerCase();
@@ -3674,15 +3692,17 @@ function clearAttributions(){
   alert('✅ Attributions cleared. Pull a fresh report and re-confirm in the Attribution tab.');
 }
 function clearISData(){
-  if(!confirm('Clear all Inside Sales data — call logs, emails, opportunity statuses? Also clears from Google Sheets. Cannot be undone.'))return;
+  if(!confirm('Clear Inside Sales call logs and opportunity statuses?\n\nNote: Email drafts, sent status, and follow-up tracking are NEVER cleared — they are preserved permanently to prevent re-sending.\n\nCannot be undone.'))return;
   _isActivity={};_isStatus={};_isConvertedBy={};
+  // NOTE: _isEmailDrafts and _isEmailStatuses are intentionally NOT cleared here
+  // They represent real contact history and must survive report pulls and data resets
   try{['hcp_is_activity','hcp_is_status','hcp_is_conv'].forEach(k=>localStorage.removeItem(k));}catch(e){}
   clearSheetsTab('Inside_Sales');
   clearSheetsTab('IS_Activity');
   if(_estimates.length) renderIS();
   updateISBadge();
   closeDataTools();
-  alert('✅ Inside Sales data cleared.');
+  alert('✅ Inside Sales activity cleared.\n\nEmail drafts and follow-up status are preserved.');
 }
 async function clearSheetsTab(tabName){
   if(!_sheetsProxy)return;
@@ -3704,6 +3724,7 @@ async function fullReset(){
   if(!confirm('⚠ Full reset: clear ALL attributions, Inside Sales data, and Google Sheets KPI history?\n\nYour HCP data is NOT affected. Cannot be undone.'))return;
   if(!confirm('Last chance — are you sure?'))return;
   _attr={};_isActivity={};_isStatus={};_isConvertedBy={};
+  // Email drafts and statuses are intentionally preserved — they represent real contact history
   try{['hcp_attr','hcp_is_activity','hcp_is_status','hcp_is_conv'].forEach(k=>localStorage.removeItem(k));}catch(e){}
   await Promise.all([clearSheetsTab('KPI_Scores'),clearSheetsTab('Reports'),clearSheetsTab('Inside_Sales'),clearSheetsTab('IS_Activity')]);
   if(_jobs.length){buildAttribution(_jobs,_estimates);renderAttr(_jobs,_estimates);}
@@ -3747,13 +3768,19 @@ async function fetchISFromSheets(){
           _isActivity[id]=acts;
         });
       }
+      // Merge email state from same call (emailStatuses + emailDrafts)
+      if(data.emailStatuses) Object.assign(_isEmailStatuses, data.emailStatuses);
+      if(data.emailDrafts)   Object.assign(_isEmailDrafts,   data.emailDrafts);
       // Persist merged state to localStorage as cache
       localStorage.setItem('hcp_is_activity',JSON.stringify(_isActivity));
       localStorage.setItem('hcp_is_status',JSON.stringify(_isStatus));
       localStorage.setItem('hcp_is_conv',JSON.stringify(_isConvertedBy));
+      localStorage.setItem('hcp_is_email_statuses',JSON.stringify(_isEmailStatuses));
+      localStorage.setItem('hcp_is_email_drafts',JSON.stringify(_isEmailDrafts));
       // Re-render with fresh data
       if(_estimates.length) renderIS();
       updateISBadge();
+      // No need to call fetchISEmailStateFromSheets separately — already merged above
     }
   }catch(e){
     console.warn('Could not load IS data from Sheets:',e.message);
@@ -4076,29 +4103,74 @@ function updateISBadge(){
   if(tab) tab.innerHTML=openCount>0?`📞 Inside Sales <span class="badge-count">${openCount}</span>`:'📞 Inside Sales';
 }
 
-// ---- EMAIL MODAL ----
+// ---- EMAIL STATUS & DRAFT — SHARED VIA GOOGLE SHEETS ----
 let _isEmailEstId=null;
 let _isEmailTone='friendly';
-let _isEmailDrafts={}; // estId -> {text, tone, generatedAt}
-let _isEmailStatuses={}; // estId -> 'pending'|'followed_up'|'declined'|'sold'
+// keyed by HCP estimate ID (stable across report pulls)
+let _isEmailDrafts={};    // estId -> {text, generatedAt, template}
+let _isEmailStatuses={};  // estId -> 'pending'|'followed_up'|'declined'|'sold'
 
 function loadISEmailState(){
+  // Load from localStorage as immediate fallback
   try{
     const d=localStorage.getItem('hcp_is_email_drafts');
     const s=localStorage.getItem('hcp_is_email_statuses');
     if(d) _isEmailDrafts=JSON.parse(d);
     if(s) _isEmailStatuses=JSON.parse(s);
   }catch(e){}
+  // Then sync from Sheets (async — overwrites local with shared state)
+  fetchISEmailStateFromSheets();
 }
-function saveISEmailState(){
+
+async function fetchISEmailStateFromSheets(){
+  if(!_sheetsProxy) return;
   try{
-    localStorage.setItem('hcp_is_email_drafts',JSON.stringify(_isEmailDrafts));
-    localStorage.setItem('hcp_is_email_statuses',JSON.stringify(_isEmailStatuses));
-  }catch(e){}
+    const res=await fetch(_sheetsProxy+'?action=getISEmailState',{redirect:'follow'});
+    const data=await res.json();
+    if(data.success){
+      // Sheets state wins — shared across all users
+      if(data.emailStatuses) Object.assign(_isEmailStatuses, data.emailStatuses);
+      if(data.emailDrafts) Object.assign(_isEmailDrafts, data.emailDrafts);
+      // Write back to localStorage as cache
+      localStorage.setItem('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
+      localStorage.setItem('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
+      if(_estimates.length) renderIS();
+    }
+  }catch(e){
+    console.warn('Could not load IS email state from Sheets:', e.message);
+    // Silent fail — localStorage already loaded
+  }
 }
+
+function saveISEmailState(){
+  // Always save localStorage immediately (instant local feedback)
+  try{
+    localStorage.setItem('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
+    localStorage.setItem('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
+  }catch(e){}
+  // Then push to Sheets (async — shared with everyone)
+  syncISEmailStateToSheets();
+}
+
+async function syncISEmailStateToSheets(){
+  if(!_sheetsProxy) return;
+  try{
+    await fetch(_sheetsProxy,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      redirect:'follow',
+      body:JSON.stringify({
+        action:'saveISEmailState',
+        emailStatuses:_isEmailStatuses,
+        emailDrafts:_isEmailDrafts
+      })
+    });
+  }catch(err){console.warn('IS email state Sheets sync failed:',err.message);}
+}
+
 function setISEmailStatus(estId, status){
   _isEmailStatuses[estId]=status;
-  saveISEmailState();
+  saveISEmailState(); // saves local + pushes to Sheets
   renderIS();
 }
 
@@ -4164,11 +4236,23 @@ function openEmailModal(estId){
       <button class="is-btn success" id="isLogEmailBtn" onclick="logISEmail()">✅ Log as sent</button>
     </div>`;
 
-  // Show/hide custom promo field
-  document.getElementById('isPromoSelect').addEventListener('change',function(){
-    const customEl=document.getElementById('isPromoCustom');
-    if(customEl) customEl.style.display=this.value==='custom'?'block':'none';
-  });
+  // Show/hide custom promo field & amount input
+  setTimeout(()=>{
+    const promoType=document.getElementById('isPromoType');
+    if(promoType){
+      promoType.addEventListener('change',function(){
+        const customEl=document.getElementById('isPromoCustom');
+        const amtEl=document.getElementById('isPromoAmount');
+        if(customEl) customEl.style.display=this.value==='custom'?'block':'none';
+        if(amtEl) amtEl.style.display=(this.value==='pct'||this.value==='dollar')?'':'none';
+      });
+    }
+    // Restore draft if exists
+    if(draft){
+      const preview=document.getElementById('isEmailPreview');
+      if(preview) preview.textContent=draft.text;
+    }
+  },0);
 
   $$('isModal').style.display='block';
   $$('isModalOverlay').style.display='block';
