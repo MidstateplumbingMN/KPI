@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.4</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -895,7 +895,8 @@ tr:hover td{background:#fafafa}
           Since HCP doesn't expose service plans via API, export your plan data from HCP and upload it here.<br>
           Accepts <strong>CSV or Excel (.xlsx)</strong>. Works with HCP's built-in export formats:<br>
           <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px">HCP Aggregate: "Sold by" + "Plans sold" count per tech</code><br>
-          <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px;margin-top:3px;display:inline-block">Detailed: Customer · Plan Type · Sold By · Date · Amount</code>
+          <code style="font-size:11px;background:#f3f4f6;padding:2px 5px;border-radius:3px;margin-top:3px;display:inline-block">Detailed: Customer · Plan Type · Sold By · Date · Amount</code><br>
+          <span style="font-size:11px;color:#E8640A;font-weight:600">💡 Tip: Use the detailed export (with dates) so KPI date filters work correctly. Aggregate exports show all-time counts regardless of date range.</span>
         </div>
         <label class="plan-upload-btn" for="planFileInput">
           📁 Choose CSV or Excel file
@@ -1010,6 +1011,7 @@ function disconnect(){
 // ============================================================
 function fmt(d){return d.toISOString().split('T')[0];}
 function fmtD(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch(e){return s;}}
+function fmtDY(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch(e){return s;}}
 function $$(id){return document.getElementById(id);}
 function centsToD(n){const v=parseFloat(n)||0;return v>500?v/100:v;}
 function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1893,7 +1895,7 @@ function renderAttr(jobs,estimates){
     if(candidates.length){
       optionsHtml=candidates.map((c,i)=>{
         const sName=c.seller?((c.seller.first_name||'')+' '+(c.seller.last_name||'')).trim():getAssigned(c.est);
-        const estDate=fmtD(c.est.created_at);
+        const estDate=fmtDY(c.est.schedule?.scheduled_start||c.est.created_at);
         const estVal=getEstTotal(c.est);
         const estStatus=getEstDisplayStatus(c.est);
         const estDept=getDept(c.est);
@@ -1960,7 +1962,7 @@ function renderAttr(jobs,estimates){
       <div class="attr-header">
         <div>
           <div class="attr-job">#${j.job_number||j.id||'—'} · ${getCust(j)}</div>
-          <div class="attr-meta">${getDept(j)} · ${fmtD(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}${isJobPaid(j)?'<span style="margin-left:6px;font-size:11px;background:#EAF3DE;color:#3B6D11;padding:2px 7px;border-radius:99px;font-weight:600">💰 Paid</span>':isJobComplete(j)?'<span style="margin-left:6px;font-size:11px;background:#FAEEDA;color:#854F0B;padding:2px 7px;border-radius:99px;font-weight:600">⚠️ Unpaid</span>':''}</div>
+          <div class="attr-meta">${getDept(j)} · ${fmtDY(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}${isJobPaid(j)?'<span style="margin-left:6px;font-size:11px;background:#EAF3DE;color:#3B6D11;padding:2px 7px;border-radius:99px;font-weight:600">💰 Paid</span>':isJobComplete(j)?'<span style="margin-left:6px;font-size:11px;background:#FAEEDA;color:#854F0B;padding:2px 7px;border-radius:99px;font-weight:600">⚠️ Unpaid</span>':''}</div>
         </div>
         <div class="attr-amount">${total?dollars(total):'$0.00'}</div>
       </div>
@@ -2159,7 +2161,7 @@ function renderJobRows(jobs){
   const tb=$$('jobsBody');tb.innerHTML='';
   if(!sorted.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af">No jobs match filters</td></tr>';return;}
   sorted.forEach(j=>{ // show all jobs — no arbitrary limit
-    const sched=j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):j.scheduled_start?fmtD(j.scheduled_start):'—';
+    const sched=j.schedule?.scheduled_start?fmtDY(j.schedule.scheduled_start):j.scheduled_start?fmtDY(j.scheduled_start):'—';
     const total=getJobTotal(j);
     const norm=getNormStatus(j);
     const attr=_jobAttribution[j.id];
@@ -2202,7 +2204,7 @@ function renderEstRows(estimates){
   const tb=$$('estBody');tb.innerHTML='';
   if(!sorted.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#9ca3af">No estimates match filters</td></tr>';return;}
   sorted.forEach(e=>{ // show all estimates
-    const created=e.created_at?fmtD(e.created_at):e.schedule?.scheduled_start?fmtD(e.schedule.scheduled_start):'—';
+    const created=e.created_at?fmtDY(e.schedule?.scheduled_start||e.created_at):e.schedule?.scheduled_start?fmtDY(e.schedule.scheduled_start):'—';
     const total=getEstTotal(e);
     const converted=isConv(e);
     const optCount=e.options&&e.options.length>1?` <span style="font-size:10px;color:#9ca3af">(${e.options.length} opts)</span>`:'';
@@ -2425,8 +2427,22 @@ function renderKPI(jobs,estimates,employees,plans){
       if(isConv(e))map[emp.id].converted++;
     });
   });
-  // Only count ACTIVE plans in KPI scorecards
-  plans.filter(isPlanActive).forEach(p=>{
+  // Filter plans to KPI date range (same as jobs/estimates)
+  const {from:kpiF, to:kpiT}=getKPIDateRange();
+  const kpiPlans=plans.filter(p=>{
+    if(!isPlanActive(p)) return false;
+    // Aggregate uploads have no real date — include them always with a note
+    if(p.source==='upload_aggregate') return true;
+    const pd=p.created_at||p.start_date||'';
+    if(!pd||pd.startsWith(new Date().toISOString().split('T')[0])) return true; // today = no real date
+    if(kpiF&&pd<kpiF) return false;
+    if(kpiT&&pd>kpiT+'T23:59:59') return false;
+    return true;
+  });
+  const hasAggregatePlans=kpiPlans.some(p=>p.source==='upload_aggregate');
+
+  // Only count ACTIVE plans in KPI scorecards — filtered to KPI date range
+  kpiPlans.forEach(p=>{
     const e=p.sold_by||p.employee||p.pro||p.assigned_employee;
     if(!e)return;
     const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
@@ -2511,7 +2527,7 @@ function renderKPI(jobs,estimates,employees,plans){
       <div class="sc-row"><span class="sc-key">Estimates</span><span class="sc-val">${emp.estimates}</span></div>
       <div class="sc-row"><span class="sc-key">Converted</span><span class="sc-val">${emp.converted}${er!==null?' ('+er+'%)':''}</span></div>
       ${deptRows?`<div class="sc-dept-row"><div class="sc-dept-label">By department</div>${deptRows}</div>`:''}
-      <div class="plans-row"><span style="font-size:12px;color:#5B21B6;font-weight:600">Service plans sold</span><span style="float:right;font-size:15px;font-weight:700;color:#5B21B6">${emp.plans}</span></div>`}`;
+      <div class="plans-row"><span style="font-size:12px;color:#5B21B6;font-weight:600">Service plans sold</span><span style="float:right;font-size:15px;font-weight:700;color:#5B21B6">${emp.plans}</span>${hasAggregatePlans?'<div style="font-size:9px;color:#9ca3af;margin-top:1px">Aggregate upload — not date filtered</div>':''}</div>`}`;
     container.appendChild(d);
   }
 
@@ -3169,8 +3185,8 @@ function runDebugSearch(){
     out.textContent=`No jobs or estimates found for "${q}" in the pulled date range.\n\nThis means either:\n1. The date range doesn't cover when their job was scheduled or created\n2. Try pulling a wider date range (e.g. This Year)\n3. Check their job dates in HCP directly`;
     return;
   }
-  const jobLines=jobs.map(j=>`JOB #${j.job_number||j.id} · ${getCust(j)} · ${getNormStatus(j)} · ${dollars(getJobTotal(j))}\n     Sched: ${j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):'none'} · Created: ${fmtD(j.created_at)} · Completed: ${j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):'—'}\n     Tech: ${getAssigned(j)} · Revenue→: ${_jobAttribution[j.id]?.techName||'not attributed'} (${_jobAttribution[j.id]?.source||'?'})`);
-  const estLines=ests.map(e=>`EST #${e.estimate_number||e.id} · ${getCust(e)} · ${getEstDisplayStatus(e)} · ${dollars(getEstTotal(e))}\n     Sched: ${e.schedule?.scheduled_start?fmtD(e.schedule.scheduled_start):'none'} · Tech: ${getAssigned(e)} · Converted: ${isConv(e)?'YES':'no'} · Options: ${e.options?.length||0}`);
+  const jobLines=jobs.map(j=>`JOB #${j.job_number||j.id} · ${getCust(j)} · ${getNormStatus(j)} · ${dollars(getJobTotal(j))}\n     Sched: ${j.schedule?.scheduled_start?fmtDY(j.schedule.scheduled_start):'none'} · Created: ${fmtDY(j.created_at)} · Completed: ${j.work_timestamps?.completed_at?fmtDY(j.work_timestamps.completed_at):'—'}\n     Tech: ${getAssigned(j)} · Revenue→: ${_jobAttribution[j.id]?.techName||'not attributed'} (${_jobAttribution[j.id]?.source||'?'})`);
+  const estLines=ests.map(e=>`EST #${e.estimate_number||e.id} · ${getCust(e)} · ${getEstDisplayStatus(e)} · ${dollars(getEstTotal(e))}\n     Sched: ${e.schedule?.scheduled_start?fmtDY(e.schedule.scheduled_start):'none'} · Tech: ${getAssigned(e)} · Converted: ${isConv(e)?'YES':'no'} · Options: ${e.options?.length||0}`);
   out.textContent=[
     `=== ${jobs.length} Job(s) for "${q}" ===`,
     ...jobLines,
@@ -3368,164 +3384,115 @@ function refreshAll(){
 }
 
 function printCalendar(){
-  if(!_jobs.length&&!_estimates.length){alert('No data loaded. Pull a report first.');return;}
+  const calWrap=$$('calWrap');
+  if(!calWrap){alert('No calendar loaded. Pull a report first.');return;}
+
   const mode=$$('calRevenueMode')?.value||'estimate';
   const modeLabel=mode==='estimate'?'Revenue on estimate date (who sold it)':'Revenue on collection date (cash flow)';
   const from=$$('dateFrom')?.value||'', to=$$('dateTo')?.value||'';
 
-  // Build fresh calendar data for print
-  const {dates,employees,cells}=buildCalendarData(_jobs,_estimates,mode);
-  const filteredEmps=employees;
+  // Clone the live rendered calendar table — this ensures print matches screen exactly
+  const tableEl=calWrap.querySelector('.cal-table');
+  if(!tableEl){alert('No calendar table found. Make sure calendar data is loaded.');return;}
 
-  // All dates in range
-  const sortedDates=[];
-  if(from&&to){
-    const cur=new Date(from+'T12:00:00'),end=new Date(to+'T12:00:00');
-    while(cur<=end){sortedDates.push(cur.toISOString().split('T')[0]);cur.setDate(cur.getDate()+1);}
-  } else {
-    sortedDates.push(...[...dates].filter(d=>d&&d!=='1970-01-01').sort());
+  const tableClone=tableEl.cloneNode(true);
+  // Remove sticky positioning so table flows naturally on print
+  tableClone.querySelectorAll('[style]').forEach(el=>{
+    el.style.position='';
+    el.style.top='';
+    el.style.left='';
+    el.style.zIndex='';
+  });
+  // Remove onclick handlers
+  tableClone.querySelectorAll('td,th').forEach(el=>el.removeAttribute('onclick'));
+
+  // Get grand total from totals row
+  const totalsRow=calWrap.querySelector('.cal-totals');
+  let grandTotal=0;
+  if(totalsRow){
+    totalsRow.querySelectorAll('td').forEach(td=>{
+      const txt=td.textContent.replace(/[$,]/g,'');
+      const v=parseFloat(txt);
+      if(!isNaN(v)&&v>0) grandTotal+=v;
+    });
   }
 
-  const today=new Date().toISOString().split('T')[0];
-  const allRevs=filteredEmps.flatMap(emp=>sortedDates.map(d=>(cells[`${d}|${emp.id}`]?.rev||0))).filter(v=>v>0);
-  const avgRev=allRevs.length?allRevs.reduce((a,b)=>a+b,0)/allRevs.length:0;
-  const highThreshold=Math.max(avgRev*1.5,500);
-
-  // Column totals
-  const colTotals={};
-  filteredEmps.forEach(e=>{colTotals[e.id]={rev:0,jobs:0,ests:0};});
-
-  // Build rows
-  let bodyRows='';
-  sortedDates.forEach(d=>{
-    const dt=new Date(d+'T12:00:00');
-    const dow=dt.getDay();
-    const isWeekend=dow===0||dow===6;
-    const isToday=d===today;
-    const dayLabel=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-    const rowStyle=isToday?'background:#FFFDE7':isWeekend?'background:#F5F5F5':'';
-
-    let rowCells=`<td style="font-size:9px;font-weight:700;padding:4px 6px;border:1px solid #ccc;white-space:nowrap;${rowStyle}${isToday?'color:#B45309;':isWeekend?'color:#9E9E9E;':''}background:${isToday?'#FFFDE7':isWeekend?'#F5F5F5':'#FAFAFA'}">${dayLabel}</td>`;
-
-    filteredEmps.forEach(emp=>{
-      const c=cells[`${d}|${emp.id}`];
-      if(!c||(!c.rev&&!c.jobCount&&!c.estCount&&!c.unpaid&&!c.pending)){
-        rowCells+=`<td style="border:1px solid #ddd;background:#fafafa"></td>`;
-        return;
-      }
-      colTotals[emp.id].rev+=c.rev;
-      colTotals[emp.id].jobs+=c.jobCount;
-      colTotals[emp.id].ests+=c.estCount;
-
-      const refs=c.items.filter(i=>i.type==='revenue_ref');
-      const refRev=refs.reduce((s,r)=>s+r.total,0);
-      const totalCollected=c.rev; // revenue already includes retroactive
-
-      // Cell background — force color printing with explicit inline styles
-      const isHighRev=c.rev>=highThreshold;
-      let bg,fg='#000';
-      if(isHighRev){bg='#1B5E20';fg='#fff';}
-      else if(c.rev>0&&c.unpaid>0){bg='#FFF9C4';}
-      else if(c.rev>0){bg='#C8E6C9';}
-      else if(c.unpaid>0){bg='#FFCDD2';}
-      else if(c.pending>0||c.jobCount>0){bg='#FFF9C4';}
-      else if(c.estCount>0){bg='#BBDEFB';}
-      else{bg='#fff';}
-
-      // TOTAL COLLECTED — large, clear, primary number
-      const revLine=totalCollected>0
-        ?`<div style="font-size:12px;font-weight:900;color:${isHighRev?'#fff':'#1B5E20'};line-height:1.1">&#36;${(totalCollected).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`
-        :'';
-
-      // Retroactive — black checkmark, bold, clearly explains money came from estimate date
-      const retroLine=refs.length>0
-        ?`<div style="font-size:8.5px;font-weight:700;color:${isHighRev?'#C8E6C9':'#000'};margin-top:2px;border-top:1px solid ${isHighRev?'rgba(255,255,255,0.3)':'#ccc'};padding-top:2px">&#10003; ${refs.length} job${refs.length>1?'s':''} paid on est. date (${dollars(refRev)} incl. above)</div>`
-        :'';
-
-      // Unpaid — red triangle
-      const unpaidLine=c.unpaid>0
-        ?`<div style="font-size:8.5px;font-weight:700;color:#B71C1C;margin-top:1px">&#9651; ${dollars(c.unpaid)} unpaid</div>`
-        :'';
-
-      // Pending
-      const pendingLine=c.pending>0
-        ?`<div style="font-size:8.5px;color:#0D47A1;margin-top:1px">&#8987; ${dollars(c.pending)} pending</div>`
-        :'';
-
-      // Jobs & Estimates counts — full words, clear
-      const jCount=c.jobCount>0?`${c.jobCount} Job${c.jobCount!==1?'s':''}`:'' ;
-      const eCount=c.estCount>0?`${c.estCount} Est${c.estCount!==1?'s':''}`:'' ;
-      const metaLine=`<div style="font-size:8px;color:${isHighRev?'rgba(255,255,255,0.75)':'#555'};margin-top:2px">${[jCount,eCount].filter(Boolean).join(' · ')}</div>`;
-
-      rowCells+=`<td style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;border:1px solid #999;padding:3px 4px;vertical-align:top;background:${bg};color:${fg}">${revLine}${retroLine}${unpaidLine}${pendingLine}${metaLine}</td>`;
-    });
-    bodyRows+=`<tr>${rowCells}</tr>`;
-  });
-
-  // Totals row
-  let totalsRow=`<tr style="background:#E3F2FD"><td style="font-size:9px;font-weight:700;padding:4px 6px;border:1px solid #ccc">TOTALS</td>`;
-  filteredEmps.forEach(emp=>{
-    const t=colTotals[emp.id];
-    totalsRow+=`<td style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;border:1px solid #999;padding:4px;background:#BBDEFB;text-align:center">
-      <div style="font-size:12px;font-weight:900;color:#0D47A1">${t.rev>0?dollars(t.rev):'—'}</div>
-      <div style="font-size:8px;color:#333;margin-top:2px">${t.jobs>0?t.jobs+' Job'+(t.jobs!==1?'s':''):''} ${t.ests>0?'· '+t.ests+' Est'+(t.ests!==1?'s':''):''}</div>
-    </td>`;
-  });
-  totalsRow+='</tr>';
-
-  // Grand total collected
-  const grandTotal=Object.values(colTotals).reduce((s,t)=>s+t.rev,0);
+  // Collect all CSS from the main page so calendar renders identically
+  const styles=[...document.styleSheets].map(ss=>{
+    try{return [...ss.cssRules].map(r=>r.cssText).join('\n');}catch(e){return '';}
+  }).join('\n');
 
   const win=window.open('','_blank','width=1400,height=900');
-  win.document.write(`<!DOCTYPE html><html><head><title>Midstate Calendar ${from}–${to}</title>
+  win.document.write(`<!DOCTYPE html><html><head>
+  <title>Midstate Calendar ${from}–${to}</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:10px;background:#fff;color:#333}
-    @page{size:landscape;margin:0.35in}
-    @media print{
-      body{margin:0}
-      *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-      td,th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-    }
-    table{border-collapse:collapse;width:100%}
-    th{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#1A3A5C!important;color:#fff!important;padding:5px 4px;font-size:9px;border:1px solid #0d2240;text-align:center;white-space:nowrap}
-    th.date-th{text-align:left;min-width:68px}
-    .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:9px;align-items:center}
+    /* Force colors to print */
+    *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;box-sizing:border-box}
+    @page{size:landscape;margin:0.3in}
+    @media print{body{margin:0}button,input,select{display:none!important}.no-print{display:none!important}}
+    body{font-family:Arial,sans-serif;font-size:10px;background:#fff;color:#333;margin:0;padding:0}
+
+    /* Copy all calendar styles from main page */
+    ${styles}
+
+    /* Print overrides — remove sticky, ensure colors */
+    .cal-table{width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed}
+    .cal-table th{position:static!important;background:#1A3A5C!important;color:#fff!important;padding:4px 5px;font-size:8px;white-space:nowrap;border:1px solid #0d2240;text-align:center}
+    .cal-table th.date-col{text-align:left;min-width:68px;width:68px}
+    .cal-table td{font-size:9px;padding:3px 4px;border:1px solid #ccc;vertical-align:top}
+    .cal-table td.date-cell{position:static!important;font-size:9px;font-weight:700;white-space:nowrap;min-width:68px;width:68px;background:#f9fafb!important}
+    .cal-table tr.weekend td.date-cell{background:#f1f0eb!important;color:#9ca3af}
+    .cal-table tr.today td.date-cell{background:#FFF9DB!important;color:#854F0B;font-weight:800}
+    .cal-cell.est-only{background:#BBDEFB!important}
+    .cal-cell.in-progress{background:#FFF9C4!important}
+    .cal-cell.paid-low{background:#C8E6C9!important}
+    .cal-cell.paid-high{background:#1B5E20!important;color:#fff!important}
+    .cal-cell.unpaid{background:#FFCDD2!important}
+    .cal-cell.mixed{background:#FFF9C4!important}
+    .cal-cell.empty{background:#fafafa}
+    .cal-totals td{background:#BBDEFB!important;font-size:9px;font-weight:700}
+    .cal-rev{font-size:10px;font-weight:700;color:#166534}
+    .cal-cell.paid-high .cal-rev,.cal-cell.paid-high *{color:#fff!important}
+    .cal-meta{font-size:8px;color:#555;margin-top:1px}
+
+    /* Header */
+    .print-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:7px;border-bottom:3px solid #1A3A5C;margin-bottom:8px}
+    .print-title{font-size:15px;font-weight:800;color:#1A3A5C}
+    .print-total{font-size:13px;font-weight:800;color:#166534}
+
+    /* Legend */
+    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:8px;align-items:center}
     .leg{display:flex;align-items:center;gap:3px}
-    .sw{width:12px;height:12px;border-radius:2px;display:inline-block;border:1px solid #ccc;flex-shrink:0}
-  </style></head><body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:8px;border-bottom:3px solid #1A3A5C;margin-bottom:8px">
+    .sw{width:10px;height:10px;border-radius:2px;display:inline-block;border:1px solid #ddd;flex-shrink:0}
+  </style>
+  </head><body>
+  <div class="print-header">
     <div>
-      <div style="font-size:16px;font-weight:700;color:#1A3A5C">&#127968; Midstate Plumbing, Heating &amp; Cooling</div>
-      <div style="font-size:11px;color:#555;margin-top:2px">Calendar &nbsp;·&nbsp; ${from} to ${to} &nbsp;·&nbsp; ${modeLabel}</div>
+      <div class="print-title">🏠 Midstate Plumbing, Heating &amp; Cooling — Calendar</div>
+      <div style="font-size:10px;color:#555;margin-top:2px">${from} to ${to} &nbsp;·&nbsp; ${modeLabel}</div>
     </div>
     <div style="text-align:right;font-size:10px;color:#555">
-      <div style="font-size:14px;font-weight:800;color:#1B5E20">Total Collected: ${dollars(grandTotal)}</div>
-      <div>651-480-1195 &nbsp;·&nbsp; Hastings, MN</div>
-      <div>Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      <div class="print-total">Total Collected: ${dollars(grandTotal)}</div>
+      <div>651-480-1195 · Hastings, MN &nbsp;·&nbsp; Printed ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
     </div>
   </div>
-  <table>
-    <thead><tr>
-      <th class="date-th">Date</th>
-      ${filteredEmps.map(e=>`<th>${((e.first_name||'')+' '+(e.last_name||'')).trim()}</th>`).join('')}
-    </tr></thead>
-    <tbody>${bodyRows}${totalsRow}</tbody>
-  </table>
+  ${tableClone.outerHTML}
   <div class="legend">
     <strong>Legend:</strong>
-    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#1B5E20"></span>Strong revenue day</span>
-    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#E8F5E9"></span>Revenue collected</span>
-    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#E3F2FD"></span>Estimates only</span>
-    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#FFFDE7"></span>In progress</span>
-    <span class="leg"><span class="sw" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#FFEBEE"></span>Unpaid</span>
-    <span class="leg"><strong>&#10003;</strong> = Paid on later date, credited to estimate date</span>
-    <span class="leg"><strong>&#9651;</strong> = Completed but not yet paid</span>
+    <span class="leg"><span class="sw" style="background:#1B5E20"></span>Strong revenue</span>
+    <span class="leg"><span class="sw" style="background:#C8E6C9"></span>Revenue collected</span>
+    <span class="leg"><span class="sw" style="background:#BBDEFB"></span>Estimates only</span>
+    <span class="leg"><span class="sw" style="background:#FFF9C4"></span>In progress</span>
+    <span class="leg"><span class="sw" style="background:#FFCDD2"></span>Unpaid</span>
+    <span class="leg">✓ Paid on later date, credited to estimate date</span>
+    <span class="leg">⚠ Complete, not yet paid</span>
   </div>
   <script>window.onload=function(){window.print();}<\/script>
   </body></html>`);
   win.document.close();
 }
+
+
 
 // ============================================================
 // UNPAID JOBS TAB
@@ -5385,27 +5352,36 @@ function buildCalendarData(jobs, estimates, mode){
     return !INSTALLER_NAMES.includes(name) && isCalEmpVisible(e.id);
   }).sort((a,b)=>{
     if(calSortMode==='dept'){
-      // Use employee's actual department from their job history, not just role string
-      // Look at what departments they run most frequently
-      function empDept(emp){
-        const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
-        const role=(emp.role||'').toLowerCase();
-        // Role-based first
-        if(role.includes('hvac')||role.includes('heat')||role.includes('cool')) return 0;
-        if(role.includes('plumb')) return 1;
-        if(role.includes('drain')) return 2;
-        if(role.includes('office')||role.includes('admin')) return 3;
-        // Infer from job history
-        const empJobs=_jobs.filter(j=>getAssignedList(j).some(e=>e.id===emp.id));
-        const depts=empJobs.map(getDept).filter(Boolean);
-        const counts={};depts.forEach(d=>{counts[d]=(counts[d]||0)+1;});
-        const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-        if(top.toLowerCase().includes('hvac')) return 0;
-        if(top.toLowerCase().includes('plumb')) return 1;
-        if(top.toLowerCase().includes('drain')) return 2;
-        return 4;
+      // Infer department from actual job history — HCP role is always "field tech"
+      function empPrimaryDept(emp){
+        const empId=emp.id;
+        // Count jobs by department for this employee
+        const counts={};
+        _jobs.forEach(j=>{
+          if(isJobCanceled(j)) return;
+          const assigned=getAssignedList(j);
+          if(!assigned.some(e=>e.id===empId)) return;
+          const d=getDept(j)||'Other';
+          counts[d]=(counts[d]||0)+1;
+        });
+        // Also check estimates
+        _estimates.forEach(e=>{
+          const assigned=getAssignedList(e);
+          if(!assigned.some(x=>x.id===empId)) return;
+          const d=getDept(e)||'Other';
+          counts[d]=(counts[d]||0)+0.5; // weight estimates less than jobs
+        });
+        // Find top department
+        const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'Other';
+        // Map to sort order
+        const order={'HVAC':0,'Heating':0,'Cooling':0,'Plumbing':1,'Drains':2,'Drain':2,'Water Treatment':3,'Other':9};
+        const key=Object.keys(order).find(k=>top.toLowerCase().includes(k.toLowerCase()))||'Other';
+        return{dept:top,order:order[key]??9};
       }
-      const da=empDept(a),db=empDept(b);
+      const deptCache={};
+      employees.forEach(e=>{deptCache[e.id]=empPrimaryDept(e);});
+      const da=deptCache[a.id]?.order??9;
+      const db=deptCache[b.id]?.order??9;
       if(da!==db) return da-db;
     }
     if(calSortMode==='revenue'){
@@ -5640,13 +5616,31 @@ function renderCalendar(){
 
   // Build table
   const showDeptInHeader=($$('calEmpSort')?.value||'name')==='dept';
+
+  // Build dept label cache for headers
+  const deptLabelCache={};
+  if(showDeptInHeader){
+    filteredEmps.forEach(emp=>{
+      const counts={};
+      _jobs.forEach(j=>{
+        if(isJobCanceled(j)) return;
+        if(!getAssignedList(j).some(e=>e.id===emp.id)) return;
+        const d=getDept(j)||'Other';
+        counts[d]=(counts[d]||0)+1;
+      });
+      const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||emp.role||'';
+      deptLabelCache[emp.id]=top;
+    });
+  }
+
   let html=`<table class="cal-table">
   <thead><tr>
     <th class="date-col">Date</th>
     ${filteredEmps.map(e=>{
       const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-      const role=e.role||'';
-      const deptLabel=showDeptInHeader&&role?`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${role}</div>`:'';
+      const deptLabel=showDeptInHeader&&deptLabelCache[e.id]
+        ?`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${deptLabelCache[e.id]}</div>`
+        :'';
       return`<th>${name}${deptLabel}</th>`;
     }).join('')}
   </tr></thead><tbody>`;
