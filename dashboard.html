@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.5</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -5490,9 +5490,14 @@ function buildCalendarData(jobs, estimates, mode){
     const emp=empList.length?empList[0]:null;
     if(!emp) return;
     const cell=getCell(d, emp.id);
+    const eCust=e.customer||{};
+    const eFullName=[eCust.first_name,eCust.last_name].filter(Boolean).join(' ')||getCust(e);
+    const eAddr=e.address?[e.address.street,e.address.city,e.address.state].filter(Boolean).join(', '):'';
+    const ePhone=eCust.mobile_number||eCust.home_number||eCust.work_number||'';
     cell.estCount++;
     cell.items.push({type:'estimate',date:d,id:e.id,number:e.estimate_number,
-      customer:getCust(e),status:getEstDisplayStatus(e),value:getEstTotal(e),
+      customer:eFullName,custAddr:eAddr,custPhone:ePhone,
+      status:getEstDisplayStatus(e),value:getEstTotal(e),
       dept:getDept(e),notes:getEstNotes(e),
       emp:((emp.first_name||'')+' '+(emp.last_name||'')).trim()});
   });
@@ -5578,10 +5583,19 @@ function buildCalendarData(jobs, estimates, mode){
         else if(!complete&&total>0) schedCell.pending+=total;
       }
 
+      // Full customer details for popup
+      const jCust=j.customer||{};
+      const jFullName=[jCust.first_name,jCust.last_name].filter(Boolean).join(' ')||getCust(j);
+      const jAddr=j.address?[j.address.street,j.address.city,j.address.state].filter(Boolean).join(', '):'';
+      const jPhone=jCust.mobile_number||jCust.home_number||jCust.work_number||'';
+      const jAllTechs=getAssignedList(j).map(e=>((e.first_name||'')+' '+(e.last_name||'')).trim()).filter(Boolean);
+
       schedCell.jobCount++;
       schedCell.items.push({
         type:'job',date:schedDate,schedDate,revDate,
-        id:j.id,number:j.job_number,customer:getCust(j),
+        id:j.id,number:j.job_number,
+        customer:jFullName,custAddr:jAddr,custPhone:jPhone,
+        allTechs:jAllTechs,description:j.description||j.summary||'',
         status:jobStatus,total:isOnSameDate&&isSameTech?jobRevenue:0,
         paid,complete,
         unpaid:complete&&!paid&&!isReturn,
@@ -5842,11 +5856,21 @@ function openCalPopup(date, empId, empName){
         :j.complete
         ?`<div style="font-size:11px;color:#92400E;margin-top:4px">⚠ ${dollars(j.total)} — job done but payment not yet collected</div>`
         :`<div style="font-size:11px;color:#6b7280;margin-top:4px">🕐 ${j.total?dollars(j.total):''} — job not yet complete</div>`;
+      const allTechsDisplay=j.allTechs&&j.allTechs.length>1?j.allTechs.join(', '):j.emp;
       return`<div class="cal-popup-item" style="border-left:3px solid ${j.paid&&!j.revenueElsewhere?'#16a34a':j.revenueElsewhere?'#9ca3af':j.complete?'#b45309':'#3b82f6'}">
-        <div class="cal-popup-item-title">Job #${j.number||j.id||'—'} · ${j.customer} ${statusBadge}</div>
-        <div class="cal-popup-item-meta">${j.dept} · ${j.emp}</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div>
+            <div class="cal-popup-item-title" style="font-size:13px">${j.customer} ${statusBadge}</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:1px">Job #${j.number||j.id||'—'}</div>
+          </div>
+          <div style="font-size:14px;font-weight:800;color:${j.paid?'#166534':j.complete?'#92400E':'#374151'};white-space:nowrap">${j.total?dollars(j.total):''}</div>
+        </div>
+        ${j.custAddr?`<div style="font-size:11px;color:#6b7280;margin-bottom:3px">📍 ${j.custAddr}</div>`:''}
+        ${j.custPhone?`<div style="font-size:11px;color:#6b7280;margin-bottom:3px">📞 ${j.custPhone}</div>`:''}
+        <div class="cal-popup-item-meta" style="margin-bottom:4px">${j.dept} · ${allTechsDisplay}</div>
+        ${j.description?`<div style="font-size:11px;color:#374151;background:#f8fafc;padding:4px 8px;border-radius:4px;margin-bottom:4px;font-weight:500">${j.description.slice(0,120)}${j.description.length>120?'…':''}</div>`:''}
         ${revLine}
-        ${j.notes&&j.notes.length?`<div class="cal-popup-item-note">${j.notes[0].slice(0,180)}</div>`:''}
+        ${j.notes&&j.notes.length?j.notes.slice(0,3).map(n=>`<div class="cal-popup-item-note" style="margin-top:3px">${n.slice(0,200)}${n.length>200?'…':''}</div>`).join(''):''}
       </div>`;
     }).join('')}
   </div>`:'';
@@ -5855,9 +5879,17 @@ function openCalPopup(date, empId, empName){
   const estsHtml=ests.length?`<div class="cal-popup-section">
     <div class="cal-popup-section-head">Estimates run on this date (${ests.length})</div>
     ${ests.map(e=>`<div class="cal-popup-item">
-      <div class="cal-popup-item-title">Estimate #${e.number||'—'} · ${e.customer} ${eBadge(e.status)}</div>
-      <div class="cal-popup-item-meta">${e.dept} · ${e.value?dollars(e.value):'—'} · ${e.emp}</div>
-      ${e.notes&&e.notes.length?`<div class="cal-popup-item-note">${e.notes[0].slice(0,180)}</div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px">
+        <div>
+          <div class="cal-popup-item-title" style="font-size:13px">${e.customer} ${eBadge(e.status)}</div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:1px">Est #${e.number||'—'}</div>
+        </div>
+        <div style="font-size:14px;font-weight:800;color:#1A3A5C;white-space:nowrap">${e.value?dollars(e.value):'—'}</div>
+      </div>
+      ${e.custAddr?`<div style="font-size:11px;color:#6b7280;margin-bottom:2px">📍 ${e.custAddr}</div>`:''}
+      ${e.custPhone?`<div style="font-size:11px;color:#6b7280;margin-bottom:2px">📞 ${e.custPhone}</div>`:''}
+      <div class="cal-popup-item-meta">${e.dept} · ${e.emp}</div>
+      ${e.notes&&e.notes.length?e.notes.slice(0,2).map(n=>`<div class="cal-popup-item-note" style="margin-top:3px">${n.slice(0,200)}${n.length>200?'…':''}</div>`).join(''):''}
     </div>`).join('')}
   </div>`:'';
 
