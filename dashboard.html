@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.2</span>
+      <span style="font-size:12px;background:#7C3AED;color:#fff;border:1px solid #7C3AED;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.2</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -540,9 +540,12 @@ tr:hover td{background:#fafafa}
             oninput="renderAttr(_jobs,_estimates)">
         </div>
         <select id="attrStatusFilter" style="font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="renderAttr(_jobs,_estimates)">
-          <option value="unresolved">Needs confirmation</option>
+          <option value="needs_action" selected>⚠ Needs action (unresolved + no estimate)</option>
+          <option value="unresolved">Unresolved estimates</option>
+          <option value="no_estimate">No estimate linked</option>
+          <option value="linked">Auto-attributed (review)</option>
           <option value="all">All jobs</option>
-          <option value="confirmed">Confirmed only</option>
+          <option value="confirmed">Manually confirmed</option>
           <option value="paid">Paid only</option>
         </select>
       </div>
@@ -783,20 +786,7 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
 
-      <!-- SUMMARY REPORT MODAL -->
-      <div class="is-modal-overlay" id="summaryOverlay" onclick="closeSummaryReport()" style="display:none"></div>
-      <div class="is-modal" id="summaryModal" style="display:none;max-width:720px;max-height:90vh">
-        <div class="is-modal-header">
-          <div class="is-modal-title">📊 Executive Summary Report</div>
-          <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeSummaryReport()">✕</span>
-        </div>
-        <div id="summaryPreview" style="font-size:13px;line-height:1.7;color:#374151;overflow-y:auto;max-height:60vh;padding:4px 0"></div>
-        <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid #f3f4f6">
-          <button class="pull-btn" onclick="printSummaryReport()">🖨 Print / PDF</button>
-          <button class="is-btn primary" onclick="downloadSummaryDocx()">📄 Download Word Doc</button>
-          <button class="is-btn" onclick="closeSummaryReport()">Close</button>
-        </div>
-      </div>
+
 
       <!-- PRINT REPORT SELECTOR MODAL -->
       <div class="is-modal-overlay" id="printSelectorOverlay" onclick="closePrintSelector()" style="display:none"></div>
@@ -1823,7 +1813,7 @@ const REASON_OPTIONS=[
 ];
 function renderAttr(jobs,estimates){
   const searchQ=($$('attrSearch')?.value||'').toLowerCase().trim();
-  const statusF=$$('attrStatusFilter')?.value||'unresolved';
+  const statusF=$$('attrStatusFilter')?.value||'needs_action';
 
   // Filter jobs based on status selection
   // Date filter for attribution — use the KPI date range
@@ -1837,8 +1827,11 @@ function renderAttr(jobs,estimates){
       if(jd<attrFrom||jd>attrTo) return false;
     }
     const attr=_jobAttribution[j.id];
+    if(statusF==='needs_action') return !attr||attr.source==='unresolved'||attr.source==='no_estimate';
     if(statusF==='unresolved') return !attr||attr.source==='unresolved';
-    if(statusF==='confirmed') return attr&&attr.source!=='unresolved'&&attr.source!=='no_estimate';
+    if(statusF==='no_estimate') return attr?.source==='no_estimate';
+    if(statusF==='linked') return attr?.source==='linked'||attr?.source==='linked_strong'||attr?.source==='customer_match'||attr?.source==='amount_match'||attr?.source==='gannon_transition';
+    if(statusF==='confirmed') return attr?.source==='manual'||attr?.confirmed===true;
     if(statusF==='paid') return isJobPaid(j);
     return true; // 'all'
   });
@@ -1878,7 +1871,9 @@ function renderAttr(jobs,estimates){
     const attr=_jobAttribution[j.id];
     const total=getJobTotal(j);
     const jobNotes=getJobNotes(j);
-    const rec=attr.recommendation||{text:'Please review manually',icon:'❓',key:'needs_review'};
+    const rec=attr?.recommendation||(attr?.source==='no_estimate'
+      ?{text:'No estimate found — revenue goes to assigned tech',icon:'📋',key:'no_estimate'}
+      :{text:'Please review manually',icon:'❓',key:'needs_review'});
     const card=document.createElement('div');
     card.className='attr-card';
     const candidates=attr.candidates||[];
@@ -1942,6 +1937,37 @@ function renderAttr(jobs,estimates){
 
     const jobNotesHtml=jobNotes.length?`<div class="notes-box" style="margin-bottom:10px"><div class="notes-label">Job notes</div>${jobNotes.slice(0,3).map(n=>`<div>${n.slice(0,180)}${n.length>180?'…':''}</div>`).join('')}</div>`:'';
 
+    // Customer history — past jobs and estimates for context
+    const custId=getCustId(j);
+    const custName=getCust(j);
+    const pastJobs=_jobs.filter(x=>x.id!==j.id&&(getCustId(x)===custId||getCust(x)===custName))
+      .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0))
+      .slice(0,4);
+    const pastEsts=_estimates.filter(e=>getCustId(e)===custId||getCust(e)===custName)
+      .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0))
+      .slice(0,4);
+    const historyHtml=(pastJobs.length||pastEsts.length)?`
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;display:flex;justify-content:space-between">
+          <span>Customer history</span>
+          <span style="font-weight:400;color:#9ca3af">${pastJobs.length} prior jobs · ${pastEsts.length} estimates</span>
+        </div>
+        ${pastJobs.slice(0,3).map(pj=>{
+          const pattr=_jobAttribution[pj.id];
+          const paName=pattr?.techName||getAssigned(pj)||'?';
+          return`<div style="display:flex;justify-content:space-between;padding:4px 8px;background:${isJobPaid(pj)?'#f0fdf4':'#fafafa'};border-radius:4px;margin-bottom:2px;font-size:11px">
+            <span style="color:#374151">${fmtDY(pj.schedule?.scheduled_start||pj.created_at)} · ${getDept(pj)}</span>
+            <span style="color:#6b7280">${getAssigned(pj)}${pattr?` → <strong>${paName}</strong>`:''}</span>
+            <span style="font-weight:600;color:${isJobPaid(pj)?'#166534':'#6b7280'}">${dollars(getJobTotal(pj))}</span>
+          </div>`;}).join('')}
+        ${pastEsts.slice(0,2).map(pe=>`
+          <div style="display:flex;justify-content:space-between;padding:4px 8px;background:#EFF6FF;border-radius:4px;margin-bottom:2px;font-size:11px">
+            <span style="color:#374151">📋 Est ${fmtDY(pe.schedule?.scheduled_start||pe.created_at)} · ${getDept(pe)}</span>
+            <span style="color:#6b7280">${getAssigned(pe)}</span>
+            <span style="font-weight:600;color:#1d4ed8">${dollars(getEstTotal(pe))}</span>
+          </div>`).join('')}
+      </div>`:'';
+
     // Build all-employees selector for manual override
     const allTechs=_employees.filter(e=>!INSTALLER_IDS.has(e.id));
     const manualOpts=allTechs.map(e=>{
@@ -1958,6 +1984,7 @@ function renderAttr(jobs,estimates){
         <div class="attr-amount">${total?dollars(total):'$0.00'}</div>
       </div>
       ${custInfoHtml}
+      ${historyHtml}
       ${jobNotesHtml}
       <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Who ran the estimate &amp; gets revenue credit?</div>
       <div class="attr-candidates">${optionsHtml}</div>
@@ -5507,19 +5534,26 @@ function buildCalendarData(jobs, estimates, mode){
     }
     if(revDate) dates.add(revDate);
 
-    // Determine the tech to credit revenue to
+    // Determine the tech to credit revenue to (seller)
     const empList=getAssignedList(j).filter(x=>!INSTALLER_IDS.has(x.id));
     const jobEmp=empList.length?empList[0]:null;
     const revEmpId=attr?.techId&&attr.techId!=='skip'?attr.techId:jobEmp?.id;
     const revEmpName=attr?.techName&&attr.techId!=='skip'?attr.techName:
       jobEmp?((jobEmp.first_name||'')+' '+(jobEmp.last_name||'')).trim():'Unassigned';
 
+    // The tech who actually DID the work (assigned to the job)
+    // This may differ from revEmpId (the seller) — e.g. Eric does work Lukas sold
+    const workEmpId=jobEmp?.id||revEmpId;
+    const workEmpName=jobEmp?((jobEmp.first_name||'')+' '+(jobEmp.last_name||'')).trim():revEmpName;
+
     const jobStatus=getNormStatus(j);
     const isOnSameDate=revDate===schedDate;
+    const isSameTech=workEmpId===revEmpId;
 
-    // ---- Write to SCHEDULED DATE (where the work happens) ----
-    if(revEmpId){
-      // Handle multiple appointments — show job on each appointment date
+    // ---- Write JOB COUNT to WORK TECH column (who did the work — Eric) ----
+    // ---- Write REVENUE to SELLER column on ESTIMATE DATE (who sold it — Lukas) ----
+    // Job shows under Eric on 5/6. Revenue shows under Lukas on his estimate date.
+    if(workEmpId){
       const appointments=j.schedule?.appointments||[];
       const extraDates=new Set();
       appointments.forEach(appt=>{
@@ -5527,69 +5561,75 @@ function buildCalendarData(jobs, estimates, mode){
         if(apptDate&&apptDate!==schedDate){extraDates.add(apptDate);dates.add(apptDate);}
       });
 
-      // Return visit / callback = $0 job — show on calendar but no revenue
       const isReturn=isReturnVisit(j);
       const jobRevenue=isReturn?0:total;
 
-      const schedCell=getCell(schedDate, revEmpId);
+      // Job count cell — WORK tech's column on work date
+      const schedCell=getCell(schedDate, workEmpId);
 
-      if(isOnSameDate){
-        // Revenue and work on same date — normal case
+      if(isOnSameDate && isSameTech){
+        // Same tech, same date — normal case: everything in one cell
         if(paid) schedCell.rev+=jobRevenue;
         else if(complete) schedCell.unpaid+=total;
         else schedCell.pending+=total>0?total:0;
       } else {
-        // Work on this date, but revenue goes to a different (estimate) date
-        if(complete&&!paid) schedCell.unpaid+=total; // still show unpaid here
+        // Different tech OR different date — only show status, not revenue (revenue goes to seller)
+        if(complete&&!paid) schedCell.unpaid+=total;
+        else if(!complete&&total>0) schedCell.pending+=total;
       }
 
       schedCell.jobCount++;
       schedCell.items.push({
         type:'job',date:schedDate,schedDate,revDate,
         id:j.id,number:j.job_number,customer:getCust(j),
-        status:jobStatus,total:jobRevenue,paid,complete,
+        status:jobStatus,total:isOnSameDate&&isSameTech?jobRevenue:0,
+        paid,complete,
         unpaid:complete&&!paid&&!isReturn,
         pending:!complete&&total>0&&!isReturn,
-        dept:getDept(j),notes:getJobNotes(j),emp:revEmpName,
-        revenueElsewhere:!isOnSameDate&&paid&&!isReturn,
-        revenueDate:revDate,
-        revNote:isReturn?'Return visit / no charge':(!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:''),
-        isReturn,
-        source:attr?.source,reason:_attr[j.id]?.reason
+        dept:getDept(j),notes:getJobNotes(j),emp:workEmpName,
+        revenueElsewhere:!isSameTech||(!isOnSameDate&&paid&&!isReturn),
+        revenueDate:revDate,revEmpName,
+        revNote:isReturn?'Return visit / no charge':
+          !isSameTech?`Revenue → ${revEmpName} on ${revDate}`:
+          (!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:''),
+        isReturn,source:attr?.source,reason:_attr[j.id]?.reason
       });
 
-      // Also show job on any additional appointment dates (multi-visit jobs)
+      // Additional appointment dates
       extraDates.forEach(apptDate=>{
-        const apptCell=getCell(apptDate, revEmpId);
+        const apptCell=getCell(apptDate, workEmpId);
         apptCell.jobCount++;
         apptCell.items.push({
           type:'job',date:apptDate,schedDate,revDate,
           id:j.id,number:j.job_number,customer:getCust(j),
-          status:jobStatus,total:0,paid,complete,
-          unpaid:false,pending:false,
-          dept:getDept(j),notes:getJobNotes(j),emp:revEmpName,
+          status:jobStatus,total:0,paid,complete,unpaid:false,pending:false,
+          dept:getDept(j),notes:getJobNotes(j),emp:workEmpName,
           revenueElsewhere:true,revenueDate:schedDate,
-          revNote:isReturn?'Return visit / no charge':`Additional visit · Revenue on ${schedDate}`,
-          isReturn,
-          source:attr?.source
+          revNote:`Additional visit · Revenue on ${schedDate}`,
+          isReturn,source:attr?.source
         });
       });
     }
 
-    // ---- Write revenue to ESTIMATE DATE (different from sched date) ----
-    // Return visits never contribute revenue
-    if(revDate&&revDate!==schedDate&&revEmpId&&paid&&!isReturnVisit(j)){
+    // ---- Write REVENUE to SELLER column on ESTIMATE DATE ----
+    // This is separate from the job count above — revenue always goes to the seller (Lukas)
+    if(revEmpId&&paid&&!isReturnVisit(j)){
       const jobRevenue=getJobRevenue(j);
-      dates.add(revDate);
-      const revCell=getCell(revDate, revEmpId);
-      revCell.rev+=jobRevenue;
-      // Add a revenue reference item (not a duplicate job entry)
-      revCell.items.push({
-        type:'revenue_ref',date:revDate,schedDate,
-        id:j.id,number:j.job_number,customer:getCust(j),
-        status:jobStatus,total:jobRevenue,paid,dept:getDept(j),emp:revEmpName,
-        note:`Job completed ${schedDate} · Revenue credited here`
-      });
+      if(!isSameTech||!isOnSameDate){
+        // Only write separate rev cell when seller ≠ worker OR date differs
+        dates.add(revDate);
+        const revCell=getCell(revDate, revEmpId);
+        revCell.rev+=jobRevenue;
+        revCell.items.push({
+          type:'revenue_ref',date:revDate,schedDate,
+          id:j.id,number:j.job_number,customer:getCust(j),
+          status:jobStatus,total:jobRevenue,paid,dept:getDept(j),
+          emp:revEmpName,workEmp:workEmpName,
+          note:!isSameTech
+            ?`Completed by ${workEmpName} on ${schedDate} · Revenue credited to ${revEmpName}`
+            :`Job completed ${schedDate} · Revenue credited here`
+        });
+      }
     }
   });
 
@@ -5709,8 +5749,11 @@ function renderCalendar(){
       // Revenue refs = jobs paid on another date, credited back here (retroactive)
       const refCount=c.items.filter(i=>i.type==='revenue_ref').length;
       const retroDisplay=refCount>0?`<div style="font-size:10px;font-weight:600;color:#059669;background:#ECFDF5;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">↩ ${refCount} job${refCount>1?'s':''} collected later</div>`:'';
-      // Jobs done here, revenue credited to earlier estimate date
-      const elsewhereDisplay=elsewhereJobs>0&&c.rev===0&&refCount===0?`<div style="font-size:10px;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">↩ Revenue on estimate date</div>`:'';
+      // Unattributed jobs — jobs in this cell with no confirmed attribution
+      const unattribItems=c.items.filter(i=>i.type==='job'&&(!_jobAttribution[i.id]||_jobAttribution[i.id]?.source==='unresolved'||_jobAttribution[i.id]?.source==='no_estimate'));
+      const unattribDisplay=unattribItems.length>0
+        ?`<div style="font-size:10px;font-weight:600;color:#7C3AED;background:#F5F3FF;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">❓ ${unattribItems.length} unconfirmed</div>`
+        :'';
       // Plain English counts
       const jobWord=c.jobCount===1?'1 Job':`${c.jobCount} Jobs`;
       const estWord=c.estCount===1?'1 Estimate':`${c.estCount} Estimates`;
@@ -5719,7 +5762,7 @@ function renderCalendar(){
       if(c.estCount>0) meta.push(`<span>📋 ${estWord}</span>`);
 
       row+=`<td class="${cellClass}" onclick="openCalPopup('${d}','${emp.id}','${((emp.first_name||'')+' '+(emp.last_name||'')).trim()}')">
-        ${revDisplay}${unpaidDisplay}${pendingDisplay}${retroDisplay}${elsewhereDisplay}
+        ${revDisplay}${unpaidDisplay}${pendingDisplay}${retroDisplay}${unattribDisplay}
         <div class="cal-meta">${meta.join(' ')}</div>
       </td>`;
     });
@@ -6211,5 +6254,21 @@ function renderBracketHTML({rounds,seeded}){
   </div>`;
 }
 </script>
+
+<!-- SUMMARY REPORT MODAL — at root level so position:fixed works from any tab -->
+<div class="is-modal-overlay" id="summaryOverlay" onclick="closeSummaryReport()" style="display:none"></div>
+<div class="is-modal" id="summaryModal" style="display:none;width:min(720px,96vw);max-height:90vh">
+  <div class="is-modal-header">
+    <div class="is-modal-title">📊 Executive Summary Report</div>
+    <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeSummaryReport()">✕</span>
+  </div>
+  <div id="summaryPreview" style="font-size:13px;line-height:1.7;color:#374151;overflow-y:auto;max-height:60vh;padding:4px 0"></div>
+  <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid #f3f4f6">
+    <button class="pull-btn" onclick="printSummaryReport()">🖨 Print / PDF</button>
+    <button class="is-btn primary" onclick="downloadSummaryDocx()">📄 Download Word Doc</button>
+    <button class="is-btn" onclick="closeSummaryReport()">Close</button>
+  </div>
+</div>
+
 </body>
 </html>
