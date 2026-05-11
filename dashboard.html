@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.1</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.2</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.2</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -631,7 +631,7 @@ tr:hover td{background:#fafafa}
           <label style="font-size:12px;color:#6b7280;margin-left:8px">Sort techs by:</label>
           <select id="calEmpSort" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
             <option value="name">Name A–Z</option>
-            <option value="dept">Department (inferred from jobs)</option>
+            <option value="dept">Department</option>
             <option value="revenue">Revenue (high–low)</option>
           </select>
           <label style="font-size:12px;color:#6b7280;margin-left:8px">Employees:</label>
@@ -1384,7 +1384,6 @@ async function loadAll(){
   $$('statusBar').textContent='Fetching from Housecall Pro...';
   try{
     const jSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
-    const jCreatedQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     const eSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
@@ -1410,17 +1409,9 @@ async function loadAll(){
     // Fetch jobs by BOTH scheduled_start and created_at date ranges
     // This catches jobs that were created in the period but scheduled outside it (or unscheduled)
     async function fetchJobs(){
-      const [bySchedule, byCreated]=await Promise.all([
-        fetchAll('/v2/jobs'+jSchedQ,['jobs','data','results']),
-        fetchAll('/v2/jobs'+jCreatedQ,['jobs','data','results'])
-      ]);
-      // Merge and deduplicate by job id
-      const seen=new Set();
-      const merged=[];
-      [...bySchedule,...byCreated].forEach(j=>{
-        if(!seen.has(j.id)){seen.add(j.id);merged.push(j);}
-      });
-      return merged;
+      // Schedule-only fetch — avoids pulling all historical jobs via created_at range
+      // Jobs without a scheduled_start will be missed but this is the correct HCP behavior
+      return fetchAll('/v2/jobs'+jSchedQ,['jobs','data','results']);
     }
 
     const [jobs,estimates,empRaw,plans]=await Promise.all([
@@ -5394,44 +5385,31 @@ function buildCalendarData(jobs, estimates, mode){
   // 5. Refunded jobs are excluded entirely
 
   const calSortMode=$$('calEmpSort')?.value||'name';
+
+  // Hardcoded department assignments — defined BEFORE sort so they're available
+  const DEPT_ORDER={
+    'Gannon Blaiser':0,'Andy Mitchell':0,          // HVAC Installers
+    'Lukas Schlosser':1,'Doug McNamara':1,'Eric Stoffel':1, // HVAC Service
+    'Mark Daniels':2,'Gordon Radant':2,'Jon Glenn':2,'Jody Serres':2, // Plumbing
+  };
+  const DEPT_LABELS={
+    'Gannon Blaiser':'HVAC Installer','Andy Mitchell':'HVAC Installer',
+    'Lukas Schlosser':'HVAC Service','Doug McNamara':'HVAC Service','Eric Stoffel':'HVAC Service',
+    'Mark Daniels':'Plumbing','Gordon Radant':'Plumbing','Jon Glenn':'Plumbing','Jody Serres':'Plumbing',
+  };
+
+  // Pre-stamp _deptLabel and _deptOrder on every employee BEFORE filtering/sorting
+  _employees.forEach(e=>{
+    const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+    e._deptLabel=DEPT_LABELS[name]||e.role||'';
+    e._deptOrder=DEPT_ORDER[name]??9;
+  });
+
   const employees = _employees.filter(e=>{
     const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
     return !INSTALLER_NAMES.includes(name) && isCalEmpVisible(e.id);
   }).sort((a,b)=>{
     if(calSortMode==='dept'){
-      // Hardcoded department assignments — inferred from HCP role string is unreliable
-      // Installers: Gannon Blaiser, Andy Mitchell
-      // HVAC Service: Lukas Schlosser, Doug McNamara
-      // Plumbing: Mark Daniels, Gordon Radant, Jon Glenn
-      // Office/Other: everyone else
-      const DEPT_ORDER={
-        'Gannon Blaiser':0,   // Installer (HVAC)
-        'Andy Mitchell':0,    // Installer (HVAC)
-        'Lukas Schlosser':1,  // HVAC Service
-        'Doug McNamara':1,    // HVAC Service
-        'Eric Stoffel':1,     // HVAC Service
-        'Mark Daniels':2,     // Plumbing
-        'Gordon Radant':2,    // Plumbing
-        'Jon Glenn':2,        // Plumbing
-        'Jody Serres':2,      // Plumbing
-      };
-      const DEPT_LABELS={
-        'Gannon Blaiser':'HVAC Installer',
-        'Andy Mitchell':'HVAC Installer',
-        'Lukas Schlosser':'HVAC Service',
-        'Doug McNamara':'HVAC Service',
-        'Eric Stoffel':'HVAC Service',
-        'Mark Daniels':'Plumbing',
-        'Gordon Radant':'Plumbing',
-        'Jon Glenn':'Plumbing',
-        'Jody Serres':'Plumbing',
-      };
-      // Store labels for header display
-      employees.forEach(e=>{
-        const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-        e._deptLabel=DEPT_LABELS[name]||e.role||'';
-        e._deptOrder=DEPT_ORDER[name]??9;
-      });
       const da=a._deptOrder??9;
       const db=b._deptOrder??9;
       if(da!==db) return da-db;
