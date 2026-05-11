@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v9.9</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v9.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3314,13 +3314,8 @@ function printGoals(){
   const content=$$('goalsContent');
   if(!content||!_jobs.length){alert('Pull a report first.');return;}
 
-  // Clone and strip elements that are too tall for one page
   const clone=content.cloneNode(true);
-  // Remove monthly bar chart (too tall — omit from one-pager)
   clone.querySelectorAll('button,select,input,.no-print').forEach(el=>el.remove());
-  // Hide the monthly bar chart section
-  const charts=clone.querySelectorAll('[style*="border:1px solid #e5e7eb;border-radius:10px"]');
-  charts.forEach(el=>{if(el.textContent.includes('Monthly Revenue')) el.style.display='none';});
 
   const styles=[...document.styleSheets].map(ss=>{
     try{return [...ss.cssRules].map(r=>r.cssText).join('\n');}catch(e){return '';}
@@ -3331,76 +3326,76 @@ function printGoals(){
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
     @page{size:letter portrait;margin:0}
-    html,body{width:8.5in;height:11in;overflow:hidden;background:#fff;font-family:Arial,sans-serif}
+    html,body{width:8.5in;background:#fff;font-family:Arial,sans-serif;color:#111827}
     @media print{button{display:none!important}}
 
-    /* Page wrapper — exact letter size */
     .page{
       width:8.5in;
-      height:11in;
-      max-height:11in;
-      padding:0.35in 0.4in;
+      padding:0.3in 0.35in;
       display:flex;
       flex-direction:column;
-      overflow:hidden;
     }
 
-    /* Header */
-    .print-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:7px;margin-bottom:10px;flex-shrink:0}
-    .print-title{font-size:16px;font-weight:800;color:#1A3A5C}
+    .print-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A3A5C;padding-bottom:6px;margin-bottom:8px;flex-shrink:0}
+    .print-title{font-size:15px;font-weight:800;color:#1A3A5C}
 
-    /* All goal content fills remaining space */
-    .goals-body{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:8px}
-
-    /* Inject all dashboard styles */
+    /* All dashboard styles */
     ${styles}
 
-    /* Compact overrides for print */
-    .goal-hero{padding:12px 16px!important;margin-bottom:0!important;border-radius:8px!important;flex-shrink:0}
-    .goal-hero-rev{font-size:26px!important;margin-bottom:2px!important}
-    .goal-hero-title{font-size:10px!important;margin-bottom:2px!important}
-    .goal-hero-sub{font-size:10px!important}
-    .goal-ring-wrap{gap:12px!important}
-    .goal-ring-stats>div{margin-top:8px!important}
-    .goal-ring-stats>div>div{padding:6px 10px!important}
-    .goal-ring-stats>div>div>div:first-child{font-size:9px!important}
-    .goal-ring-stats>div>div>div:last-child{font-size:15px!important}
+    /* Compact overrides — tighter than screen to fit everything */
+    .goal-hero{padding:10px 14px!important;margin-bottom:7px!important;border-radius:7px!important}
+    .goal-hero-title{font-size:9px!important;margin-bottom:2px!important}
+    .goal-hero-rev{font-size:22px!important;margin-bottom:2px!important}
+    .goal-hero-sub{font-size:9px!important}
+    .goal-ring-wrap{gap:10px!important}
+    .goal-ring-svg{width:110px!important;height:110px!important}
+    .goal-ring-stats>div[style]{margin-top:6px!important;gap:6px!important}
+    .goal-ring-stats>div>div{padding:5px 8px!important}
+    .goal-ring-stats>div>div>div:first-child{font-size:8px!important}
+    .goal-ring-stats>div>div>div:last-child{font-size:13px!important}
 
-    .goal-periods{gap:5px!important;margin-bottom:0!important;flex-shrink:0}
-    .goal-period-card{padding:7px 8px!important;border-radius:6px!important}
-    .goal-period-label{font-size:8px!important;margin-bottom:2px!important}
-    .goal-period-target{font-size:9px!important;margin-bottom:3px!important}
-    .goal-period-actual{font-size:15px!important;margin-bottom:3px!important}
-    .goal-period-bar{height:5px!important;margin-bottom:3px!important}
-    .goal-period-pct{font-size:10px!important}
+    .goal-periods{gap:4px!important;margin-bottom:7px!important}
+    .goal-period-card{padding:6px 7px!important;border-radius:5px!important}
+    .goal-period-label{font-size:7px!important;margin-bottom:1px!important}
+    .goal-period-target{font-size:8px!important;margin-bottom:2px!important}
+    .goal-period-actual{font-size:13px!important;margin-bottom:2px!important}
+    .goal-period-bar{height:4px!important;margin-bottom:2px!important}
+    .goal-period-pct{font-size:9px!important}
+    .goal-pace-diff{font-size:8px!important}
 
-    .goal-pace{padding:8px 10px!important;margin-bottom:0!important;flex-shrink:0;border-radius:6px!important}
-    .goal-pace-head{font-size:11px!important;margin-bottom:5px!important}
-    .goal-pace-row{padding:3px 0!important;font-size:10px!important}
-    .goal-pace-diff{font-size:9px!important}
+    .goal-pace{padding:7px 9px!important;margin-bottom:7px!important;border-radius:5px!important}
+    .goal-pace-head{font-size:10px!important;margin-bottom:4px!important}
+    .goal-pace-row{padding:2px 0!important;font-size:9px!important}
 
-    /* Hide bar chart on print */
-    .goals-body > div:last-child{display:none!important}
+    /* Bar chart — compact but visible */
+    .goals-body>div:last-child{margin-bottom:0!important}
+    .goals-body>div:last-child>div:first-child{margin-bottom:6px!important;font-size:10px!important}
+    .goals-body>div:last-child>div:last-child{height:60px!important}
+    .goals-body>div:last-child>div>div{height:60px!important}
+    .goals-body>div:last-child>div>div>div>div>div[style*="height:80px"]{height:40px!important}
+    .goals-body>div:last-child>div>div>div[style*="height:120px"]{height:60px!important}
   </style></head><body>
   <div class="page">
     <div class="print-header">
       <div>
         <div class="print-title">🏠 Midstate Plumbing, Heating & Cooling — Revenue Goals</div>
-        <div style="font-size:10px;color:#6b7280;margin-top:2px">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:1px">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
       </div>
-      <div style="font-size:10px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
+      <div style="font-size:9px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
     </div>
     <div class="goals-body">${clone.innerHTML}</div>
   </div>
   <script>window.onload=function(){
-    // Auto-scale down if content overflows the page
+    // Measure and scale to fit exactly one page
     const page=document.querySelector('.page');
     if(page){
-      const ratio=Math.min(1, (11*96-70) / page.scrollHeight);
-      if(ratio<0.99){
-        page.style.transform='scale('+ratio.toFixed(3)+')';
+      const pageH=11*96; // 11in in px at 96dpi
+      const contentH=page.scrollHeight;
+      if(contentH>pageH){
+        const scale=(pageH-20)/contentH;
+        page.style.transform='scale('+scale.toFixed(4)+')';
         page.style.transformOrigin='top left';
-        page.style.width=(8.5/ratio)+'in';
+        page.style.width=(8.5/scale)+'in';
       }
     }
     window.print();
@@ -3484,14 +3479,16 @@ function printCalendar(){
     /* Copy all calendar styles from main page */
     ${styles}
 
-    /* Print overrides — remove sticky, ensure colors */
+    /* Print overrides — multi-page friendly, colors forced */
     .cal-table{width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed}
-    .cal-table th{position:static!important;background:#1A3A5C!important;color:#fff!important;padding:4px 5px;font-size:8px;white-space:nowrap;border:1px solid #0d2240;text-align:center}
-    .cal-table th.date-col{text-align:left;min-width:68px;width:68px}
-    .cal-table td{font-size:9px;padding:3px 4px;border:1px solid #ccc;vertical-align:top}
-    .cal-table td.date-cell{position:static!important;font-size:9px;font-weight:700;white-space:nowrap;min-width:68px;width:68px;background:#f9fafb!important}
+    .cal-table th{position:static!important;background:#1A3A5C!important;color:#fff!important;padding:5px 6px;font-size:8px;white-space:nowrap;border:1px solid #0d2240;text-align:center}
+    .cal-table th.date-col{text-align:left;min-width:72px;width:72px}
+    .cal-table thead{display:table-header-group} /* repeat header on every page */
+    .cal-table td{font-size:9px;padding:4px 5px;border:1px solid #ccc;vertical-align:top}
+    .cal-table td.date-cell{position:static!important;font-size:9px;font-weight:700;white-space:nowrap;min-width:72px;width:72px;background:#f9fafb!important}
     .cal-table tr.weekend td.date-cell{background:#f1f0eb!important;color:#9ca3af}
     .cal-table tr.today td.date-cell{background:#FFF9DB!important;color:#854F0B;font-weight:800}
+    .cal-table tr{page-break-inside:avoid} /* never split a row across pages */
     .cal-cell.est-only{background:#BBDEFB!important}
     .cal-cell.in-progress{background:#FFF9C4!important}
     .cal-cell.paid-low{background:#C8E6C9!important}
@@ -3503,14 +3500,15 @@ function printCalendar(){
     .cal-rev{font-size:10px;font-weight:700;color:#166534}
     .cal-cell.paid-high .cal-rev,.cal-cell.paid-high *{color:#fff!important}
     .cal-meta{font-size:8px;color:#555;margin-top:1px}
+    .cal-rev-note{font-size:8px;margin-top:2px}
 
     /* Header */
     .print-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:7px;border-bottom:3px solid #1A3A5C;margin-bottom:8px}
-    .print-title{font-size:15px;font-weight:800;color:#1A3A5C}
-    .print-total{font-size:13px;font-weight:800;color:#166534}
+    .print-title{font-size:14px;font-weight:800;color:#1A3A5C}
+    .print-total{font-size:12px;font-weight:800;color:#166534}
 
-    /* Legend */
-    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:8px;align-items:center}
+    /* Legend — always at the very end, no page break */
+    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:8px;align-items:center;page-break-inside:avoid}
     .leg{display:flex;align-items:center;gap:3px}
     .sw{width:10px;height:10px;border-radius:2px;display:inline-block;border:1px solid #ddd;flex-shrink:0}
   </style>
@@ -4209,7 +4207,7 @@ function loadIS(){
 async function fetchISFromSheets(){
   if(!_sheetsProxy) return; // No proxy configured yet
   try{
-    const res=await fetch(_sheetsProxy+'?action=getISData',{redirect:'follow'});
+    const res=await fetch(_sheetsProxy+'?action=getISData',{redirect:'follow',mode:'cors'});
     const data=await res.json();
     if(data.success){
       // Merge Sheets data into local state (Sheets wins)
@@ -4260,7 +4258,7 @@ async function syncISStatusToSheets(estId, status, convertedBy){
     await fetch(_sheetsProxy,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      redirect:'follow',
+      mode:'no-cors',
       body:JSON.stringify({
         action:'saveISStatus',
         estId,
@@ -4284,7 +4282,7 @@ async function syncISActivityToSheets(estId, activityItem){
     await fetch(_sheetsProxy,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      redirect:'follow',
+      mode:'no-cors',
       body:JSON.stringify({
         action:'saveISActivity',
         estId,
@@ -4630,7 +4628,7 @@ async function syncISEmailStateToSheets(){
     await fetch(_sheetsProxy,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      redirect:'follow',
+      mode:'no-cors',
       body:JSON.stringify({
         action:'saveISEmailState',
         emailStatuses:_isEmailStatuses,
@@ -5401,36 +5399,41 @@ function buildCalendarData(jobs, estimates, mode){
     return !INSTALLER_NAMES.includes(name) && isCalEmpVisible(e.id);
   }).sort((a,b)=>{
     if(calSortMode==='dept'){
-      // Infer department from actual job history — HCP role is always "field tech"
-      function empPrimaryDept(emp){
-        const empId=emp.id;
-        // Count jobs by department for this employee
-        const counts={};
-        _jobs.forEach(j=>{
-          if(isJobCanceled(j)) return;
-          const assigned=getAssignedList(j);
-          if(!assigned.some(e=>e.id===empId)) return;
-          const d=getDept(j)||'Other';
-          counts[d]=(counts[d]||0)+1;
-        });
-        // Also check estimates
-        _estimates.forEach(e=>{
-          const assigned=getAssignedList(e);
-          if(!assigned.some(x=>x.id===empId)) return;
-          const d=getDept(e)||'Other';
-          counts[d]=(counts[d]||0)+0.5; // weight estimates less than jobs
-        });
-        // Find top department
-        const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'Other';
-        // Map to sort order
-        const order={'HVAC':0,'Heating':0,'Cooling':0,'Plumbing':1,'Drains':2,'Drain':2,'Water Treatment':3,'Other':9};
-        const key=Object.keys(order).find(k=>top.toLowerCase().includes(k.toLowerCase()))||'Other';
-        return{dept:top,order:order[key]??9};
-      }
-      const deptCache={};
-      employees.forEach(e=>{deptCache[e.id]=empPrimaryDept(e);});
-      const da=deptCache[a.id]?.order??9;
-      const db=deptCache[b.id]?.order??9;
+      // Hardcoded department assignments — inferred from HCP role string is unreliable
+      // Installers: Gannon Blaiser, Andy Mitchell
+      // HVAC Service: Lukas Schlosser, Doug McNamara
+      // Plumbing: Mark Daniels, Gordon Radant, Jon Glenn
+      // Office/Other: everyone else
+      const DEPT_ORDER={
+        'Gannon Blaiser':0,   // Installer (HVAC)
+        'Andy Mitchell':0,    // Installer (HVAC)
+        'Lukas Schlosser':1,  // HVAC Service
+        'Doug McNamara':1,    // HVAC Service
+        'Eric Stoffel':1,     // HVAC Service
+        'Mark Daniels':2,     // Plumbing
+        'Gordon Radant':2,    // Plumbing
+        'Jon Glenn':2,        // Plumbing
+        'Jody Serres':2,      // Plumbing
+      };
+      const DEPT_LABELS={
+        'Gannon Blaiser':'HVAC Installer',
+        'Andy Mitchell':'HVAC Installer',
+        'Lukas Schlosser':'HVAC Service',
+        'Doug McNamara':'HVAC Service',
+        'Eric Stoffel':'HVAC Service',
+        'Mark Daniels':'Plumbing',
+        'Gordon Radant':'Plumbing',
+        'Jon Glenn':'Plumbing',
+        'Jody Serres':'Plumbing',
+      };
+      // Store labels for header display
+      employees.forEach(e=>{
+        const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+        e._deptLabel=DEPT_LABELS[name]||e.role||'';
+        e._deptOrder=DEPT_ORDER[name]??9;
+      });
+      const da=a._deptOrder??9;
+      const db=b._deptOrder??9;
       if(da!==db) return da-db;
     }
     if(calSortMode==='revenue'){
@@ -5667,29 +5670,16 @@ function renderCalendar(){
   const showDeptInHeader=($$('calEmpSort')?.value||'name')==='dept';
 
   // Build dept label cache for headers
-  const deptLabelCache={};
-  if(showDeptInHeader){
-    filteredEmps.forEach(emp=>{
-      const counts={};
-      _jobs.forEach(j=>{
-        if(isJobCanceled(j)) return;
-        if(!getAssignedList(j).some(e=>e.id===emp.id)) return;
-        const d=getDept(j)||'Other';
-        counts[d]=(counts[d]||0)+1;
-      });
-      const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||emp.role||'';
-      deptLabelCache[emp.id]=top;
-    });
-  }
-
   let html=`<table class="cal-table">
   <thead><tr>
     <th class="date-col">Date</th>
     ${filteredEmps.map(e=>{
       const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-      const deptLabel=showDeptInHeader&&deptLabelCache[e.id]
-        ?`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${deptLabelCache[e.id]}</div>`
-        :'';
+      // Use _deptLabel set during sort, or role as fallback
+      const labelText=e._deptLabel||e.role||'';
+      const deptLabel=showDeptInHeader&&labelText
+        ?`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${labelText}</div>`
+        :`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${e.role||'field tech'}</div>`;
       return`<th>${name}${deptLabel}</th>`;
     }).join('')}
   </tr></thead><tbody>`;
