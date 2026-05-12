@@ -234,7 +234,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.1</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.3</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -430,8 +430,9 @@ function setSteps(active) {
   var labels = ['CallRail','HCP Data','Matching','Analysis'];
   var icons = {done:'&#10003;',active:'&hellip;',pending:'&middot;',err:'!'};
   var cls = {done:'pd',active:'pa',pending:'pp',err:'pe'};
+  var activeIdx = steps.indexOf(active);
   document.getElementById('progSteps').innerHTML = steps.map(function(s,i){
-    var state = steps.indexOf(active) > i ? 'done' : s === active ? 'active' : 'pending';
+    var state = i < activeIdx ? 'done' : s === active ? (active === 'ai' ? 'done' : 'active') : 'pending';
     return '<div class="ps"><div class="pi '+cls[state]+'">'+icons[state]+'</div><span>'+labels[i]+'</span></div>'+(i<steps.length-1?'<span class="parr">&rarr;</span>':'');
   }).join('');
 }
@@ -479,7 +480,6 @@ async function runReport() {
   setSteps('cr');
 
   try {
-    // Main report: filtered calls matched to HCP
     var matched = await fetchAndMatch(key, dFrom, dTo, tFilter);
     setSteps('match');
     var final = runAI(matched);
@@ -487,27 +487,21 @@ async function runReport() {
     allRows = final;
     renderAll(allRows);
 
+    // Store credentials for lazy WN scan when tab is clicked
+    window._wnKey   = key;
+    window._wnDFrom = dFrom;
+    window._wnDTo   = dTo;
+    window._wnReady = true;
+    document.getElementById('tab-wrongnum').textContent = 'Wrong Numbers (click to scan)';
+
     document.getElementById('expBtn').disabled = false;
     document.getElementById('printBtn').disabled = false;
     document.getElementById('runBtn').disabled = false;
     document.getElementById('lastRun').textContent = 'Updated ' + new Date().toLocaleTimeString();
     document.getElementById('progMsg').innerHTML =
       '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
-      allRows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0;}).length +
-      ' matched to HCP. Results also saved to <strong>CR_Tracker</strong> tab in your Google Sheet.' +
-      ' <span style="color:var(--muted)">Scanning wrong numbers in background&hellip;</span></div>';
-
-    // Wrong number scan runs in background — doesn't block UI
-    fetchCalls(key, dFrom, dTo, 'all').then(function(allCallsForWN) {
-      renderWrongNumbers(allCallsForWN);
-      var wnCount = parseInt(document.getElementById('wnCount').textContent) || 0;
-      document.getElementById('progMsg').innerHTML =
-        '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
-        allRows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0;}).length +
-        ' matched to HCP. ' + wnCount + ' wrong numbers detected across all lines.</div>';
-    }).catch(function() {
-      // Silent fail on wrong number scan — not critical
-    });
+      allRows.filter(function(r){ return r.outcome && r.outcome.indexOf('Booked') >= 0; }).length +
+      ' matched to HCP. Results saved to <strong>CR_Tracker</strong> tab in your Google Sheet.</div>';
   } catch(e) {
     showErr(e.message || String(e));
     document.getElementById('runBtn').disabled = false;
@@ -967,6 +961,24 @@ function switchTab(tab) {
   document.getElementById('panel-wrongnum').style.display = tab === 'wrongnum' ? '' : 'none';
   document.getElementById('tab-calls').classList.toggle('active',    tab === 'calls');
   document.getElementById('tab-wrongnum').classList.toggle('active', tab === 'wrongnum');
+
+  // Lazy load wrong numbers when tab is first clicked
+  if (tab === 'wrongnum' && window._wnReady && !window._wnScanned) {
+    window._wnScanned = true;
+    document.getElementById('wnEmpty').textContent = 'Scanning all calls for wrong numbers…';
+    document.getElementById('wnEmpty').style.display = '';
+    document.getElementById('wnTableWrap').style.display = 'none';
+    document.getElementById('tab-wrongnum').textContent = 'Wrong Numbers (scanning…)';
+    fetchCalls(window._wnKey, window._wnDFrom, window._wnDTo, 'all')
+      .then(function(calls) {
+        renderWrongNumbers(calls);
+        var wnCount = parseInt(document.getElementById('wnCount').textContent) || 0;
+        document.getElementById('tab-wrongnum').innerHTML = 'Wrong Numbers <span id="wnBadge" class="cnt">' + wnCount + '</span>';
+      })
+      .catch(function(e) {
+        document.getElementById('wnEmpty').textContent = 'Error scanning: ' + e.message;
+      });
+  }
 }
 
 var WRONG_NUMBER_PHRASES = [
