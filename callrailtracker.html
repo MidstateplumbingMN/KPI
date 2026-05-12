@@ -124,7 +124,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v1.2</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v1.5</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -267,7 +267,7 @@ var allRows = [];
 
 function setSteps(active) {
   var steps = ['cr','hcp','match','ai'];
-  var labels = ['CallRail','HCP Data','Matching','AI Analysis'];
+  var labels = ['CallRail','HCP Data','Matching','Analysis'];
   var icons = {done:'&#10003;',active:'&hellip;',pending:'&middot;',err:'!'};
   var cls = {done:'pd',active:'pa',pending:'pp',err:'pe'};
   document.getElementById('progSteps').innerHTML = steps.map(function(s,i){
@@ -325,7 +325,7 @@ async function runReport() {
     setSteps('match');
     var matched = matchAll(calls, hcp);
     setSteps('ai');
-    var final = await runAI(matched);
+    var final = runAI(matched);
     allRows = final;
     renderAll(allRows);
     document.getElementById('expBtn').disabled = false;
@@ -361,87 +361,181 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
     throw new Error('CallRail '+resp.status+': '+detail);
   }
   var d = await resp.json();
-  return d.calls || [];
+  return (d.calls || []).map(function(c){
+    return {
+      id: c.id,
+      datetime: c.start_time,
+      callerName: c.customer_name || 'Unknown',
+      phone: c.customer_phone_number || '',
+      tracking_phone_number: c.tracking_phone_number || '',
+      duration: c.duration || 0,
+      transcript: c.transcription || '',
+      recordingUrl: c.recording || '',
+      callDisposition: c.call_disposition || '',
+      callType: c.call_type || '',
+      answered: c.answered
+    };
+  });
 }
 
+var SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
+
 async function fetchHCP(dFrom, dTo) {
-  var resp = await fetch(HCP_URL+'?action=getSheetData&tabs=Jobs,Estimates&dateFrom='+dFrom+'&dateTo='+dTo);
-  if (!resp.ok) throw new Error('HCP Apps Script error: '+resp.status);
-  return await resp.json();
+  // Fetch Jobs and Estimates tabs directly as CSV from Google Sheets
+  // Tab GIDs — Jobs is the first sheet, Estimates second
+  // We fetch both in parallel
+  var results = await Promise.allSettled([
+    fetchSheetTab('Jobs'),
+    fetchSheetTab('Estimates')
+  ]);
+
+  var jobs = results[0].status === 'fulfilled' ? results[0].value : [];
+  var estimates = results[1].status === 'fulfilled' ? results[1].value : [];
+
+  return { Jobs: jobs, Estimates: estimates };
+}
+
+async function fetchSheetTab(tabName) {
+  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tabName);
+  var resp = await fetch(url);
+  if (!resp.ok) throw new Error('Could not read ' + tabName + ' tab: ' + resp.status);
+  var csv = await resp.text();
+  return parseCSV(csv);
+}
+
+function parseCSV(csv) {
+  var lines = csv.trim().split('\n');
+  if (lines.length < 2) return [];
+  var headers = parseCSVLine(lines[0]);
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var vals = parseCSVLine(lines[i]);
+    var obj = {};
+    headers.forEach(function(h, idx) {
+      obj[h.trim().replace(/^"|"$/g,'')] = (vals[idx] || '').replace(/^"|"$/g,'').trim();
+    });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function parseCSVLine(line) {
+  var result = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
 }
 
 function matchAll(calls, hcp) {
-  var jobs = (hcp.Jobs||[]).map(function(j){return Object.assign({},j,{_t:'job'})});
-  var ests = (hcp.Estimates||[]).map(function(e){return Object.assign({},e,{_t:'estimate'})});
+  // Jobs columns: Pull Date, Date Range, Job #, Invoice #, Customer, Phone, Email,
+  //               Address, Department, Status, Assigned To, Revenue Credited To,
+  //               Attribution Source, Total ($), Outstanding ($), Scheduled, Completed, Description
+  // Estimates columns: Pull Date, Date Range, Est #, Customer, Phone, Email, Department,
+  //                    Tech, Status, Converted, Converted How, Value ($), # Options, Created, Notes
+
+  var jobs = (hcp.Jobs||[]).map(function(j){ return Object.assign({},j,{_t:'job'}); });
+  var ests = (hcp.Estimates||[]).map(function(e){ return Object.assign({},e,{_t:'estimate'}); });
   var all = jobs.concat(ests);
+
+  // Index by normalized phone
   var byPhone = {};
   all.forEach(function(r){
-    var ph = normalPhone(r.customer_phone||r.phone);
+    var ph = normalPhone(r['Phone'] || r['customer_phone'] || '');
     if (ph) { if (!byPhone[ph]) byPhone[ph]=[]; byPhone[ph].push(r); }
   });
+
   return calls.map(function(c){
-    var cp = normalPhone(c.customer_phone_number);
-    var matches = byPhone[cp]||[];
+    var cp = normalPhone(c.phone);
+    var matches = byPhone[cp] || [];
     var best=null, bestScore=0, bestReason='';
+
     matches.forEach(function(r){
       var sc=60, reasons=['phone'];
-      var cn=(c.customer_name||'').toLowerCase();
-      var rn=(r.customer_name||r.name||'').toLowerCase();
-      if (cn && rn && rn.indexOf(cn.split(' ')[0])>=0){sc+=25;reasons.push('name');}
-      var tr=(c.transcription||'').toLowerCase();
-      var addr=(r.service_address||r.address||'').toLowerCase();
-      var parts=addr.split(' ').filter(function(x){return x.length>3});
-      if (parts.some(function(p){return tr.indexOf(p)>=0})){sc+=15;reasons.push('address');}
-      if(sc>bestScore){bestScore=sc;best=r;bestReason=reasons.join(' + ');}
+      var cn = (c.callerName||'').toLowerCase();
+      var rn = (r['Customer']||r['customer_name']||'').toLowerCase();
+      if (cn && rn && cn !== 'unknown' && rn.indexOf(cn.split(' ')[0]) >= 0) { sc+=25; reasons.push('name'); }
+      var tr = (c.transcript||'').toLowerCase();
+      var addr = (r['Address']||r['address']||'').toLowerCase();
+      var parts = addr.split(' ').filter(function(x){ return x.length > 3; });
+      if (parts.length && parts.some(function(p){ return tr.indexOf(p) >= 0; })) { sc+=15; reasons.push('address'); }
+      if (sc > bestScore) { bestScore=sc; best=r; bestReason=reasons.join(' + '); }
     });
-    var rev = best&&best._t==='job' ? parseFloat(best.total_amount||best.revenue||0) : 0;
-    var outcome = !best ? 'No Match in HCP' : best._t==='job' ? 'Booked - Job' : 'Booked - Estimate';
-    var src = normalPhone(c.tracking_phone_number)===TRACKING.facebook ? 'Facebook Ad' : 'Organic';
+
+    var rev = best && best._t==='job' ? parseFloat((best['Total ($)']||best['total']||'0').toString().replace(/[$,]/g,'')) : 0;
+    var outcome = !best ? 'No Match in HCP'
+      : best._t==='job' ? 'Booked - Job'
+      : 'Booked - Estimate';
+
+    var src = normalPhone(c.tracking_phone_number||'') === TRACKING.facebook ? 'Facebook Ad' : 'Organic';
+
     return {
-      id:c.id, datetime:c.start_time, callerName:c.customer_name||'Unknown',
-      phone:c.customer_phone_number, source:src, duration:c.duration||0,
-      hcpMatch:best, matchScore:Math.min(bestScore,100), matchReason:bestReason,
-      outcome:outcome, revenue:rev, hcpType:best?best._t:null,
-      transcript:c.transcription||'', recordingUrl:c.recording||'',
-      callDisposition:c.call_disposition||'', callType:c.call_type||'',
-      answered:c.answered, sourceNote:c.note||'',
+      id: c.id, datetime: c.datetime, callerName: c.callerName,
+      phone: c.phone, source: src, duration: c.duration,
+      hcpMatch: best, matchScore: Math.min(bestScore,100), matchReason: bestReason,
+      outcome: outcome, revenue: isNaN(rev)?0:rev, hcpType: best?best._t:null,
+      transcript: c.transcript, recordingUrl: c.recordingUrl,
+      callDisposition: c.callDisposition, callType: c.callType,
+      answered: c.answered,
       urgency:'', keyIssues:'', aiSummary:''
     };
   });
 }
 
-async function runAI(rows) {
-  var out = rows.slice();
-  var toAI = rows.filter(function(r){return r.transcript&&r.transcript.length>50}).slice(0,30);
-  for (var i=0;i<toAI.length;i++) {
-    var row=toAI[i];
-    try {
-      var resp = await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          model:'claude-sonnet-4-20250514', max_tokens:600,
-          messages:[{role:'user',content:'Analyze this HVAC/plumbing service call for Midstate Plumbing, Heating & Cooling.\nReturn ONLY valid JSON, no markdown:\n{"urgency":"High|Medium|Low","booked":true|false,"keyIssues":"2-4 comma-separated issues","summary":"1-2 sentence outcome summary"}\nUrgency: High=emergency/no heat/no AC/flooding. Medium=repair needed. Low=inquiry/maintenance.\nTranscript:\n"""\n'+row.transcript.substring(0,1200)+'\n"""'}]
-        })
-      });
-      if (resp.ok) {
-        var d=await resp.json();
-        var txt=(d.content||[]).map(function(c){return c.text||''}).join('');
-        try {
-          var parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
-          var idx=out.findIndex(function(r){return r.id===row.id});
-          if(idx>=0){
-            out[idx].urgency=parsed.urgency||'Low';
-            out[idx].keyIssues=parsed.keyIssues||'';
-            out[idx].aiSummary=parsed.summary||'';
-            if(parsed.booked&&out[idx].outcome==='No Match in HCP') out[idx].outcome='Likely Booked (AI)';
-          }
-        } catch(e){}
-      }
-    } catch(e){}
-  }
-  out.forEach(function(r){if(!r.urgency)r.urgency='Low';});
-  return out;
+function runAI(rows) {
+  var urgencyHigh = ['no heat','no ac','no air','flooding','flood','leak','leaking','burst','gas smell','gas leak','emergency','urgent','asap','right away','immediately','not working','stopped working','won\'t turn on','wont turn on','frozen pipe','no hot water','sewage','backed up','overflow'];
+  var urgencyMed = ['repair','fix','broken','not cooling','not heating','strange noise','loud noise','dripping','slow drain','clog','clogged','estimate','quote','this week','soon'];
+  var issueMap = [
+    {keys:['ac','air condition','cooling','cool','refrigerant','capacitor'], label:'AC issue'},
+    {keys:['furnace','heat','heating','no heat','igniter','burner'], label:'Heating issue'},
+    {keys:['water heater','hot water','water heat'], label:'Water heater'},
+    {keys:['drain','clog','sewer','sewage','backup','backed up'], label:'Drain/sewer'},
+    {keys:['leak','leaking','pipe','burst','water damage'], label:'Leak/pipe'},
+    {keys:['toilet','faucet','fixture','sink','shower','bathtub'], label:'Plumbing fixture'},
+    {keys:['sump pump','sump'], label:'Sump pump'},
+    {keys:['maintenance','tune.up','inspection','check up','club','membership'], label:'Maintenance'},
+    {keys:['price','cost','how much','quote','estimate'], label:'Pricing inquiry'},
+    {keys:['install','replacement','replace','new unit'], label:'Installation/replacement'},
+    {keys:['schedule','appointment','available','when can'], label:'Scheduling'}
+  ];
+
+  return rows.map(function(r) {
+    var tr = (r.transcript || '').toLowerCase();
+    var disp = (r.callDisposition || '').toLowerCase();
+    var ctype = (r.callType || '').toLowerCase();
+
+    // Urgency
+    var urgency = 'Low';
+    if (urgencyHigh.some(function(k){ return tr.indexOf(k) >= 0; })) urgency = 'High';
+    else if (urgencyMed.some(function(k){ return tr.indexOf(k) >= 0; })) urgency = 'Medium';
+    // Also flag short unanswered calls as low
+    if (r.duration < 30 && !r.answered) urgency = 'Low';
+
+    // Key issues from transcript
+    var found = [];
+    issueMap.forEach(function(im){
+      if (im.keys.some(function(k){ return tr.indexOf(k) >= 0; })) found.push(im.label);
+    });
+    var keyIssues = found.slice(0,4).join(', ') || (disp ? disp : '—');
+
+    // Summary
+    var summary = '';
+    if (!r.transcript) {
+      summary = r.answered === false ? 'Call was not answered.' : 'No transcript available.';
+    } else if (r.outcome === 'Booked - Job') {
+      summary = 'Call matched to a booked job in HCP.';
+    } else if (r.outcome === 'Booked - Estimate') {
+      summary = 'Call matched to an estimate in HCP.';
+    } else {
+      summary = urgency === 'High' ? 'Potential emergency call — no HCP match found.' : 'Call not matched to an HCP record.';
+    }
+
+    return Object.assign({}, r, { urgency: urgency, keyIssues: keyIssues, aiSummary: summary });
+  });
 }
 
 function renderAll(rows) {
