@@ -385,7 +385,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.6</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -629,7 +629,7 @@ tr:hover td{background:#fafafa}
           <label style="font-size:12px;color:#6b7280">View:</label>
           <select id="calRevenueMode" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
             <option value="estimate">Revenue on estimate date (who sold it)</option>
-            <option value="collected">Revenue on collection date (cash flow)</option>
+            <option value="collected" selected>Revenue on collection date (cash flow)</option>
           </select>
           <label style="font-size:12px;color:#6b7280;margin-left:8px">Sort techs by:</label>
           <select id="calEmpSort" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
@@ -660,7 +660,7 @@ tr:hover td{background:#fafafa}
         <button onclick="printCalendar()" style="white-space:nowrap;font-size:12px;padding:5px 14px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;color:#374151">🖨 Print Calendar</button>
         </div>
         <div style="font-size:11px;color:#9ca3af;margin-top:6px">
-          💡 Revenue is credited to the estimate date when a job converts. Click any cell for details. Use the employee picker to compare specific people side by side.
+          💡 <strong>Collection date mode (default):</strong> Revenue shows on the date cash was received. Partial payments show amount collected. Switch to <em>Revenue on estimate date</em> to see who sold it and when. Click any cell for details.
         </div>
       </div>
       <!-- Calendar table -->
@@ -1400,8 +1400,48 @@ async function loadAll(){
     // This catches jobs that were created in the period but scheduled outside it (or unscheduled)
     async function fetchJobs(){
       // Schedule-only fetch — avoids pulling all historical jobs via created_at range
-      // Jobs without a scheduled_start will be missed but this is the correct HCP behavior
       return fetchAll('/v2/jobs'+jSchedQ,['jobs','data','results']);
+    }
+
+    // Fetch invoices for all jobs to get actual per-payment dates
+    // HCP endpoint: GET /v2/jobs/{id}/invoices -> invoices[].payments[]
+    // Each payment has amount_cents and created_at
+    async function fetchPaymentsForJobs(jobList){
+      const map={}; // jobId -> [{date,amount,method}]
+      // Only fetch for completed jobs (paid or partially paid) to limit API calls
+      const paidJobs=jobList.filter(j=>isJobComplete(j));
+      if(!paidJobs.length) return map;
+      $$('statusBar').textContent=`Fetching payment details for ${paidJobs.length} completed jobs...`;
+      // Batch in parallel with concurrency limit of 5
+      const BATCH=5;
+      for(let i=0;i<paidJobs.length;i+=BATCH){
+        const batch=paidJobs.slice(i,i+BATCH);
+        await Promise.all(batch.map(async j=>{
+          try{
+            const inv=await hcpGet(`/v2/jobs/${j.id}/invoices`);
+            const invoices=inv?.invoices||inv?.data||inv?.results||(Array.isArray(inv)?inv:[]);
+            const payments=[];
+            invoices.forEach(invoice=>{
+              (invoice.payments||[]).forEach(p=>{
+                const amt=p.amount_cents!=null?centsToD(p.amount_cents):centsToD(p.amount||0);
+                if(amt>0){
+                  payments.push({
+                    date:p.created_at?fmtKey(p.created_at):fmtKey(j.work_timestamps?.completed_at),
+                    amount:amt,
+                    method:p.payment_method||p.method||'',
+                    id:p.id||''
+                  });
+                }
+              });
+            });
+            if(payments.length) map[j.id]=payments;
+          }catch(e){
+            // Endpoint may return 404 for some jobs — that's fine, fall back to completed_at
+          }
+        }));
+        $$('statusBar').textContent=`Fetching payment details... ${Math.min(i+BATCH,paidJobs.length)}/${paidJobs.length}`;
+      }
+      return map;
     }
 
     const [jobs,estimates,empRaw,plans]=await Promise.all([
@@ -1410,6 +1450,14 @@ async function loadAll(){
       hcpGet('/v2/employees?page_size=100'),
       tryPlans()
     ]);
+
+    // Fetch actual payment dates after we have jobs
+    $$('statusBar').textContent='Fetching payment details...';
+    const _paymentMap=await fetchPaymentsForJobs(jobs);
+    // Attach payment data to jobs for use in calendar/KPI
+    jobs.forEach(j=>{
+      if(_paymentMap[j.id]) j._payments=_paymentMap[j.id];
+    });
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
 
@@ -1970,10 +2018,10 @@ function renderAttr(jobs,estimates){
 
     // Build all-employees selector for manual override
     const allTechs=_employees.filter(e=>!INSTALLER_IDS.has(e.id));
-    const manualOpts=allTechs.map(e=>{
-      const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
-      return`<option value="${e.id}" data-name="${n}">${n}</option>`;
-    }).join('');
+    const manualOpts=[
+      {id:'midstate',name:'Midstate (company — no individual tech)'},
+      ...allTechs.map(e=>({id:e.id,name:((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?'}))
+    ].map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}</option>`).join('');
 
     card.innerHTML=`
       <div class="attr-header">
@@ -2377,7 +2425,8 @@ function renderKPI(jobs,estimates,employees,plans){
   if(label) label.textContent=from&&to?`${from} → ${to}`:'';
 
   // Filter jobs and estimates to KPI date range
-  const kpiJobs=filterByKPIRange(jobs,j=>j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at).filter(j=>!isJobCanceled(j));
+  // KPI uses collection date (completed_at) as primary — when cash actually came in
+  const kpiJobs=filterByKPIRange(jobs,j=>j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at).filter(j=>!isJobCanceled(j));
   const kpiEsts=filterByKPIRange(estimates,e=>e.schedule?.scheduled_start||e.created_at);
   // For KPI: Gannon's pre-transition estimates count toward his scorecard
   // His post-transition jobs count as installer (revenue to selling tech, job count to Gannon)
@@ -2803,7 +2852,8 @@ function getRevenueForPeriod(period){
   const now = new Date();
   const paidJobs = _jobs.filter(isJobPaid);
 
-  function jobDate(j){ return new Date(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at); }
+  // Collection date: use completed_at (when payment received), fall back to scheduled_start
+  function jobDate(j){ return new Date(j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at); }
 
   if(period==='year'){
     return paidJobs.filter(j=>jobDate(j).getFullYear()===now.getFullYear()).reduce((s,j)=>s+getJobRevenue(j),0);
@@ -5521,21 +5571,39 @@ function buildCalendarData(jobs, estimates, mode){
 
     // Get the revenue attribution date
     let revDate=null;
+
+    // Use actual payment data if available from /v2/jobs/{id}/invoices
+    const jobPayments=j._payments||[]; // [{date, amount, method}]
+    const hasRealPayments=jobPayments.length>0;
+
+    // Amount actually collected
+    const outstanding=parseFloat(j.outstanding_balance)||0;
+    const collected=Math.max(0,total-outstanding);
+    const isPartial=complete&&outstanding>0&&collected>0;
+
+    // Collection date = date of most recent payment, or completed_at as fallback
+    const lastPayment=jobPayments.length?jobPayments[jobPayments.length-1]:null;
+    const collectionDate=fmtKey(lastPayment?.date||j.work_timestamps?.completed_at||j.completed_at)||schedDate;
+
+    // For partial payments with real payment data, use the first payment date
+    // (down payment date) — the rest cascade from there
+    const firstPaymentDate=hasRealPayments?fmtKey(jobPayments[0].date):collectionDate;
+
     if(mode==='estimate'){
-      // Find linked estimate date
+      // Estimate date mode — find linked estimate date
       const linkedEstId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
       const linkedEst=linkedEstId?estById[linkedEstId]:null;
       if(linkedEst){
-        // Use scheduled_start — that's when the estimate was actually presented
         revDate=fmtKey(linkedEst.schedule?.scheduled_start||linkedEst.created_at);
       } else if(attr?.candidates?.length){
         const candEst=attr.candidates[0].est;
         revDate=fmtKey(candEst?.schedule?.scheduled_start||candEst?.created_at);
       }
     }
-    // Collected mode or no estimate found — use completion date
-    if(!revDate){
-      revDate=fmtKey(j.work_timestamps?.completed_at||j.completed_at)||schedDate;
+
+    // Collection mode (default) — revenue on the date payment was received
+    if(!revDate||mode==='collected'){
+      revDate=collectionDate;
     }
     if(revDate) dates.add(revDate);
 
@@ -5573,8 +5641,9 @@ function buildCalendarData(jobs, estimates, mode){
       const schedCell=getCell(schedDate, workEmpId);
 
       if(isOnSameDate && isSameTech){
-        // Same tech, same date — normal case: everything in one cell
+        // Same tech, same date — everything in one cell
         if(paid) schedCell.rev+=jobRevenue;
+        else if(isPartial) { schedCell.rev+=collected; schedCell.unpaid+=outstanding; }
         else if(complete) schedCell.unpaid+=total;
         else schedCell.pending+=total>0?total:0;
       } else {
@@ -5592,11 +5661,12 @@ function buildCalendarData(jobs, estimates, mode){
 
       schedCell.jobCount++;
       schedCell.items.push({
-        type:'job',date:schedDate,schedDate,revDate,
+        type:'job',date:schedDate,schedDate,revDate,collectionDate,
         id:j.id,number:j.job_number,
         customer:jFullName,custAddr:jAddr,custPhone:jPhone,
         allTechs:jAllTechs,description:j.description||j.summary||'',
         status:jobStatus,total:isOnSameDate&&isSameTech?jobRevenue:0,
+        collected,outstanding,isPartial,
         paid,complete,
         unpaid:complete&&!paid&&!isReturn,
         pending:!complete&&total>0&&!isReturn,
@@ -5625,24 +5695,46 @@ function buildCalendarData(jobs, estimates, mode){
       });
     }
 
-    // ---- Write REVENUE to SELLER column on ESTIMATE DATE ----
-    // This is separate from the job count above — revenue always goes to the seller (Lukas)
-    if(revEmpId&&paid&&!isReturnVisit(j)){
-      const jobRevenue=getJobRevenue(j);
-      if(!isSameTech||!isOnSameDate){
-        // Only write separate rev cell when seller ≠ worker OR date differs
-        dates.add(revDate);
-        const revCell=getCell(revDate, revEmpId);
-        revCell.rev+=jobRevenue;
-        revCell.items.push({
-          type:'revenue_ref',date:revDate,schedDate,
-          id:j.id,number:j.job_number,customer:getCust(j),
-          status:jobStatus,total:jobRevenue,paid,dept:getDept(j),
-          emp:revEmpName,workEmp:workEmpName,
-          note:!isSameTech
-            ?`Completed by ${workEmpName} on ${schedDate} · Revenue credited to ${revEmpName}`
-            :`Job completed ${schedDate} · Revenue credited here`
+    // ---- Write REVENUE to SELLER column — per payment date if available ----
+    if(!isReturnVisit(j)&&(paid||isPartial)){
+      if(hasRealPayments&&mode==='collected'){
+        // Write each actual payment to its real date
+        jobPayments.forEach(pmt=>{
+          if(!pmt.date||pmt.amount<=0) return;
+          const pmtDate=fmtKey(pmt.date);
+          if(!pmtDate) return;
+          dates.add(pmtDate);
+          const pmtCell=getCell(pmtDate, revEmpId);
+          pmtCell.rev+=pmt.amount;
+          pmtCell.items.push({
+            type:'payment',date:pmtDate,schedDate,
+            id:j.id+'_p_'+pmt.id,number:j.job_number,
+            customer:jFullName,custAddr:jAddr,custPhone:jPhone,
+            status:jobStatus,total:pmt.amount,
+            method:pmt.method,
+            isDownPayment:pmtDate!==collectionDate,
+            dept:getDept(j),emp:revEmpName,workEmp:workEmpName,
+            note:`${pmt.method?pmt.method+' · ':''}${dollars(pmt.amount)} received`
+          });
         });
+      } else {
+        // No granular payment data — use collectionDate with total/collected amount
+        const revenueToCredit=isPartial?collected:getJobRevenue(j);
+        if(revenueToCredit>0&&(!isSameTech||!isOnSameDate)){
+          dates.add(revDate);
+          const revCell=getCell(revDate, revEmpId);
+          revCell.rev+=revenueToCredit;
+          revCell.items.push({
+            type:'revenue_ref',date:revDate,schedDate,
+            id:j.id,number:j.job_number,
+            customer:jFullName,custAddr:jAddr,custPhone:jPhone,
+            status:jobStatus,total:revenueToCredit,paid,dept:getDept(j),
+            emp:revEmpName,workEmp:workEmpName,
+            note:!isSameTech
+              ?`Completed by ${workEmpName} on ${schedDate} · Revenue credited to ${revEmpName}`
+              :`Job completed ${schedDate} · Revenue credited here`
+          });
+        }
       }
     }
   });
@@ -5814,6 +5906,25 @@ function openCalPopup(date, empId, empName){
   const dt=new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const jobs=c.items.filter(i=>i.type==='job');
   const ests=c.items.filter(i=>i.type==='estimate');
+  const pmtItems=c.items.filter(i=>i.type==='payment');
+  const pmtsHtmlSection=pmtItems.length?`<div class="cal-popup-section">
+    <div class="cal-popup-section-head">💳 Payments received (${pmtItems.length})</div>
+    ${pmtItems.map(p=>`<div class="cal-popup-item" style="border-left:3px solid #16a34a">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="cal-popup-item-title" style="font-size:13px">${p.customer}</div>
+          <div style="font-size:10px;color:#9ca3af">Job #${p.number||'—'}</div>
+          ${p.custAddr?`<div style="font-size:11px;color:#6b7280;margin-top:2px">📍 ${p.custAddr}</div>`:''}
+          ${p.custPhone?`<div style="font-size:11px;color:#6b7280">📞 ${p.custPhone}</div>`:''}
+          <div class="cal-popup-item-meta" style="margin-top:3px">${p.dept} · ${p.workEmp&&p.workEmp!==p.emp?`${p.workEmp} (work) · `:''}${p.emp}</div>
+          ${p.method?`<div style="font-size:11px;color:#6b7280;margin-top:2px">💳 ${p.method}</div>`:''}
+          ${p.isDownPayment?`<div style="font-size:11px;color:#7C3AED;font-weight:600;margin-top:3px">⬇ Down payment — job scheduled ${p.schedDate}</div>`:''}
+        </div>
+        <div style="font-size:16px;font-weight:800;color:#166534;white-space:nowrap">${dollars(p.total)}</div>
+      </div>
+    </div>`).join('')}
+  </div>`:'';
+
   const refs=c.items.filter(i=>i.type==='revenue_ref');
 
   // Revenue breakdown
@@ -5851,10 +5962,14 @@ function openCalPopup(date, empId, empName){
         ?`<div style="font-size:11px;padding:5px 8px;background:#f3f4f6;border-radius:4px;margin-top:4px;color:#6b7280">
             🔄 <strong>Return visit / no charge</strong> — $0 invoice. Revenue was already collected on the original job.
           </div>`
+        :j.isPartial
+        ?`<div style="font-size:11px;padding:5px 8px;background:#FFF9C3;border-radius:4px;margin-top:4px">
+            💛 <strong>Partial payment</strong> — ${dollars(j.collected)} collected · ${dollars(j.outstanding)} still outstanding
+          </div>`
         :j.paid
-        ?`<div style="font-size:11px;color:#166534;margin-top:4px">✅ ${dollars(j.total)} revenue credited to this date</div>`
+        ?`<div style="font-size:11px;color:#166534;margin-top:4px">✅ ${dollars(j.total)} collected${j.collectionDate&&j.collectionDate!==j.schedDate?' on '+j.collectionDate:''}</div>`
         :j.complete
-        ?`<div style="font-size:11px;color:#92400E;margin-top:4px">⚠ ${dollars(j.total)} — job done but payment not yet collected</div>`
+        ?`<div style="font-size:11px;color:#92400E;margin-top:4px">⚠ ${dollars(j.total)} — job done but not yet collected</div>`
         :`<div style="font-size:11px;color:#6b7280;margin-top:4px">🕐 ${j.total?dollars(j.total):''} — job not yet complete</div>`;
       const allTechsDisplay=j.allTechs&&j.allTechs.length>1?j.allTechs.join(', '):j.emp;
       return`<div class="cal-popup-item" style="border-left:3px solid ${j.paid&&!j.revenueElsewhere?'#16a34a':j.revenueElsewhere?'#9ca3af':j.complete?'#b45309':'#3b82f6'}">
@@ -5910,7 +6025,7 @@ function openCalPopup(date, empId, empName){
       </div>
       <span class="cal-popup-close" onclick="closeCalPopup()">✕</span>
     </div>
-    ${refsHtml}${jobsHtml}${estsHtml}`;
+    ${pmtsHtmlSection}${refsHtml}${jobsHtml}${estsHtml}`;
   $$('calPopup').style.display='block';
   $$('calOverlay').style.display='block';
 }
