@@ -220,6 +220,10 @@ tbody td{padding:9px 11px;vertical-align:middle}
 .fbar select,.fbar input{font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--rs);background:#fff;color:var(--text)}
 .cnt{background:var(--orange-light);color:var(--orange-dark);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600}
 
+.tab-btn{background:none;border:none;border-bottom:3px solid transparent;padding:10px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;margin-bottom:-2px}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
+
 svg.chart{display:block;width:100%;overflow:visible}
 </style>
 </head>
@@ -230,7 +234,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.5</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.9</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -290,7 +294,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="mc"><div class="ml">HCP Matched</div><div class="mv" id="mMatched">—</div><div class="ms">phone / name / address</div></div>
     <div class="mc"><div class="ml">Booked</div><div class="mv g" id="mBooked">—</div><div class="ms">jobs or estimates</div></div>
     <div class="mc"><div class="ml">Conversion Rate</div><div class="mv o" id="mRate">—</div><div class="ms">of matched calls</div></div>
-    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">paid jobs only</div></div>
+    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">status = Paid jobs</div></div>
     <div class="mc"><div class="ml">Avg Ticket</div><div class="mv" id="mTicket">—</div><div class="ms">booked calls</div></div>
     <div class="mc"><div class="ml">High Urgency</div><div class="mv r" id="mUrgent">—</div><div class="ms">AI-flagged</div></div>
     <div class="mc"><div class="ml">Unmatched</div><div class="mv" id="mUnmatched" style="color:var(--gray)">—</div><div class="ms">not in HCP</div></div>
@@ -321,6 +325,7 @@ svg.chart{display:block;width:100%;overflow:visible}
           <option value="Booked - Job (Paid)">Booked - Job (Paid)</option>
           <option value="Booked - Job (Scheduled)">Booked - Job (Scheduled)</option>
           <option value="Booked - Estimate">Booked - Estimate</option>
+          <option value="Existing Customer">Existing Customer</option>
           <option value="Canceled">Canceled</option>
           <option value="No Match">No Match</option>
         </select>
@@ -348,6 +353,43 @@ svg.chart{display:block;width:100%;overflow:visible}
       </div>
     </div>
   </div>
+  </div><!-- end panel-calls -->
+
+  <!-- Wrong Number Panel -->
+  <div id="panel-wrongnum" style="display:none">
+    <div class="sec">
+      <div class="sh" style="justify-content:space-between">
+        <span class="st">Wrong Number Calls <span class="cnt" id="wnCount">0</span></span>
+        <span style="font-size:12px;color:var(--muted)">Scanned from transcripts &amp; call disposition</span>
+      </div>
+      <div class="sb" style="padding:0">
+        <div id="wnEmpty" class="empty" style="padding:32px">Run a report to scan transcripts for wrong number calls.</div>
+        <div class="tw" id="wnTableWrap" style="display:none">
+          <table>
+            <thead><tr>
+              <th>Date / Time</th><th>Caller</th><th>Phone</th><th>Duration</th><th>Detection Method</th><th>Transcript Snippet</th>
+            </tr></thead>
+            <tbody id="wnBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary box -->
+    <div id="wnSummary" style="display:none">
+      <div class="sec">
+        <div class="sh"><span class="st">Wrong Number Impact</span></div>
+        <div class="sb">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+            <div class="mc"><div class="ml">Wrong Number Calls</div><div class="mv r" id="wnTotal">0</div><div class="ms">detected this period</div></div>
+            <div class="mc"><div class="ml">% of Total Calls</div><div class="mv o" id="wnPct">0%</div><div class="ms">wasted ad spend</div></div>
+            <div class="mc"><div class="ml">Avg Duration</div><div class="mv" id="wnAvgDur">—</div><div class="ms">wrong number calls</div></div>
+            <div class="mc"><div class="ml">Est. Wasted Ad Cost</div><div class="mv r" id="wnCost">—</div><div class="ms">at $15 avg cost/call</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- end panel-wrongnum -->
 
 </div>
 
@@ -437,18 +479,26 @@ async function runReport() {
   setSteps('cr');
 
   try {
+    // Main report: filtered calls matched to HCP
     var matched = await fetchAndMatch(key, dFrom, dTo, tFilter);
     setSteps('match');
     var final = runAI(matched);
     setSteps('ai');
     allRows = final;
     renderAll(allRows);
+
+    // Wrong numbers: scan ALL calls across all tracking numbers
+    document.getElementById('progMsg').innerHTML =
+      '<div style="font-size:12px;color:var(--muted)">Scanning all calls for wrong numbers&hellip;</div>';
+    var allCallsForWN = await fetchCalls(key, dFrom, dTo, 'all');
+    renderWrongNumbers(allCallsForWN);
+
     document.getElementById('expBtn').disabled = false;
     document.getElementById('printBtn').disabled = false;
     document.getElementById('lastRun').textContent = 'Updated ' + new Date().toLocaleTimeString();
     document.getElementById('progMsg').innerHTML =
       '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
-      allRows.filter(function(r){return r.outcome.indexOf('Booked')>=0;}).length +
+      allRows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0;}).length +
       ' matched to HCP. Results also saved to <strong>CR_Tracker</strong> tab in your Google Sheet.</div>';
   } catch(e) {
     showErr(e.message || String(e));
@@ -551,7 +601,8 @@ async function fetchAndMatch(key, dFrom, dTo, tFilter) {
       action: 'matchCalls',
       calls: calls,
       dateFrom: dFrom,
-      dateTo: dTo
+      dateTo: dTo,
+      trackingNumber: (tFilter !== 'all' && TRACKING[tFilter]) ? TRACKING[tFilter] : null
     })
   });
 
@@ -723,7 +774,7 @@ function updateMetrics(rows) {
   var booked=rows.filter(function(r){return r.outcome&&(r.outcome.indexOf('Booked')>=0||r.outcome.indexOf('Paid')>=0)&&r.outcome!=='Canceled'}).length;
   var rate=matched>0?Math.round(booked/matched*100):0;
   var rev=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'}).reduce(function(s,r){return s+(parseFloat(r.revenue)||0)},0);
-  var paidJobs=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'&&r.revenue>0}).length;
+  var paidJobs=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'&&parseFloat(r.revenue)>0}).length;
   var ticket=paidJobs>0?Math.round(rev/paidJobs):0;
   var urgent=rows.filter(function(r){return r.urgency==='High'}).length;
   var unmatched=rows.filter(function(r){return !r.hcpCustomer||r.hcpCustomer===''}).length;
@@ -815,7 +866,7 @@ function applyFilters(data) {
     var ds=dt?dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
     var ts=dt?dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     var dur=r.duration?Math.floor(r.duration/60)+'m '+Math.round(r.duration%60)+'s':'—';
-    var obc=r.outcome==='Booked - Job (Paid)'?'bj':r.outcome==='Booked - Job (Scheduled)'?'bj':r.outcome==='Booked - Estimate'?'be':r.outcome==='Canceled'?'bnb':r.outcome.indexOf('Likely')>=0?'bai':'bnm';
+    var obc=r.outcome==='Booked - Job (Paid)'?'bj':r.outcome==='Booked - Job (Scheduled)'?'bj':r.outcome==='Booked - Estimate'?'be':r.outcome==='Existing Customer'?'bmd':r.outcome==='Canceled'?'bnb':r.outcome.indexOf('Likely')>=0?'bai':'bnm';
     var ugc=r.urgency==='High'?'bhi':r.urgency==='Medium'?'bmd':'blo';
     var src2=r.source==='Facebook Ad'?'bfb':'borg';
     var mc=r.matchScore>=80?'#1D9E75':r.matchScore>=50?'#BA7517':'#E24B4A';
@@ -872,6 +923,106 @@ function closeModal(){ document.getElementById('modal').classList.remove('active
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===document.getElementById('modal'))closeModal();});
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function switchTab(tab) {
+  document.getElementById('panel-calls').style.display    = tab === 'calls'    ? '' : 'none';
+  document.getElementById('panel-wrongnum').style.display = tab === 'wrongnum' ? '' : 'none';
+  document.getElementById('tab-calls').classList.toggle('active',    tab === 'calls');
+  document.getElementById('tab-wrongnum').classList.toggle('active', tab === 'wrongnum');
+}
+
+var WRONG_NUMBER_PHRASES = [
+  'wrong number','wrong #','not the right number','not this number',
+  'you have the wrong','i think you have the wrong','no one here by that name',
+  'nobody here by','this is not','this isn\'t','you\'ve reached the wrong',
+  'incorrect number','different number','not looking for plumb',
+  'not looking for heat','not looking for hvac','not a plumb',
+  'don\'t need plumbing','don\'t need hvac','not interested',
+  'soliciting','stop calling','remove my number','do not call',
+  'already have someone','have a plumber','have an hvac'
+];
+
+function detectWrongNumber(row) {
+  var tr = (row.transcript || '').toLowerCase();
+  var disp = (row.callDisposition || '').toLowerCase();
+
+  // Check disposition first
+  if (disp.indexOf('wrong') >= 0) return { detected: true, method: 'Call disposition' };
+
+  // Very short calls with no transcript are likely wrong numbers
+  if (row.duration < 15 && !tr) return { detected: true, method: 'Under 15s, no transcript' };
+
+  // Scan transcript
+  for (var i = 0; i < WRONG_NUMBER_PHRASES.length; i++) {
+    if (tr.indexOf(WRONG_NUMBER_PHRASES[i]) >= 0) {
+      return { detected: true, method: 'Transcript: "' + WRONG_NUMBER_PHRASES[i] + '"' };
+    }
+  }
+  return { detected: false, method: '' };
+}
+
+function renderWrongNumbers(calls) {
+  var wrongNums = [];
+  calls.forEach(function(c) {
+    // Normalize — works with both raw CallRail objects and matched row objects
+    var row = {
+      datetime:        c.datetime || c.start_time || '',
+      callerName:      c.callerName || c.customer_name || 'Unknown',
+      phone:           c.phone || c.customer_phone_number || '',
+      duration:        c.duration || 0,
+      transcript:      c.transcript || c.transcription || '',
+      callDisposition: c.callDisposition || c.call_disposition || '',
+      source:          c.source || ''
+    };
+    var result = detectWrongNumber(row);
+    if (result.detected) wrongNums.push(Object.assign({}, row, { wnMethod: result.method }));
+  });
+
+  // Update badge
+  var badge = document.getElementById('wnBadge');
+  badge.textContent = wrongNums.length;
+  badge.style.display = wrongNums.length > 0 ? '' : 'none';
+  document.getElementById('wnCount').textContent = wrongNums.length;
+
+  if (!wrongNums.length) {
+    document.getElementById('wnEmpty').style.display = '';
+    document.getElementById('wnEmpty').textContent = 'No wrong number calls detected in this date range.';
+    document.getElementById('wnTableWrap').style.display = 'none';
+    document.getElementById('wnSummary').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('wnEmpty').style.display = 'none';
+  document.getElementById('wnTableWrap').style.display = '';
+  document.getElementById('wnSummary').style.display = '';
+
+  // Summary metrics
+  var totalDur = wrongNums.reduce(function(s,r){ return s + (r.duration||0); }, 0);
+  var avgDur = wrongNums.length > 0 ? Math.round(totalDur / wrongNums.length) : 0;
+
+  var totalCalls = calls.length;
+  document.getElementById('wnTotal').textContent = wrongNums.length;
+  document.getElementById('wnPct').textContent = totalCalls > 0 ? Math.round(wrongNums.length / totalCalls * 100) + '%' : '—';
+  document.getElementById('wnAvgDur').textContent = Math.floor(avgDur/60) + 'm ' + (avgDur%60) + 's';
+  document.getElementById('wnCost').textContent = '$' + (wrongNums.length * 15).toLocaleString();
+
+  // Table rows
+  document.getElementById('wnBody').innerHTML = wrongNums.map(function(r) {
+    var dt = r.datetime ? new Date(r.datetime) : null;
+    var ds = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    var ts = dt ? dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+    var dur = r.duration ? Math.floor(r.duration/60)+'m '+Math.round(r.duration%60)+'s' : '—';
+    var snip = r.transcript ? r.transcript.substring(0,150) + '…' : 'No transcript';
+    return '<tr style="background:#FFF5F5">'
+      + '<td><div style="font-weight:500">'+ds+'</div><div class="tm">'+ts+'</div></td>'
+      + '<td><div style="font-weight:500">'+escHtml(r.callerName)+'</div></td>'
+      + '<td class="tm">'+escHtml(r.phone||'—')+'</td>'
+      + '<td class="tm">'+dur+'</td>'
+      + '<td><span style="font-size:11px;background:#FEE2E2;color:#991B1B;padding:3px 8px;border-radius:20px;font-weight:600">'+escHtml(r.wnMethod)+'</span></td>'
+      + '<td><div class="ts" style="font-size:11px;color:var(--muted);font-style:italic;max-width:300px">'+escHtml(snip)+'</div></td>'
+      + '</tr>';
+  }).join('');
+}
 
 
 function printReport() {
