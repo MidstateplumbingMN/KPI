@@ -230,7 +230,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.4</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.5</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -278,12 +278,19 @@ svg.chart{display:block;width:100%;overflow:visible}
     </div></div>
   </div>
 
+  <!-- Tab Navigation -->
+  <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--border);">
+    <button class="tab-btn active" onclick="switchTab('calls')" id="tab-calls">Call Log</button>
+    <button class="tab-btn" onclick="switchTab('wrongnum')" id="tab-wrongnum">Wrong Numbers <span id="wnBadge" class="cnt" style="display:none">0</span></button>
+  </div>
+
+  <div id="panel-calls">
   <div class="mgrid">
     <div class="mc"><div class="ml">Total Calls</div><div class="mv" id="mCalls">—</div><div class="ms">in date range</div></div>
     <div class="mc"><div class="ml">HCP Matched</div><div class="mv" id="mMatched">—</div><div class="ms">phone / name / address</div></div>
     <div class="mc"><div class="ml">Booked</div><div class="mv g" id="mBooked">—</div><div class="ms">jobs or estimates</div></div>
     <div class="mc"><div class="ml">Conversion Rate</div><div class="mv o" id="mRate">—</div><div class="ms">of matched calls</div></div>
-    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">from matched jobs</div></div>
+    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">paid jobs only</div></div>
     <div class="mc"><div class="ml">Avg Ticket</div><div class="mv" id="mTicket">—</div><div class="ms">booked calls</div></div>
     <div class="mc"><div class="ml">High Urgency</div><div class="mv r" id="mUrgent">—</div><div class="ms">AI-flagged</div></div>
     <div class="mc"><div class="ml">Unmatched</div><div class="mv" id="mUnmatched" style="color:var(--gray)">—</div><div class="ms">not in HCP</div></div>
@@ -311,10 +318,11 @@ svg.chart{display:block;width:100%;overflow:visible}
       <div class="fbar">
         <select id="fOut" onchange="applyFilters()">
           <option value="">All Outcomes</option>
-          <option value="Booked - Job">Booked - Job</option>
+          <option value="Booked - Job (Paid)">Booked - Job (Paid)</option>
+          <option value="Booked - Job (Scheduled)">Booked - Job (Scheduled)</option>
           <option value="Booked - Estimate">Booked - Estimate</option>
-          <option value="Not Booked">Not Booked</option>
-          <option value="No Match in HCP">No Match in HCP</option>
+          <option value="Canceled">Canceled</option>
+          <option value="No Match">No Match</option>
         </select>
         <select id="fUrg" onchange="applyFilters()">
           <option value="">All Urgency</option>
@@ -712,10 +720,11 @@ function renderAll(rows) {
 function updateMetrics(rows) {
   var total=rows.length;
   var matched=rows.filter(function(r){return r.hcpCustomer&&r.hcpCustomer!==''}).length;
-  var booked=rows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0}).length;
+  var booked=rows.filter(function(r){return r.outcome&&(r.outcome.indexOf('Booked')>=0||r.outcome.indexOf('Paid')>=0)&&r.outcome!=='Canceled'}).length;
   var rate=matched>0?Math.round(booked/matched*100):0;
-  var rev=rows.reduce(function(s,r){return s+(parseFloat(r.revenue)||0)},0);
-  var ticket=booked>0?Math.round(rev/booked):0;
+  var rev=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'}).reduce(function(s,r){return s+(parseFloat(r.revenue)||0)},0);
+  var paidJobs=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'&&r.revenue>0}).length;
+  var ticket=paidJobs>0?Math.round(rev/paidJobs):0;
   var urgent=rows.filter(function(r){return r.urgency==='High'}).length;
   var unmatched=rows.filter(function(r){return !r.hcpCustomer||r.hcpCustomer===''}).length;
   document.getElementById('mCalls').textContent=total;
@@ -806,7 +815,7 @@ function applyFilters(data) {
     var ds=dt?dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
     var ts=dt?dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     var dur=r.duration?Math.floor(r.duration/60)+'m '+Math.round(r.duration%60)+'s':'—';
-    var obc=r.outcome==='Booked - Job'?'bj':r.outcome==='Booked - Estimate'?'be':r.outcome.indexOf('Likely')>=0?'bai':r.outcome==='Not Booked'?'bnb':'bnm';
+    var obc=r.outcome==='Booked - Job (Paid)'?'bj':r.outcome==='Booked - Job (Scheduled)'?'bj':r.outcome==='Booked - Estimate'?'be':r.outcome==='Canceled'?'bnb':r.outcome.indexOf('Likely')>=0?'bai':'bnm';
     var ugc=r.urgency==='High'?'bhi':r.urgency==='Medium'?'bmd':'blo';
     var src2=r.source==='Facebook Ad'?'bfb':'borg';
     var mc=r.matchScore>=80?'#1D9E75':r.matchScore>=50?'#BA7517':'#E24B4A';
