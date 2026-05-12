@@ -230,7 +230,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.3</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.4</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -464,7 +464,7 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
       fields: 'id,start_time,customer_phone_number,customer_name,tracking_phone_number,duration,recording,transcription,answered,source_name,call_type,direction,call_disposition,note'
     });
     if (tFilter !== 'all' && TRACKING[tFilter]) {
-      p.append('tracking_number', TRACKING[tFilter]);
+      p.append('tracking_phone_numbers[]', TRACKING[tFilter]);
     }
 
     var url = 'https://api.callrail.com/v3/a/' + CR_ACCOUNT + '/calls.json?' + p;
@@ -491,6 +491,14 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
 
     page++;
   } while (page <= totalPages);
+
+  // Safety net: filter client-side by tracking number in case API doesn't honor the param
+  if (tFilter !== 'all' && TRACKING[tFilter]) {
+    var targetNum = TRACKING[tFilter];
+    allCalls = allCalls.filter(function(c) {
+      return normalPhone(c.tracking_phone_number || '') === targetNum;
+    });
+  }
 
   return allCalls.map(function(c) {
     return {
