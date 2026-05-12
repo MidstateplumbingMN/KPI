@@ -1,1 +1,808 @@
-dara
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Midstate Conversion & Revenue Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --orange: #E87722;
+    --orange-light: #FDF3EA;
+    --orange-dark: #C4611A;
+    --navy: #1A2340;
+    --navy-mid: #2D3A56;
+    --navy-light: #EEF0F5;
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --red: #E24B4A;
+    --red-light: #FCEBEB;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --gray: #888780;
+    --gray-light: #F1EFE8;
+    --text: #1A2340;
+    --text-muted: #5F5E5A;
+    --border: rgba(26,35,64,0.12);
+    --bg: #F8F7F4;
+    --card: #FFFFFF;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Georgia', 'Times New Roman', serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--navy); color: white; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark { width: 38px; height: 38px; background: var(--orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: white; font-family: sans-serif; letter-spacing: -0.5px; }
+  .header h1 { font-size: 17px; font-weight: 400; letter-spacing: 0.3px; color: rgba(255,255,255,0.95); font-family: sans-serif; }
+  .header p { font-size: 12px; color: rgba(255,255,255,0.5); font-family: sans-serif; margin-top: 1px; }
+  .status-dot { width: 8px; height: 8px; background: #1D9E75; border-radius: 50%; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Config Panel */
+  .config-panel { background: var(--navy-light); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .config-group { display: flex; flex-direction: column; gap: 5px; }
+  .config-group label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; font-family: sans-serif; }
+  .config-group input, .config-group select { font-size: 13px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: white; color: var(--text); font-family: sans-serif; min-width: 180px; }
+  .config-group input[type="password"] { font-family: monospace; letter-spacing: 1px; }
+  .config-group input[type="date"] { min-width: 140px; }
+  .btn { padding: 8px 18px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: 13px; font-weight: 600; font-family: sans-serif; transition: all 0.15s; }
+  .btn-primary { background: var(--orange); color: white; }
+  .btn-primary:hover { background: var(--orange-dark); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary { background: white; color: var(--navy); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--navy-light); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* Main Layout */
+  .main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+  /* Metrics Row */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .metric-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; font-family: sans-serif; margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 700; color: var(--text); font-family: sans-serif; line-height: 1; }
+  .metric-value.green { color: var(--green); }
+  .metric-value.orange { color: var(--orange); }
+  .metric-value.red { color: var(--red); }
+  .metric-sub { font-size: 11px; color: var(--text-muted); font-family: sans-serif; margin-top: 4px; }
+
+  /* Section */
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+  .section-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: #FAFAF8; }
+  .section-title { font-size: 14px; font-weight: 600; color: var(--text); font-family: sans-serif; }
+  .section-body { padding: 18px; }
+
+  /* Charts row */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; }
+  thead th { background: var(--navy-light); color: var(--text); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--bg); }
+  tbody td { padding: 10px 12px; color: var(--text); vertical-align: middle; }
+  .td-muted { color: var(--text-muted); font-size: 12px; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: sans-serif; white-space: nowrap; }
+  .badge-booked { background: var(--green-light); color: #085041; }
+  .badge-notbooked { background: var(--red-light); color: #791F1F; }
+  .badge-estimate { background: var(--amber-light); color: #633806; }
+  .badge-job { background: #E6F1FB; color: #0C447C; }
+  .badge-nomatch { background: var(--gray-light); color: #444441; }
+  .badge-high { background: #FCEBEB; color: #791F1F; }
+  .badge-med { background: var(--amber-light); color: #633806; }
+  .badge-low { background: var(--green-light); color: #085041; }
+  .badge-organic { background: #EEEDFE; color: #3C3489; }
+  .badge-facebook { background: #E6F1FB; color: #0C447C; }
+
+  /* Match confidence */
+  .match-bar { display: flex; align-items: center; gap: 6px; }
+  .match-bar-track { height: 4px; background: var(--border); border-radius: 2px; flex: 1; min-width: 60px; }
+  .match-bar-fill { height: 4px; border-radius: 2px; }
+  .match-pct { font-size: 11px; color: var(--text-muted); min-width: 30px; text-align: right; }
+
+  /* Transcript */
+  .transcript-cell { max-width: 260px; }
+  .transcript-snippet { font-size: 12px; color: var(--text-muted); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-style: italic; }
+  .expand-btn { font-size: 11px; color: var(--orange); cursor: pointer; background: none; border: none; padding: 0; font-family: sans-serif; margin-top: 3px; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: white; border-radius: var(--radius); padding: 24px; max-width: 580px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .modal-title { font-size: 16px; font-weight: 600; font-family: sans-serif; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); }
+  .transcript-full { font-size: 13px; line-height: 1.7; color: var(--text); font-family: sans-serif; background: var(--bg); padding: 14px; border-radius: var(--radius-sm); white-space: pre-wrap; }
+  .ai-analysis { margin-top: 16px; padding: 14px; background: var(--orange-light); border-radius: var(--radius-sm); border-left: 3px solid var(--orange); }
+  .ai-analysis h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--orange-dark); font-family: sans-serif; margin-bottom: 8px; }
+  .ai-analysis p { font-size: 13px; color: var(--text); font-family: sans-serif; line-height: 1.5; }
+
+  /* Loading / Empty */
+  .loader { text-align: center; padding: 48px 20px; color: var(--text-muted); font-family: sans-serif; }
+  .loader-spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); font-family: sans-serif; }
+  .empty-state svg { margin-bottom: 12px; }
+
+  /* Progress */
+  .progress-steps { display: flex; gap: 8px; align-items: center; font-size: 12px; font-family: sans-serif; color: var(--text-muted); flex-wrap: wrap; }
+  .step { display: flex; align-items: center; gap: 5px; }
+  .step-icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+  .step-pending { background: var(--border); color: var(--text-muted); }
+  .step-active { background: var(--orange); color: white; animation: pulse 1s infinite; }
+  .step-done { background: var(--green); color: white; }
+  .step-err { background: var(--red); color: white; }
+  .step-arrow { color: var(--border); }
+  .error-box { background: var(--red-light); border: 1px solid #F09595; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #791F1F; font-family: sans-serif; margin-top: 8px; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-bar select, .filter-bar input { font-size: 12px; padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: white; color: var(--text); font-family: sans-serif; }
+  .count-badge { background: var(--orange-light); color: var(--orange-dark); border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 600; font-family: sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo-mark">MSP</div>
+    <div>
+      <h1>Conversion &amp; Revenue Tracker</h1>
+      <p>CallRail × Housecall Pro — powered by AI analysis</p>
+    </div>
+  </div>
+  <div style="font-family:sans-serif; font-size:12px; color:rgba(255,255,255,0.5); text-align:right;">
+    <span class="status-dot"></span>Live
+    <div id="lastRun" style="margin-top:3px;">Not yet run</div>
+  </div>
+</div>
+
+<!-- Config Panel -->
+<div class="config-panel">
+  <div class="config-group">
+    <label>CallRail API Key (v3)</label>
+    <input type="password" id="crApiKey" placeholder="cr-api-key-xxxx" />
+  </div>
+  <div class="config-group">
+    <label>CallRail Account ID</label>
+    <input type="text" id="crAccountId" placeholder="ACC-xxxxxxxx" />
+  </div>
+  <div class="config-group">
+    <label>Date From</label>
+    <input type="date" id="dateFrom" />
+  </div>
+  <div class="config-group">
+    <label>Date To</label>
+    <input type="date" id="dateTo" />
+  </div>
+  <div class="config-group">
+    <label>HCP Tracking Number Filter</label>
+    <select id="trackingFilter">
+      <option value="all">All Numbers</option>
+      <option value="organic" selected>Organic (651-480-1195)</option>
+      <option value="facebook">Facebook Ad (651-300-1118)</option>
+    </select>
+  </div>
+  <div style="display:flex; gap:8px; margin-top:auto;">
+    <button class="btn btn-primary" id="runBtn" onclick="runReport()">Run Report</button>
+    <button class="btn btn-secondary" onclick="loadDemo()">Load Demo</button>
+    <button class="btn btn-secondary" id="exportBtn" onclick="exportCSV()" disabled>Export CSV</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Progress -->
+  <div id="progressArea" style="display:none; margin-bottom:20px;">
+    <div class="section">
+      <div class="section-body">
+        <div class="progress-steps" id="progressSteps"></div>
+        <div id="progressError"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics-grid" id="metricsGrid">
+    <div class="metric-card"><div class="metric-label">Total Calls</div><div class="metric-value" id="m-calls">—</div><div class="metric-sub">in date range</div></div>
+    <div class="metric-card"><div class="metric-label">HCP Matched</div><div class="metric-value" id="m-matched">—</div><div class="metric-sub">phone / name / address</div></div>
+    <div class="metric-card"><div class="metric-label">Booked</div><div class="metric-value green" id="m-booked">—</div><div class="metric-sub">jobs or estimates created</div></div>
+    <div class="metric-card"><div class="metric-label">Conversion Rate</div><div class="metric-value orange" id="m-rate">—</div><div class="metric-sub">of matched calls</div></div>
+    <div class="metric-card"><div class="metric-label">Revenue Collected</div><div class="metric-value green" id="m-revenue">—</div><div class="metric-sub">from matched jobs</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Ticket</div><div class="metric-value" id="m-ticket">—</div><div class="metric-sub">booked calls</div></div>
+    <div class="metric-card"><div class="metric-label">High Urgency Calls</div><div class="metric-value red" id="m-urgent">—</div><div class="metric-sub">AI-flagged</div></div>
+    <div class="metric-card"><div class="metric-label">Unmatched Calls</div><div class="metric-value" id="m-unmatched" style="color:var(--gray)">—</div><div class="metric-sub">not in HCP</div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="section">
+      <div class="section-header"><span class="section-title">Booking Outcome Breakdown</span></div>
+      <div class="section-body">
+        <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;" id="chartLegend1"></div>
+        <div style="position:relative; height:220px;"><canvas id="outcomeChart" role="img" aria-label="Booking outcome breakdown pie chart"></canvas></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-title">Revenue by Day</span></div>
+      <div class="section-body">
+        <div style="position:relative; height:240px;"><canvas id="revenueChart" role="img" aria-label="Revenue collected by day bar chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call Table -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Call Log <span class="count-badge" id="tableCount">0 rows</span></span>
+      <div class="filter-bar">
+        <select id="filterOutcome" onchange="applyFilters()">
+          <option value="">All Outcomes</option>
+          <option value="Booked - Job">Booked - Job</option>
+          <option value="Booked - Estimate">Booked - Estimate</option>
+          <option value="Not Booked">Not Booked</option>
+          <option value="No Match">No Match in HCP</option>
+        </select>
+        <select id="filterUrgency" onchange="applyFilters()">
+          <option value="">All Urgency</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <input type="text" id="filterSearch" placeholder="Search name / phone..." oninput="applyFilters()" style="min-width:160px;" />
+      </div>
+    </div>
+    <div class="section-body" style="padding:0;">
+      <div class="table-wrap">
+        <table id="callTable">
+          <thead>
+            <tr>
+              <th>Date / Time</th>
+              <th>Caller</th>
+              <th>Phone</th>
+              <th>Source</th>
+              <th>Duration</th>
+              <th>HCP Match</th>
+              <th>Match Confidence</th>
+              <th>Outcome</th>
+              <th>Revenue</th>
+              <th>Urgency</th>
+              <th>Key Issues</th>
+              <th>Transcript</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="12"><div class="empty-state">
+              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#ccc"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z"/></svg>
+              <p>Enter your API keys and click <strong>Run Report</strong> to load data,<br>or click <strong>Load Demo</strong> to preview with sample data.</p>
+            </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Transcript Modal -->
+<div class="modal-overlay" id="transcriptModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Call Transcript</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modalMeta" style="font-family:sans-serif; font-size:12px; color:var(--text-muted); margin-bottom:14px; display:flex; gap:14px; flex-wrap:wrap;"></div>
+    <div class="transcript-full" id="modalTranscript"></div>
+    <div class="ai-analysis" id="modalAnalysis"></div>
+  </div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';
+const TRACKING_NUMBERS = {
+  organic: '6514801195',
+  facebook: '6513001118'
+};
+
+let allRows = [];
+let outcomeChartInst = null;
+let revenueChartInst = null;
+
+// Set default dates (last 30 days)
+const today = new Date();
+const past30 = new Date(); past30.setDate(today.getDate() - 30);
+document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+document.getElementById('dateFrom').value = past30.toISOString().split('T')[0];
+
+function setStep(id, state, label) {
+  const steps = ['step-cr','step-hcp','step-match','step-ai'];
+  const labels = ['Fetching CallRail','Fetching HCP','Matching Records','AI Analysis'];
+  const container = document.getElementById('progressSteps');
+  container.innerHTML = steps.map((s,i) => {
+    let st = 'pending';
+    if(steps.indexOf(id) > i) st = 'done';
+    else if(s === id) st = state;
+    const icons = {done:'✓', active:'…', pending:'·', err:'!'};
+    const classes = {done:'step-done', active:'step-active', pending:'step-pending', err:'step-err'};
+    return `<div class="step"><div class="step-icon ${classes[st]}">${icons[st]||'·'}</div><span>${labels[i]}</span></div>${i<steps.length-1?'<span class="step-arrow">→</span>':''}`;
+  }).join('');
+}
+
+function showError(msg) {
+  document.getElementById('progressError').innerHTML = `<div class="error-box">⚠ ${msg}</div>`;
+}
+
+async function runReport() {
+  const apiKey = document.getElementById('crApiKey').value.trim();
+  const accountId = document.getElementById('crAccountId').value.trim();
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
+  if (!apiKey || !accountId) {
+    alert('Please enter your CallRail API key and Account ID, or click Load Demo.');
+    return;
+  }
+
+  document.getElementById('progressArea').style.display = 'block';
+  document.getElementById('progressError').innerHTML = '';
+  document.getElementById('runBtn').disabled = true;
+  setStep('step-cr','active');
+
+  try {
+    // Step 1: Fetch CallRail calls
+    const trackingFilter = document.getElementById('trackingFilter').value;
+    const crCalls = await fetchCallRailCalls(apiKey, accountId, dateFrom, dateTo, trackingFilter);
+    setStep('step-hcp','active');
+
+    // Step 2: Fetch HCP data from Apps Script
+    const hcpData = await fetchHCPData(dateFrom, dateTo);
+    setStep('step-match','active');
+
+    // Step 3: Match
+    const matched = matchRecords(crCalls, hcpData);
+    setStep('step-ai','active');
+
+    // Step 4: AI analysis on transcripts
+    const analyzed = await analyzeWithAI(matched);
+    setStep('step-ai','done');
+
+    allRows = analyzed;
+    renderAll(allRows);
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('lastRun').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    showError(e.message || String(e));
+    setStep('step-cr','err');
+  } finally {
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+async function fetchCallRailCalls(apiKey, accountId, dateFrom, dateTo, trackingFilter) {
+  const params = new URLSearchParams({
+    date_range: 'custom',
+    start_date: dateFrom,
+    end_date: dateTo,
+    per_page: 250,
+    fields: 'id,start_time,caller_number,caller_name,tracking_phone_number,duration,recording_url,transcription,answered,source_name'
+  });
+
+  // Filter by specific tracking number
+  if (trackingFilter !== 'all' && TRACKING_NUMBERS[trackingFilter]) {
+    params.append('tracking_numbers[]', TRACKING_NUMBERS[trackingFilter]);
+  }
+
+  const resp = await fetch(`https://api.callrail.com/v3/a/${accountId}/calls.json?${params}`, {
+    headers: { 'Authorization': `Token token=${apiKey}`, 'Content-Type': 'application/json' }
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`CallRail API error ${resp.status}: ${errText.substring(0,200)}`);
+  }
+
+  const data = await resp.json();
+  return data.calls || [];
+}
+
+async function fetchHCPData(dateFrom, dateTo) {
+  const resp = await fetch(`${APPS_SCRIPT_URL}?action=getSheetData&tabs=Jobs,Estimates&dateFrom=${dateFrom}&dateTo=${dateTo}`);
+  if (!resp.ok) throw new Error(`HCP Apps Script error: ${resp.status}`);
+  const data = await resp.json();
+  return data;
+}
+
+function normalizePhone(phone) {
+  if (!phone) return '';
+  return String(phone).replace(/\D/g,'').replace(/^1/,'').slice(-10);
+}
+
+function matchRecords(calls, hcpData) {
+  const jobs = hcpData.Jobs || [];
+  const estimates = hcpData.Estimates || [];
+  const allHCP = [
+    ...jobs.map(j => ({...j, _type:'job'})),
+    ...estimates.map(e => ({...e, _type:'estimate'}))
+  ];
+
+  // Index HCP by phone
+  const hcpByPhone = {};
+  allHCP.forEach(rec => {
+    const phone = normalizePhone(rec.customer_phone || rec.phone);
+    if (phone) {
+      if (!hcpByPhone[phone]) hcpByPhone[phone] = [];
+      hcpByPhone[phone].push(rec);
+    }
+  });
+
+  return calls.map(call => {
+    const callerPhone = normalizePhone(call.caller_number);
+    let hcpMatch = null;
+    let matchScore = 0;
+    let matchReason = '';
+
+    const phoneMatches = hcpByPhone[callerPhone] || [];
+
+    if (phoneMatches.length > 0) {
+      // Score each match
+      let best = null, bestScore = 0;
+      phoneMatches.forEach(rec => {
+        let score = 60; // phone match base
+        let reasons = ['phone'];
+
+        // Name match
+        const callerName = (call.caller_name || '').toLowerCase();
+        const recName = (rec.customer_name || rec.name || '').toLowerCase();
+        if (callerName && recName && recName.includes(callerName.split(' ')[0])) {
+          score += 25; reasons.push('name');
+        }
+
+        // Address in transcript
+        const transcript = (call.transcription || '').toLowerCase();
+        const addr = (rec.service_address || rec.address || '').toLowerCase();
+        const addrParts = addr.split(' ').filter(p => p.length > 3);
+        if (addrParts.some(p => transcript.includes(p))) {
+          score += 15; reasons.push('address');
+        }
+
+        if (score > bestScore) { bestScore = score; best = rec; matchReason = reasons.join(' + '); }
+      });
+      hcpMatch = best;
+      matchScore = Math.min(bestScore, 100);
+    }
+
+    const isJob = hcpMatch && hcpMatch._type === 'job';
+    const isEstimate = hcpMatch && hcpMatch._type === 'estimate';
+    const revenue = isJob ? parseFloat(hcpMatch.total_amount || hcpMatch.revenue || 0) : 0;
+
+    let outcome = 'No Match in HCP';
+    if (hcpMatch) {
+      if (isJob) outcome = 'Booked - Job';
+      else if (isEstimate) outcome = 'Booked - Estimate';
+      else outcome = 'Matched - No booking';
+    }
+
+    const source = (call.tracking_phone_number || '').replace(/\D/g,'') === TRACKING_NUMBERS.facebook ? 'Facebook Ad' : 'Organic';
+
+    return {
+      id: call.id,
+      datetime: call.start_time,
+      callerName: call.caller_name || 'Unknown',
+      phone: call.caller_number,
+      source,
+      duration: call.duration || 0,
+      hcpMatch,
+      matchScore,
+      matchReason,
+      outcome,
+      revenue,
+      hcpType: hcpMatch ? hcpMatch._type : null,
+      transcript: call.transcription || '',
+      recordingUrl: call.recording_url || '',
+      urgency: '',
+      keyIssues: '',
+      aiSummary: ''
+    };
+  });
+}
+
+async function analyzeWithAI(rows) {
+  // Batch: only analyze calls with transcripts
+  const toAnalyze = rows.filter(r => r.transcript && r.transcript.length > 50).slice(0, 30);
+
+  const analyzed = [...rows];
+
+  for (const row of toAnalyze) {
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `Analyze this HVAC/plumbing service call transcript for Midstate Plumbing, Heating & Cooling.
+
+Return ONLY valid JSON (no markdown):
+{
+  "urgency": "High|Medium|Low",
+  "booked": true|false,
+  "keyIssues": "comma-separated list of 2-4 main issues/topics mentioned",
+  "summary": "1-2 sentence summary of the call outcome and customer situation"
+}
+
+Urgency: High = emergency/no heat/no AC/flooding/gas smell. Medium = repairs/scheduling needed. Low = general inquiry/maintenance.
+
+Transcript:
+"""
+${row.transcript.substring(0, 1200)}
+"""`
+          }]
+        })
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = (data.content || []).map(c => c.text || '').join('');
+        try {
+          const clean = text.replace(/```json|```/g,'').trim();
+          const parsed = JSON.parse(clean);
+          const idx = analyzed.findIndex(r => r.id === row.id);
+          if (idx >= 0) {
+            analyzed[idx].urgency = parsed.urgency || 'Low';
+            analyzed[idx].keyIssues = parsed.keyIssues || '';
+            analyzed[idx].aiSummary = parsed.summary || '';
+            // Override outcome if AI detected booking but no HCP match
+            if (parsed.booked && analyzed[idx].outcome === 'No Match in HCP') {
+              analyzed[idx].outcome = 'Likely Booked (AI)';
+            }
+          }
+        } catch(e) { /* parse fail, skip */ }
+      }
+    } catch(e) { /* network fail, skip */ }
+  }
+
+  // Default urgency for rows without transcript
+  analyzed.forEach(r => { if (!r.urgency) r.urgency = 'Low'; });
+  return analyzed;
+}
+
+function renderAll(rows) {
+  updateMetrics(rows);
+  renderCharts(rows);
+  renderTable(rows);
+}
+
+function updateMetrics(rows) {
+  const total = rows.length;
+  const matched = rows.filter(r => r.hcpMatch).length;
+  const booked = rows.filter(r => r.outcome.startsWith('Booked') || r.outcome === 'Likely Booked (AI)').length;
+  const rate = matched > 0 ? Math.round(booked / matched * 100) : 0;
+  const revenue = rows.reduce((s,r) => s + (r.revenue||0), 0);
+  const ticket = booked > 0 ? revenue / booked : 0;
+  const urgent = rows.filter(r => r.urgency === 'High').length;
+  const unmatched = rows.filter(r => !r.hcpMatch).length;
+
+  document.getElementById('m-calls').textContent = total;
+  document.getElementById('m-matched').textContent = matched;
+  document.getElementById('m-booked').textContent = booked;
+  document.getElementById('m-rate').textContent = rate + '%';
+  document.getElementById('m-revenue').textContent = '$' + revenue.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('m-ticket').textContent = ticket > 0 ? '$' + Math.round(ticket).toLocaleString() : '—';
+  document.getElementById('m-urgent').textContent = urgent;
+  document.getElementById('m-unmatched').textContent = unmatched;
+}
+
+function renderCharts(rows) {
+  // Outcome pie
+  const outcomeCounts = {};
+  rows.forEach(r => { outcomeCounts[r.outcome] = (outcomeCounts[r.outcome]||0) + 1; });
+  const oc = document.getElementById('outcomeChart').getContext('2d');
+  if (outcomeChartInst) outcomeChartInst.destroy();
+  const outcomeColors = {
+    'Booked - Job': '#1D9E75',
+    'Booked - Estimate': '#378ADD',
+    'Likely Booked (AI)': '#5DCAA5',
+    'Not Booked': '#E24B4A',
+    'No Match in HCP': '#888780',
+    'Matched - No booking': '#BA7517'
+  };
+  const labels = Object.keys(outcomeCounts);
+  const values = labels.map(l => outcomeCounts[l]);
+  const colors = labels.map(l => outcomeColors[l] || '#ccc');
+
+  // Legend
+  document.getElementById('chartLegend1').innerHTML = labels.map((l,i) =>
+    `<span style="display:flex;align-items:center;gap:4px;font-size:11px;font-family:sans-serif;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:2px;background:${colors[i]};flex-shrink:0"></span>${l} (${values[i]})</span>`
+  ).join('');
+
+  outcomeChartInst = new Chart(oc, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  // Revenue by day bar
+  const revenueByDay = {};
+  rows.forEach(r => {
+    if (r.revenue > 0) {
+      const day = r.datetime ? r.datetime.substring(0,10) : 'Unknown';
+      revenueByDay[day] = (revenueByDay[day]||0) + r.revenue;
+    }
+  });
+  const sortedDays = Object.keys(revenueByDay).sort();
+  const rc = document.getElementById('revenueChart').getContext('2d');
+  if (revenueChartInst) revenueChartInst.destroy();
+  revenueChartInst = new Chart(rc, {
+    type: 'bar',
+    data: {
+      labels: sortedDays.map(d => { const dt = new Date(d); return (dt.getMonth()+1)+'/'+dt.getDate(); }),
+      datasets: [{
+        label: 'Revenue', data: sortedDays.map(d => revenueByDay[d]),
+        backgroundColor: '#E87722', borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '$'+v.toLocaleString(), font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        x: { ticks: { font: { size: 11 }, autoSkip: true, maxRotation: 45 }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderTable(rows) {
+  applyFilters(rows);
+}
+
+function applyFilters(data) {
+  const src = data || allRows;
+  const outcome = document.getElementById('filterOutcome').value;
+  const urgency = document.getElementById('filterUrgency').value;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+
+  const filtered = src.filter(r => {
+    if (outcome && r.outcome !== outcome) return false;
+    if (urgency && r.urgency !== urgency) return false;
+    if (search && !r.callerName.toLowerCase().includes(search) && !(r.phone||'').includes(search)) return false;
+    return true;
+  });
+
+  document.getElementById('tableCount').textContent = filtered.length + ' rows';
+  const tbody = document.getElementById('tableBody');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><p>No matching records.</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    const dt = r.datetime ? new Date(r.datetime) : null;
+    const dateStr = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    const timeStr = dt ? dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+    const dur = r.duration ? Math.floor(r.duration/60)+'m '+Math.round(r.duration%60)+'s' : '—';
+
+    const outcomeBadge = r.outcome.startsWith('Booked - Job') ? 'badge-job'
+      : r.outcome.startsWith('Booked - Estimate') ? 'badge-estimate'
+      : r.outcome === 'Likely Booked (AI)' ? 'badge-booked'
+      : r.outcome === 'Not Booked' ? 'badge-notbooked'
+      : 'badge-nomatch';
+
+    const urgBadge = r.urgency === 'High' ? 'badge-high' : r.urgency === 'Medium' ? 'badge-med' : 'badge-low';
+    const srcBadge = r.source === 'Facebook Ad' ? 'badge-facebook' : 'badge-organic';
+
+    const matchPct = r.matchScore || 0;
+    const matchColor = matchPct >= 80 ? '#1D9E75' : matchPct >= 50 ? '#BA7517' : '#E24B4A';
+    const matchBar = r.hcpMatch
+      ? `<div class="match-bar"><div class="match-bar-track"><div class="match-bar-fill" style="width:${matchPct}%;background:${matchColor}"></div></div><span class="match-pct">${matchPct}%</span></div><div style="font-size:10px;color:var(--text-muted);font-family:sans-serif;margin-top:2px;">${r.matchReason||''}</div>`
+      : `<span style="font-size:11px;color:var(--text-muted);font-family:sans-serif;">—</span>`;
+
+    const hcpName = r.hcpMatch ? (r.hcpMatch.customer_name || r.hcpMatch.name || '—') : '—';
+    const hcpId = r.hcpMatch ? (r.hcpMatch.job_number || r.hcpMatch.estimate_number || r.hcpMatch.id || '') : '';
+
+    const snippet = r.transcript ? r.transcript.substring(0,120) : '';
+    const transcriptCell = snippet
+      ? `<div class="transcript-cell"><div class="transcript-snippet">${snippet}…</div><button class="expand-btn" onclick='openModal(${JSON.stringify(r).replace(/'/g,"&#39;")})'>View full ↗</button></div>`
+      : `<span style="font-size:11px;color:var(--text-muted);font-family:sans-serif;">No transcript</span>`;
+
+    const revenueStr = r.revenue > 0 ? '<span style="color:var(--green);font-weight:600;font-family:sans-serif;">$'+r.revenue.toLocaleString('en-US',{maximumFractionDigits:0})+'</span>' : '—';
+
+    const issues = r.keyIssues || '—';
+
+    return `<tr>
+      <td><div style="font-family:sans-serif;font-weight:500;font-size:13px;">${dateStr}</div><div class="td-muted">${timeStr}</div></td>
+      <td><div style="font-family:sans-serif;font-weight:500;">${r.callerName}</div><div class="td-muted">${hcpName}${hcpId ? ' #'+hcpId : ''}</div></td>
+      <td class="td-muted" style="font-family:sans-serif;">${r.phone||'—'}</td>
+      <td><span class="badge ${srcBadge}">${r.source}</span></td>
+      <td class="td-muted" style="font-family:sans-serif;">${dur}</td>
+      <td style="font-family:sans-serif;font-size:12px;">${hcpName !== '—' ? hcpName : '<span style="color:var(--gray)">No match</span>'}</td>
+      <td>${matchBar}</td>
+      <td><span class="badge ${outcomeBadge}">${r.outcome}</span></td>
+      <td>${revenueStr}</td>
+      <td><span class="badge ${urgBadge}">${r.urgency||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);font-family:sans-serif;max-width:140px;">${issues}</td>
+      <td>${transcriptCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openModal(row) {
+  document.getElementById('modalTitle').textContent = 'Call — ' + (row.callerName || 'Unknown') + ' · ' + (row.phone || '');
+  document.getElementById('modalMeta').innerHTML = [
+    row.datetime ? '<span>📅 ' + new Date(row.datetime).toLocaleString() + '</span>' : '',
+    row.source ? '<span>📞 ' + row.source + '</span>' : '',
+    row.duration ? '<span>⏱ ' + Math.floor(row.duration/60) + 'm ' + Math.round(row.duration%60) + 's</span>' : '',
+    row.outcome ? '<span>📋 ' + row.outcome + '</span>' : '',
+    row.recordingUrl ? `<a href="${row.recordingUrl}" style="color:var(--orange);font-family:sans-serif;font-size:12px;" target="_blank">🎧 Listen</a>` : ''
+  ].filter(Boolean).join('');
+  document.getElementById('modalTranscript').textContent = row.transcript || 'No transcript available for this call.';
+  if (row.aiSummary || row.keyIssues || row.urgency) {
+    document.getElementById('modalAnalysis').innerHTML = `
+      <h4>AI Analysis</h4>
+      ${row.aiSummary ? '<p><strong>Summary:</strong> ' + row.aiSummary + '</p>' : ''}
+      ${row.keyIssues ? '<p style="margin-top:6px;"><strong>Key Issues:</strong> ' + row.keyIssues + '</p>' : ''}
+      ${row.urgency ? '<p style="margin-top:6px;"><strong>Urgency:</strong> ' + row.urgency + '</p>' : ''}
+    `;
+    document.getElementById('modalAnalysis').style.display = 'block';
+  } else {
+    document.getElementById('modalAnalysis').style.display = 'none';
+  }
+  document.getElementById('transcriptModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('transcriptModal').classList.remove('active');
+}
+
+document.getElementById('transcriptModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('transcriptModal')) closeModal();
+});
+
+function exportCSV() {
+  const cols = ['Date','Caller Name','Phone','Source','Duration(s)','HCP Match','Match Score','Match Reason','Outcome','Revenue','Urgency','Key Issues'];
+  const rows = allRows.map(r => [
+    r.datetime||'', r.callerName||'', r.phone||'', r.source||'', r.duration||0,
+    r.hcpMatch ? (r.hcpMatch.customer_name||r.hcpMatch.name||'') : '',
+    r.matchScore||0, r.matchReason||'', r.outcome||'', r.revenue||0,
+    r.urgency||'', (r.keyIssues||'').replace(/,/g,';')
+  ]);
+  const csv = [cols, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'midstate-conversion-report-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+}
+
+// ─── DEMO DATA ───
+function loadDemo() {
+  document.getElementById('progressArea').style.display = 'none';
+  const demoRows = [
+    { id:'1', datetime:'2026-04-15T09:23:00', callerName:'Linda Harmon', phone:'(651) 555-0182', source:'Organic', duration:387, hcpMatch:{customer_name:'Linda Harmon',_type:'job',job_number:'J-4421',revenue:485,service_address:'218 West 2nd St Hastings MN'}, matchScore:95, matchReason:'phone + name + address', outcome:'Booked - Job', revenue:485, urgency:'Medium', keyIssues:'AC not cooling, refrigerant check, duct inspection', aiSummary:'Customer reported AC blowing warm air. Booked for refrigerant check and duct inspection. Expressed urgency due to upcoming hot weekend.' },
+    { id:'2', datetime:'2026-04-15T11:05:00', callerName:'Tom Rieder', phone:'(651) 555-0297', source:'Facebook Ad', duration:512, hcpMatch:{customer_name:'Tom Rieder',_type:'job',job_number:'J-4428',revenue:1240,service_address:'88 Ramsey St Hastings MN'}, matchScore:88, matchReason:'phone + name', outcome:'Booked - Job', revenue:1240, urgency:'High', keyIssues:'Water heater leaking, emergency same-day, flooding risk', aiSummary:'Emergency call — water heater actively leaking in basement. Booked same-day replacement. High urgency, customer mentioned water on floor.' },
+    { id:'3', datetime:'2026-04-16T08:47:00', callerName:'Carol Vang', phone:'(651) 555-0134', source:'Organic', duration:264, hcpMatch:{customer_name:'Carol Vang',_type:'estimate',estimate_number:'E-1182'}, matchScore:78, matchReason:'phone + name', outcome:'Booked - Estimate', revenue:0, urgency:'Low', keyIssues:'Furnace tune-up, Home Maintenance Club inquiry', aiSummary:'Customer asked about annual furnace tune-up and HMC membership pricing. Estimate created for visit.' },
+    { id:'4', datetime:'2026-04-16T13:22:00', callerName:'Unknown', phone:'(651) 555-0441', source:'Facebook Ad', duration:43, hcpMatch:null, matchScore:0, matchReason:'', outcome:'No Match in HCP', revenue:0, urgency:'Low', keyIssues:'Hung up quickly, price shopping', aiSummary:'Short call, caller asked for a ballpark price on drain cleaning and disconnected before booking.' },
+    { id:'5', datetime:'2026-04-17T10:11:00', callerName:'James Pederson', phone:'(651) 555-0366', source:'Organic', duration:445, hcpMatch:{customer_name:'James Pederson',_type:'job',job_number:'J-4431',revenue:320,service_address:'410 Sibley St Hastings MN'}, matchScore:90, matchReason:'phone + address', outcome:'Booked - Job', revenue:320, urgency:'Medium', keyIssues:'Toilet running, slow drains, whole-house plumbing check', aiSummary:'Booked plumbing service for running toilet and slow drains. Technician upsold whole-home plumbing inspection.' },
+    { id:'6', datetime:'2026-04-18T09:00:00', callerName:'Sue Nygaard', phone:'(651) 555-0519', source:'Organic', duration:193, hcpMatch:null, matchScore:0, matchReason:'', outcome:'No Match in HCP', revenue:0, urgency:'Low', keyIssues:'Pricing question, not ready to schedule', aiSummary:"Called to ask about pricing for AC replacement. Wasn't ready to book — said she'd call back." },
+    { id:'7', datetime:'2026-04-19T14:35:00', callerName:'Rick Donahue', phone:'(651) 555-0612', source:'Facebook Ad', duration:601, hcpMatch:{customer_name:'Rick Donahue',_type:'job',job_number:'J-4444',revenue:2850,service_address:'122 Pine St Hastings MN'}, matchScore:92, matchReason:'phone + name + address', outcome:'Booked - Job', revenue:2850, urgency:'High', keyIssues:'Furnace not igniting, no heat, family with kids', aiSummary:'No heat situation with young children in home. Emergency furnace igniter replacement + full system check. High value job.' },
+    { id:'8', datetime:'2026-04-20T11:52:00', callerName:'Maria Santos', phone:'(651) 555-0701', source:'Organic', duration:328, hcpMatch:{customer_name:'Maria Santos',_type:'estimate',estimate_number:'E-1195'}, matchScore:72, matchReason:'phone', outcome:'Booked - Estimate', revenue:0, urgency:'Medium', keyIssues:'Sump pump replacement, basement moisture, battery backup', aiSummary:'Customer concerned about sump pump age and basement moisture. Estimate created for pump replacement and battery backup.' },
+    { id:'9', datetime:'2026-04-21T08:30:00', callerName:'Dave Lund', phone:'(651) 555-0823', source:'Facebook Ad', duration:155, hcpMatch:null, matchScore:0, matchReason:'', outcome:'No Match in HCP', revenue:0, urgency:'Low', keyIssues:'Competitor price comparison, undecided', aiSummary:'Caller was comparing quotes. Mentioned a competitor was $50 cheaper. Did not schedule.' },
+    { id:'10', datetime:'2026-04-22T15:14:00', callerName:'Patty Holden', phone:'(651) 555-0944', source:'Organic', duration:470, hcpMatch:{customer_name:'Patty Holden',_type:'job',job_number:'J-4452',revenue:665,service_address:'340 West 4th St Hastings MN'}, matchScore:85, matchReason:'phone + address', outcome:'Booked - Job', revenue:665, urgency:'Medium', keyIssues:'AC capacitor failure, electrical smell, immediate repair', aiSummary:'AC stopped working and customer noticed a burning smell. Capacitor replaced same day. Electrical smell resolved.' }
+  ];
+  allRows = demoRows;
+  renderAll(allRows);
+  document.getElementById('exportBtn').disabled = false;
+  document.getElementById('lastRun').textContent = 'Demo loaded';
+}
+</script>
+</body>
+</html>
