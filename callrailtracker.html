@@ -234,7 +234,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.9</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.1</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -487,22 +487,29 @@ async function runReport() {
     allRows = final;
     renderAll(allRows);
 
-    // Wrong numbers: scan ALL calls across all tracking numbers
-    document.getElementById('progMsg').innerHTML =
-      '<div style="font-size:12px;color:var(--muted)">Scanning all calls for wrong numbers&hellip;</div>';
-    var allCallsForWN = await fetchCalls(key, dFrom, dTo, 'all');
-    renderWrongNumbers(allCallsForWN);
-
     document.getElementById('expBtn').disabled = false;
     document.getElementById('printBtn').disabled = false;
+    document.getElementById('runBtn').disabled = false;
     document.getElementById('lastRun').textContent = 'Updated ' + new Date().toLocaleTimeString();
     document.getElementById('progMsg').innerHTML =
       '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
       allRows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0;}).length +
-      ' matched to HCP. Results also saved to <strong>CR_Tracker</strong> tab in your Google Sheet.</div>';
+      ' matched to HCP. Results also saved to <strong>CR_Tracker</strong> tab in your Google Sheet.' +
+      ' <span style="color:var(--muted)">Scanning wrong numbers in background&hellip;</span></div>';
+
+    // Wrong number scan runs in background — doesn't block UI
+    fetchCalls(key, dFrom, dTo, 'all').then(function(allCallsForWN) {
+      renderWrongNumbers(allCallsForWN);
+      var wnCount = parseInt(document.getElementById('wnCount').textContent) || 0;
+      document.getElementById('progMsg').innerHTML =
+        '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
+        allRows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0;}).length +
+        ' matched to HCP. ' + wnCount + ' wrong numbers detected across all lines.</div>';
+    }).catch(function() {
+      // Silent fail on wrong number scan — not critical
+    });
   } catch(e) {
     showErr(e.message || String(e));
-  } finally {
     document.getElementById('runBtn').disabled = false;
   }
 }
@@ -544,8 +551,9 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
 
     // Update progress message
     totalPages = d.total_pages || 1;
+    var totalCount = d.total_records || d.total_count || '?';
     document.getElementById('progMsg').innerHTML =
-      '<div style="font-size:12px;color:var(--muted)">Fetching CallRail calls: ' + allCalls.length + ' of ' + (d.total_count || '?') + '&hellip;</div>';
+      '<div style="font-size:12px;color:var(--muted)">Fetching CallRail calls: ' + allCalls.length + ' of ' + totalCount + '&hellip;</div>';
 
     page++;
   } while (page <= totalPages);
@@ -586,31 +594,61 @@ function resolveSource(trackingPhone, sourceName) {
 var SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
 
 async function fetchAndMatch(key, dFrom, dTo, tFilter) {
-  // Step 1: Get calls from CallRail
   var calls = await fetchCalls(key, dFrom, dTo, tFilter);
 
-  // Step 2: Send calls to Apps Script for server-side matching against Jobs/Estimates
   setSteps('hcp');
-  document.getElementById('progMsg').innerHTML =
-    '<div style="font-size:12px;color:var(--muted)">Sending '+calls.length+' calls to HCP for matching&hellip;</div>';
 
-  var resp = await fetch(HCP_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      action: 'matchCalls',
-      calls: calls,
-      dateFrom: dFrom,
-      dateTo: dTo,
-      trackingNumber: (tFilter !== 'all' && TRACKING[tFilter]) ? TRACKING[tFilter] : null
-    })
+  // Strip transcripts before sending to Apps Script — only send what's needed for matching
+  // This keeps the payload small and avoids timeouts
+  var slimCalls = calls.map(function(c) {
+    return {
+      id:                     c.id,
+      datetime:               c.datetime,
+      callerName:             c.callerName,
+      phone:                  c.phone,
+      tracking_phone_number:  c.tracking_phone_number,
+      duration:               c.duration,
+      source:                 c.source,
+      callDisposition:        c.callDisposition
+      // transcripts intentionally excluded — too large, not needed for phone/name/address match
+    };
   });
 
-  if (!resp.ok) throw new Error('Apps Script error: ' + resp.status);
-  var data = await resp.json();
-  if (!data.success) throw new Error('Apps Script matching failed: ' + (data.error || 'unknown error'));
+  // Batch into groups of 50 to avoid Apps Script payload/timeout limits
+  var BATCH = 50;
+  var allMatched = [];
+  var totalBatches = Math.ceil(slimCalls.length / BATCH);
 
-  return data.matched || [];
+  for (var b = 0; b < totalBatches; b++) {
+    var batch = slimCalls.slice(b * BATCH, (b + 1) * BATCH);
+    document.getElementById('progMsg').innerHTML =
+      '<div style="font-size:12px;color:var(--muted)">Matching batch ' + (b+1) + ' of ' + totalBatches + ' (' + slimCalls.length + ' calls)&hellip;</div>';
+
+    var resp = await fetch(HCP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'matchCalls',
+        calls: batch,
+        dateFrom: dFrom,
+        dateTo: dTo,
+        trackingNumber: (tFilter !== 'all' && TRACKING[tFilter]) ? TRACKING[tFilter] : null,
+        isFinal: (b === totalBatches - 1)
+      })
+    });
+
+    if (!resp.ok) throw new Error('Apps Script error: ' + resp.status);
+    var data = await resp.json();
+    if (!data.success) throw new Error('Apps Script matching failed: ' + (data.error || 'unknown error'));
+    allMatched = allMatched.concat(data.matched || []);
+  }
+
+  // Merge transcripts back into matched results for display/wrong number scanning
+  var transcriptMap = {};
+  calls.forEach(function(c) { transcriptMap[c.id] = c.transcript || ''; });
+  allMatched.forEach(function(r) { r.transcript = transcriptMap[r.id] || ''; });
+
+  return allMatched;
 }
 
 async function fetchSheetTab(tabName) {
