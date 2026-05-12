@@ -20,6 +20,112 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 
+/* ── PRINT STYLES ── */
+@media print {
+  @page {
+    size: 8.5in 11in;
+    margin: 0.5in 0.4in 0.5in 0.4in;
+  }
+
+  /* Hide interactive elements */
+  .cfg, .progArea, #progArea, .btn, button,
+  .te, .ov { display: none !important; }
+
+  /* Reset backgrounds for ink saving */
+  body { background: #fff !important; font-size: 10px; }
+  .main { padding: 0 !important; max-width: 100% !important; }
+
+  /* Header — keep navy but print-friendly */
+  .hdr {
+    background: #1A2340 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 10px 14px !important;
+    margin-bottom: 10px;
+  }
+  .hdr h1 { font-size: 13px !important; }
+  .hdr p  { font-size: 9px !important; }
+  .dot { display: none; }
+
+  /* Print date top right */
+  .hdr::after {
+    content: 'Printed: ' attr(data-print-date);
+    color: rgba(255,255,255,.6);
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  /* Metrics grid — single row, compact */
+  .mgrid {
+    grid-template-columns: repeat(8, 1fr) !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+  .mc { padding: 6px 8px !important; border-radius: 4px !important; }
+  .ml { font-size: 8px !important; margin-bottom: 2px !important; }
+  .mv { font-size: 16px !important; }
+  .ms { font-size: 8px !important; }
+
+  /* Charts — side by side, smaller */
+  .charts-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+    page-break-inside: avoid;
+  }
+  .sec { border-radius: 4px !important; margin-bottom: 8px !important; }
+  .sh  { padding: 6px 10px !important; }
+  .st  { font-size: 11px !important; }
+  .sb  { padding: 8px 10px !important; }
+
+  /* Table — compact, fits page width */
+  .tw { overflow: visible !important; }
+  table { font-size: 8px !important; width: 100% !important; }
+  thead th {
+    font-size: 7px !important;
+    padding: 5px 5px !important;
+    background: #1A2340 !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  tbody td { padding: 4px 5px !important; }
+  tbody tr { page-break-inside: avoid; }
+
+  /* Hide transcript cell in print — too long */
+  thead th:last-child,
+  tbody td:last-child { display: none !important; }
+
+  /* Color badges still print */
+  .badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 7px !important;
+    padding: 2px 5px !important;
+  }
+
+  /* Match bar */
+  .mb-track, .mb-fill {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Revenue green */
+  span[style*="color:var(--green)"] {
+    color: #1D9E75 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page breaks */
+  .mgrid        { page-break-after: avoid; }
+  .charts-row   { page-break-after: avoid; }
+  .sec:last-child { page-break-before: auto; }
+
+  /* Success message box */
+  .ok-box, .err-box { display: none !important; }
+}
+
 .hdr{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
 .hdr-l{display:flex;align-items:center;gap:12px}
 .logo{width:36px;height:36px;background:var(--orange);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;letter-spacing:-0.5px}
@@ -124,7 +230,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.0</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v2.3</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -159,6 +265,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <button class="btn btn-s" onclick="testConn()">Test Connection</button>
     <button class="btn btn-s" onclick="loadDemo()">Load Demo</button>
     <button class="btn btn-s" id="expBtn" onclick="exportCSV()" disabled>Export CSV</button>
+    <button class="btn btn-s" id="printBtn" onclick="printReport()" disabled>Print / PDF</button>
   </div>
 </div>
 
@@ -255,7 +362,10 @@ svg.chart{display:block;width:100%;overflow:visible}
 var CR_ACCOUNT = '541526025';
 var CR_COMPANY = '819196701';
 var HCP_URL = 'https://script.google.com/macros/s/AKfycbw0t8-9HKK7JtsYpXq00_SO4dxpBIqo62nokAnTnNIc4H5gj5dLnwr_Z5V31LGoTGnP/exec';
-var TRACKING = { organic:'6514801195', facebook:'6513001118' };
+var TRACKING = {
+  organic:  '6514801195',
+  facebook: '6513001118'
+};
 var allRows = [];
 
 (function initDates() {
@@ -326,6 +436,7 @@ async function runReport() {
     allRows = final;
     renderAll(allRows);
     document.getElementById('expBtn').disabled = false;
+    document.getElementById('printBtn').disabled = false;
     document.getElementById('lastRun').textContent = 'Updated ' + new Date().toLocaleTimeString();
     document.getElementById('progMsg').innerHTML =
       '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
@@ -339,29 +450,49 @@ async function runReport() {
 }
 
 async function fetchCalls(key, dFrom, dTo, tFilter) {
-  var p = new URLSearchParams({
-    start_date: dFrom,
-    end_date: dTo,
-    per_page: '250',
-    company_id: CR_COMPANY,
-    fields: 'id,start_time,customer_phone_number,customer_name,tracking_phone_number,duration,recording,transcription,answered,source_name,call_type,direction,call_disposition,note'
-  });
-  if (tFilter !== 'all' && TRACKING[tFilter]) {
-    p.append('tracking_number', TRACKING[tFilter]);
-  }
-  var url = 'https://api.callrail.com/v3/a/'+CR_ACCOUNT+'/calls.json?'+p;
-  var resp = await fetch(url, { headers:{ 'Authorization':'Token token="'+key+'"', 'Content-Type':'application/json' } });
-  if (!resp.ok) {
-    var body = await resp.text().catch(function(){return ''});
-    var detail = '';
-    try { detail = JSON.parse(body).error || body.substring(0,400); } catch(e){ detail = body.substring(0,400); }
-    if (resp.status === 401) throw new Error('401 Unauthorized — check your API key.');
-    if (resp.status === 404) throw new Error('404 Not Found — confirm your API key has access to account '+CR_ACCOUNT+'.');
-    if (resp.status === 400) throw new Error('400 Bad Request — CallRail said: '+detail);
-    throw new Error('CallRail '+resp.status+': '+detail);
-  }
-  var d = await resp.json();
-  return (d.calls || []).map(function(c){
+  var allCalls = [];
+  var page = 1;
+  var totalPages = 1;
+
+  do {
+    var p = new URLSearchParams({
+      start_date: dFrom,
+      end_date: dTo,
+      per_page: '250',
+      page: String(page),
+      company_id: CR_COMPANY,
+      fields: 'id,start_time,customer_phone_number,customer_name,tracking_phone_number,duration,recording,transcription,answered,source_name,call_type,direction,call_disposition,note'
+    });
+    if (tFilter !== 'all' && TRACKING[tFilter]) {
+      p.append('tracking_number', TRACKING[tFilter]);
+    }
+
+    var url = 'https://api.callrail.com/v3/a/' + CR_ACCOUNT + '/calls.json?' + p;
+    var resp = await fetch(url, { headers: { 'Authorization': 'Token token="' + key + '"', 'Content-Type': 'application/json' } });
+
+    if (!resp.ok) {
+      var body = await resp.text().catch(function() { return ''; });
+      var detail = '';
+      try { detail = JSON.parse(body).error || body.substring(0, 400); } catch(e) { detail = body.substring(0, 400); }
+      if (resp.status === 401) throw new Error('401 Unauthorized — check your API key.');
+      if (resp.status === 404) throw new Error('404 Not Found — confirm your API key has access to account ' + CR_ACCOUNT + '.');
+      if (resp.status === 400) throw new Error('400 Bad Request — CallRail said: ' + detail);
+      throw new Error('CallRail ' + resp.status + ': ' + detail);
+    }
+
+    var d = await resp.json();
+    var calls = d.calls || [];
+    allCalls = allCalls.concat(calls);
+
+    // Update progress message
+    totalPages = d.total_pages || 1;
+    document.getElementById('progMsg').innerHTML =
+      '<div style="font-size:12px;color:var(--muted)">Fetching CallRail calls: ' + allCalls.length + ' of ' + (d.total_count || '?') + '&hellip;</div>';
+
+    page++;
+  } while (page <= totalPages);
+
+  return allCalls.map(function(c) {
     return {
       id: c.id,
       datetime: c.start_time,
@@ -373,9 +504,17 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
       recordingUrl: c.recording || '',
       callDisposition: c.call_disposition || '',
       callType: c.call_type || '',
-      answered: c.answered
+      answered: c.answered,
+      source: resolveSource(c.tracking_phone_number || '', c.source_name || '')
     };
   });
+}
+
+function resolveSource(trackingPhone, sourceName) {
+  var ph = normalPhone(trackingPhone);
+  if (ph === TRACKING.facebook) return 'Facebook Ad';
+  if (ph === TRACKING.organic)  return 'Organic';
+  return sourceName || 'Other';
 }
 
 var SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
@@ -717,37 +856,45 @@ document.getElementById('modal').addEventListener('click',function(e){if(e.targe
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+
+function printReport() {
+  var hdr = document.querySelector('.hdr');
+  if (hdr) hdr.setAttribute('data-print-date', new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}));
+  window.print();
+}
+
 function exportCSV(){
-  var cols=['Date','Caller Name','Phone','Source','Duration(s)','HCP Match','Match Score','Match Reason','Outcome','Revenue','Urgency','Key Issues'];
+  var cols=['Date','Caller Name','Phone','Source','Duration(s)','HCP Customer','Job #','HCP Status','Match Score','Match Reason','Outcome','Revenue','Urgency','Key Issues'];
   var rows=allRows.map(function(r){return[
     r.datetime||'',r.callerName||'',r.phone||'',r.source||'',r.duration||0,
-    r.hcpMatch?(r.hcpMatch.customer_name||r.hcpMatch.name||''):'',
+    r.hcpCustomer||'',r.hcpJobNum||'',r.hcpStatus||'',
     r.matchScore||0,r.matchReason||'',r.outcome||'',r.revenue||0,
     r.urgency||'',(r.keyIssues||'').replace(/,/g,';')
   ]});
   var csv=[cols].concat(rows).map(function(r){return r.map(function(v){return'"'+String(v).replace(/"/g,'""')+'"'}).join(',')}).join('\n');
   var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='midstate-conversion-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.download='midstate-fb-conversion-'+new Date().toISOString().split('T')[0]+'.csv';
   a.click();
 }
 
 function loadDemo(){
   document.getElementById('progArea').style.display='none';
   allRows=[
-    {id:'1',datetime:'2026-04-15T09:23:00',callerName:'Linda Harmon',phone:'(651) 555-0182',source:'Organic',duration:387,hcpMatch:{customer_name:'Linda Harmon',_t:'job',job_number:'J-4421',revenue:485},matchScore:95,matchReason:'phone + name + address',outcome:'Booked - Job',revenue:485,urgency:'Medium',keyIssues:'AC not cooling, refrigerant check, duct inspection',aiSummary:'Customer reported AC blowing warm air. Booked for refrigerant check and duct inspection.'},
-    {id:'2',datetime:'2026-04-15T11:05:00',callerName:'Tom Rieder',phone:'(651) 555-0297',source:'Facebook Ad',duration:512,hcpMatch:{customer_name:'Tom Rieder',_t:'job',job_number:'J-4428',revenue:1240},matchScore:88,matchReason:'phone + name',outcome:'Booked - Job',revenue:1240,urgency:'High',keyIssues:'Water heater leaking, emergency same-day, flooding risk',aiSummary:'Emergency — water heater actively leaking. Booked same-day replacement.'},
-    {id:'3',datetime:'2026-04-16T08:47:00',callerName:'Carol Vang',phone:'(651) 555-0134',source:'Organic',duration:264,hcpMatch:{customer_name:'Carol Vang',_t:'estimate',estimate_number:'E-1182'},matchScore:78,matchReason:'phone + name',outcome:'Booked - Estimate',revenue:0,urgency:'Low',keyIssues:'Furnace tune-up, HMC inquiry',aiSummary:'Asked about furnace tune-up and HMC membership. Estimate created.'},
-    {id:'4',datetime:'2026-04-16T13:22:00',callerName:'Unknown',phone:'(651) 555-0441',source:'Facebook Ad',duration:43,hcpMatch:null,matchScore:0,matchReason:'',outcome:'No Match in HCP',revenue:0,urgency:'Low',keyIssues:'Hung up, price shopping',aiSummary:'Short call, asked for drain cleaning price and disconnected.'},
-    {id:'5',datetime:'2026-04-17T10:11:00',callerName:'James Pederson',phone:'(651) 555-0366',source:'Organic',duration:445,hcpMatch:{customer_name:'James Pederson',_t:'job',job_number:'J-4431',revenue:320},matchScore:90,matchReason:'phone + address',outcome:'Booked - Job',revenue:320,urgency:'Medium',keyIssues:'Toilet running, slow drains, plumbing check',aiSummary:'Booked for running toilet and slow drains. Upsold whole-home inspection.'},
-    {id:'6',datetime:'2026-04-18T09:00:00',callerName:'Sue Nygaard',phone:'(651) 555-0519',source:'Organic',duration:193,hcpMatch:null,matchScore:0,matchReason:'',outcome:'No Match in HCP',revenue:0,urgency:'Low',keyIssues:'Pricing question, not ready',aiSummary:"Asked about AC replacement pricing. Not ready to book."},
-    {id:'7',datetime:'2026-04-19T14:35:00',callerName:'Rick Donahue',phone:'(651) 555-0612',source:'Facebook Ad',duration:601,hcpMatch:{customer_name:'Rick Donahue',_t:'job',job_number:'J-4444',revenue:2850},matchScore:92,matchReason:'phone + name + address',outcome:'Booked - Job',revenue:2850,urgency:'High',keyIssues:'Furnace not igniting, no heat, family with kids',aiSummary:'No heat emergency. Furnace igniter replaced + system check. High value.'},
-    {id:'8',datetime:'2026-04-20T11:52:00',callerName:'Maria Santos',phone:'(651) 555-0701',source:'Organic',duration:328,hcpMatch:{customer_name:'Maria Santos',_t:'estimate',estimate_number:'E-1195'},matchScore:72,matchReason:'phone',outcome:'Booked - Estimate',revenue:0,urgency:'Medium',keyIssues:'Sump pump, basement moisture, battery backup',aiSummary:'Concerned about sump pump age. Estimate for replacement + battery backup.'},
-    {id:'9',datetime:'2026-04-21T08:30:00',callerName:'Dave Lund',phone:'(651) 555-0823',source:'Facebook Ad',duration:155,hcpMatch:null,matchScore:0,matchReason:'',outcome:'No Match in HCP',revenue:0,urgency:'Low',keyIssues:'Price comparison, undecided',aiSummary:'Comparing quotes. Mentioned competitor $50 cheaper. Did not schedule.'},
-    {id:'10',datetime:'2026-04-22T15:14:00',callerName:'Patty Holden',phone:'(651) 555-0944',source:'Organic',duration:470,hcpMatch:{customer_name:'Patty Holden',_t:'job',job_number:'J-4452',revenue:665},matchScore:85,matchReason:'phone + address',outcome:'Booked - Job',revenue:665,urgency:'Medium',keyIssues:'AC capacitor failure, electrical smell, immediate repair',aiSummary:'AC stopped working with burning smell. Capacitor replaced same day.'}
+    {id:'1',datetime:'2026-04-15T09:23:00',callerName:'Linda Harmon',phone:'(651) 555-0182',source:'Facebook Ad',duration:387,hcpCustomer:'Linda Harmon',hcpJobNum:'J-4421',hcpStatus:'Paid',matchScore:95,matchReason:'phone + name + address',outcome:'Booked - Job',revenue:485,urgency:'Medium',keyIssues:'AC not cooling, refrigerant check',aiSummary:'Customer reported AC blowing warm air. Booked for refrigerant check.'},
+    {id:'2',datetime:'2026-04-15T11:05:00',callerName:'Tom Rieder',phone:'(651) 555-0297',source:'Facebook Ad',duration:512,hcpCustomer:'Tom Rieder',hcpJobNum:'J-4428',hcpStatus:'Paid',matchScore:88,matchReason:'phone + name',outcome:'Booked - Job',revenue:1240,urgency:'High',keyIssues:'Water heater leaking, emergency',aiSummary:'Emergency water heater replacement booked same-day.'},
+    {id:'3',datetime:'2026-04-16T08:47:00',callerName:'Carol Vang',phone:'(651) 555-0134',source:'Facebook Ad',duration:264,hcpCustomer:'Carol Vang',hcpJobNum:'E-1182',hcpStatus:'',matchScore:78,matchReason:'phone + name',outcome:'Booked - Estimate',revenue:0,urgency:'Low',keyIssues:'Furnace tune-up, HMC inquiry',aiSummary:'Estimate created for furnace tune-up.'},
+    {id:'4',datetime:'2026-04-16T13:22:00',callerName:'Unknown',phone:'(651) 555-0441',source:'Facebook Ad',duration:43,hcpCustomer:'',hcpJobNum:'',hcpStatus:'',matchScore:0,matchReason:'',outcome:'No Match',revenue:0,urgency:'Low',keyIssues:'Hung up, price shopping',aiSummary:'Short call, disconnected before booking.'},
+    {id:'5',datetime:'2026-04-17T10:11:00',callerName:'James Pederson',phone:'(651) 555-0366',source:'Facebook Ad',duration:445,hcpCustomer:'James Pederson',hcpJobNum:'J-4431',hcpStatus:'Paid',matchScore:90,matchReason:'phone + address',outcome:'Booked - Job',revenue:320,urgency:'Medium',keyIssues:'Toilet running, slow drains',aiSummary:'Booked plumbing service, upsold whole-home inspection.'},
+    {id:'6',datetime:'2026-04-18T09:00:00',callerName:'Sue Nygaard',phone:'(651) 555-0519',source:'Facebook Ad',duration:193,hcpCustomer:'',hcpJobNum:'',hcpStatus:'',matchScore:0,matchReason:'',outcome:'No Match',revenue:0,urgency:'Low',keyIssues:'Pricing question, not ready',aiSummary:'Asked about AC pricing. Not ready to book.'},
+    {id:'7',datetime:'2026-04-19T14:35:00',callerName:'Rick Donahue',phone:'(651) 555-0612',source:'Facebook Ad',duration:601,hcpCustomer:'Rick Donahue',hcpJobNum:'J-4444',hcpStatus:'Paid',matchScore:92,matchReason:'phone + name + address',outcome:'Booked - Job',revenue:2850,urgency:'High',keyIssues:'Furnace not igniting, no heat',aiSummary:'No heat emergency. Furnace igniter replaced.'},
+    {id:'8',datetime:'2026-04-20T11:52:00',callerName:'Maria Santos',phone:'(651) 555-0701',source:'Facebook Ad',duration:328,hcpCustomer:'Maria Santos',hcpJobNum:'E-1195',hcpStatus:'',matchScore:72,matchReason:'phone',outcome:'Booked - Estimate',revenue:0,urgency:'Medium',keyIssues:'Sump pump, basement moisture',aiSummary:'Estimate for sump pump replacement.'},
+    {id:'9',datetime:'2026-04-21T08:30:00',callerName:'Dave Lund',phone:'(651) 555-0823',source:'Facebook Ad',duration:155,hcpCustomer:'',hcpJobNum:'',hcpStatus:'',matchScore:0,matchReason:'',outcome:'No Match',revenue:0,urgency:'Low',keyIssues:'Price comparison, undecided',aiSummary:'Comparing quotes. Did not schedule.'},
+    {id:'10',datetime:'2026-04-22T15:14:00',callerName:'Patty Holden',phone:'(651) 555-0944',source:'Facebook Ad',duration:470,hcpCustomer:'Patty Holden',hcpJobNum:'J-4452',hcpStatus:'Paid',matchScore:85,matchReason:'phone + address',outcome:'Booked - Job',revenue:665,urgency:'Medium',keyIssues:'AC capacitor failure, electrical smell',aiSummary:'Capacitor replaced same day.'}
   ];
   renderAll(allRows);
   document.getElementById('expBtn').disabled=false;
+  document.getElementById('printBtn').disabled=false;
   document.getElementById('lastRun').textContent='Demo loaded';
 }
 </script>
