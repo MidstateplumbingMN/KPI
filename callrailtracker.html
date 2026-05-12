@@ -124,7 +124,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v1.7</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v1.8</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -319,18 +319,18 @@ async function runReport() {
   setSteps('cr');
 
   try {
-    var calls = await fetchCalls(key, dFrom, dTo, tFilter);
-    setSteps('hcp');
-    var hcp = await fetchHCP(dFrom, dTo);
+    var matched = await fetchAndMatch(key, dFrom, dTo, tFilter);
     setSteps('match');
-    var matched = matchAll(calls, hcp);
-    setSteps('ai');
     var final = runAI(matched);
+    setSteps('ai');
     allRows = final;
     renderAll(allRows);
     document.getElementById('expBtn').disabled = false;
-    document.getElementById('lastRun').textContent = 'Updated '+new Date().toLocaleTimeString();
-    document.getElementById('progArea').style.display = 'none';
+    document.getElementById('lastRun').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('progMsg').innerHTML =
+      '<div class="ok-box">&#10003; Loaded ' + allRows.length + ' calls &mdash; ' +
+      allRows.filter(function(r){return r.outcome.indexOf('Booked')>=0;}).length +
+      ' matched to HCP. Results also saved to <strong>CR_Tracker</strong> tab in your Google Sheet.</div>';
   } catch(e) {
     showErr(e.message || String(e));
   } finally {
@@ -380,24 +380,31 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
 
 var SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
 
-async function fetchHCP(dFrom, dTo) {
+async function fetchAndMatch(key, dFrom, dTo, tFilter) {
+  // Step 1: Get calls from CallRail
+  var calls = await fetchCalls(key, dFrom, dTo, tFilter);
+
+  // Step 2: Send calls to Apps Script for server-side matching against Jobs/Estimates
+  setSteps('hcp');
+  document.getElementById('progMsg').innerHTML =
+    '<div style="font-size:12px;color:var(--muted)">Sending '+calls.length+' calls to HCP for matching&hellip;</div>';
+
   var resp = await fetch(HCP_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'getSheetData', dateFrom: dFrom, dateTo: dTo })
+    body: JSON.stringify({
+      action: 'matchCalls',
+      calls: calls,
+      dateFrom: dFrom,
+      dateTo: dTo
+    })
   });
-  if (!resp.ok) throw new Error('HCP Apps Script HTTP error: ' + resp.status);
+
+  if (!resp.ok) throw new Error('Apps Script error: ' + resp.status);
   var data = await resp.json();
-  if (data.error) throw new Error('HCP Apps Script: ' + data.error);
+  if (!data.success) throw new Error('Apps Script matching failed: ' + (data.error || 'unknown error'));
 
-  var jobs = data.Jobs || data.jobs || [];
-  var estimates = data.Estimates || data.estimates || [];
-
-  // Show HCP counts in progress area for debugging
-  document.getElementById('progMsg').innerHTML =
-    '<div style="font-size:12px;color:var(--muted);font-family:sans-serif;">HCP: '+jobs.length+' jobs, '+estimates.length+' estimates loaded</div>';
-
-  return { Jobs: jobs, Estimates: estimates };
+  return data.matched || [];
 }
 
 async function fetchSheetTab(tabName) {
@@ -505,52 +512,44 @@ function matchAll(calls, hcp) {
 }
 
 function runAI(rows) {
-  var urgencyHigh = ['no heat','no ac','no air','flooding','flood','leak','leaking','burst','gas smell','gas leak','emergency','urgent','asap','right away','immediately','not working','stopped working','won\'t turn on','wont turn on','frozen pipe','no hot water','sewage','backed up','overflow'];
-  var urgencyMed = ['repair','fix','broken','not cooling','not heating','strange noise','loud noise','dripping','slow drain','clog','clogged','estimate','quote','this week','soon'];
+  var urgencyHigh = ['no heat','no ac','no air','flooding','flood','leak','leaking','burst','gas smell','gas leak','emergency','urgent','asap','frozen pipe','no hot water','sewage','backed up','overflow'];
+  var urgencyMed  = ['repair','fix','broken','not cooling','not heating','strange noise','dripping','slow drain','clog','clogged','estimate','quote','this week','soon'];
   var issueMap = [
-    {keys:['ac','air condition','cooling','cool','refrigerant','capacitor'], label:'AC issue'},
-    {keys:['furnace','heat','heating','no heat','igniter','burner'], label:'Heating issue'},
-    {keys:['water heater','hot water','water heat'], label:'Water heater'},
-    {keys:['drain','clog','sewer','sewage','backup','backed up'], label:'Drain/sewer'},
-    {keys:['leak','leaking','pipe','burst','water damage'], label:'Leak/pipe'},
-    {keys:['toilet','faucet','fixture','sink','shower','bathtub'], label:'Plumbing fixture'},
-    {keys:['sump pump','sump'], label:'Sump pump'},
-    {keys:['maintenance','tune.up','inspection','check up','club','membership'], label:'Maintenance'},
-    {keys:['price','cost','how much','quote','estimate'], label:'Pricing inquiry'},
-    {keys:['install','replacement','replace','new unit'], label:'Installation/replacement'},
-    {keys:['schedule','appointment','available','when can'], label:'Scheduling'}
+    {keys:['ac','air condition','cooling','refrigerant','capacitor'], label:'AC issue'},
+    {keys:['furnace','heat','heating','no heat','igniter','burner'],   label:'Heating issue'},
+    {keys:['water heater','hot water'],                                label:'Water heater'},
+    {keys:['drain','clog','sewer','sewage','backup','backed up'],      label:'Drain/sewer'},
+    {keys:['leak','leaking','pipe','burst','water damage'],            label:'Leak/pipe'},
+    {keys:['toilet','faucet','fixture','sink','shower'],               label:'Plumbing fixture'},
+    {keys:['sump pump'],                                               label:'Sump pump'},
+    {keys:['maintenance','tune','inspection','club','membership'],     label:'Maintenance'},
+    {keys:['price','cost','how much','quote'],                         label:'Pricing inquiry'},
+    {keys:['install','replacement','replace','new unit'],              label:'Install/replace'},
   ];
 
   return rows.map(function(r) {
     var tr = (r.transcript || '').toLowerCase();
-    var disp = (r.callDisposition || '').toLowerCase();
-    var ctype = (r.callType || '').toLowerCase();
+    // Use Apps Script values if present, otherwise compute locally
+    var urgency   = (r.urgency   && r.urgency   !== '—') ? r.urgency   : '';
+    var keyIssues = (r.keyIssues && r.keyIssues !== '—') ? r.keyIssues : '';
 
-    // Urgency
-    var urgency = 'Low';
-    if (urgencyHigh.some(function(k){ return tr.indexOf(k) >= 0; })) urgency = 'High';
-    else if (urgencyMed.some(function(k){ return tr.indexOf(k) >= 0; })) urgency = 'Medium';
-    // Also flag short unanswered calls as low
-    if (r.duration < 30 && !r.answered) urgency = 'Low';
-
-    // Key issues from transcript
-    var found = [];
-    issueMap.forEach(function(im){
-      if (im.keys.some(function(k){ return tr.indexOf(k) >= 0; })) found.push(im.label);
-    });
-    var keyIssues = found.slice(0,4).join(', ') || (disp ? disp : '—');
-
-    // Summary
-    var summary = '';
-    if (!r.transcript) {
-      summary = r.answered === false ? 'Call was not answered.' : 'No transcript available.';
-    } else if (r.outcome === 'Booked - Job') {
-      summary = 'Call matched to a booked job in HCP.';
-    } else if (r.outcome === 'Booked - Estimate') {
-      summary = 'Call matched to an estimate in HCP.';
-    } else {
-      summary = urgency === 'High' ? 'Potential emergency call — no HCP match found.' : 'Call not matched to an HCP record.';
+    if (!urgency) {
+      if (urgencyHigh.some(function(k){ return tr.indexOf(k) >= 0; })) urgency = 'High';
+      else if (urgencyMed.some(function(k){ return tr.indexOf(k) >= 0; })) urgency = 'Medium';
+      else urgency = 'Low';
     }
+    if (!keyIssues) {
+      var found = [];
+      issueMap.forEach(function(im){
+        if (im.keys.some(function(k){ return tr.indexOf(k) >= 0; })) found.push(im.label);
+      });
+      keyIssues = found.slice(0,4).join(', ') || '—';
+    }
+    var summary =
+      r.outcome === 'Booked - Job'      ? 'Matched to booked job in HCP.' :
+      r.outcome === 'Booked - Estimate' ? 'Matched to estimate in HCP.' :
+      urgency   === 'High'              ? 'Potential emergency — no HCP match found.' :
+                                          'Call not matched to an HCP record.';
 
     return Object.assign({}, r, { urgency: urgency, keyIssues: keyIssues, aiSummary: summary });
   });
@@ -565,13 +564,13 @@ function renderAll(rows) {
 
 function updateMetrics(rows) {
   var total=rows.length;
-  var matched=rows.filter(function(r){return r.hcpMatch}).length;
-  var booked=rows.filter(function(r){return r.outcome.indexOf('Booked')>=0}).length;
+  var matched=rows.filter(function(r){return r.hcpCustomer&&r.hcpCustomer!==''}).length;
+  var booked=rows.filter(function(r){return r.outcome&&r.outcome.indexOf('Booked')>=0}).length;
   var rate=matched>0?Math.round(booked/matched*100):0;
-  var rev=rows.reduce(function(s,r){return s+(r.revenue||0)},0);
+  var rev=rows.reduce(function(s,r){return s+(parseFloat(r.revenue)||0)},0);
   var ticket=booked>0?Math.round(rev/booked):0;
   var urgent=rows.filter(function(r){return r.urgency==='High'}).length;
-  var unmatched=rows.filter(function(r){return !r.hcpMatch}).length;
+  var unmatched=rows.filter(function(r){return !r.hcpCustomer||r.hcpCustomer===''}).length;
   document.getElementById('mCalls').textContent=total;
   document.getElementById('mMatched').textContent=matched;
   document.getElementById('mBooked').textContent=booked;
@@ -664,11 +663,11 @@ function applyFilters(data) {
     var ugc=r.urgency==='High'?'bhi':r.urgency==='Medium'?'bmd':'blo';
     var src2=r.source==='Facebook Ad'?'bfb':'borg';
     var mc=r.matchScore>=80?'#1D9E75':r.matchScore>=50?'#BA7517':'#E24B4A';
-    var mbar=r.hcpMatch?'<div class="mb-bar"><div class="mb-track"><div class="mb-fill" style="width:'+r.matchScore+'%;background:'+mc+'"></div></div><span class="mb-pct">'+r.matchScore+'%</span></div><div style="font-size:10px;color:var(--muted);margin-top:1px">'+r.matchReason+'</div>':'<span style="font-size:11px;color:var(--muted)">—</span>';
-    var hn = r.hcpName || '—';
-    var hid = r.hcpJobNum || '';
-    var hstat = r.hcpStatus ? '<span style="font-size:10px;color:var(--muted)"> · '+escHtml(r.hcpStatus)+'</span>' : '';
-    var rev=r.revenue>0?'<span style="color:var(--green);font-weight:700">$'+r.revenue.toLocaleString('en-US',{maximumFractionDigits:0})+'</span>':'—';
+    var mbar=r.hcpCustomer?'<div class="mb-bar"><div class="mb-track"><div class="mb-fill" style="width:'+r.matchScore+'%;background:'+mc+'"></div></div><span class="mb-pct">'+r.matchScore+'%</span></div><div style="font-size:10px;color:var(--muted);margin-top:1px">'+(r.matchReason||'')+'</div>':'<span style="font-size:11px;color:var(--muted)">—</span>';
+    var hn    = r.hcpCustomer || '—';
+    var hid   = r.hcpJobNum   || '';
+    var hstat = r.hcpStatus   ? '<span style="font-size:10px;color:var(--muted)"> &middot; '+escHtml(r.hcpStatus)+'</span>' : '';
+    var rev=r.revenue>0?'<span style="color:var(--green);font-weight:700">$'+(parseFloat(r.revenue)||0).toLocaleString('en-US',{maximumFractionDigits:0})+'</span>':'—';
     var snip=r.transcript?r.transcript.substring(0,110):'';
     var trcell=snip?'<div class="tc"><div class="ts">'+snip+'&hellip;</div><button class="te" onclick="openModal('+r.id+')">View full &nearr;</button></div>':'<span style="font-size:11px;color:var(--muted)">No transcript</span>';
     return '<tr><td><div style="font-weight:500">'+ds+'</div><div class="tm">'+ts+'</div></td>'
