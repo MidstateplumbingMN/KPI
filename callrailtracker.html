@@ -169,10 +169,7 @@
     <label>CallRail API Key (v3)</label>
     <input type="password" id="crApiKey" placeholder="cr-api-key-xxxx" />
   </div>
-  <div class="config-group">
-    <label>CallRail Account ID</label>
-    <input type="text" id="crAccountId" placeholder="ACC-xxxxxxxx" />
-  </div>
+
   <div class="config-group">
     <label>Date From</label>
     <input type="date" id="dateFrom" />
@@ -189,8 +186,9 @@
       <option value="facebook">Facebook Ad (651-300-1118)</option>
     </select>
   </div>
-  <div style="display:flex; gap:8px; margin-top:auto;">
+  <div style="display:flex; gap:8px; margin-top:auto; flex-wrap:wrap;">
     <button class="btn btn-primary" id="runBtn" onclick="runReport()">Run Report</button>
+    <button class="btn btn-secondary" onclick="testConnection()">Test Connection</button>
     <button class="btn btn-secondary" onclick="loadDemo()">Load Demo</button>
     <button class="btn btn-secondary" id="exportBtn" onclick="exportCSV()" disabled>Export CSV</button>
   </div>
@@ -304,6 +302,8 @@
 </div>
 
 <script>
+const CR_ACCOUNT_ID = '541526025';
+const CR_COMPANY_ID = '819196701';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';
 const TRACKING_NUMBERS = {
   organic: '6514801195',
@@ -338,14 +338,36 @@ function showError(msg) {
   document.getElementById('progressError').innerHTML = `<div class="error-box">⚠ ${msg}</div>`;
 }
 
-async function runReport() {
+async function testConnection() {
   const apiKey = document.getElementById('crApiKey').value.trim();
-  const accountId = document.getElementById('crAccountId').value.trim();
+  if (!apiKey) { alert('Enter your CallRail API key first.'); return; }
+
+  document.getElementById('progressArea').style.display = 'block';
+  document.getElementById('progressError').innerHTML = '<div style="font-family:sans-serif;font-size:13px;color:var(--text-muted);">Testing connection to CallRail…</div>';
+
+  try {
+    const resp = await fetch(`https://api.callrail.com/v3/a/${CR_ACCOUNT_ID}/companies.json`, {
+      headers: { 'Authorization': `Token token="${apiKey}"` }
+    });
+    if (resp.status === 401) throw new Error('401 Unauthorized — API key is invalid.');
+    if (resp.status === 404) throw new Error(`404 Not Found — API key doesn't have access to this account. Verify at CallRail → Settings → Integrations → API Keys.`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const companies = data.companies || [];
+    const names = companies.map(c => c.name).join(', ') || '(none)';
+    document.getElementById('progressError').innerHTML = `<div style="background:var(--green-light);border:1px solid #9FE1CB;border-radius:6px;padding:12px 14px;font-size:13px;color:#085041;font-family:sans-serif;">✓ Connected successfully! Found ${companies.length} company: <strong>${names}</strong>. Your credentials are working — click Run Report.</div>`;
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+
+  const apiKey = document.getElementById('crApiKey').value.trim();
   const dateFrom = document.getElementById('dateFrom').value;
   const dateTo = document.getElementById('dateTo').value;
 
-  if (!apiKey || !accountId) {
-    alert('Please enter your CallRail API key and Account ID, or click Load Demo.');
+  if (!apiKey) {
+    alert('Please enter your CallRail API key, or click Load Demo.');
     return;
   }
 
@@ -355,9 +377,8 @@ async function runReport() {
   setStep('step-cr','active');
 
   try {
-    // Step 1: Fetch CallRail calls
     const trackingFilter = document.getElementById('trackingFilter').value;
-    const crCalls = await fetchCallRailCalls(apiKey, accountId, dateFrom, dateTo, trackingFilter);
+    const crCalls = await fetchCallRailCalls(apiKey, dateFrom, dateTo, trackingFilter);
     setStep('step-hcp','active');
 
     // Step 2: Fetch HCP data from Apps Script
@@ -384,27 +405,37 @@ async function runReport() {
   }
 }
 
-async function fetchCallRailCalls(apiKey, accountId, dateFrom, dateTo, trackingFilter) {
+async function fetchCallRailCalls(apiKey, dateFrom, dateTo, trackingFilter) {
   const params = new URLSearchParams({
-    date_range: 'custom',
     start_date: dateFrom,
     end_date: dateTo,
-    per_page: 250,
+    per_page: '250',
+    company_id: CR_COMPANY_ID,
     fields: 'id,start_time,caller_number,caller_name,tracking_phone_number,duration,recording_url,transcription,answered,source_name'
   });
 
-  // Filter by specific tracking number
   if (trackingFilter !== 'all' && TRACKING_NUMBERS[trackingFilter]) {
     params.append('tracking_numbers[]', TRACKING_NUMBERS[trackingFilter]);
   }
 
-  const resp = await fetch(`https://api.callrail.com/v3/a/${accountId}/calls.json?${params}`, {
-    headers: { 'Authorization': `Token token=${apiKey}`, 'Content-Type': 'application/json' }
+  const url = `https://api.callrail.com/v3/a/${CR_ACCOUNT_ID}/calls.json?${params}`;
+
+  const resp = await fetch(url, {
+    headers: {
+      'Authorization': `Token token="${apiKey}"`,
+      'Content-Type': 'application/json'
+    }
   });
 
+  if (resp.status === 404) {
+    throw new Error(`404 Not Found — API key may not have access to account ${CR_ACCOUNT_ID}. Verify your key at CallRail → Settings → Integrations → API Keys.`);
+  }
+  if (resp.status === 401) {
+    throw new Error('401 Unauthorized — API key is invalid or expired. Go to CallRail → Settings → Integrations → API Keys to verify.');
+  }
   if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`CallRail API error ${resp.status}: ${errText.substring(0,200)}`);
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`CallRail API error ${resp.status}: ${errText.substring(0,300)}`);
   }
 
   const data = await resp.json();
