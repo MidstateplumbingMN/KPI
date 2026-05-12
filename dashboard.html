@@ -75,9 +75,35 @@ button{cursor:pointer;background:#fff}
 .err-bar{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-bottom:8px;display:none}
 /* TABS */
 .tabs{display:flex;border-bottom:1.5px solid #e5e7eb;margin-bottom:18px;flex-wrap:wrap}
-.tab{font-size:13px;padding:8px 14px;cursor:pointer;border:none;background:none;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-1.5px}
-.tab.active{color:#1A3A5C;border-bottom-color:#1A3A5C;font-weight:600}
-.tab .badge-count{font-size:10px;background:#ef4444;color:#fff;padding:1px 5px;border-radius:99px;margin-left:4px;font-weight:700}
+.tabs{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px 0;background:#fff;border-bottom:2px solid #e5e7eb;margin-bottom:0}
+.tab{font-size:12px;padding:6px 13px;cursor:pointer;border:1.5px solid transparent;border-radius:7px 7px 0 0;background:#f3f4f6;color:#6b7280;font-weight:500;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:all .15s;margin-bottom:-2px;border-bottom:2px solid transparent}
+.tab:hover{background:#e9ecef;color:#374151}
+.tab.active{font-weight:700;background:#fff;border-color:#e5e7eb;border-bottom-color:#fff;color:#111}
+/* Each tab has a unique left-border accent color when active */
+.tab[data-tab="jobs"].active{border-top:3px solid #1A3A5C;color:#1A3A5C}
+.tab[data-tab="estimates"].active{border-top:3px solid #0891b2;color:#0891b2}
+.tab[data-tab="attr"].active{border-top:3px solid #7C3AED;color:#7C3AED}
+.tab[data-tab="kpi"].active{border-top:3px solid #0d9488;color:#0d9488}
+.tab[data-tab="goals"].active{border-top:3px solid #E8640A;color:#E8640A}
+.tab[data-tab="cal"].active{border-top:3px solid #2563eb;color:#2563eb}
+.tab[data-tab="is"].active{border-top:3px solid #dc2626;color:#dc2626}
+.tab[data-tab="contest"].active{border-top:3px solid #d97706;color:#d97706}
+.tab[data-tab="unpaid"].active{border-top:3px solid #b91c1c;color:#b91c1c}
+.tab[data-tab="plans"].active{border-top:3px solid #059669;color:#059669}
+.tab[data-tab="debug"].active{border-top:3px solid #9ca3af;color:#6b7280}
+/* Hover accent previews */
+.tab[data-tab="jobs"]:hover{background:#EBF0F7;color:#1A3A5C}
+.tab[data-tab="estimates"]:hover{background:#e0f2fe;color:#0891b2}
+.tab[data-tab="attr"]:hover{background:#f5f3ff;color:#7C3AED}
+.tab[data-tab="kpi"]:hover{background:#f0fdfa;color:#0d9488}
+.tab[data-tab="goals"]:hover{background:#fff7ed;color:#E8640A}
+.tab[data-tab="cal"]:hover{background:#eff6ff;color:#2563eb}
+.tab[data-tab="is"]:hover{background:#fef2f2;color:#dc2626}
+.tab[data-tab="contest"]:hover{background:#fffbeb;color:#d97706}
+.tab[data-tab="unpaid"]:hover{background:#fef2f2;color:#b91c1c}
+.tab[data-tab="plans"]:hover{background:#f0fdf4;color:#059669}
+.tab[data-tab="debug"]:hover{background:#f9fafb;color:#6b7280}
+.tab .badge-count{font-size:10px;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700;line-height:1.4}
 .panel{display:none}.panel.active{display:block}
 /* METRICS */
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
@@ -385,7 +411,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v10.8</span>
+      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.0</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -414,14 +440,13 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v10.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.0</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
       <button class="sec-btn no-print" id="summaryBtn" style="display:none" onclick="openSummaryReport()">📊 Summary Report</button>
       <button class="sec-btn no-print refresh-all-btn" id="refreshAllBtn" style="display:none" onclick="refreshAll()">↻ Refresh all</button>
       <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
-      <button class="sec-btn no-print" onclick="showDataTools()">⚙ Data</button>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
     </div>
   </div>
@@ -458,17 +483,17 @@ tr:hover td{background:#fafafa}
 
   <div id="main" style="display:none">
     <div class="tabs">
-      <button class="tab active" onclick="showTab('jobs')">Jobs &amp; Revenue</button>
-      <button class="tab" onclick="showTab('estimates')">Estimates</button>
-      <button class="tab" id="attrTab" onclick="showTab('attr')">Attribution</button>
-      <button class="tab" onclick="showTab('kpi')">Employee KPIs</button>
-      <button class="tab" onclick="showTab('goals')">🎯 Goals</button>
-      <button class="tab" onclick="showTab('cal')">📅 Calendar</button>
-      <button class="tab" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
-      <button class="tab" onclick="showTab('contest')">🏆 Contest</button>
-      <button class="tab" id="unpaidTab" onclick="showTab('unpaid')">⚠ Unpaid Jobs</button>
-      <button class="tab" onclick="showTab('plans')">Service Plans</button>
-      <button class="tab" onclick="showTab('debug')">Raw Data</button>
+      <button class="tab active" data-tab="jobs" onclick="showTab('jobs')">📋 Jobs &amp; Revenue</button>
+      <button class="tab" data-tab="estimates" onclick="showTab('estimates')">📊 Estimates</button>
+      <button class="tab" data-tab="attr" id="attrTab" onclick="showTab('attr')">🔗 Attribution</button>
+      <button class="tab" data-tab="kpi" onclick="showTab('kpi')">👤 Employee KPIs</button>
+      <button class="tab" data-tab="goals" onclick="showTab('goals')">🎯 Goals</button>
+      <button class="tab" data-tab="cal" onclick="showTab('cal')">📅 Calendar</button>
+      <button class="tab" data-tab="is" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
+      <button class="tab" data-tab="contest" onclick="showTab('contest')">🏆 Contest</button>
+      <button class="tab" data-tab="unpaid" id="unpaidTab" onclick="showTab('unpaid')">⚠️ Unpaid Jobs</button>
+      <button class="tab" data-tab="plans" onclick="showTab('plans')">🛡 Service Plans</button>
+      <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
     </div>
 
     <!-- JOBS -->
@@ -708,83 +733,6 @@ tr:hover td{background:#fafafa}
 
       <!-- Opportunity cards -->
       <div id="isCards"></div>
-
-      <!-- Data Tools Modal -->
-  <div class="is-modal-overlay" id="dataToolsOverlay" onclick="closeDataTools()" style="display:none"></div>
-  <div class="is-modal" id="dataToolsModal" style="display:none;max-width:480px">
-    <div class="is-modal-header">
-      <div class="is-modal-title">⚙ Data Management</div>
-      <span style="font-size:20px;cursor:pointer;color:#9ca3af" onclick="closeDataTools()">✕</span>
-    </div>
-
-    <div style="margin-bottom:20px">
-      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Attribution data</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears all confirmed revenue attributions stored in your browser. You'll need to re-confirm jobs in the Attribution tab after your next pull.</div>
-      <div style="font-size:12px;color:#9ca3af;margin-bottom:8px" id="attrStorageInfo"></div>
-      <button class="is-btn danger" style="width:100%" onclick="clearAttributions()">🗑 Clear all attributions</button>
-    </div>
-
-    <div style="margin-bottom:20px;padding-top:16px;border-top:1px solid #f3f4f6">
-      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Inside Sales activity</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears call logs and opportunity statuses. Email follow-up history is preserved separately and survives all resets.</div>
-      <button class="is-btn danger" style="width:100%" onclick="clearISData()">🗑 Clear Inside Sales data</button>
-    </div>
-
-    <div style="margin-bottom:20px;padding-top:16px;border-top:1px solid #f3f4f6">
-      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Google Sheets — KPI history</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears all rows from the KPI_Scores and Reports tabs in Midstate HCP Data. Jobs, Estimates, and Attribution tabs are always overwritten on pull so they're already clean. Use this to restart KPI tracking from a clean baseline.</div>
-      <button class="is-btn danger" style="width:100%" onclick="clearSheetsHistory()">🗑 Clear KPI &amp; Reports history in Sheets</button>
-    </div>
-
-    <div style="padding-top:16px;border-top:1px solid #f3f4f6">
-      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Full reset</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Clears everything above in one step — attributions, IS data, and Sheets history. Fresh start.</div>
-      <button class="is-btn danger" style="width:100%;background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700" onclick="fullReset()">⚠ Full reset — clear everything</button>
-    </div>
-
-    <div style="margin-top:12px;padding:10px;background:#f9fafb;border-radius:6px;font-size:11px;color:#6b7280">
-      <strong>Note:</strong> None of these actions affect your Housecall Pro data. They only clear what this dashboard has stored locally and in your Google Sheet.
-    </div>
-  </div>
-
-  <!-- Email modal -->
-      <!-- DATA TOOLS MODAL -->
-      <div class="is-modal-overlay" id="dataToolsOverlay" onclick="closeDataTools()" style="display:none"></div>
-      <div class="is-modal" id="dataToolsModal" style="display:none;max-width:460px">
-        <div class="is-modal-header">
-          <div class="is-modal-title">⚙ Data Management</div>
-          <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeDataTools()">✕</span>
-        </div>
-        <div style="font-size:12px;color:#6b7280;margin-bottom:16px" id="attrStorageInfo"></div>
-
-        <div style="margin-bottom:18px">
-          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Attribution data</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears confirmed revenue attributions stored in your browser. Re-confirm jobs in the Attribution tab after your next pull.</div>
-          <button class="is-btn danger" style="width:100%" onclick="clearAttributions()">🗑 Clear all attributions</button>
-        </div>
-
-        <div style="margin-bottom:18px;padding-top:14px;border-top:1px solid #f3f4f6">
-          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Inside Sales activity</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears all call logs, email history, and opportunity statuses from browser and Google Sheets.</div>
-          <button class="is-btn danger" style="width:100%" onclick="clearISData()">🗑 Clear Inside Sales data</button>
-        </div>
-
-        <div style="margin-bottom:18px;padding-top:14px;border-top:1px solid #f3f4f6">
-          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Google Sheets — KPI history</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears KPI_Scores and Reports tabs in Midstate HCP Data. Jobs, Estimates, and Attribution are always overwritten on pull — already clean.</div>
-          <button class="is-btn danger" style="width:100%" onclick="clearSheetsHistory()">🗑 Clear KPI &amp; Reports history in Sheets</button>
-        </div>
-
-        <div style="padding-top:14px;border-top:1px solid #f3f4f6;margin-bottom:12px">
-          <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:3px">Full reset</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears everything above in one step. Fresh start.</div>
-          <button class="is-btn" style="width:100%;background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700" onclick="fullReset()">⚠ Full reset — clear everything</button>
-        </div>
-
-        <div style="padding:10px 12px;background:#f9fafb;border-radius:6px;font-size:11px;color:#6b7280">
-          None of these actions affect your Housecall Pro data — only what this dashboard has stored locally and in your Google Sheet.
-        </div>
-      </div>
 
 
 
@@ -1323,8 +1271,7 @@ function applyEmpFilter(){
 
 
 function showTab(t){
-  const n=['jobs','estimates','attr','kpi','goals','cal','is','contest','unpaid','plans','debug'];
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',n[i]===t));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+t));
   if(t==='contest') renderContest();
   if(t==='unpaid') renderUnpaid();
@@ -6416,6 +6363,40 @@ function renderBracketHTML({rounds,seeded}){
     <button class="is-btn" onclick="closeSummaryReport()">Close</button>
   </div>
 </div>
+
+
+<!-- DATA TOOLS MODAL — root level so position:fixed works from any tab -->
+  <div class="is-modal-overlay" id="dataToolsOverlay" onclick="closeDataTools()" style="display:none"></div>
+  <div class="is-modal" id="dataToolsModal" style="display:none;max-width:460px">
+    <div class="is-modal-header">
+      <div class="is-modal-title">⚙ Data Management</div>
+      <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeDataTools()">✕</span>
+    </div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:16px" id="attrStorageInfo"></div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Attribution data</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears auto-detected attributions. Manually confirmed ones are always kept.</div>
+      <button class="is-btn danger" style="width:100%" onclick="clearAttributions()">🗑 Clear auto-attributions</button>
+    </div>
+    <div style="margin-bottom:18px;padding-top:14px;border-top:1px solid #f3f4f6">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Inside Sales activity</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears call logs and opportunity statuses. Email drafts and follow-up history are preserved.</div>
+      <button class="is-btn danger" style="width:100%" onclick="clearISData()">🗑 Clear Inside Sales data</button>
+    </div>
+    <div style="margin-bottom:18px;padding-top:14px;border-top:1px solid #f3f4f6">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:3px">Google Sheets — KPI history</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears KPI_Scores and Reports tabs in Midstate HCP Data.</div>
+      <button class="is-btn danger" style="width:100%" onclick="clearSheetsHistory()">🗑 Clear KPI &amp; Reports history in Sheets</button>
+    </div>
+    <div style="padding-top:14px;border-top:1px solid #f3f4f6;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:3px">Full reset</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Clears attributions, IS data, and Sheets history in one step.</div>
+      <button class="is-btn" style="width:100%;background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700" onclick="fullReset()">⚠ Full reset — clear everything</button>
+    </div>
+    <div style="padding:10px 12px;background:#f9fafb;border-radius:6px;font-size:11px;color:#6b7280">
+      None of these actions affect your Housecall Pro data — only what this dashboard has stored locally and in your Google Sheet.
+    </div>
+  </div>
 
 </body>
 </html>
