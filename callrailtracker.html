@@ -124,7 +124,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v1.1</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v1.2</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -344,7 +344,7 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
     end_date: dTo,
     per_page: '250',
     company_id: CR_COMPANY,
-    fields: 'id,start_time,caller_number,caller_name,tracking_phone_number,duration,recording_url,transcription,answered,source_name'
+    fields: 'id,start_time,customer_phone_number,customer_name,tracking_phone_number,duration,recording,transcription,answered,source_name,call_type,direction,call_disposition,note'
   });
   if (tFilter !== 'all' && TRACKING[tFilter]) {
     p.append('tracking_number', TRACKING[tFilter]);
@@ -354,7 +354,7 @@ async function fetchCalls(key, dFrom, dTo, tFilter) {
   if (!resp.ok) {
     var body = await resp.text().catch(function(){return ''});
     var detail = '';
-    try { detail = JSON.parse(body).error || body.substring(0,300); } catch(e){ detail = body.substring(0,300); }
+    try { detail = JSON.parse(body).error || body.substring(0,400); } catch(e){ detail = body.substring(0,400); }
     if (resp.status === 401) throw new Error('401 Unauthorized — check your API key.');
     if (resp.status === 404) throw new Error('404 Not Found — confirm your API key has access to account '+CR_ACCOUNT+'.');
     if (resp.status === 400) throw new Error('400 Bad Request — CallRail said: '+detail);
@@ -380,12 +380,12 @@ function matchAll(calls, hcp) {
     if (ph) { if (!byPhone[ph]) byPhone[ph]=[]; byPhone[ph].push(r); }
   });
   return calls.map(function(c){
-    var cp = normalPhone(c.caller_number);
+    var cp = normalPhone(c.customer_phone_number);
     var matches = byPhone[cp]||[];
     var best=null, bestScore=0, bestReason='';
     matches.forEach(function(r){
       var sc=60, reasons=['phone'];
-      var cn=(c.caller_name||'').toLowerCase();
+      var cn=(c.customer_name||'').toLowerCase();
       var rn=(r.customer_name||r.name||'').toLowerCase();
       if (cn && rn && rn.indexOf(cn.split(' ')[0])>=0){sc+=25;reasons.push('name');}
       var tr=(c.transcription||'').toLowerCase();
@@ -398,11 +398,13 @@ function matchAll(calls, hcp) {
     var outcome = !best ? 'No Match in HCP' : best._t==='job' ? 'Booked - Job' : 'Booked - Estimate';
     var src = normalPhone(c.tracking_phone_number)===TRACKING.facebook ? 'Facebook Ad' : 'Organic';
     return {
-      id:c.id, datetime:c.start_time, callerName:c.caller_name||'Unknown',
-      phone:c.caller_number, source:src, duration:c.duration||0,
+      id:c.id, datetime:c.start_time, callerName:c.customer_name||'Unknown',
+      phone:c.customer_phone_number, source:src, duration:c.duration||0,
       hcpMatch:best, matchScore:Math.min(bestScore,100), matchReason:bestReason,
       outcome:outcome, revenue:rev, hcpType:best?best._t:null,
-      transcript:c.transcription||'', recordingUrl:c.recording_url||'',
+      transcript:c.transcription||'', recordingUrl:c.recording||'',
+      callDisposition:c.call_disposition||'', callType:c.call_type||'',
+      answered:c.answered, sourceNote:c.note||'',
       urgency:'', keyIssues:'', aiSummary:''
     };
   });
