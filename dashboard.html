@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -411,7 +411,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#1A3A5C;color:#fff;border:1px solid #1A3A5C;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.0</span>
+      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -440,7 +440,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -5573,6 +5573,13 @@ function buildCalendarData(jobs, estimates, mode){
     // ---- Write JOB COUNT to WORK TECH column (who did the work — Eric) ----
     // ---- Write REVENUE to SELLER column on ESTIMATE DATE (who sold it — Lukas) ----
     // Job shows under Eric on 5/6. Revenue shows under Lukas on his estimate date.
+    // Full customer details — declared here so accessible in both job AND revenue write sections
+    const jCust=j.customer||{};
+    const jFullName=[jCust.first_name,jCust.last_name].filter(Boolean).join(' ')||getCust(j);
+    const jAddr=j.address?[j.address.street,j.address.city,j.address.state].filter(Boolean).join(', '):'';
+    const jPhone=jCust.mobile_number||jCust.home_number||jCust.work_number||'';
+    const jAllTechs=getAssignedList(j).map(e=>((e.first_name||'')+' '+(e.last_name||'')).trim()).filter(Boolean);
+
     if(workEmpId){
       const appointments=j.schedule?.appointments||[];
       const extraDates=new Set();
@@ -5598,13 +5605,6 @@ function buildCalendarData(jobs, estimates, mode){
         if(complete&&!paid) schedCell.unpaid+=total;
         else if(!complete&&total>0) schedCell.pending+=total;
       }
-
-      // Full customer details for popup
-      const jCust=j.customer||{};
-      const jFullName=[jCust.first_name,jCust.last_name].filter(Boolean).join(' ')||getCust(j);
-      const jAddr=j.address?[j.address.street,j.address.city,j.address.state].filter(Boolean).join(', '):'';
-      const jPhone=jCust.mobile_number||jCust.home_number||jCust.work_number||'';
-      const jAllTechs=getAssignedList(j).map(e=>((e.first_name||'')+' '+(e.last_name||'')).trim()).filter(Boolean);
 
       schedCell.jobCount++;
       schedCell.items.push({
