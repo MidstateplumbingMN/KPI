@@ -234,7 +234,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.3</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.7</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -290,14 +290,15 @@ svg.chart{display:block;width:100%;overflow:visible}
 
   <div id="panel-calls">
   <div class="mgrid">
-    <div class="mc"><div class="ml">Total Calls</div><div class="mv" id="mCalls">—</div><div class="ms">in date range</div></div>
-    <div class="mc"><div class="ml">HCP Matched</div><div class="mv" id="mMatched">—</div><div class="ms">phone / name / address</div></div>
-    <div class="mc"><div class="ml">Booked</div><div class="mv g" id="mBooked">—</div><div class="ms">jobs or estimates</div></div>
-    <div class="mc"><div class="ml">Conversion Rate</div><div class="mv o" id="mRate">—</div><div class="ms">of matched calls</div></div>
-    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">status = Paid jobs</div></div>
-    <div class="mc"><div class="ml">Avg Ticket</div><div class="mv" id="mTicket">—</div><div class="ms">booked calls</div></div>
-    <div class="mc"><div class="ml">High Urgency</div><div class="mv r" id="mUrgent">—</div><div class="ms">AI-flagged</div></div>
-    <div class="mc"><div class="ml">Unmatched</div><div class="mv" id="mUnmatched" style="color:var(--gray)">—</div><div class="ms">not in HCP</div></div>
+    <div class="mc"><div class="ml">Total Calls</div><div class="mv" id="mCalls">—</div><div class="ms">to tracking number</div></div>
+    <div class="mc"><div class="ml">Converted</div><div class="mv g" id="mMatched">—</div><div class="ms">has a paid job</div></div>
+    <div class="mc"><div class="ml">Matched - Not Paid</div><div class="mv o" id="mNotPaid">—</div><div class="ms">job exists, not paid</div></div>
+    <div class="mc"><div class="ml">Needs Confirmation</div><div class="mv" id="mNeedsConf" style="color:var(--amber)">—</div><div class="ms">low confidence match</div></div>
+    <div class="mc"><div class="ml">Conversion Rate</div><div class="mv o" id="mRate">—</div><div class="ms">of all calls</div></div>
+    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">paid jobs only</div></div>
+    <div class="mc"><div class="ml">Avg Ticket</div><div class="mv" id="mTicket">—</div><div class="ms">per converted call</div></div>
+    <div class="mc"><div class="ml">High Urgency</div><div class="mv r" id="mUrgent">—</div><div class="ms">transcript flagged</div></div>
+    <div class="mc"><div class="ml">No Job Found</div><div class="mv" id="mUnmatched" style="color:var(--gray)">—</div><div class="ms">no paid job in HCP</div></div>
   </div>
 
   <div class="charts-row">
@@ -322,12 +323,10 @@ svg.chart{display:block;width:100%;overflow:visible}
       <div class="fbar">
         <select id="fOut" onchange="applyFilters()">
           <option value="">All Outcomes</option>
-          <option value="Booked - Job (Paid)">Booked - Job (Paid)</option>
-          <option value="Booked - Job (Scheduled)">Booked - Job (Scheduled)</option>
-          <option value="Booked - Estimate">Booked - Estimate</option>
-          <option value="Existing Customer">Existing Customer</option>
-          <option value="Canceled">Canceled</option>
-          <option value="No Match">No Match</option>
+          <option value="Converted - Paid Job">Converted - Paid Job</option>
+          <option value="Matched - Not Paid">Matched - Not Paid</option>
+          <option value="Needs Confirmation">Needs Confirmation</option>
+          <option value="No Match Found">No Match Found</option>
         </select>
         <select id="fUrg" onchange="applyFilters()">
           <option value="">All Urgency</option>
@@ -343,7 +342,7 @@ svg.chart{display:block;width:100%;overflow:visible}
         <table>
           <thead><tr>
             <th>Date / Time</th><th>Caller</th><th>Phone</th><th>Source</th>
-            <th>Duration</th><th>HCP Match</th><th>Confidence</th>
+            <th>Duration</th><th>HCP Customer</th><th>Job #</th><th>Dept / Tech</th>
             <th>Outcome</th><th>Revenue</th><th>Urgency</th><th>Key Issues</th><th>Transcript</th>
           </tr></thead>
           <tbody id="tBody">
@@ -802,28 +801,34 @@ function renderAll(rows) {
 
 function updateMetrics(rows) {
   var total=rows.length;
-  var matched=rows.filter(function(r){return r.hcpCustomer&&r.hcpCustomer!==''}).length;
-  var booked=rows.filter(function(r){return r.outcome&&(r.outcome.indexOf('Booked')>=0||r.outcome.indexOf('Paid')>=0)&&r.outcome!=='Canceled'}).length;
-  var rate=matched>0?Math.round(booked/matched*100):0;
-  var rev=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'}).reduce(function(s,r){return s+(parseFloat(r.revenue)||0)},0);
-  var paidJobs=rows.filter(function(r){return r.outcome==='Booked - Job (Paid)'&&parseFloat(r.revenue)>0}).length;
-  var ticket=paidJobs>0?Math.round(rev/paidJobs):0;
-  var urgent=rows.filter(function(r){return r.urgency==='High'}).length;
-  var unmatched=rows.filter(function(r){return !r.hcpCustomer||r.hcpCustomer===''}).length;
-  document.getElementById('mCalls').textContent=total;
-  document.getElementById('mMatched').textContent=matched;
-  document.getElementById('mBooked').textContent=booked;
-  document.getElementById('mRate').textContent=rate+'%';
-  document.getElementById('mRev').textContent='$'+rev.toLocaleString('en-US',{maximumFractionDigits:0});
-  document.getElementById('mTicket').textContent=ticket>0?'$'+ticket.toLocaleString():'—';
-  document.getElementById('mUrgent').textContent=urgent;
-  document.getElementById('mUnmatched').textContent=unmatched;
+  var matched  = rows.filter(function(r){ return r.outcome === 'Converted - Paid Job'; }).length;
+  var booked   = matched;
+  var rate     = rows.length > 0 ? Math.round(matched / rows.length * 100) : 0;
+  var rev      = rows.filter(function(r){ return r.outcome === 'Converted - Paid Job'; })
+                     .reduce(function(s,r){ return s + (parseFloat(r.revenue)||0); }, 0);
+  var ticket   = matched > 0 ? Math.round(rev / matched) : 0;
+  var urgent   = rows.filter(function(r){ return r.urgency === 'High'; }).length;
+  var unmatched = rows.filter(function(r){ return r.outcome === 'No Match Found'; }).length;
+  var notPaid   = rows.filter(function(r){ return r.outcome === 'Matched - Not Paid'; }).length;
+  var needsConf = rows.filter(function(r){ return r.outcome === 'Needs Confirmation'; }).length;
+  document.getElementById('mCalls').textContent    = total;
+  document.getElementById('mMatched').textContent  = matched;
+  document.getElementById('mNotPaid').textContent  = notPaid;
+  document.getElementById('mNeedsConf').textContent = needsConf;
+  document.getElementById('mRate').textContent     = rate + '%';
+  document.getElementById('mRev').textContent      = '$' + rev.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('mTicket').textContent   = ticket > 0 ? '$' + ticket.toLocaleString() : '—';
+  document.getElementById('mUrgent').textContent   = urgent;
+  document.getElementById('mUnmatched').textContent = unmatched;
 }
 
 function drawOutcomeChart(rows) {
   var counts={};
   rows.forEach(function(r){counts[r.outcome]=(counts[r.outcome]||0)+1;});
-  var colorMap={'Booked - Job':'#1D9E75','Booked - Estimate':'#378ADD','Likely Booked (AI)':'#5DCAA5','Not Booked':'#E24B4A','No Match in HCP':'#888780','Matched - No booking':'#BA7517'};
+  var colorMap = {
+    'Converted - Paid Job': '#1D9E75',
+    'No Paid Job Found':    '#888780'
+  };
   var labels=Object.keys(counts), vals=labels.map(function(l){return counts[l];}), colors=labels.map(function(l){return colorMap[l]||'#ccc';});
   var total=vals.reduce(function(a,b){return a+b},0);
   var svg=document.getElementById('chartOutcome');
@@ -898,27 +903,43 @@ function applyFilters(data) {
     var ds=dt?dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
     var ts=dt?dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     var dur=r.duration?Math.floor(r.duration/60)+'m '+Math.round(r.duration%60)+'s':'—';
-    var obc=r.outcome==='Booked - Job (Paid)'?'bj':r.outcome==='Booked - Job (Scheduled)'?'bj':r.outcome==='Booked - Estimate'?'be':r.outcome==='Existing Customer'?'bmd':r.outcome==='Canceled'?'bnb':r.outcome.indexOf('Likely')>=0?'bai':'bnm';
-    var ugc=r.urgency==='High'?'bhi':r.urgency==='Medium'?'bmd':'blo';
-    var src2=r.source==='Facebook Ad'?'bfb':'borg';
-    var mc=r.matchScore>=80?'#1D9E75':r.matchScore>=50?'#BA7517':'#E24B4A';
-    var mbar=r.hcpCustomer?'<div class="mb-bar"><div class="mb-track"><div class="mb-fill" style="width:'+r.matchScore+'%;background:'+mc+'"></div></div><span class="mb-pct">'+r.matchScore+'%</span></div><div style="font-size:10px;color:var(--muted);margin-top:1px">'+(r.matchReason||'')+'</div>':'<span style="font-size:11px;color:var(--muted)">—</span>';
-    var hn    = r.hcpCustomer || '—';
-    var hid   = r.hcpJobNum   || '';
-    var hstat = r.hcpStatus   ? '<span style="font-size:10px;color:var(--muted)"> &middot; '+escHtml(r.hcpStatus)+'</span>' : '';
-    var rev=r.revenue>0?'<span style="color:var(--green);font-weight:700">$'+(parseFloat(r.revenue)||0).toLocaleString('en-US',{maximumFractionDigits:0})+'</span>':'—';
-    var snip=r.transcript?r.transcript.substring(0,110):'';
-    var trcell=snip?'<div class="tc"><div class="ts">'+snip+'&hellip;</div><button class="te" onclick="openModal('+r.id+')">View full &nearr;</button></div>':'<span style="font-size:11px;color:var(--muted)">No transcript</span>';
-    return '<tr><td><div style="font-weight:500">'+ds+'</div><div class="tm">'+ts+'</div></td>'
-      +'<td><div style="font-weight:500">'+escHtml(r.callerName)+'</div><div class="tm">'+escHtml(hn!=='—'?hn:'')+'</div></td>'
+    var obc = r.outcome==='Converted - Paid Job'  ? 'bj'
+            : r.outcome==='Matched - Not Paid'    ? 'bmd'
+            : r.outcome==='Needs Confirmation'    ? 'be'
+            : 'bnm';
+    var confBadge = r.confidence
+      ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">'
+        + (r.matchReason||'') + (r.confidence?' &middot; '+r.confidence:'') + '</div>'
+      : '';
+    var ugc = r.urgency==='High'?'bhi':r.urgency==='Medium'?'bmd':'blo';
+    var src2= r.source==='Facebook Ad'?'bfb':'borg';
+    var rev = r.revenue>0
+      ? '<span style="color:var(--green);font-weight:700">$'+(parseFloat(r.revenue)||0).toLocaleString('en-US',{maximumFractionDigits:0})+'</span>'
+      : '—';
+    var hcpCell = r.hcpCustomer
+      ? '<div style="font-weight:500;font-size:12px">'+escHtml(r.hcpCustomer)+'</div>'
+        +'<div class="tm">'+(r.hcpJobNum?'#'+escHtml(r.hcpJobNum)+' &middot; ':'')
+        +escHtml(r.hcpDept||'')+'</div>'
+        + confBadge
+      : '<span style="color:var(--gray);font-size:12px">No match</span>';
+    var deptTech = r.hcpDept||r.hcpTech
+      ? escHtml((r.hcpDept||'')+(r.hcpDept&&r.hcpTech?' / ':'')+( r.hcpTech||''))
+      : '—';
+    var snip = r.transcript ? r.transcript.substring(0,110) : '';
+    var trcell = snip
+      ? '<div class="tc"><div class="ts">'+snip+'&hellip;</div><button class="te" onclick="openModal(\''+r.id+'\')">View &nearr;</button></div>'
+      : '<span style="font-size:11px;color:var(--muted)">No transcript</span>';
+    return '<tr>'
+      +'<td><div style="font-weight:500">'+ds+'</div><div class="tm">'+ts+'</div></td>'
+      +'<td><div style="font-weight:500">'+escHtml(r.callerName)+'</div><div class="tm">'+escHtml(r.phone||'')+'</div></td>'
       +'<td class="tm">'+escHtml(r.phone||'—')+'</td>'
       +'<td><span class="badge '+src2+'">'+r.source+'</span></td>'
       +'<td class="tm">'+dur+'</td>'
-      +'<td style="font-size:12px">'+(hn!=='—'?escHtml(hn)+(hid?' <span class="tm">#'+hid+'</span>':'')+hstat:'<span style="color:var(--gray)">No match</span>')+'</td>'
-      +'<td>'+mbar+'</td>'
+      +'<td>'+hcpCell+'</td>'
+      +'<td class="tm" style="font-size:11px">'+deptTech+'</td>'
       +'<td><span class="badge '+obc+'">'+r.outcome+'</span></td>'
       +'<td>'+rev+'</td>'
-      +'<td><span class="badge '+ugc+'">'+r.urgency+'</span></td>'
+      +'<td><span class="badge '+ugc+'">'+(r.urgency||'—')+'</span></td>'
       +'<td style="font-size:11px;color:var(--muted);max-width:140px">'+escHtml(r.keyIssues||'—')+'</td>'
       +'<td>'+trcell+'</td></tr>';
   }).join('');
@@ -982,32 +1003,79 @@ function switchTab(tab) {
 }
 
 var WRONG_NUMBER_PHRASES = [
-  'wrong number','wrong #','not the right number','not this number',
-  'you have the wrong','i think you have the wrong','no one here by that name',
-  'nobody here by','this is not','this isn\'t','you\'ve reached the wrong',
-  'incorrect number','different number','not looking for plumb',
-  'not looking for heat','not looking for hvac','not a plumb',
-  'don\'t need plumbing','don\'t need hvac','not interested',
-  'soliciting','stop calling','remove my number','do not call',
-  'already have someone','have a plumber','have an hvac'
+  // Caller explicitly says wrong number
+  'wrong number',
+  'wrong #',
+  'dialed the wrong',
+  'called the wrong',
+  'meant to call',
+  'trying to reach',
+  'looking for a different',
+  'not the number i',
+  'not who i was',
+
+  // Caller asks if this is a different business
+  'is this the',
+  'is this a',
+  'are you the',
+  'are you a',
+
+  // Caller names a different business or service
+  'pizza',
+  'doctor',
+  'pharmacy',
+  'hospital',
+  'dentist',
+  'restaurant',
+  'hotel',
+  'insurance',
+  'bank',
+  'attorney',
+  'lawyer',
+
+  // Explicit misdial acknowledgment
+  'i must have the wrong',
+  'i think i have the wrong',
+  'sorry wrong',
+  'oops wrong',
+  'my mistake',
+  'accidentally called',
+
+  // Out of state / wrong region
+  'not in minnesota',
+  'not in mn',
+  'i\'m in florida',
+  'i\'m in texas',
+  'i\'m in california',
+  'i\'m in arizona',
+  'i\'m in ohio',
+  'i\'m in illinois',
+  'calling from out of state'
 ];
 
 function detectWrongNumber(row) {
   var tr = (row.transcript || '').toLowerCase();
   var disp = (row.callDisposition || '').toLowerCase();
+  var dur = row.duration || 0;
+
+  // Must have a transcript to flag — no transcript = not enough info
+  if (!tr) return { detected: false, method: '' };
+
+  // Must be a short call (under 90 seconds) — long calls are real inquiries even if confused
+  if (dur > 90) return { detected: false, method: '' };
 
   // Check disposition first
-  if (disp.indexOf('wrong') >= 0) return { detected: true, method: 'Call disposition' };
+  if (disp.indexOf('wrong') >= 0) {
+    return { detected: true, method: 'Call disposition: wrong number' };
+  }
 
-  // Very short calls with no transcript are likely wrong numbers
-  if (row.duration < 15 && !tr) return { detected: true, method: 'Under 15s, no transcript' };
-
-  // Scan transcript
+  // Scan transcript for wrong number phrases
   for (var i = 0; i < WRONG_NUMBER_PHRASES.length; i++) {
     if (tr.indexOf(WRONG_NUMBER_PHRASES[i]) >= 0) {
       return { detected: true, method: 'Transcript: "' + WRONG_NUMBER_PHRASES[i] + '"' };
     }
   }
+
   return { detected: false, method: '' };
 }
 
