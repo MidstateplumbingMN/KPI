@@ -412,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v12.0</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -441,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v12.0</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3437,109 +3437,106 @@ function refreshAll(){
 }
 
 // ============================================================
-// THANK YOU CARDS — Equipment sale detection from Midstate pricebook
-// Furnaces: AR9S80, AR9T96, AR9T97, AR9S96, AR9T80, ARVM97 + Platform Furnace names
-// ACs: ALXS5, ALXS3, AXV6S, Platform AC names + SEER
-// Boilers: Peerless, Weil-McLain, Navien NHB/NFB, CGa
-// Heat Pumps: ASZS60, ASZH4/5
-// Mini Splits: any mini split / ductless
-// Packages: Star packages, BOGO, Full System, Modulating
+// THANK YOU CARDS — Exact pricebook item matching
+// New systems only — paid jobs — one card per job
+// Upgrades included (they accompany installs for better systems)
+// NOT included: repairs, tune-ups, accessories, existing-unit swaps
 // ============================================================
-const TY_CATEGORIES={
-  furnace:{label:'Furnace',color:'#DC2626',icon:'🔥',
-    patterns:[/AR9S80/i,/AR9T96/i,/AR9T97/i,/AR9S96/i,/AR9T80/i,/ARVM97/i,
-              /2-Stage 96%/i,/Single Stage 96%/i,/Single Stage 80%/i,/80% single stage/i,
-              /80% 2-stage/i,/96% single stage/i,/96% 2-stage/i,/\bfurnace\b/i,
-              /Platform Furnace/i,/BOGO Furnace/i]},
-  ac:{label:'Air Conditioner',color:'#2563EB',icon:'❄️',
-    patterns:[/ALXS5/i,/ALXS3/i,/AXV6S/i,/ASXH\d/i,/ASXC/i,
-              /\d+(\.\d+)?\s*Ton\s*AC/i,/air conditioner/i,/\bSEER2?\b/i,
-              /Platform Air Conditioner/i,/air conditioning/i]},
-  boiler:{label:'Boiler',color:'#7C3AED',icon:'♨️',
-    patterns:[/Peerless/i,/Weil.McLain/i,/Weil-McLain/i,/Navien/i,/\bNHB\b/i,
-              /\bNFB\b/i,/CGa/i,/MI-0\d/i,/\bboiler\b/i,/cast iron boiler/i,
-              /high eff boiler/i]},
-  heat_pump:{label:'Heat Pump',color:'#059669',icon:'🌡️',
-    patterns:[/ASZS60/i,/ASZH4/i,/ASZH5/i,/heat pump/i,
-              /\d+\s*TON.*Heat Pump/i,/Heat Pump.*\d+\s*TON/i]},
-  mini_split:{label:'Mini Split',color:'#0891B2',icon:'💨',
-    patterns:[/mini.?split/i,/ductless/i,/single head.*mini/i,/two head.*mini/i,
-              /three head.*mini/i,/four head.*mini/i,/multi.?zone/i,
-              /Standard Efficiency.*Head/i,/High Efficient.*Head/i]},
-  package:{label:'Equipment Package',color:'#E8640A',icon:'📦',
-    patterns:[/\d+\s*Star.*package/i,/Star.*Change.?out/i,/Full System/i,/BOGO/i,
-              /Fully Modulating/i,/changeout plus/i,/change out/i,
-              /New Equipment Package/i,/Star Package/i]},
-  garage_heater:{label:'Garage Heater',color:'#D97706',icon:'🏠',
-    patterns:[/Modine/i,/garage heater/i,/HD.?HDS/i,/Hot Dawg/i]}
+const TY_ITEM_SETS={
+  furnace:{label:'Furnace',color:'#DC2626',icon:'🔥',items:new Set([
+    'AR9S80 (80% SINGLE STAGE) 60K','AR9S80 (80% SINGLE STAGE) 80K','AR9S80 (80% SINGLE STAGE) 100K','AR9S80 (80% SINGLE STAGE) 120K',
+    'AR9T80 (80% SINGLE STAGE) 40K','AR9T80 (80% 2-STAGE) 60K','AR9T80 (80% 2-STAGE) 80K','AR9T80 (80% 2-STAGE) 100K',
+    'AR9S96 (96% SINGLE STAGE) 40K','AR9S96 (96% SINGLE STAGE) 60K','AR9S96 (96% SINGLE STAGE) 80K','AR9S96 (96% SINGLE STAGE) 100K','AR9S96 (96% SINGLE STAGE) 120K',
+    'AR9T96 (96% 2-STAGE) 40K','AR9T96 (96% 2-STAGE) 60K','AR9T96 (96% 2-STAGE) 80K','AR9T96 (96% 2-STAGE) 100K',
+    'AR9T97 (96% 2-STAGE) 120K',
+    'ARVM97 (98% MODULATING) 60K','ARVM97 (98% MODULATING) 80K','ARVM97 (97% MODULATING) 100K','ARVM97 (97% MODULATING) 120K',
+    'Single Stage 80% 40k','Single Stage 80% 60k','Single Stage 80% 80k','Single Stage 80% 100k','Single Stage 80% 120k',
+    'Single Stage 96% 60k','Single Stage 96% 80k','Single Stage 96% 100k','Single Stage 96% 120k',
+    '2-Stage 96% 40k','2-Stage 96% 60k','2-Stage 96% 80k','2-Stage 96% 100k','2-Stage 96% 120k',
+    // Upgrade items — accompany installs when customer opts for better system
+    '80% 80k Btu Upgrade','80% 100k Btu Upgrade','80% 120k Btu Upgrade',
+    '96% Single Stage 60k Upgrade','96% Single Stage 80k Upgrade','96% Single Stage 100k Upgrade','96% Single Stage 120k Upgrade',
+    '96% Two Stage 60k Upgrade','96% Two Stage 80k Upgrade','96% Two Stage 100k Upgrade','96% Two Stage 120k Upgrade',
+  ])},
+  ac:{label:'Air Conditioner',color:'#2563EB',icon:'❄️',items:new Set([
+    'ALXS3 (13 SEER) 1.5 TON','ALXS3 (13 SEER) 2 TON','ALXS3 (13 SEER) 2.5 TON','ALXS3 (13 SEER) 3 TON','ALXS3 (13 SEER) 3.5 TON','ALXS3 (13 SEER) 4 TON','ALXS3 (13 SEER) 5 TON',
+    'ALXS5 (15.2 SEER) 1.5 TON','ALXS5 (15.2 SEER) 2 TON','ALXS5 (15.2 SEER) 2.5 TON','ALXS5 (15.2 SEER) 3 TON','ALXS5 (15.2 SEER) 3.5 TON','ALXS5 (15.2 SEER) 4 TON','ALXS5 (15.2 SEER) 5 TON',
+    'AXV6S (16.2 SEER2) 1.5 Ton','AXV6S (16.2 SEER2)  2 Ton','AXV6S (16.2 SEER2)  2.5 Ton','AXV6S (16.2 SEER2)  3 Ton','AXV6S (16.2 SEER2)  3.5 Ton','AXV6S (16.2 SEER2)  4 Ton','AXV6S (16.2 SEER2)  5 Ton',
+    '1.5 Ton AC (13.4 Seer2)','2 Ton AC (13.4 Seer2)','2.5 Ton AC (13.4 Seer2)','3 Ton AC (13.4 Seer2)','3.5 Ton AC (13.4 Seer2)','4 Ton AC (13.4 Seer2)','5 Ton AC (13.4 Seer2)',
+  ])},
+  heat_pump:{label:'Heat Pump',color:'#059669',icon:'🌡️',items:new Set([
+    '2 TON 17.2 SEER2 Side Discharge Heat Pump','3 TON 17.2 SEER2 Side Discharge Heat Pump','4 TON 17.2 SEER2 Side Discharge Heat Pump','5 TON 17.2 SEER2 Side Discharge Heat Pump',
+    'ASZH4 (14 SEER) 1.5 TON','ASZH4 (14 SEER) 2 TON','ASZH4 (14 SEER) 2.5 TON','ASZH4 (14 SEER) 3 TON','ASZH4 (14 SEER) 3.5 TON','ASZH4 (14 SEER) 4 TON','ASZH4 (14 SEER) 5 TON',
+  ])},
+  boiler:{label:'Boiler',color:'#7C3AED',icon:'♨️',items:new Set([
+    'Peerless 70K Cast Iron Boiler','Peerless 105K Cast Iron Boiler','Peerless 140K Cast Iron Boiler','Peerless 175K Cast Iron Boiler','Peerless 195K Cast Iron Boiler',
+    'Weil-McLain CGa-5-PIDN - 113K BTU - 84.0% AFUE - Hot Water Gas Boiler - Chimney Vent',
+    'Navien High Eff Boiler 55k','Navien High Eff Boiler 80k','Navien High Eff Boiler 110k','Navien High Eff Boiler 150k','Navien High Eff Boiler 200k',
+  ])},
+  mini_split:{label:'Mini Split',color:'#0891B2',icon:'💨',items:new Set([
+    'Standard Efficiency Single Head Mini Split System','High Efficient Single Head Mini Split System',
+    'Standard Efficiency Two Head Mini Split System','High Efficient Two Head Mini Split System',
+    'Standard Efficiency Three Head Mini Split System','High Efficient Three Head Mini Split System',
+    'Standard Efficiency Four Head Mini Split System','High Efficient Four Head Mini Split System',
+  ])},
+  package:{label:'Equipment Package',color:'#E8640A',icon:'📦',items:new Set([
+    '1 Star 1 Piece Changeout Plus','2 Star 1 Piece Change out Upgraded to High Efficiency',
+    '3 Star Full System Change Out Like for Like Plus Package','4 Star Full System High Efficiency Change Out Plus Package',
+    '5 Star Full System High Efficiency Package Plus','Fully Modulating High Efficiency System',
+    // BOGO — customer buying AC gets furnace free; still a new system install
+    'Free BOGO Furnace Included In Promo',
+  ])},
+  water_heater:{label:'Water Heater',color:'#0369A1',icon:'💧',items:new Set([
+    'Heat Pump Water Heater 50 GA','Heat Pump Water Heater 80 GA','Tankless Water Heater',
+  ])},
+  garage_heater:{label:'Garage Heater',color:'#D97706',icon:'🏠',items:new Set([
+    // New installs only — "Garage Heater Install (Existing Unit)" excluded (repair/swap)
+    'Modine HD/HDS 30 for 1 to 1.5 Car Garage','HD/HDS 45 (For 2 to 2.5 Car Garages)',
+    'HD/HDS 60','Modine HD/HDS 75',
+  ])},
 };
 
+// Flat lookup: exact item name -> category key
+const TY_ITEM_LOOKUP={};
+Object.entries(TY_ITEM_SETS).forEach(([key,cat])=>{
+  cat.items.forEach(name=>{TY_ITEM_LOOKUP[name]=key;});
+});
+
 function detectEquipmentSale(j){
-  // Build search text from multiple sources:
-  // 1. Job description/summary (HCP often stores model # here)
-  // 2. Job notes
-  // 3. All estimates for this customer (estimate options have pricebook item names)
-  const jobText=[j.description||'',j.summary||''].join(' ');
+  if(!isJobPaid(j)) return null; // paid jobs only
 
-  // Check job description first — fastest path
-  for(const[key,cat] of Object.entries(TY_CATEGORIES)){
-    if(cat.patterns.some(p=>p.test(jobText))) return{key,...cat};
-  }
+  // Collect all text to check: job description + all estimate option names
+  const texts=[];
+  if(j.description) texts.push(j.description.trim());
+  if(j.summary) texts.push(j.summary.trim());
 
-  // Check linked estimate via attribution
-  const attr=_jobAttribution?.[j.id];
-  const custId=getCustId(j);
-  const custName=getCust(j);
+  // Customer estimates — option names contain exact pricebook item names
+  const custId=getCustId(j), custName=getCust(j);
+  const custEsts=_estimates.filter(e=>
+    (custId&&getCustId(e)===custId)||getCust(e)===custName
+  );
+  const linkedId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
+  if(linkedId){const le=_estimates.find(e=>e.id===linkedId);if(le&&!custEsts.find(e=>e.id===le.id))custEsts.push(le);}
 
-  // Find all estimates for this customer
-  const custEsts=_estimates.filter(e=>{
-    const eId=getCustId(e);
-    const eName=getCust(e);
-    return (eId&&eId===custId)||(eName&&eName===custName);
+  custEsts.forEach(est=>{
+    (est.options||[]).forEach(o=>{if(o.name)texts.push(o.name.trim());});
   });
 
-  // Also try direct link
-  const linkedId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
-  if(linkedId){
-    const linkedEst=_estimates.find(e=>e.id===linkedId);
-    if(linkedEst&&!custEsts.find(e=>e.id===linkedId)) custEsts.push(linkedEst);
-  }
-
-  // If attributed, prioritize that estimate
-  if(attr?.techId){
-    const attrEst=_estimates.find(e=>{
-      const asn=getAssignedList(e);
-      return asn.some(x=>x.id===attr.techId)&&
-             (getCustId(e)===custId||getCust(e)===custName);
-    });
-    if(attrEst&&!custEsts.find(e=>e.id===attrEst.id)) custEsts.unshift(attrEst);
-  }
-
-  for(const est of custEsts){
-    const optText=(est.options||[]).map(o=>(o.name||'')+' '+(o.description||'')).join(' ');
-    const estText=(est.description||est.summary||'')+' '+optText;
-    for(const[key,cat] of Object.entries(TY_CATEGORIES)){
-      if(cat.patterns.some(p=>p.test(estText))){
-        return{key,...cat,matchedEst:est.id};
+  // Match against exact pricebook names
+  for(const text of texts){
+    // Exact match
+    if(TY_ITEM_LOOKUP[text]){
+      const key=TY_ITEM_LOOKUP[text];
+      return{key,...TY_ITEM_SETS[key],matchedItem:text};
+    }
+    // Fuzzy: check if text contains a pricebook item name (handles minor spacing)
+    for(const[name,key] of Object.entries(TY_ITEM_LOOKUP)){
+      if(text.toLowerCase().includes(name.toLowerCase())){
+        return{key,...TY_ITEM_SETS[key],matchedItem:name};
       }
     }
   }
   return null;
-}
-
-function getTYDebugInfo(){
-  // For Raw Data tab — shows why jobs are/aren't matching
-  const sales=_jobs.filter(j=>isJobPaid(j)&&!isJobCanceled(j));
-  const matched=sales.filter(j=>detectEquipmentSale(j));
-  const noMatch=sales.filter(j=>!detectEquipmentSale(j));
-  console.log('[TY Debug] Paid jobs:',sales.length,'Matched:',matched.length,'No match:',noMatch.length);
-  console.log('[TY Debug] Sample matched:',matched.slice(0,3).map(j=>({
-    id:j.id,desc:j.description?.slice(0,60),equip:detectEquipmentSale(j)?.label
-  })));
-  console.log('[TY Debug] Sample no-match:',noMatch.slice(0,5).map(j=>({
-    id:j.id,desc:j.description?.slice(0,60)
-  })));
-  return{matched:matched.length,total:sales.length};
 }
 
 function getEquipmentLabel(j){
@@ -3593,12 +3590,17 @@ async function saveTYCard(jobId,update){
 function getTYSales(){
   const from=$$('tyFrom')?.value||$$('dateFrom')?.value||'';
   const to=$$('tyTo')?.value||$$('dateTo')?.value||'';
+  // Deduplicate by job ID — one card per paid job regardless of how many items match
+  const seenJobs=new Set();
   return _jobs.filter(j=>{
     if(isJobCanceled(j)||!isJobPaid(j)) return false;
+    if(seenJobs.has(j.id)) return false;
     const d=fmtKey(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at)||'';
     if(from&&d<from) return false;
     if(to&&d>to) return false;
-    return !!detectEquipmentSale(j);
+    if(!detectEquipmentSale(j)) return false;
+    seenJobs.add(j.id);
+    return true;
   }).sort((a,b)=>new Date(b.work_timestamps?.completed_at||b.created_at||0)-new Date(a.work_timestamps?.completed_at||a.created_at||0));
 }
 
