@@ -412,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.8</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -441,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -977,6 +977,8 @@ function disconnect(){
 function fmt(d){return d.toISOString().split('T')[0];}
 function fmtD(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch(e){return s;}}
 function fmtDY(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch(e){return s;}}
+// Global fmtKey — also defined locally in buildCalendarData for performance
+function fmtKey(d){if(!d)return null;try{const dt=new Date(d);if(isNaN(dt))return null;return dt.toISOString().split('T')[0];}catch(e){return null;}}
 function $$(id){return document.getElementById(id);}
 function centsToD(n){const v=parseFloat(n)||0;return v>500?v/100:v;}
 function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1382,46 +1384,9 @@ async function loadAll(){
       return fetchAll('/v2/jobs'+jSchedQ,['jobs','data','results']);
     }
 
-    // Fetch invoices for all jobs to get actual per-payment dates
-    // HCP endpoint: GET /v2/jobs/{id}/invoices -> invoices[].payments[]
-    // Each payment has amount_cents and created_at
-    async function fetchPaymentsForJobs(jobList){
-      const map={}; // jobId -> [{date,amount,method}]
-      // Only fetch for completed jobs (paid or partially paid) to limit API calls
-      const paidJobs=jobList.filter(j=>isJobComplete(j));
-      if(!paidJobs.length) return map;
-      $$('statusBar').textContent=`Fetching payment details for ${paidJobs.length} completed jobs...`;
-      // Batch in parallel with concurrency limit of 5
-      const BATCH=5;
-      for(let i=0;i<paidJobs.length;i+=BATCH){
-        const batch=paidJobs.slice(i,i+BATCH);
-        await Promise.all(batch.map(async j=>{
-          try{
-            const inv=await hcpGet(`/v2/jobs/${j.id}/invoices`);
-            const invoices=inv?.invoices||inv?.data||inv?.results||(Array.isArray(inv)?inv:[]);
-            const payments=[];
-            invoices.forEach(invoice=>{
-              (invoice.payments||[]).forEach(p=>{
-                const amt=p.amount_cents!=null?centsToD(p.amount_cents):centsToD(p.amount||0);
-                if(amt>0){
-                  payments.push({
-                    date:p.created_at?fmtKey(p.created_at):fmtKey(j.work_timestamps?.completed_at),
-                    amount:amt,
-                    method:p.payment_method||p.method||'',
-                    id:p.id||''
-                  });
-                }
-              });
-            });
-            if(payments.length) map[j.id]=payments;
-          }catch(e){
-            // Endpoint may return 404 for some jobs — that's fine, fall back to completed_at
-          }
-        }));
-        $$('statusBar').textContent=`Fetching payment details... ${Math.min(i+BATCH,paidJobs.length)}/${paidJobs.length}`;
-      }
-      return map;
-    }
+    // Invoice endpoint disabled — causes 429 rate limiting on larger date ranges
+    // Payment dates fall back to work_timestamps.completed_at which is accurate
+    async function fetchPaymentsForJobs(jobList){ return {}; }
 
     const [jobs,estimates,empRaw,plans]=await Promise.all([
       fetchJobs(),
@@ -1430,13 +1395,6 @@ async function loadAll(){
       tryPlans()
     ]);
 
-    // Fetch actual payment dates after we have jobs
-    $$('statusBar').textContent='Fetching payment details...';
-    const _paymentMap=await fetchPaymentsForJobs(jobs);
-    // Attach payment data to jobs for use in calendar/KPI
-    jobs.forEach(j=>{
-      if(_paymentMap[j.id]) j._payments=_paymentMap[j.id];
-    });
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
 
