@@ -412,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.2</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -441,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.2</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -843,6 +843,10 @@ tr:hover td{background:#fafafa}
       </div>
       <div id="tyContent">
         <div style="text-align:center;padding:40px;color:#9ca3af">Pull a report to see equipment sales.</div>
+      </div>
+      <div style="margin-top:12px;padding:10px 14px;background:#FFF9C3;border:1px solid #F59E0B;border-radius:7px;font-size:12px;color:#78350F">
+        <strong>⚠ Apps Script must be redeployed</strong> for the TY_Cards sheet tab to appear and card status to sync across users.
+        Deploy the updated <code>midstate_hcp_apps_script.gs</code> as a new version in Google Apps Script, then pull a fresh report — the TY_Cards tab will be created automatically.
       </div>
     </div>
 
@@ -1546,6 +1550,8 @@ async function loadAll(){
     }
     // Sync to Google Sheets in background
     syncReportToSheets(jobs,estimates,employees,plans,from,to);
+    // Initialize TY_Cards sheet tab (creates it if missing) — runs silently in background
+    fetchTYCardsFromSheets();
 
     $$('main').style.display='block';
     $$('printBtn').style.display='';
@@ -3510,25 +3516,71 @@ const TY_CATEGORIES={
 };
 
 function detectEquipmentSale(j){
-  const texts=[
-    j.description||'',j.summary||'',
-    ...(j.line_items||[]).map(li=>li.name||li.description||''),
-  ].join(' ');
+  // Build search text from multiple sources:
+  // 1. Job description/summary (HCP often stores model # here)
+  // 2. Job notes
+  // 3. All estimates for this customer (estimate options have pricebook item names)
+  const jobText=[j.description||'',j.summary||''].join(' ');
+
+  // Check job description first — fastest path
   for(const[key,cat] of Object.entries(TY_CATEGORIES)){
-    if(cat.patterns.some(p=>p.test(texts))) return{key,...cat};
+    if(cat.patterns.some(p=>p.test(jobText))) return{key,...cat};
   }
-  // Also check linked estimate options
+
+  // Check linked estimate via attribution
   const attr=_jobAttribution?.[j.id];
-  if(attr){
-    const linkedEst=_estimates.find(e=>e.id===attr.estId);
-    if(linkedEst){
-      const optText=(linkedEst.options||[]).map(o=>(o.name||'')+(o.description||'')).join(' ');
-      for(const[key,cat] of Object.entries(TY_CATEGORIES)){
-        if(cat.patterns.some(p=>p.test(optText))) return{key,...cat};
+  const custId=getCustId(j);
+  const custName=getCust(j);
+
+  // Find all estimates for this customer
+  const custEsts=_estimates.filter(e=>{
+    const eId=getCustId(e);
+    const eName=getCust(e);
+    return (eId&&eId===custId)||(eName&&eName===custName);
+  });
+
+  // Also try direct link
+  const linkedId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
+  if(linkedId){
+    const linkedEst=_estimates.find(e=>e.id===linkedId);
+    if(linkedEst&&!custEsts.find(e=>e.id===linkedId)) custEsts.push(linkedEst);
+  }
+
+  // If attributed, prioritize that estimate
+  if(attr?.techId){
+    const attrEst=_estimates.find(e=>{
+      const asn=getAssignedList(e);
+      return asn.some(x=>x.id===attr.techId)&&
+             (getCustId(e)===custId||getCust(e)===custName);
+    });
+    if(attrEst&&!custEsts.find(e=>e.id===attrEst.id)) custEsts.unshift(attrEst);
+  }
+
+  for(const est of custEsts){
+    const optText=(est.options||[]).map(o=>(o.name||'')+' '+(o.description||'')).join(' ');
+    const estText=(est.description||est.summary||'')+' '+optText;
+    for(const[key,cat] of Object.entries(TY_CATEGORIES)){
+      if(cat.patterns.some(p=>p.test(estText))){
+        return{key,...cat,matchedEst:est.id};
       }
     }
   }
   return null;
+}
+
+function getTYDebugInfo(){
+  // For Raw Data tab — shows why jobs are/aren't matching
+  const sales=_jobs.filter(j=>isJobPaid(j)&&!isJobCanceled(j));
+  const matched=sales.filter(j=>detectEquipmentSale(j));
+  const noMatch=sales.filter(j=>!detectEquipmentSale(j));
+  console.log('[TY Debug] Paid jobs:',sales.length,'Matched:',matched.length,'No match:',noMatch.length);
+  console.log('[TY Debug] Sample matched:',matched.slice(0,3).map(j=>({
+    id:j.id,desc:j.description?.slice(0,60),equip:detectEquipmentSale(j)?.label
+  })));
+  console.log('[TY Debug] Sample no-match:',noMatch.slice(0,5).map(j=>({
+    id:j.id,desc:j.description?.slice(0,60)
+  })));
+  return{matched:matched.length,total:sales.length};
 }
 
 function getEquipmentLabel(j){
@@ -3548,14 +3600,25 @@ function loadTYCards(){
 async function fetchTYCardsFromSheets(){
   if(!_sheetsProxy) return;
   try{
-    const res=await fetch(_sheetsProxy+'?action=getTYCards',{redirect:'follow',mode:'cors'});
-    const data=await res.json();
-    if(data.success&&data.cards){
-      Object.assign(_tyCards,data.cards);
-      localStorage.setItem('hcp_ty_cards',JSON.stringify(_tyCards));
-      if(document.getElementById('tab-ty')?.classList.contains('active')) renderTYCards();
-    }
-  }catch(e){console.warn('[TY]',e.message);}
+    // Must use POST with no-cors — GET requests to Apps Script exec URLs
+    // fail in Chrome due to cross-origin redirect blocking
+    const res=await fetch(_sheetsProxy,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      mode:'no-cors',
+      body:JSON.stringify({action:'getTYCardsInit'})
+    });
+    // no-cors means we can't read the response — fall back to GET via iframe trick
+    // Instead, trigger tab creation by saving a dummy init record
+    await fetch(_sheetsProxy,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      mode:'no-cors',
+      body:JSON.stringify({action:'initTYCards'})
+    });
+  }catch(e){
+    console.warn('[TY Cards] init error:',e.message);
+  }
 }
 
 async function saveTYCard(jobId,update){
@@ -3601,8 +3664,19 @@ function renderTYCards(){
   </div>`;
 
   if(!sales.length){
-    el.innerHTML=metrics+`<div style="text-align:center;padding:40px;color:#9ca3af">
-      No equipment sales found. Pull a report with a wider date range.
+    const debug=_jobs.length?getTYDebugInfo():{matched:0,total:0};
+    el.innerHTML=metrics+`<div style="text-align:center;padding:30px 20px;color:#9ca3af;max-width:500px;margin:0 auto">
+      <div style="font-size:15px;margin-bottom:8px">No equipment sales found</div>
+      <div style="font-size:12px;line-height:1.7">
+        ${_jobs.length===0
+          ?'Pull a report first — use <strong>This Year</strong> or <strong>This quarter</strong> date range.'
+          :`Searched <strong>${debug.total} paid jobs</strong> in date range — no furnace, AC, boiler, heat pump, or mini split matches found.<br><br>
+           Check the <strong>Raw Data tab → customer search</strong> on a job you expect to see here. The equipment name must appear in the job description or estimate options.<br><br>
+           <button onclick="getTYDebugInfo();alert('Check browser console (F12) for debug details')"
+             style="font-size:11px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer">
+             🔍 Debug — log matches to console
+           </button>`}
+      </div>
     </div>`;
     return;
   }
