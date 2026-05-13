@@ -40,7 +40,7 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);min-height:10
   .hdr { background: #1A2340 !important; padding: 7px 12px !important; margin-bottom: 0 !important; }
   .logo { width: 26px !important; height: 26px !important; font-size: 10px !important; background: #E87722 !important; }
   .hdr h1 { font-size: 11px !important; color: #fff !important; }
-  .hdr p  { font-size: 7px !important; color: rgba(255,255,255,.5) !important; }
+  .hdr p  { font-size: 7px !important; color: rgba(255,255,255,.6) !important; }
 
   /* Campaign banner */
   .print-tracking-banner {
@@ -52,7 +52,7 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);min-height:10
     font-weight: 700 !important;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 5px;
   }
 
   /* Metrics — 6 cards in one row */
@@ -60,37 +60,67 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);min-height:10
     display: grid !important;
     grid-template-columns: repeat(6, 1fr) !important;
     gap: 4px !important;
-    margin: 0 0 6px 0 !important;
+    margin: 0 0 5px 0 !important;
   }
-  .mc { padding: 4px 6px !important; border: 1px solid #ccc !important; border-radius: 3px !important; background: #f9f9f9 !important; }
-  .ml { font-size: 6.5px !important; color: #555 !important; margin-bottom: 2px !important; }
-  .mv { font-size: 14px !important; font-weight: 700 !important; color: #1A2340 !important; }
+  .mc { padding: 4px 7px !important; border: 1px solid #bbb !important; border-radius: 3px !important; background: #f4f4f8 !important; }
+  .ml { font-size: 6.5px !important; color: #1A2340 !important; margin-bottom: 2px !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; }
+  .mv { font-size: 15px !important; font-weight: 700 !important; color: #1A2340 !important; line-height: 1.1 !important; }
   .mv.g { color: #1D9E75 !important; }
-  .mv.o { color: #E87722 !important; }
-  .ms { font-size: 6.5px !important; color: #888 !important; }
+  .mv.o { color: #C4611A !important; }
+  .ms { font-size: 6.5px !important; color: #444 !important; font-weight: 500 !important; }
 
-  /* Charts — side by side */
+  /* Charts — side by side, taller */
   .charts-row {
     display: grid !important;
-    grid-template-columns: 190px 1fr !important;
-    gap: 6px !important;
-    margin-bottom: 6px !important;
+    grid-template-columns: 195px 1fr !important;
+    gap: 5px !important;
+    margin-bottom: 5px !important;
+    height: auto !important;
+    min-height: 180px !important;
   }
-  .sec { border: 1px solid #ccc !important; border-radius: 3px !important; background: #fff !important; overflow: hidden !important; margin-bottom: 0 !important; }
-  .sh  { padding: 3px 8px !important; background: #f0f0f4 !important; border-bottom: 1px solid #ccc !important; }
-  .st  { font-size: 8px !important; font-weight: 700 !important; color: #1A2340 !important; }
-  .sb  { padding: 5px 7px !important; }
+  .sec {
+    border: 1px solid #bbb !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+    overflow: visible !important;
+    margin-bottom: 0 !important;
+  }
+  .sh {
+    padding: 3px 8px !important;
+    background: #e8e8f0 !important;
+    border-bottom: 1px solid #bbb !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  .st { font-size: 8px !important; font-weight: 700 !important; color: #1A2340 !important; }
+  .sb { padding: 4px 6px !important; }
   #legendOutcome { display: none !important; }
-  #chartOutcome  { height: 100px !important; }
-  #chartRev      { height: 100px !important; }
-  #outcomesSummary { font-size: 7px !important; }
+  #chartOutcome { height: 150px !important; width: 100% !important; }
+  #chartRev     { height: 150px !important; width: 100% !important; }
+  #outcomesSummary { font-size: 7px !important; color: #333 !important; }
 
-  /* Hide the interactive call log, show breakdown */
+  /* Breakdown table */
+  .print-breakdown { display: block !important; margin-top: 5px !important; }
+  .print-breakdown .sec { overflow: hidden !important; }
+  .print-breakdown .sh { background: #1A2340 !important; }
+  .print-breakdown .st { color: #fff !important; font-size: 8.5px !important; }
+  .print-breakdown #printBreakdownMeta { color: rgba(255,255,255,0.75) !important; font-size: 7px !important; }
+
+  /* Footer */
+  .print-footer {
+    display: block !important;
+    margin-top: 6px !important;
+    border-top: 2px solid #1A2340 !important;
+    padding-top: 4px !important;
+    font-size: 7.5px !important;
+    color: #1A2340 !important;
+    font-weight: 500 !important;
+  }
+
+  /* Hide the interactive call log */
   #panel-calls > .sec:last-of-type { display: none !important; }
-  .print-breakdown { display: block !important; }
-  .print-footer    { display: flex !important; }
-
-  /* Tab nav */
+  .print-footer { display: flex !important; }
   #panel-calls { display: block !important; }
 }
 
@@ -202,7 +232,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v4.4</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v4.6</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -390,8 +420,15 @@ svg.chart{display:block;width:100%;overflow:visible}
 
   <!-- PRINT-ONLY FOOTER -->
   <div class="print-footer" style="display:none" id="printFooter">
-    <span>Midstate Plumbing, Heating &amp; Cooling &nbsp;&mdash;&nbsp; 3500 Cannon St Ste 100, Hastings MN 55033 &nbsp;&mdash;&nbsp; 651-480-1195</span>
-    <span>Tool designed by Robert Danaher &nbsp;&mdash;&nbsp; <span id="printFooterDate"></span></span>
+    <div style="display:flex;flex-direction:column;gap:3px;width:100%">
+      <div style="display:flex;justify-content:space-between">
+        <span>Midstate Plumbing, Heating &amp; Cooling &nbsp;&mdash;&nbsp; 3500 Cannon St Ste 100, Hastings MN 55033 &nbsp;&mdash;&nbsp; 651-480-1195</span>
+        <span>Printed: <span id="printFooterDate"></span></span>
+      </div>
+      <div style="text-align:center;color:#888;font-size:7px;border-top:1px solid #ddd;padding-top:3px">
+        Tool designed by Robert Danaher
+      </div>
+    </div>
   </div>
 
 </div>
@@ -867,7 +904,7 @@ function drawOutcomeChart(rows) {
   var total=vals.reduce(function(a,b){return a+b},0);
   var svg=document.getElementById('chartOutcome');
   // Use fixed viewBox so chart renders correctly in both screen and print
-  var VW=300, VH=180, cx=VW/2, cy=VH/2, R=72;
+  var VW=280, VH=150, cx=VW/2, cy=VH/2, R=65;
   svg.setAttribute('viewBox','0 0 '+VW+' '+VH);
   svg.setAttribute('preserveAspectRatio','xMidYMid meet');
   var angle=-Math.PI/2, paths='';
@@ -904,40 +941,46 @@ function drawRevenueChart(rows) {
   var days=Object.keys(byDay).sort();
   var svg=document.getElementById('chartRev');
   if(!days.length){svg.innerHTML='<text x="50%" y="50%" text-anchor="middle" fill="#aaa" font-size="12">No revenue data</text>';return;}
-  var W=svg.getBoundingClientRect().width||400, H=180, padL=58, padB=45, padT=10, padR=10;
+  var H=180, padL=58, padB=48, padT=8, padR=8;
+  svg.setAttribute('viewBox','0 0 600 '+H);
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  var W=600;
   var cW=W-padL-padR, cH=H-padB-padT;
   var vals=days.map(function(d){return byDay[d]});
   var maxV=Math.max.apply(null,vals)||1;
-  // Always start from 0 — fix y-axis to include $0 baseline
-  var bw=Math.max(3,Math.floor(cW/days.length)-3);
+  var bw=Math.max(4,Math.floor(cW/days.length)-3);
   var bars='', xlabels='', ylabels='';
-  // Y-axis gridlines and labels — 5 intervals from 0 to maxV
+
+  // Y-axis: 5 gridlines from $0 to maxV
   for(var yi=0;yi<=4;yi++){
     var yv=Math.round(maxV*yi/4);
     var ypos=padT+cH-(cH*yi/4);
-    ylabels+='<text x="'+(padL-5)+'" y="'+(ypos+4)+'" text-anchor="end" font-size="9" fill="#888">$'+yv.toLocaleString()+'</text>';
-    ylabels+='<line x1="'+padL+'" y1="'+ypos+'" x2="'+(W-padR)+'" y2="'+ypos+'" stroke="#eee" stroke-width="1"/>';
+    ylabels+='<text x="'+(padL-4)+'" y="'+(ypos+3)+'" text-anchor="end" font-size="9" fill="#444">$'+yv.toLocaleString()+'</text>';
+    ylabels+='<line x1="'+padL+'" y1="'+ypos+'" x2="'+(W-padR)+'" y2="'+ypos+'" stroke="#e0e0e0" stroke-width="1"/>';
   }
-  // Baseline at $0
-  ylabels+='<line x1="'+padL+'" y1="'+(padT+cH)+'" x2="'+(W-padR)+'" y2="'+(padT+cH)+'" stroke="#ccc" stroke-width="1.5"/>';
+  // Bold baseline at $0
+  var baseY = padT+cH;
+  ylabels+='<line x1="'+padL+'" y1="'+baseY+'" x2="'+(W-padR)+'" y2="'+baseY+'" stroke="#999" stroke-width="1.5"/>';
 
-  // Bars — always from baseline
+  // Bars grow UP from $0 baseline
   days.forEach(function(d,i){
     var v=byDay[d];
-    var bh=Math.max(2,cH*(v/maxV));
+    var bh=Math.max(2, cH*(v/maxV));
     var bx=padL+(cW/days.length)*i+(cW/days.length-bw)/2;
-    var by=padT+cH-bh;  // bars grow UP from baseline
+    var by=padT+cH-bh;
     bars+='<rect x="'+bx.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+bw+'" height="'+bh.toFixed(1)+'" fill="#E87722" rx="2"/>';
-    // Date labels — rotate 45deg, show every Nth
-    var dt=new Date(d+'T12:00:00');
-    var lbl=(dt.getMonth()+1)+'/'+(dt.getDate());
-    var skip = days.length > 25 ? 7 : days.length > 15 ? 4 : days.length > 8 ? 2 : 1;
-    if(i % skip === 0){
+
+    // Date labels — skip intelligently, rotated
+    var skip = days.length>25?7:days.length>15?4:days.length>8?2:1;
+    if(i%skip===0){
+      var dt=new Date(d+'T12:00:00');
+      var lbl=(dt.getMonth()+1)+'/'+(dt.getDate());
       var lx=(bx+bw/2).toFixed(1);
-      var ly=(H-padB+14);
-      xlabels+='<text transform="rotate(-40,'+lx+','+ly+')" x="'+lx+'" y="'+ly+'" text-anchor="end" font-size="8" fill="#777">'+lbl+'</text>';
+      var ly=H-padB+14;
+      xlabels+='<text transform="rotate(-40,'+lx+','+ly+')" x="'+lx+'" y="'+ly+'" text-anchor="end" font-size="8" fill="#333">'+lbl+'</text>';
     }
   });
+
   svg.setAttribute('height', H);
   svg.innerHTML=ylabels+bars+xlabels;
 }
