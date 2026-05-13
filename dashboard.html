@@ -412,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v12.0</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v12.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -441,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v12.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v12.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -839,6 +839,7 @@ tr:hover td{background:#fafafa}
           <input type="date" id="tyTo" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px" onchange="renderTYCards()">
           <button onclick="renderTYCards()" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:600">↻ Refresh</button>
           <button onclick="exportTYMailingList()" style="font-size:12px;padding:5px 12px;border:none;border-radius:5px;background:#BE185D;color:#fff;cursor:pointer;font-weight:700">⬇ Export CSV</button>
+          <button onclick="printTYCards()" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:700">🖨 Print List</button>
         </div>
       </div>
       <div id="tyContent">
@@ -3486,9 +3487,6 @@ const TY_ITEM_SETS={
     // BOGO — customer buying AC gets furnace free; still a new system install
     'Free BOGO Furnace Included In Promo',
   ])},
-  water_heater:{label:'Water Heater',color:'#0369A1',icon:'💧',items:new Set([
-    'Heat Pump Water Heater 50 GA','Heat Pump Water Heater 80 GA','Tankless Water Heater',
-  ])},
   garage_heater:{label:'Garage Heater',color:'#D97706',icon:'🏠',items:new Set([
     // New installs only — "Garage Heater Install (Existing Unit)" excluded (repair/swap)
     'Modine HD/HDS 30 for 1 to 1.5 Car Garage','HD/HDS 45 (For 2 to 2.5 Car Garages)',
@@ -3524,6 +3522,11 @@ function detectEquipmentSale(j){
 
   // Match against exact pricebook names
   for(const text of texts){
+    // Special case: Tankless Water Heater only qualifies if job revenue >= $3,000
+    if(text==='Tankless Water Heater'||text.toLowerCase().includes('tankless water heater')){
+      if(getJobRevenue(j)>=3000) return{key:'water_heater',label:'Tankless Water Heater',color:'#0369A1',icon:'💧',matchedItem:'Tankless Water Heater'};
+      continue; // under $3000 — skip
+    }
     // Exact match
     if(TY_ITEM_LOOKUP[text]){
       const key=TY_ITEM_LOOKUP[text];
@@ -3716,6 +3719,96 @@ function tyCard(j){
     </div>
     ${card.sentDate?`<div style="font-size:10px;color:#059669;text-align:center;margin-top:5px">✓ Sent ${card.sentDate}</div>`:''}
   </div>`;
+}
+
+function printTYCards(){
+  const sales=getTYSales();
+  if(!sales.length){alert('No equipment sales to print.');return;}
+
+  const from=$$('tyFrom')?.value||$$('dateFrom')?.value||'';
+  const to=$$('tyTo')?.value||$$('dateTo')?.value||'';
+  const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  const rows=sales.map(j=>{
+    const equip=detectEquipmentSale(j);
+    const card=_tyCards[j.id]||{};
+    const cust=j.customer||{};
+    const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
+    const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'—';
+    const date=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+    const attr=_jobAttribution?.[j.id];
+    const soldBy=attr?.techName||getAssigned(j)||'—';
+    const status=card.status||'pending';
+    const statusLabel=status==='sent'?'✅ Sent':status==='skip'?'⏭ Skip':'📬 Pending';
+    const statusColor=status==='sent'?'#166534':status==='skip'?'#9ca3af':'#DC2626';
+    return{name,addr,equip,date,soldBy,amt:getJobRevenue(j),status,statusLabel,statusColor,note:card.note||''};
+  });
+
+  const win=window.open('','_blank','width=900,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><title>Thank You Cards — Midstate Plumbing</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    @page{size:letter portrait;margin:0.4in}
+    body{font-family:Arial,sans-serif;font-size:10px;color:#111;background:#fff}
+    @media print{button{display:none!important}}
+    .header{border-bottom:3px solid #BE185D;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end}
+    .title{font-size:16px;font-weight:800;color:#BE185D}
+    .sub{font-size:10px;color:#6b7280;margin-top:2px}
+    table{width:100%;border-collapse:collapse;font-size:9px}
+    th{background:#BE185D!important;color:#fff!important;padding:6px 8px;text-align:left;font-weight:700;font-size:9px;white-space:nowrap}
+    td{padding:6px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    tr:nth-child(even) td{background:#FDF2F8!important}
+    tr:last-child td{border-bottom:none}
+    .equip-badge{display:inline-block;padding:1px 6px;border-radius:99px;font-size:8px;font-weight:700;color:#fff}
+    .status-badge{font-weight:700;font-size:9px}
+    .footer{margin-top:10px;font-size:8px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:6px;display:flex;justify-content:space-between}
+    .summary{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
+    .sum-item{background:#FDF2F8;border:1px solid #FBCFE8;border-radius:6px;padding:6px 12px;font-size:10px}
+    .sum-val{font-size:16px;font-weight:800;color:#BE185D}
+  </style></head><body>
+  <div class="header">
+    <div>
+      <div class="title">💌 Thank You Cards — Midstate Plumbing</div>
+      <div class="sub">${from?from+' to '+to:'All dates'} &nbsp;·&nbsp; Printed ${today}</div>
+    </div>
+    <div style="font-size:9px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-item"><div class="sum-val">${rows.length}</div>Total sales</div>
+    <div class="sum-item"><div class="sum-val" style="color:#DC2626">${rows.filter(r=>r.status==='pending').length}</div>Pending</div>
+    <div class="sum-item"><div class="sum-val" style="color:#166534">${rows.filter(r=>r.status==='sent').length}</div>Sent</div>
+    <div class="sum-item"><div class="sum-val">${dollars(rows.reduce((s,r)=>s+r.amt,0))}</div>Total revenue</div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>#</th><th>Customer</th><th>Mailing Address</th>
+      <th>Equipment</th><th>Sold By</th><th>Date</th>
+      <th>Amount</th><th>Status</th><th>Note</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map((r,i)=>`<tr>
+        <td style="color:#9ca3af">${i+1}</td>
+        <td style="font-weight:700">${r.name}</td>
+        <td style="font-size:8px;color:#374151">${r.addr}</td>
+        <td><span class="equip-badge" style="background:${r.equip?.color||'#6b7280'}">${r.equip?.icon||''} ${r.equip?.label||'?'}</span></td>
+        <td>${r.soldBy}</td>
+        <td style="white-space:nowrap">${r.date}</td>
+        <td style="font-weight:700;color:#166534">${dollars(r.amt)}</td>
+        <td><span class="status-badge" style="color:${r.statusColor}">${r.statusLabel}</span></td>
+        <td style="color:#6b7280;font-size:8px">${r.note}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>Midstate Plumbing, Heating & Cooling · 3500 Cannon St Ste 100, Hastings MN 55033</span>
+    <span>${rows.length} record${rows.length!==1?'s':''}</span>
+  </div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 function exportTYMailingList(){
