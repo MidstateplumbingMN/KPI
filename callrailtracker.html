@@ -202,7 +202,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v4.2</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v4.4</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -267,7 +267,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="mc"><div class="ml">Matched - Not Paid</div><div class="mv o" id="mNotPaid">—</div><div class="ms">job exists, not paid</div></div>
     <div class="mc no-print"><div class="ml">Needs Confirmation</div><div class="mv" id="mNeedsConf" style="color:var(--amber)">—</div><div class="ms">low confidence match</div></div>
     <div class="mc"><div class="ml">Conversion Rate</div><div class="mv o" id="mRate">—</div><div class="ms">of all calls</div></div>
-    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">paid jobs only</div></div>
+    <div class="mc"><div class="ml">Revenue Collected</div><div class="mv g" id="mRev">—</div><div class="ms">from converted calls</div></div>
     <div class="mc"><div class="ml">Avg Ticket</div><div class="mv" id="mTicket">—</div><div class="ms">per converted call</div></div>
     <div class="mc no-print"><div class="ml">High Urgency</div><div class="mv r" id="mUrgent">—</div><div class="ms">transcript flagged</div></div>
     <div class="mc no-print"><div class="ml">No Job Found</div><div class="mv" id="mUnmatched" style="color:var(--gray)">—</div><div class="ms">no paid job in HCP</div></div>
@@ -366,8 +366,8 @@ svg.chart{display:block;width:100%;overflow:visible}
   <div class="print-breakdown" style="display:none">
     <div class="sec" id="printBreakdownSec">
       <div class="sh">
-        <span class="st">Converted Calls — Unique Customers</span>
-        <span id="printBreakdownMeta" style="font-size:7.5px;color:#666"></span>
+        <span class="st">Converted Calls — Unique Jobs</span>
+        <span id="printBreakdownMeta" style="font-size:7px;color:#666;font-style:italic"></span>
       </div>
       <div class="sb" style="padding:4px 6px">
         <table id="printBreakdownTable" style="width:100%;border-collapse:collapse;font-size:7.5px">
@@ -390,8 +390,8 @@ svg.chart{display:block;width:100%;overflow:visible}
 
   <!-- PRINT-ONLY FOOTER -->
   <div class="print-footer" style="display:none" id="printFooter">
-    <span>Midstate Plumbing, Heating &amp; Cooling &mdash; 3500 Cannon St Ste 100, Hastings MN 55033 &mdash; 651-480-1195</span>
-    <span>Tool designed by Robert Danaher &mdash; <span id="printFooterDate"></span></span>
+    <span>Midstate Plumbing, Heating &amp; Cooling &nbsp;&mdash;&nbsp; 3500 Cannon St Ste 100, Hastings MN 55033 &nbsp;&mdash;&nbsp; 651-480-1195</span>
+    <span>Tool designed by Robert Danaher &nbsp;&mdash;&nbsp; <span id="printFooterDate"></span></span>
   </div>
 
 </div>
@@ -813,9 +813,19 @@ function updateMetrics(rows) {
   var total     = rows.length;
   var converted = rows.filter(isConverted).length;
   var rate      = total > 0 ? Math.round(converted / total * 100) : 0;
-  var rev       = rows.filter(isConverted)
-                      .reduce(function(s,r){ return s + (parseFloat(r.revenue)||0); }, 0);
-  var ticket    = converted > 0 ? Math.round(rev / converted) : 0;
+  // Deduplicate revenue by unique job number (same job may appear across multiple calls)
+  var seenJobs = {};
+  var rev = 0;
+  rows.filter(isConverted).forEach(function(r) {
+    var jobKey = (r.hcpJobNum && r.hcpJobNum !== '—' && r.hcpJobNum.length > 3)
+      ? r.hcpJobNum
+      : (String(r.hcpCustomer||'') + '||' + String(Math.round(parseFloat(r.revenue)||0)));
+    if (!seenJobs[jobKey]) {
+      seenJobs[jobKey] = true;
+      rev += parseFloat(r.revenue) || 0;
+    }
+  });
+  var ticket    = converted > 0 ? Math.round(rev / Object.keys(seenJobs).length) : 0;
   var notPaid   = rows.filter(function(r){
     return r.outcome === 'Matched - Not Paid' ||
            r.outcome === 'Booked - Estimate'  ||
@@ -856,7 +866,10 @@ function drawOutcomeChart(rows) {
   var labels=Object.keys(counts), vals=labels.map(function(l){return counts[l];}), colors=labels.map(function(l){return colorMap[l]||'#ccc';});
   var total=vals.reduce(function(a,b){return a+b},0);
   var svg=document.getElementById('chartOutcome');
-  var W=svg.getBoundingClientRect().width||400, H=180, cx=W/2, cy=H/2, R=70;
+  // Use fixed viewBox so chart renders correctly in both screen and print
+  var VW=300, VH=180, cx=VW/2, cy=VH/2, R=72;
+  svg.setAttribute('viewBox','0 0 '+VW+' '+VH);
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
   var angle=-Math.PI/2, paths='';
   vals.forEach(function(v,i){
     var sweep=total>0?(v/total)*Math.PI*2:0;
@@ -864,8 +877,11 @@ function drawOutcomeChart(rows) {
     angle+=sweep;
     var x2=cx+R*Math.cos(angle), y2=cy+R*Math.sin(angle);
     var lg=sweep>Math.PI?1:0;
-    if(total===1){paths+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+colors[i]+'"/>';}
-    else{paths+='<path d="M'+cx+','+cy+' L'+x1+','+y1+' A'+R+','+R+',0,'+lg+',1,'+x2+','+y2+' Z" fill="'+colors[i]+'" stroke="#fff" stroke-width="2"/>';}
+    if(total===1){
+      paths+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+colors[i]+'"/>';
+    } else {
+      paths+='<path d="M'+cx.toFixed(1)+','+cy.toFixed(1)+' L'+x1.toFixed(1)+','+y1.toFixed(1)+' A'+R+','+R+',0,'+lg+',1,'+x2.toFixed(1)+','+y2.toFixed(1)+' Z" fill="'+colors[i]+'" stroke="#fff" stroke-width="2"/>';
+    }
   });
   svg.innerHTML=paths;
   document.getElementById('legendOutcome').innerHTML=labels.map(function(l,i){
@@ -888,30 +904,41 @@ function drawRevenueChart(rows) {
   var days=Object.keys(byDay).sort();
   var svg=document.getElementById('chartRev');
   if(!days.length){svg.innerHTML='<text x="50%" y="50%" text-anchor="middle" fill="#aaa" font-size="12">No revenue data</text>';return;}
-  var W=svg.getBoundingClientRect().width||400, H=180, padL=50, padB=30, padT=10, padR=10;
+  var W=svg.getBoundingClientRect().width||400, H=180, padL=58, padB=45, padT=10, padR=10;
   var cW=W-padL-padR, cH=H-padB-padT;
   var vals=days.map(function(d){return byDay[d]});
   var maxV=Math.max.apply(null,vals)||1;
-  var bw=Math.max(4,Math.floor(cW/days.length)-4);
+  // Always start from 0 — fix y-axis to include $0 baseline
+  var bw=Math.max(3,Math.floor(cW/days.length)-3);
   var bars='', xlabels='', ylabels='';
+  // Y-axis gridlines and labels — 5 intervals from 0 to maxV
   for(var yi=0;yi<=4;yi++){
     var yv=Math.round(maxV*yi/4);
     var ypos=padT+cH-(cH*yi/4);
-    ylabels+='<text x="'+(padL-6)+'" y="'+(ypos+4)+'" text-anchor="end" font-size="10" fill="#888">$'+yv.toLocaleString()+'</text>';
+    ylabels+='<text x="'+(padL-5)+'" y="'+(ypos+4)+'" text-anchor="end" font-size="9" fill="#888">$'+yv.toLocaleString()+'</text>';
     ylabels+='<line x1="'+padL+'" y1="'+ypos+'" x2="'+(W-padR)+'" y2="'+ypos+'" stroke="#eee" stroke-width="1"/>';
   }
+  // Baseline at $0
+  ylabels+='<line x1="'+padL+'" y1="'+(padT+cH)+'" x2="'+(W-padR)+'" y2="'+(padT+cH)+'" stroke="#ccc" stroke-width="1.5"/>';
+
+  // Bars — always from baseline
   days.forEach(function(d,i){
     var v=byDay[d];
     var bh=Math.max(2,cH*(v/maxV));
     var bx=padL+(cW/days.length)*i+(cW/days.length-bw)/2;
-    var by=padT+cH-bh;
-    bars+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" fill="#E87722" rx="3"/>';
-    var dt=new Date(d+'T12:00:00'); var lbl=(dt.getMonth()+1)+'/'+(dt.getDate());
-    var skip = days.length > 20 ? 7 : days.length > 10 ? 3 : 1;
-    if (i % skip === 0) {
-      xlabels+='<text x="'+(bx+bw/2)+'" y="'+(H-padB+13)+'" text-anchor="middle" font-size="9" fill="#888">'+lbl+'</text>';
+    var by=padT+cH-bh;  // bars grow UP from baseline
+    bars+='<rect x="'+bx.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+bw+'" height="'+bh.toFixed(1)+'" fill="#E87722" rx="2"/>';
+    // Date labels — rotate 45deg, show every Nth
+    var dt=new Date(d+'T12:00:00');
+    var lbl=(dt.getMonth()+1)+'/'+(dt.getDate());
+    var skip = days.length > 25 ? 7 : days.length > 15 ? 4 : days.length > 8 ? 2 : 1;
+    if(i % skip === 0){
+      var lx=(bx+bw/2).toFixed(1);
+      var ly=(H-padB+14);
+      xlabels+='<text transform="rotate(-40,'+lx+','+ly+')" x="'+lx+'" y="'+ly+'" text-anchor="end" font-size="8" fill="#777">'+lbl+'</text>';
     }
   });
+  svg.setAttribute('height', H);
   svg.innerHTML=ylabels+bars+xlabels;
 }
 
@@ -1178,81 +1205,88 @@ function renderWrongNumbers(calls) {
 
 function printReport() {
   var hdr = document.querySelector('.hdr');
-  var dateStr = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  var dateStr = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   if (hdr) hdr.setAttribute('data-print-date', dateStr);
 
   var dFrom = document.getElementById('dFrom').value;
   var dTo   = document.getElementById('dTo').value;
+  // Format dates nicely
+  var fmtD = function(s){ var d=new Date(s+'T12:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
   var tFilter = document.getElementById('tFilter');
   var tLabel  = tFilter ? tFilter.options[tFilter.selectedIndex].text : 'Facebook Ad';
 
   // Set banner
   var banner = document.getElementById('printTrackingBanner');
   if (banner) banner.innerHTML =
-    '<span><strong>' + tLabel + '</strong> &mdash; Tracking Number: 651-300-1118</span>' +
-    '<span>Date Range: ' + dFrom + ' to ' + dTo + ' &mdash; Printed: ' + dateStr + '</span>';
+    '<span><strong>' + escHtml(tLabel) + '</strong> &nbsp;|&nbsp; Tracking: 651-300-1118</span>' +
+    '<span>' + fmtD(dFrom) + ' &ndash; ' + fmtD(dTo) + '</span>' +
+    '<span>Printed: ' + dateStr + '</span>';
 
   // Set footer
   document.getElementById('printFooterDate').textContent = dateStr;
 
   // Build deduped breakdown — one row per unique job number
+  // Use jobNum as key so same job across multiple calls only appears once
   var converted = allRows.filter(isConverted);
   var byJob = {};
   converted.forEach(function(r) {
-    var key = r.hcpJobNum || (r.hcpCustomer + '|' + r.revenue);
+    var jobNum = String(r.hcpJobNum || '').trim();
+    // Key: use jobNum if it looks like a real ID, else customer+revenue
+    var key = (jobNum && jobNum !== '—' && jobNum.length > 3)
+      ? jobNum
+      : (String(r.hcpCustomer||'') + '||' + String(Math.round(parseFloat(r.revenue)||0)));
     if (!byJob[key]) {
       byJob[key] = {
-        customer: r.hcpCustomer || r.callerName,
-        phone:    r.phone || '',
-        jobNum:   r.hcpJobNum || '—',
-        dept:     r.hcpDept   || '—',
-        tech:     r.hcpTech   || '—',
-        revenue:  parseFloat(r.revenue) || 0,
+        customer:  r.hcpCustomer || r.callerName || '',
+        phone:     r.phone || '',
+        jobNum:    jobNum || '—',
+        revenue:   parseFloat(r.revenue) || 0,
         firstCall: r.datetime || '',
         callCount: 0
       };
     }
     byJob[key].callCount++;
-    // Keep earliest call date
     if (r.datetime && (!byJob[key].firstCall || r.datetime < byJob[key].firstCall)) {
       byJob[key].firstCall = r.datetime;
     }
   });
 
   var jobs = Object.values(byJob).sort(function(a,b){ return b.revenue - a.revenue; });
-  var totalRev = jobs.reduce(function(s,j){ return s + j.revenue; }, 0);
+  // Revenue total from unique jobs
+  var totalRev   = jobs.reduce(function(s,j){ return s + j.revenue; }, 0);
   var totalCalls = jobs.reduce(function(s,j){ return s + j.callCount; }, 0);
+  // Use the displayed metric revenue for the header summary (most accurate)
+  var displayRev = document.getElementById('mRev') ? document.getElementById('mRev').textContent.trim() : '$'+totalRev.toLocaleString();
 
-  var displayRev = document.getElementById('mRev') ? document.getElementById('mRev').textContent : ('$' + totalRev.toLocaleString('en-US',{maximumFractionDigits:0}));
   document.getElementById('printBreakdownMeta').textContent =
-    jobs.length + ' unique jobs \u00b7 ' + totalCalls + ' total calls \u00b7 ' + displayRev + ' collected';
+    jobs.length + ' unique jobs  \u00b7  ' + totalCalls + ' calls  \u00b7  $' +
+    totalRev.toLocaleString('en-US',{maximumFractionDigits:0}) + ' revenue from converted jobs';
 
   var tbody = document.getElementById('printBreakdownBody');
   tbody.innerHTML = jobs.map(function(j, i) {
-    var bg = i % 2 === 0 ? '#fff' : '#f6f6fb';
+    var bg = i % 2 === 0 ? '#ffffff' : '#f5f5fa';
     var dt = j.firstCall ? new Date(j.firstCall) : null;
-    var dateLabel = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    var dateLabel = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
     var revStr = j.revenue > 0 ? '$' + j.revenue.toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
-    // Shorten job # — show last 8 chars of UUID or full estimate number
     var jobDisplay = j.jobNum === '—' ? '—' :
-      j.jobNum.indexOf('job_') >= 0 ? '…' + j.jobNum.slice(-8) : j.jobNum;
-    return '<tr style="background:' + bg + ';-webkit-print-color-adjust:exact;print-color-adjust:exact">' +
-      '<td style="padding:3px 6px;font-weight:600;color:#1A2340">' + escHtml(j.customer) + '</td>' +
-      '<td style="padding:3px 6px;color:#666;font-size:7px">' + escHtml(j.phone) + '</td>' +
-      '<td style="padding:3px 6px;color:#666;font-family:monospace;font-size:7px">' + escHtml(jobDisplay) + '</td>' +
-      '<td style="padding:3px 6px;text-align:right;color:#1D9E75;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">' + revStr + '</td>' +
-      '<td style="padding:3px 6px;color:#666">' + dateLabel + '</td>' +
-      '<td style="padding:3px 6px;text-align:center;color:#666">' + j.callCount + '</td>' +
+      j.jobNum.indexOf('job_') >= 0 ? '\u2026' + j.jobNum.slice(-8) : j.jobNum;
+    return '<tr style="background:' + bg + '">' +
+      '<td style="padding:4px 7px;font-weight:600;color:#1A2340;border-bottom:1px solid #e8e8f0">' + escHtml(j.customer) + '</td>' +
+      '<td style="padding:4px 7px;color:#555;font-size:7.5px;border-bottom:1px solid #e8e8f0">' + escHtml(j.phone) + '</td>' +
+      '<td style="padding:4px 7px;color:#666;font-family:monospace;font-size:7px;border-bottom:1px solid #e8e8f0">' + escHtml(jobDisplay) + '</td>' +
+      '<td style="padding:4px 7px;text-align:right;color:#1D9E75;font-weight:700;border-bottom:1px solid #e8e8f0">' + revStr + '</td>' +
+      '<td style="padding:4px 7px;color:#555;border-bottom:1px solid #e8e8f0">' + dateLabel + '</td>' +
+      '<td style="padding:4px 7px;text-align:center;color:#555;border-bottom:1px solid #e8e8f0">' + j.callCount + '</td>' +
     '</tr>';
   }).join('');
 
-  // Total row
+  // Total footer row
   document.getElementById('printBreakdownFoot').innerHTML =
-    '<tr style="background:#1A2340;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">' +
-    '<td style="padding:4px 6px" colspan="3">TOTAL &mdash; ' + jobs.length + ' unique customers</td>' +
-    '<td style="padding:4px 6px;text-align:right">$' + totalRev.toLocaleString('en-US',{maximumFractionDigits:0}) + '</td>' +
-    '<td style="padding:4px 6px"></td>' +
-    '<td style="padding:4px 6px;text-align:center">' + totalCalls + '</td>' +
+    '<tr style="background:#1A2340;color:#ffffff;font-weight:700">' +
+    '<td style="padding:5px 7px" colspan="3">TOTAL &mdash; ' + jobs.length + ' unique customers</td>' +
+    '<td style="padding:5px 7px;text-align:right">$' + totalRev.toLocaleString('en-US',{maximumFractionDigits:0}) + '</td>' +
+    '<td style="padding:5px 7px"></td>' +
+    '<td style="padding:5px 7px;text-align:center">' + totalCalls + '</td>' +
     '</tr>';
 
   window.print();
