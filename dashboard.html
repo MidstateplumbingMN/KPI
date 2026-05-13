@@ -412,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -425,7 +425,7 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="field">
       <label>Google Sheets Proxy URL</label>
-      <input type="text" id="sheetsProxy" value="https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec" placeholder="Google Sheets Proxy URL" autocomplete="off"/>
+      <input type="text" id="sheetsProxy" value="https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BlEsRQu2qGLpk5xrF-vcUBSLhlyM2NPW2qmM/exec" placeholder="Google Sheets Proxy URL" autocomplete="off"/>
       <div style="font-size:11px;color:#9ca3af;margin-top:3px">From Midstate HCP Data → Extensions → Apps Script → Deploy</div>
     </div>
     <button class="connect-btn" onclick="connect()">Connect →</button>
@@ -441,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -911,7 +911,7 @@ tr:hover td{background:#fafafa}
 // ============================================================
 // STATE
 // ============================================================
-let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';
+let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BlEsRQu2qGLpk5xrF-vcUBSLhlyM2NPW2qmM/exec';
 let _selectedEmps=new Set(); // empty = all selected
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
 // attributions: jobId -> { techId, techName, confirmed }
@@ -969,7 +969,7 @@ function disconnect(){
   document.getElementById('apiToken').value='';
 }
 // Pre-fill saved proxy URL on load
-(function(){try{const el=document.getElementById('sheetsProxy');if(el&&!el.value)el.value=localStorage.getItem('hcp_sheets_proxy')||'https://script.google.com/macros/s/AKfycbxhOrahy6SKJUK9XNUbnW2m64jLxDqOCSRuto6vysp-HrYgmxF_jqvsqZWPFa5tgV59/exec';}catch(e){}})();
+(function(){try{const el=document.getElementById('sheetsProxy');if(el&&!el.value)el.value=localStorage.getItem('hcp_sheets_proxy')||'https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BlEsRQu2qGLpk5xrF-vcUBSLhlyM2NPW2qmM/exec';}catch(e){}})();
 
 // ============================================================
 // HELPERS
