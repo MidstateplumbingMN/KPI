@@ -234,7 +234,7 @@ svg.chart{display:block;width:100%;overflow:visible}
     <div class="logo">MSP</div>
     <div>
       <h1>Conversion &amp; Revenue Tracker</h1>
-      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.7</strong></p>
+      <p>CallRail &times; Housecall Pro &mdash; AI-powered analysis &mdash; <strong style="color:rgba(255,255,255,.7)">v3.8</strong></p>
     </div>
   </div>
   <div style="font-size:12px;color:rgba(255,255,255,.45);text-align:right">
@@ -799,26 +799,38 @@ function renderAll(rows) {
   renderTable(rows);
 }
 
+function isConverted(r) {
+  return r.outcome === 'Converted - Paid Job' ||
+         r.outcome === 'Booked - Job'         ||
+         r.outcome === 'Booked - Job (Paid)';
+}
+
 function updateMetrics(rows) {
-  var total=rows.length;
-  var matched  = rows.filter(function(r){ return r.outcome === 'Converted - Paid Job'; }).length;
-  var booked   = matched;
-  var rate     = rows.length > 0 ? Math.round(matched / rows.length * 100) : 0;
-  var rev      = rows.filter(function(r){ return r.outcome === 'Converted - Paid Job'; })
-                     .reduce(function(s,r){ return s + (parseFloat(r.revenue)||0); }, 0);
-  var ticket   = matched > 0 ? Math.round(rev / matched) : 0;
-  var urgent   = rows.filter(function(r){ return r.urgency === 'High'; }).length;
-  var unmatched = rows.filter(function(r){ return r.outcome === 'No Match Found'; }).length;
-  var notPaid   = rows.filter(function(r){ return r.outcome === 'Matched - Not Paid'; }).length;
+  var total     = rows.length;
+  var converted = rows.filter(isConverted).length;
+  var rate      = total > 0 ? Math.round(converted / total * 100) : 0;
+  var rev       = rows.filter(isConverted)
+                      .reduce(function(s,r){ return s + (parseFloat(r.revenue)||0); }, 0);
+  var ticket    = converted > 0 ? Math.round(rev / converted) : 0;
+  var notPaid   = rows.filter(function(r){
+    return r.outcome === 'Matched - Not Paid' ||
+           r.outcome === 'Booked - Estimate'  ||
+           r.outcome === 'Booked - Job (Scheduled)';
+  }).length;
   var needsConf = rows.filter(function(r){ return r.outcome === 'Needs Confirmation'; }).length;
-  document.getElementById('mCalls').textContent    = total;
-  document.getElementById('mMatched').textContent  = matched;
-  document.getElementById('mNotPaid').textContent  = notPaid;
+  var urgent    = rows.filter(function(r){ return r.urgency === 'High'; }).length;
+  var unmatched = rows.filter(function(r){
+    return r.outcome === 'No Match Found' || r.outcome === 'No Match' ||
+           r.outcome === 'No Paid Job Found' || (!r.hcpCustomer && !isConverted(r));
+  }).length;
+  document.getElementById('mCalls').textContent     = total;
+  document.getElementById('mMatched').textContent   = converted;
+  document.getElementById('mNotPaid').textContent   = notPaid;
   document.getElementById('mNeedsConf').textContent = needsConf;
-  document.getElementById('mRate').textContent     = rate + '%';
-  document.getElementById('mRev').textContent      = '$' + rev.toLocaleString('en-US',{maximumFractionDigits:0});
-  document.getElementById('mTicket').textContent   = ticket > 0 ? '$' + ticket.toLocaleString() : '—';
-  document.getElementById('mUrgent').textContent   = urgent;
+  document.getElementById('mRate').textContent      = rate + '%';
+  document.getElementById('mRev').textContent       = '$' + rev.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('mTicket').textContent    = ticket > 0 ? '$' + ticket.toLocaleString() : '—';
+  document.getElementById('mUrgent').textContent    = urgent;
   document.getElementById('mUnmatched').textContent = unmatched;
 }
 
@@ -826,8 +838,16 @@ function drawOutcomeChart(rows) {
   var counts={};
   rows.forEach(function(r){counts[r.outcome]=(counts[r.outcome]||0)+1;});
   var colorMap = {
-    'Converted - Paid Job': '#1D9E75',
-    'No Paid Job Found':    '#888780'
+    'Converted - Paid Job':   '#1D9E75',
+    'Booked - Job':           '#1D9E75',
+    'Booked - Job (Paid)':    '#1D9E75',
+    'Matched - Not Paid':     '#BA7517',
+    'Booked - Estimate':      '#378ADD',
+    'Booked - Job (Scheduled)':'#5B9FD4',
+    'Needs Confirmation':     '#E87722',
+    'No Match Found':         '#888780',
+    'No Match':               '#888780',
+    'No Paid Job Found':      '#888780',
   };
   var labels=Object.keys(counts), vals=labels.map(function(l){return counts[l];}), colors=labels.map(function(l){return colorMap[l]||'#ccc';});
   var total=vals.reduce(function(a,b){return a+b},0);
@@ -903,9 +923,11 @@ function applyFilters(data) {
     var ds=dt?dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
     var ts=dt?dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     var dur=r.duration?Math.floor(r.duration/60)+'m '+Math.round(r.duration%60)+'s':'—';
-    var obc = r.outcome==='Converted - Paid Job'  ? 'bj'
-            : r.outcome==='Matched - Not Paid'    ? 'bmd'
-            : r.outcome==='Needs Confirmation'    ? 'be'
+    var obc = isConverted(r)                        ? 'bj'
+            : (r.outcome==='Matched - Not Paid' ||
+               r.outcome==='Booked - Estimate'  ||
+               r.outcome==='Booked - Job (Scheduled)') ? 'bmd'
+            : r.outcome==='Needs Confirmation'         ? 'be'
             : 'bnm';
     var confBadge = r.confidence
       ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">'
