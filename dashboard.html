@@ -56,7 +56,7 @@ button{cursor:pointer;background:#fff}
 .auth-note{font-size:11px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:12px;margin-top:16px;line-height:1.6}
 .err-box{font-size:12px;color:#b91c1c;background:#fef2f2;padding:8px 10px;border-radius:6px;margin-top:10px;display:none}
 /* CHIPS & VERSION */
-.ver-chip{font-size:11px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
+.ver-chip{font-size:11px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:3px 9px;border-radius:99px;margin-left:6px;font-weight:700;letter-spacing:.03em}
 .chip{font-size:11px;background:#EAF3DE;color:#3B6D11;padding:3px 9px;border-radius:99px;margin-left:8px;font-weight:600}
 /* DASHBOARD */
 .dash{display:none}
@@ -90,7 +90,8 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="contest"].active{border-top:3px solid #d97706;color:#d97706}
 .tab[data-tab="unpaid"].active{border-top:3px solid #b91c1c;color:#b91c1c}
 .tab[data-tab="plans"].active{border-top:3px solid #059669;color:#059669}
-.tab[data-tab="debug"].active{border-top:3px solid #9ca3af;color:#6b7280}
+.tab[data-tab="ty"].active{border-top:3px solid #BE185D;color:#BE185D}
+.tab[data-tab="ty"]:hover{background:#FDF2F8;color:#BE185D}
 /* Hover accent previews */
 .tab[data-tab="jobs"]:hover{background:#EBF0F7;color:#1A3A5C}
 .tab[data-tab="estimates"]:hover{background:#e0f2fe;color:#0891b2}
@@ -411,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#E8640A;color:#fff;border:1px solid #E8640A;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.1</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v11.2</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -440,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v11.2</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -492,6 +493,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="is" id="isTab" onclick="showTab('is')">📞 Inside Sales</button>
       <button class="tab" data-tab="contest" onclick="showTab('contest')">🏆 Contest</button>
       <button class="tab" data-tab="unpaid" id="unpaidTab" onclick="showTab('unpaid')">⚠️ Unpaid Jobs</button>
+      <button class="tab" data-tab="ty" onclick="showTab('ty')">💌 Thank You Cards</button>
       <button class="tab" data-tab="plans" onclick="showTab('plans')">🛡 Service Plans</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
     </div>
@@ -821,6 +823,27 @@ tr:hover td{background:#fafafa}
       <!-- Unpaid Job Detail Popup -->
       <div class="is-modal-overlay" id="unpaidOverlay" onclick="closeUnpaidDetail()" style="display:none"></div>
       <div class="is-modal" id="unpaidDetail" style="display:none;max-width:580px"></div>
+    </div>
+
+    <!-- THANK YOU CARDS -->
+    <div class="panel" id="tab-ty">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="sec-head" style="margin:0">💌 Thank You Cards — System Installs</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:3px">Furnaces, ACs, Boilers, Heat Pumps, Mini Splits, and Equipment Packages. Synced to Google Sheets.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:12px;color:#6b7280">From</label>
+          <input type="date" id="tyFrom" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px" onchange="renderTYCards()">
+          <label style="font-size:12px;color:#6b7280">To</label>
+          <input type="date" id="tyTo" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px" onchange="renderTYCards()">
+          <button onclick="renderTYCards()" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:600">↻ Refresh</button>
+          <button onclick="exportTYMailingList()" style="font-size:12px;padding:5px 12px;border:none;border-radius:5px;background:#BE185D;color:#fff;cursor:pointer;font-weight:700">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div id="tyContent">
+        <div style="text-align:center;padding:40px;color:#9ca3af">Pull a report to see equipment sales.</div>
+      </div>
     </div>
 
     <!-- SERVICE PLANS -->
@@ -1276,6 +1299,11 @@ function showTab(t){
   if(t==='contest') renderContest();
   if(t==='unpaid') renderUnpaid();
   if(t==='goals') renderGoals();
+  if(t==='ty'){
+    $$('tyFrom').value=$$('dateFrom')?.value||'';
+    $$('tyTo').value=$$('dateTo')?.value||'';
+    renderTYCards();
+  }
 }
 function printReport(){
   const active=document.querySelectorAll('.panel.active');
@@ -1523,6 +1551,7 @@ async function loadAll(){
     $$('printBtn').style.display='';
     $$('summaryBtn').style.display='';
     $$('refreshAllBtn').style.display='';
+    loadTYCards();
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -3440,6 +3469,245 @@ function refreshAll(){
   renderGoals();
   const btn=$$('refreshAllBtn');
   if(btn){btn.textContent='✓ Done';setTimeout(()=>btn.textContent='↻ Refresh all',1500);}
+}
+
+// ============================================================
+// THANK YOU CARDS — Equipment sale detection from Midstate pricebook
+// Furnaces: AR9S80, AR9T96, AR9T97, AR9S96, AR9T80, ARVM97 + Platform Furnace names
+// ACs: ALXS5, ALXS3, AXV6S, Platform AC names + SEER
+// Boilers: Peerless, Weil-McLain, Navien NHB/NFB, CGa
+// Heat Pumps: ASZS60, ASZH4/5
+// Mini Splits: any mini split / ductless
+// Packages: Star packages, BOGO, Full System, Modulating
+// ============================================================
+const TY_CATEGORIES={
+  furnace:{label:'Furnace',color:'#DC2626',icon:'🔥',
+    patterns:[/AR9S80/i,/AR9T96/i,/AR9T97/i,/AR9S96/i,/AR9T80/i,/ARVM97/i,
+              /2-Stage 96%/i,/Single Stage 96%/i,/Single Stage 80%/i,/80% single stage/i,
+              /80% 2-stage/i,/96% single stage/i,/96% 2-stage/i,/\bfurnace\b/i,
+              /Platform Furnace/i,/BOGO Furnace/i]},
+  ac:{label:'Air Conditioner',color:'#2563EB',icon:'❄️',
+    patterns:[/ALXS5/i,/ALXS3/i,/AXV6S/i,/ASXH\d/i,/ASXC/i,
+              /\d+(\.\d+)?\s*Ton\s*AC/i,/air conditioner/i,/\bSEER2?\b/i,
+              /Platform Air Conditioner/i,/air conditioning/i]},
+  boiler:{label:'Boiler',color:'#7C3AED',icon:'♨️',
+    patterns:[/Peerless/i,/Weil.McLain/i,/Weil-McLain/i,/Navien/i,/\bNHB\b/i,
+              /\bNFB\b/i,/CGa/i,/MI-0\d/i,/\bboiler\b/i,/cast iron boiler/i,
+              /high eff boiler/i]},
+  heat_pump:{label:'Heat Pump',color:'#059669',icon:'🌡️',
+    patterns:[/ASZS60/i,/ASZH4/i,/ASZH5/i,/heat pump/i,
+              /\d+\s*TON.*Heat Pump/i,/Heat Pump.*\d+\s*TON/i]},
+  mini_split:{label:'Mini Split',color:'#0891B2',icon:'💨',
+    patterns:[/mini.?split/i,/ductless/i,/single head.*mini/i,/two head.*mini/i,
+              /three head.*mini/i,/four head.*mini/i,/multi.?zone/i,
+              /Standard Efficiency.*Head/i,/High Efficient.*Head/i]},
+  package:{label:'Equipment Package',color:'#E8640A',icon:'📦',
+    patterns:[/\d+\s*Star.*package/i,/Star.*Change.?out/i,/Full System/i,/BOGO/i,
+              /Fully Modulating/i,/changeout plus/i,/change out/i,
+              /New Equipment Package/i,/Star Package/i]},
+  garage_heater:{label:'Garage Heater',color:'#D97706',icon:'🏠',
+    patterns:[/Modine/i,/garage heater/i,/HD.?HDS/i,/Hot Dawg/i]}
+};
+
+function detectEquipmentSale(j){
+  const texts=[
+    j.description||'',j.summary||'',
+    ...(j.line_items||[]).map(li=>li.name||li.description||''),
+  ].join(' ');
+  for(const[key,cat] of Object.entries(TY_CATEGORIES)){
+    if(cat.patterns.some(p=>p.test(texts))) return{key,...cat};
+  }
+  // Also check linked estimate options
+  const attr=_jobAttribution?.[j.id];
+  if(attr){
+    const linkedEst=_estimates.find(e=>e.id===attr.estId);
+    if(linkedEst){
+      const optText=(linkedEst.options||[]).map(o=>(o.name||'')+(o.description||'')).join(' ');
+      for(const[key,cat] of Object.entries(TY_CATEGORIES)){
+        if(cat.patterns.some(p=>p.test(optText))) return{key,...cat};
+      }
+    }
+  }
+  return null;
+}
+
+function getEquipmentLabel(j){
+  const lineItems=(j.line_items||[]).map(li=>li.name||'').filter(Boolean);
+  if(lineItems.length) return lineItems[0].slice(0,70);
+  return (j.description||j.summary||'').slice(0,70);
+}
+
+// ---- TY CARD STATE ----
+let _tyCards={};
+
+function loadTYCards(){
+  try{const d=localStorage.getItem('hcp_ty_cards');if(d)_tyCards=JSON.parse(d);}catch(e){}
+  fetchTYCardsFromSheets();
+}
+
+async function fetchTYCardsFromSheets(){
+  if(!_sheetsProxy) return;
+  try{
+    const res=await fetch(_sheetsProxy+'?action=getTYCards',{redirect:'follow',mode:'cors'});
+    const data=await res.json();
+    if(data.success&&data.cards){
+      Object.assign(_tyCards,data.cards);
+      localStorage.setItem('hcp_ty_cards',JSON.stringify(_tyCards));
+      if(document.getElementById('tab-ty')?.classList.contains('active')) renderTYCards();
+    }
+  }catch(e){console.warn('[TY]',e.message);}
+}
+
+async function saveTYCard(jobId,update){
+  _tyCards[jobId]={..._tyCards[jobId]||{},...update};
+  try{localStorage.setItem('hcp_ty_cards',JSON.stringify(_tyCards));}catch(e){}
+  try{
+    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
+      body:JSON.stringify({action:'saveTYCard',jobId,data:_tyCards[jobId]})});
+  }catch(e){}
+  renderTYCards();
+}
+
+function getTYSales(){
+  const from=$$('tyFrom')?.value||$$('dateFrom')?.value||'';
+  const to=$$('tyTo')?.value||$$('dateTo')?.value||'';
+  return _jobs.filter(j=>{
+    if(isJobCanceled(j)||!isJobPaid(j)) return false;
+    const d=fmtKey(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at)||'';
+    if(from&&d<from) return false;
+    if(to&&d>to) return false;
+    return !!detectEquipmentSale(j);
+  }).sort((a,b)=>new Date(b.work_timestamps?.completed_at||b.created_at||0)-new Date(a.work_timestamps?.completed_at||a.created_at||0));
+}
+
+function renderTYCards(){
+  const el=$$('tyContent');
+  if(!el) return;
+  const sales=getTYSales();
+  const byStatus=(s)=>sales.filter(j=>(_tyCards[j.id]?.status||'pending')===s);
+  const pending=byStatus('pending');
+  const sent=byStatus('sent');
+  const skipped=byStatus('skip');
+
+  // Update badge
+  const badge=document.querySelector('.tab[data-tab="ty"] .badge-count');
+  if(badge){badge.textContent=pending.length;badge.style.display=pending.length?'':'none';}
+
+  const metrics=`<div class="metrics" style="margin-bottom:16px">
+    <div class="metric"><div class="metric-label">System sales</div><div class="metric-value">${sales.length}</div><div class="metric-sub">In date range</div></div>
+    <div class="metric"><div class="metric-label">Cards pending</div><div class="metric-value" style="color:#DC2626">${pending.length}</div><div class="metric-sub">Need to send</div></div>
+    <div class="metric"><div class="metric-label">Cards sent</div><div class="metric-value" style="color:#059669">${sent.length}</div><div class="metric-sub">Done</div></div>
+    <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(sales.reduce((s,j)=>s+getJobRevenue(j),0))}</div><div class="metric-sub">Paid installs</div></div>
+  </div>`;
+
+  if(!sales.length){
+    el.innerHTML=metrics+`<div style="text-align:center;padding:40px;color:#9ca3af">
+      No equipment sales found. Pull a report with a wider date range.
+    </div>`;
+    return;
+  }
+
+  function section(jobs,title,color){
+    if(!jobs.length) return '';
+    return `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${color};margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid ${color}">${title} (${jobs.length})</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px">
+        ${jobs.map(j=>tyCard(j)).join('')}
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML=metrics
+    +section(pending,'📬 Needs a card','#DC2626')
+    +section(sent,'✅ Card sent','#059669')
+    +section(skipped,'⏭ Skipped','#9ca3af');
+}
+
+function tyCard(j){
+  const equip=detectEquipmentSale(j);
+  if(!equip) return '';
+  const card=_tyCards[j.id]||{};
+  const status=card.status||'pending';
+  const cust=j.customer||{};
+  const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
+  const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
+  const phone=cust.mobile_number||cust.home_number||'';
+  const date=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+  const attr=_jobAttribution?.[j.id];
+  const soldBy=attr?.techName||getAssigned(j)||'—';
+  const amt=getJobRevenue(j);
+  const equipLabel=getEquipmentLabel(j);
+  const bgColors={pending:'#FFFBEB',sent:'#F0FDF4',skip:'#F9FAFB'};
+  const borderColors={pending:'#F59E0B',sent:'#16A34A',skip:'#E5E7EB'};
+
+  return `<div style="border:1.5px solid ${borderColors[status]};border-radius:10px;padding:14px;background:${bgColors[status]};position:relative">
+    <div style="position:absolute;top:-1px;right:12px;background:${equip.color};color:#fff;font-size:9px;font-weight:800;padding:2px 9px;border-radius:0 0 6px 6px;letter-spacing:.04em">${equip.icon} ${equip.label.toUpperCase()}</div>
+    <div style="font-size:15px;font-weight:800;color:#111827;margin-bottom:1px;margin-right:90px">${name}</div>
+    <div style="font-size:10px;color:#9ca3af;margin-bottom:8px">Job #${j.job_number||j.id?.slice(-6)||'—'}</div>
+    <div style="background:#fff;border:1px solid #E5E7EB;border-radius:7px;padding:9px 11px;margin-bottom:9px">
+      <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📮 Mailing address</div>
+      ${addr
+        ?`<div style="font-size:12px;font-weight:500;color:#111827;line-height:1.5">${addr}</div>`
+        :`<div style="font-size:12px;color:#EF4444;font-weight:700">⚠ No address on file</div>`}
+      ${phone?`<div style="font-size:11px;color:#6b7280;margin-top:3px">📞 ${phone}</div>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:9px">
+      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px">
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;font-weight:700">Installed</div>
+        <div style="font-size:11px;font-weight:700;color:#374151">${date}</div>
+      </div>
+      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px">
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;font-weight:700">Sold by</div>
+        <div style="font-size:11px;font-weight:700;color:#1A3A5C">${soldBy}</div>
+      </div>
+      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px">
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;font-weight:700">Amount</div>
+        <div style="font-size:11px;font-weight:700;color:#059669">${dollars(amt)}</div>
+      </div>
+    </div>
+    ${equipLabel?`<div style="font-size:10px;color:#6b7280;background:#fff;padding:4px 7px;border-radius:4px;margin-bottom:9px;border:1px solid #E5E7EB;font-style:italic">${equipLabel}${equipLabel.length===70?'…':''}</div>`:''}
+    <input type="text" placeholder="Note..." value="${(card.note||'').replace(/"/g,'&quot;')}"
+      onchange="saveTYCard('${j.id}',{note:this.value})"
+      style="width:100%;font-size:11px;padding:5px 8px;border:1px solid #D1D5DB;border-radius:5px;margin-bottom:8px;background:#fff;box-sizing:border-box">
+    <div style="display:flex;gap:6px">
+      <button onclick="saveTYCard('${j.id}',{status:'sent',sentDate:'${new Date().toISOString().split('T')[0]}'})"
+        style="flex:1;font-size:11px;padding:6px;border-radius:5px;font-weight:700;cursor:pointer;border:none;background:${status==='sent'?'#166534':'#059669'};color:#fff">
+        ${status==='sent'?'✅ Sent!':'📬 Mark sent'}
+      </button>
+      <button onclick="saveTYCard('${j.id}',{status:'skip'})"
+        style="font-size:11px;padding:6px 10px;border-radius:5px;cursor:pointer;border:1px solid #D1D5DB;background:#fff;color:#6b7280">Skip</button>
+      ${status!=='pending'?`<button onclick="saveTYCard('${j.id}',{status:'pending',sentDate:''})"
+        style="font-size:11px;padding:6px 10px;border-radius:5px;cursor:pointer;border:1px solid #D1D5DB;background:#fff;color:#6b7280">↩</button>`:''}
+    </div>
+    ${card.sentDate?`<div style="font-size:10px;color:#059669;text-align:center;margin-top:5px">✓ Sent ${card.sentDate}</div>`:''}
+  </div>`;
+}
+
+function exportTYMailingList(){
+  const sales=getTYSales();
+  const rows=[['Customer Name','Street','City','State','Zip','Phone','Equipment Type','Equipment Detail','Sold By','Amount','Install Date','Card Status','Note']];
+  sales.forEach(j=>{
+    const equip=detectEquipmentSale(j);
+    const cust=j.customer||{};
+    const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
+    const addr=j.address||{};
+    const attr=_jobAttribution?.[j.id];
+    const card=_tyCards[j.id]||{};
+    rows.push([
+      name,addr.street||'',addr.city||'',addr.state||'',addr.zip||'',
+      cust.mobile_number||cust.home_number||'',
+      equip?.label||'',getEquipmentLabel(j),
+      attr?.techName||getAssigned(j)||'',
+      getJobRevenue(j).toFixed(2),
+      fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at),
+      card.status||'pending',card.note||''
+    ]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='midstate_ty_cards_'+new Date().toISOString().split('T')[0]+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
 function printCalendar(){
