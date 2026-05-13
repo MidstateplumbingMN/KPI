@@ -412,7 +412,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v12.4</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v12.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -441,7 +441,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v12.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v12.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3509,6 +3509,7 @@ function detectEquipmentSale(j){
   if(j.summary) texts.push(j.summary.trim());
 
   // Customer estimates — option names contain exact pricebook item names
+  // Note: installers (Gannon, Andy) may collect payment — still counts as one sale
   const custId=getCustId(j), custName=getCust(j);
   const custEsts=_estimates.filter(e=>
     (custId&&getCustId(e)===custId)||getCust(e)===custName
@@ -3671,42 +3672,35 @@ function tyCard(j){
   const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
   const phone=cust.mobile_number||cust.home_number||'';
   const date=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
-  const attr=_jobAttribution?.[j.id];
-  const soldBy=attr?.techName||getAssigned(j)||'—';
-  const amt=getJobRevenue(j);
   const equipLabel=getEquipmentLabel(j);
   const bgColors={pending:'#FFFBEB',sent:'#F0FDF4',skip:'#F9FAFB'};
   const borderColors={pending:'#F59E0B',sent:'#16A34A',skip:'#E5E7EB'};
 
   return `<div style="border:1.5px solid ${borderColors[status]};border-radius:10px;padding:14px;background:${bgColors[status]};position:relative">
     <div style="position:absolute;top:-1px;right:12px;background:${equip.color};color:#fff;font-size:9px;font-weight:800;padding:2px 9px;border-radius:0 0 6px 6px;letter-spacing:.04em">${equip.icon} ${equip.label.toUpperCase()}</div>
-    <div style="font-size:15px;font-weight:800;color:#111827;margin-bottom:1px;margin-right:90px">${name}</div>
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:8px">Job #${j.job_number||j.id?.slice(-6)||'—'}</div>
+
+    <!-- Customer name — the important part -->
+    <div style="font-size:16px;font-weight:800;color:#111827;margin-bottom:2px;margin-right:90px">${name}</div>
+    <div style="font-size:10px;color:#9ca3af;margin-bottom:8px">Completed ${date}</div>
+
+    <!-- Mailing address — the critical info -->
     <div style="background:#fff;border:1px solid #E5E7EB;border-radius:7px;padding:9px 11px;margin-bottom:9px">
       <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📮 Mailing address</div>
       ${addr
-        ?`<div style="font-size:12px;font-weight:500;color:#111827;line-height:1.5">${addr}</div>`
-        :`<div style="font-size:12px;color:#EF4444;font-weight:700">⚠ No address on file</div>`}
+        ?`<div style="font-size:13px;font-weight:500;color:#111827;line-height:1.6">${addr}</div>`
+        :`<div style="font-size:12px;color:#EF4444;font-weight:700">⚠ No address on file — check HCP</div>`}
       ${phone?`<div style="font-size:11px;color:#6b7280;margin-top:3px">📞 ${phone}</div>`:''}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:9px">
-      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px">
-        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;font-weight:700">Installed</div>
-        <div style="font-size:11px;font-weight:700;color:#374151">${date}</div>
-      </div>
-      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px">
-        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;font-weight:700">Sold by</div>
-        <div style="font-size:11px;font-weight:700;color:#1A3A5C">${soldBy}</div>
-      </div>
-      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px">
-        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;font-weight:700">Amount</div>
-        <div style="font-size:11px;font-weight:700;color:#059669">${dollars(amt)}</div>
-      </div>
-    </div>
+
+    <!-- System detail -->
     ${equipLabel?`<div style="font-size:10px;color:#6b7280;background:#fff;padding:4px 7px;border-radius:4px;margin-bottom:9px;border:1px solid #E5E7EB;font-style:italic">${equipLabel}${equipLabel.length===70?'…':''}</div>`:''}
+
+    <!-- Note field -->
     <input type="text" placeholder="Note..." value="${(card.note||'').replace(/"/g,'&quot;')}"
       onchange="saveTYCard('${j.id}',{note:this.value})"
       style="width:100%;font-size:11px;padding:5px 8px;border:1px solid #D1D5DB;border-radius:5px;margin-bottom:8px;background:#fff;box-sizing:border-box">
+
+    <!-- Actions -->
     <div style="display:flex;gap:6px">
       <button onclick="saveTYCard('${j.id}',{status:'sent',sentDate:'${new Date().toISOString().split('T')[0]}'})"
         style="flex:1;font-size:11px;padding:6px;border-radius:5px;font-weight:700;cursor:pointer;border:none;background:${status==='sent'?'#166534':'#059669'};color:#fff">
