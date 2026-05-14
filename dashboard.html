@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.0</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.2</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -443,7 +443,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.2</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -841,7 +841,9 @@ tr:hover td{background:#fafafa}
           <input type="date" id="tyTo" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px" onchange="renderTYCards()">
           <button onclick="renderTYCards()" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:600">↻ Refresh</button>
           <button onclick="exportTYMailingList()" style="font-size:12px;padding:5px 12px;border:none;border-radius:5px;background:#BE185D;color:#fff;cursor:pointer;font-weight:700">⬇ Export CSV</button>
-          <button onclick="printTYCards()" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:700">🖨 Print List</button>
+          <button onclick="printTYCards('pending')" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:700">🖨 Print Pending</button>
+          <button onclick="printTYCards('sent')" style="font-size:12px;padding:5px 12px;border:1px solid #059669;border-radius:5px;background:#fff;color:#059669;cursor:pointer;font-weight:700">🖨 Print Sent</button>
+          <button onclick="printTYCards('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
         </div>
       </div>
       <div id="tyContent">
@@ -2075,10 +2077,25 @@ function applyManualOverride(jobId){
   }
 }
 function confirmFromCard(jobId){
-  const selected=document.querySelector(`input[name="attr_${jobId}"]:checked`);
-  if(!selected)return;
-  const techId=selected.value;
-  const techName=selected.getAttribute('data-name')||'Unknown';
+  // First check if there's a radio button selection
+  let selected=document.querySelector(`input[name="attr_${jobId}"]:checked`);
+  let techId, techName;
+
+  if(selected){
+    techId=selected.value;
+    techName=selected.getAttribute('data-name')||'Unknown';
+  } else {
+    // Fall back to override dropdown if no radio buttons (e.g. installer-only job)
+    const overrideSel=document.querySelector(`#manualEmpSel_${jobId}`);
+    if(overrideSel&&overrideSel.value){
+      techId=overrideSel.value;
+      techName=overrideSel.options[overrideSel.selectedIndex]?.text||'Unknown';
+    } else {
+      alert('Please select a tech to credit, or choose an override from the dropdown.');
+      return;
+    }
+  }
+
   const reasonEl=document.querySelector(`#reason_${jobId}`);
   const notesEl=document.querySelector(`#notes_${jobId}`);
   const reason=reasonEl?reasonEl.value:'';
@@ -3639,9 +3656,32 @@ async function fetchTYCardsFromSheets(){
 async function saveTYCard(jobId,update){
   _tyCards[jobId]={..._tyCards[jobId]||{},...update};
   try{localStorage.setItem('hcp_ty_cards',JSON.stringify(_tyCards));}catch(e){}
+  // Enrich with job data for Sheets storage
+  const job=_jobs.find(j=>j.id===jobId);
+  const equip=job?detectEquipmentSale(job):null;
+  const cust=job?.customer||{};
+  const name=job?[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(job):'';
+  const addr=job?.address?[job.address.street,job.address.city,job.address.state,job.address.zip].filter(Boolean).join(', '):'';
+  const phone=cust.mobile_number||cust.home_number||'';
+  const email=cust.email||'';
+  const installDate=job?fmtDY(job.work_timestamps?.completed_at||job.schedule?.scheduled_start||job.created_at):'';
+  const equipLabel=job?getEquipmentLabel(job):'';
+  const amt=job?getJobRevenue(job):0;
   try{
     await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
-      body:JSON.stringify({action:'saveTYCard',jobId,data:_tyCards[jobId]})});
+      body:JSON.stringify({
+        action:'saveTYCard',jobId,
+        data:_tyCards[jobId],
+        // Rich data for Sheets columns
+        customerName:name,
+        address:addr,
+        phone,email,
+        equipType:equip?.label||'',
+        equipDetail:equipLabel,
+        installDate,
+        amount:amt,
+        jobNumber:job?.job_number||jobId
+      })});
   }catch(e){}
   renderTYCards();
 }
@@ -3770,13 +3810,21 @@ function tyCard(j){
   </div>`;
 }
 
-function printTYCards(){
-  const sales=getTYSales();
-  if(!sales.length){alert('No equipment sales to print.');return;}
+function printTYCards(filter='pending'){
+  const allSales=getTYSales();
+  if(!allSales.length){alert('No equipment sales to print.');return;}
+
+  // Filter by status
+  const sales=filter==='all'?allSales:allSales.filter(j=>{
+    const status=_tyCards[j.id]?.status||'pending';
+    return status===filter;
+  });
+  if(!sales.length){alert(`No ${filter} cards to print.`);return;}
 
   const from=$$('tyFrom')?.value||$$('dateFrom')?.value||'';
   const to=$$('tyTo')?.value||$$('dateTo')?.value||'';
   const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const filterLabel=filter==='pending'?'📬 Pending Cards':filter==='sent'?'✅ Sent Cards':'All Cards';
 
   const rows=sales.map(j=>{
     const equip=detectEquipmentSale(j);
@@ -3784,13 +3832,12 @@ function printTYCards(){
     const cust=j.customer||{};
     const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
     const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'—';
+    const phone=cust.mobile_number||cust.home_number||'';
     const date=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
-    const attr=_jobAttribution?.[j.id];
-    const soldBy=attr?.techName||getAssigned(j)||'—';
     const status=card.status||'pending';
     const statusLabel=status==='sent'?'✅ Sent':status==='skip'?'⏭ Skip':'📬 Pending';
     const statusColor=status==='sent'?'#166534':status==='skip'?'#9ca3af':'#DC2626';
-    return{name,addr,equip,date,soldBy,amt:getJobRevenue(j),status,statusLabel,statusColor,note:card.note||''};
+    return{name,addr,phone,equip,date,amt:getJobRevenue(j),status,statusLabel,statusColor,note:card.note||''};
   });
 
   const win=window.open('','_blank','width=900,height=1100');
@@ -3817,7 +3864,7 @@ function printTYCards(){
   </style></head><body>
   <div class="header">
     <div>
-      <div class="title">💌 Thank You Cards — Midstate Plumbing</div>
+      <div class="title">💌 ${filterLabel} — Midstate Plumbing</div>
       <div class="sub">${from?from+' to '+to:'All dates'} &nbsp;·&nbsp; Printed ${today}</div>
     </div>
     <div style="font-size:9px;color:#6b7280;text-align:right">651-480-1195 · Hastings, MN</div>
@@ -3832,20 +3879,17 @@ function printTYCards(){
 
   <table>
     <thead><tr>
-      <th>#</th><th>Customer</th><th>Mailing Address</th>
-      <th>Equipment</th><th>Sold By</th><th>Date</th>
-      <th>Amount</th><th>Status</th><th>Note</th>
+      <th>#</th><th>Customer</th><th>Mailing Address</th><th>Phone</th>
+      <th>Equipment</th><th>Install Date</th><th>Note</th>
     </tr></thead>
     <tbody>
       ${rows.map((r,i)=>`<tr>
         <td style="color:#9ca3af">${i+1}</td>
-        <td style="font-weight:700">${r.name}</td>
+        <td style="font-weight:700;font-size:10px">${r.name}</td>
         <td style="font-size:8px;color:#374151">${r.addr}</td>
+        <td style="font-size:9px;white-space:nowrap">${r.phone||'—'}</td>
         <td><span class="equip-badge" style="background:${r.equip?.color||'#6b7280'}">${r.equip?.icon||''} ${r.equip?.label||'?'}</span></td>
-        <td>${r.soldBy}</td>
-        <td style="white-space:nowrap">${r.date}</td>
-        <td style="font-weight:700;color:#166534">${dollars(r.amt)}</td>
-        <td><span class="status-badge" style="color:${r.statusColor}">${r.statusLabel}</span></td>
+        <td style="white-space:nowrap;font-size:9px">${r.date}</td>
         <td style="color:#6b7280;font-size:8px">${r.note}</td>
       </tr>`).join('')}
     </tbody>
