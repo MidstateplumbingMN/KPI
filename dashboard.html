@@ -196,7 +196,9 @@ tr:hover td{background:#fafafa}
 .attr-option input[type=radio]{margin:0}
 .attr-option-name{font-size:13px;font-weight:600;flex:1}
 .attr-option-detail{font-size:11px;color:#6b7280}
-.attr-confirm-btn{margin-top:10px;background:#1A3A5C;color:#fff;border:none;padding:7px 18px;border-radius:5px;font-weight:600;font-size:13px}
+.attr-confirm-btn{margin-top:10px;background:#1A3A5C;color:#fff;border:none;padding:7px 18px;border-radius:5px;font-weight:600;font-size:13px;cursor:pointer}
+.attr-confirm-btn:hover{background:#163059}
+.attr-skip-btn{margin-top:10px;background:#fff;color:#6b7280;border:1px solid #d1d5db;padding:7px 18px;border-radius:5px;font-weight:600;font-size:13px;cursor:pointer}
 .attr-skip-btn{margin-top:10px;margin-left:8px;background:#f3f4f6;color:#6b7280;border-color:#e5e7eb;padding:7px 14px;border-radius:5px;font-size:13px}
 .attr-done{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:13px;color:#166534;display:flex;align-items:center;gap:8px}
 .no-attr{text-align:center;padding:2rem;color:#9ca3af;font-size:13px}
@@ -412,7 +414,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v12.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.0</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -425,7 +427,7 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="field">
       <label>Google Sheets Proxy URL</label>
-      <input type="text" id="sheetsProxy" value="https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BlEsRQu2qGLpk5xrF-vcUBSLhlyM2NPW2qmM/exec" placeholder="Google Sheets Proxy URL" autocomplete="off"/>
+      <input type="text" id="sheetsProxy" value="https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BIEsRQu2qGLpk5xrF-vcUBSLhIyM2NPW2qmM/exec" placeholder="Google Sheets Proxy URL" autocomplete="off"/>
       <div style="font-size:11px;color:#9ca3af;margin-top:3px">From Midstate HCP Data → Extensions → Apps Script → Deploy</div>
     </div>
     <button class="connect-btn" onclick="connect()">Connect →</button>
@@ -441,7 +443,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v12.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.0</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -912,7 +914,7 @@ tr:hover td{background:#fafafa}
 // ============================================================
 // STATE
 // ============================================================
-let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BlEsRQu2qGLpk5xrF-vcUBSLhlyM2NPW2qmM/exec';
+let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BIEsRQu2qGLpk5xrF-vcUBSLhIyM2NPW2qmM/exec';
 let _selectedEmps=new Set(); // empty = all selected
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
 // attributions: jobId -> { techId, techName, confirmed }
@@ -934,7 +936,27 @@ function isGannonSellingTech(dateStr){
 let _jobSort={col:'scheduled',dir:'desc'};
 let _estSort={col:'created_at',dir:'desc'};
 
-function loadAttr(){ try{ _attr=JSON.parse(localStorage.getItem('hcp_attr')||'{}'); }catch(e){_attr={};} }
+function loadAttr(){
+  try{_attr=JSON.parse(localStorage.getItem('hcp_attr')||'{}');}catch(e){_attr={};}
+  // Fetch manually confirmed attributions from Sheets (shared across users)
+  fetchConfirmedAttrFromSheets();
+}
+
+async function fetchConfirmedAttrFromSheets(){
+  if(!_sheetsProxy) return;
+  try{
+    const res=await fetch(_sheetsProxy+'?action=getConfirmedAttribution',{redirect:'follow',mode:'cors'});
+    if(!res.ok) return;
+    const data=await res.json();
+    if(data.success&&data.attributions){
+      // Merge Sheets data — Sheets wins for manually confirmed ones
+      Object.entries(data.attributions).forEach(([jobId,a])=>{
+        if(a.confirmed) _attr[jobId]=a;
+      });
+      try{localStorage.setItem('hcp_attr',JSON.stringify(_attr));}catch(e){}
+    }
+  }catch(e){console.warn('[Attr Sheets load]',e.message);}
+}
 function saveAttr(){ try{ localStorage.setItem('hcp_attr',JSON.stringify(_attr)); }catch(e){} }
 
 // ============================================================
@@ -970,7 +992,7 @@ function disconnect(){
   document.getElementById('apiToken').value='';
 }
 // Pre-fill saved proxy URL on load
-(function(){try{const el=document.getElementById('sheetsProxy');if(el&&!el.value)el.value=localStorage.getItem('hcp_sheets_proxy')||'https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BlEsRQu2qGLpk5xrF-vcUBSLhlyM2NPW2qmM/exec';}catch(e){}})();
+(function(){try{const el=document.getElementById('sheetsProxy');if(el&&!el.value)el.value=localStorage.getItem('hcp_sheets_proxy')||'https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BIEsRQu2qGLpk5xrF-vcUBSLhIyM2NPW2qmM/exec';}catch(e){}})();
 
 // ============================================================
 // HELPERS
@@ -1765,13 +1787,46 @@ function buildAttribution(jobs,estimates){
 }
 
 function confirmAttribution(jobId,techId,techName,reason,notes){
-  _attr[jobId]={techId,techName,confirmed:true,reason:reason||'',notes:notes||'',ts:Date.now()};
-  saveAttr();
-  buildAttribution(_jobs,_estimates);
-  renderAttr(_jobs,_estimates);
-  renderJobs(_jobs,_estimates);
-  renderKPI(_jobs,_estimates,_employees,_plans);
-  renderPatternStats();
+  try{
+    _attr[jobId]={techId,techName,confirmed:true,source:'manual',reason:reason||'',notes:notes||'',ts:Date.now()};
+    saveAttr();
+
+    // Sync to Google Sheets — persist confirmed attribution across users
+    const job=_jobs.find(j=>j.id===jobId);
+    if(job&&_sheetsProxy){
+      const from=$$('dateFrom')?.value||'', to=$$('dateTo')?.value||'';
+      fetch(_sheetsProxy,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        mode:'no-cors',
+        body:JSON.stringify({
+          action:'saveAttrConfirmation',
+          jobId,
+          job_number:job.job_number||jobId,
+          customer:getCust(job),
+          dept:getDept(job),
+          techName,
+          source:'manual',
+          reason:reason||'',
+          notes:notes||'',
+          total:getJobTotal(job),
+          status:getNormStatus(job),
+          dateRange:`${from} → ${to}`
+        })
+      }).catch(e=>console.warn('[Attr Sheets]',e.message));
+    }
+
+    buildAttribution(_jobs,_estimates);
+    renderAttr(_jobs,_estimates);
+    renderJobs(_jobs,_estimates);
+    renderKPI(_jobs,_estimates,_employees,_plans);
+    renderPatternStats();
+  }catch(err){
+    console.error('[confirmAttribution] Error:',err);
+    _attr[jobId]={techId,techName,confirmed:true,source:'manual',reason:reason||'',notes:notes||'',ts:Date.now()};
+    saveAttr();
+    alert('Attribution saved locally. Refresh to see changes.\n\nError: '+err.message);
+  }
 }
 function skipAttribution(jobId){
   _attr[jobId]={techId:'skip',techName:'—',confirmed:false};
