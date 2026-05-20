@@ -809,11 +809,18 @@ html, body {
       <div class="status-dot"></div>
       <span>Sheet: Connected</span>
     </div>
+    <button id="refreshBtn" onclick="manualRefresh()" style="
+      background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);
+      color:#00D4FF;font-size:11px;padding:4px 16px;border-radius:99px;
+      cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.06em;
+      transition:all .2s;text-transform:uppercase">
+      ↻ Refresh Now
+    </button>
     <div class="status-item" style="margin-left:auto;color:var(--text-3)">
       Last refresh: <span id="lastRefresh">—</span>
     </div>
     <div style="color:var(--text-3)">
-      Next refresh in <span id="nextRefresh">60</span>s
+      Auto in <span id="nextRefresh">60</span>s
     </div>
   </div>
 </div>
@@ -1488,6 +1495,18 @@ async function init() {
     await loadData();
   updateS6(); // pre-load Win the Day
   }, CONFIG.REFRESH_MS);
+}
+
+// ============================================================
+// MANUAL REFRESH
+// ============================================================
+async function manualRefresh(){
+  const btn = document.getElementById('refreshBtn');
+  if(btn){ btn.textContent='↻ Refreshing...'; btn.style.opacity='.6'; btn.disabled=true; }
+  refreshTimer = CONFIG.REFRESH_MS / 1000;
+  await loadData();
+  if(state.currentScene===5) updateS6();
+  if(btn){ btn.textContent='↻ Refresh Now'; btn.style.opacity='1'; btn.disabled=false; }
 }
 
 // Keyboard shortcuts
