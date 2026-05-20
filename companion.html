@@ -53,7 +53,7 @@ html, body {
   background: var(--bg);
   font-family: var(--font-body);
   color: var(--text-1);
-  cursor: none;
+  cursor: default;
 }
 
 /* ---- ANIMATED BACKGROUND ---- */
@@ -773,7 +773,7 @@ html, body {
           <div class="wtd-goal-bar"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
           <div style="font-size:11px;color:var(--text-3);margin-top:8px"><span id="wtd-goal-pct">0%</span> of daily goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
           <div class="wtd-last-job" id="wtd-last-job" style="display:none">
-            <div class="wtd-last-label">🔔 Most recent paid job</div>
+            <div class="wtd-last-label">🏆 Top performer</div>
             <div class="wtd-last-val" id="wtd-last-name">—</div>
             <div style="font-size:12px;color:var(--text-3);margin-top:3px" id="wtd-last-detail">—</div>
           </div>
@@ -804,16 +804,16 @@ html, body {
   </div><!-- /scenes -->
 
   <!-- STATUS BAR -->
-  <div class="status-bar">
+  <div class="status-bar" onclick="event.stopPropagation()">
     <div class="status-item" id="statusSheet">
       <div class="status-dot"></div>
       <span>Sheet: Connected</span>
     </div>
-    <button id="refreshBtn" onclick="manualRefresh()" style="
+    <button id="refreshBtn" onclick="event.stopPropagation();manualRefresh()" style="
       background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);
       color:#00D4FF;font-size:11px;padding:4px 16px;border-radius:99px;
       cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.06em;
-      transition:all .2s;text-transform:uppercase">
+      transition:all .2s;text-transform:uppercase;position:relative;z-index:999">
       ↻ Refresh Now
     </button>
     <div class="status-item" style="margin-left:auto;color:var(--text-3)">
@@ -840,11 +840,10 @@ const CONFIG = {
   // Google Sheet ID
   SHEET_ID: '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU',
 
-  // Tab names (must match your sheet tabs exactly)
+  // Tab names — only KPI_Scores and Reports needed (no customer data)
   TABS: {
     KPI:     'KPI_Scores',
     REPORTS: 'Reports',
-    JOBS:    'Jobs',
   },
 
   // Annual revenue goal
@@ -932,10 +931,21 @@ function sheetCSVUrl(tabName) {
 
 async function fetchCSV(tabName) {
   const url = sheetCSVUrl(tabName);
-  const res = await fetch(url + '&cb=' + Date.now(), { cache: 'no-store' });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${tabName}`);
-  const text = await res.text();
-  return parseCSV(text);
+  try {
+    const res = await fetch(url + '&cb=' + Date.now(), {
+      cache: 'no-store',
+      mode: 'cors',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    // Check for Google error page
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error('Sheet not published or not accessible. Go to File → Share → Publish to web in Google Sheets.');
+    }
+    return parseCSV(text);
+  } catch(e) {
+    throw new Error(`${tabName}: ${e.message}`);
+  }
 }
 
 function parseCSV(text) {
@@ -1227,40 +1237,46 @@ function updateS5() {
 let _wtdLastRevenue = 0;
 
 async function updateS6() {
-  // Pull from Jobs tab — filter to today
   try {
-    const rows = await fetchCSV(CONFIG.TABS.JOBS);
+    // Use KPI_Scores — no customer data, safe to publish
+    // Filter to rows from today's snapshot date
+    const rows = await fetchCSV(CONFIG.TABS.KPI);
     const today = new Date().toISOString().split('T')[0];
+
+    // Get today's rows — snapshot date matches today
+    // Fall back to most recent snapshot date if no today rows yet
     const todayRows = rows.slice(1).filter(r => {
-      if (!r || !r[0]) return false;
-      // Completed column = index 16, Scheduled = index 15
-      const completed = r[16] || r[15] || '';
-      return completed.startsWith(today) || completed.includes(today);
+      if (!r || !r[CONFIG.KPI_COLS.name]) return false;
+      const snapDate = r[CONFIG.KPI_COLS.date] || '';
+      return snapDate.includes(today);
     });
 
-    // Paid jobs today
-    const paidRows = todayRows.filter(r => (r[9]||'').toLowerCase() === 'paid');
-    const revenue = paidRows.reduce((s,r) => s + (parseFloat((r[13]||'0').replace(/[$,]/g,''))||0), 0);
-    const jobs = paidRows.length;
-    const avg = jobs > 0 ? revenue / jobs : 0;
+    // If no today rows yet (early morning before first pull), use latest snapshot
+    const useRows = todayRows.length > 0 ? todayRows : state.kpi;
 
-    // Estimates today — use scheduled date
-    const estRows = await fetchCSV(CONFIG.TABS.KPI);
-    // We can't filter estimates by today from KPI_Scores, use jobs count as proxy
-    const todayEsts = todayRows.filter(r => (r[9]||'').toLowerCase() !== 'paid' && r[0]).length;
+    // Sum across all employees
+    const revenue  = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.revenue]), 0);
+    const jobs     = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.completed]), 0);
+    const ests     = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.estimates]), 0);
+    const converted= useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.converted]), 0);
+    const avg      = jobs > 0 ? revenue / jobs : 0;
+    const convPct  = ests > 0 ? Math.round(converted / ests * 100) : 0;
+    const goalPct  = Math.min(100, Math.round(revenue / CONFIG.DAILY_GOAL * 100));
 
-    const goalPct = Math.min(100, Math.round(revenue / CONFIG.DAILY_GOAL * 100));
+    // Top performer today
+    const topEmp = [...useRows].sort((a,b) =>
+      num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue])
+    )[0];
 
     // Date label
     const now = new Date();
-    document.getElementById('wtd-date-label').textContent =
+    el('wtd-date-label').textContent =
       now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
-    document.getElementById('wtd-daily-goal').textContent = dollars(CONFIG.DAILY_GOAL);
+    el('wtd-daily-goal').textContent = dollars(CONFIG.DAILY_GOAL);
 
-    // Animate revenue if it changed (new money came in!)
+    // Fire pop animation if revenue increased
     if (revenue > _wtdLastRevenue && _wtdLastRevenue > 0) {
-      const diff = revenue - _wtdLastRevenue;
-      fireRevenuePop(diff);
+      fireRevenuePop(revenue - _wtdLastRevenue);
     }
     _wtdLastRevenue = revenue;
 
@@ -1269,22 +1285,21 @@ async function updateS6() {
     el('wtd-jobs').textContent = jobs;
     el('wtd-avg').textContent = dollars(avg);
     el('wtd-completed').textContent = jobs;
-    el('wtd-ests').textContent = todayEsts;
-    el('wtd-conv').textContent = todayEsts > 0 ? Math.round(jobs/todayEsts*100) + '%' : '—';
+    el('wtd-ests').textContent = ests;
+    el('wtd-conv').textContent = ests > 0 ? convPct + '%' : '—';
     animCount('wtd-avg2', avg, true);
     el('wtd-goal-pct').textContent = goalPct + '%';
     el('wtd-goal-fill').style.width = goalPct + '%';
 
-    // Most recent job
-    if (paidRows.length > 0) {
-      const last = paidRows[paidRows.length - 1];
+    // Top performer instead of "most recent job"
+    if (topEmp) {
       el('wtd-last-job').style.display = 'block';
-      el('wtd-last-name').textContent = last[4] || '—'; // Customer
+      el('wtd-last-name').textContent = topEmp[CONFIG.KPI_COLS.name];
       el('wtd-last-detail').textContent =
-        `${last[8]||''} · ${dollars(parseFloat((last[13]||'0').replace(/[$,]/g,''))||0)}`;
+        `${dollars(num(topEmp[CONFIG.KPI_COLS.revenue]))} · ${num(topEmp[CONFIG.KPI_COLS.completed])} jobs completed`;
     }
 
-    // Motivation coloring based on pace
+    // Color hero based on pace
     const heroCard = el('wtd-hero-card');
     if (goalPct >= 100) {
       heroCard.style.background = 'linear-gradient(135deg, rgba(0,255,136,.12), rgba(0,212,255,.08))';
@@ -1294,7 +1309,7 @@ async function updateS6() {
       heroCard.style.background = 'linear-gradient(135deg, rgba(255,107,53,.06), rgba(168,85,247,.04))';
     }
   } catch(e) {
-    console.warn('Win the Day data error:', e);
+    console.warn('Win the Day error:', e);
   }
 }
 
@@ -1449,7 +1464,10 @@ function setStatus(s) {
   } else {
     item.classList.add('err');
     dot.style.background = 'var(--red)';
-    txt.textContent = 'Sheet: ' + (state.error || 'Error');
+    const errMsg = state.error || 'Error';
+    txt.textContent = errMsg.includes('published') 
+      ? '⚠ Publish your Google Sheet: File → Share → Publish to web'
+      : 'Sheet Error: ' + errMsg.slice(0, 60);
   }
 }
 
