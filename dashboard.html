@@ -414,7 +414,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.4</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -443,7 +443,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -451,6 +451,7 @@ tr:hover td{background:#fafafa}
       <button class="sec-btn no-print refresh-all-btn" id="refreshAllBtn" style="display:none" onclick="refreshAll()">↻ Refresh all</button>
       <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
       <button class="sec-btn no-print" onclick="showAutoPullSettings()" title="Auto-pull settings" id="autoPullBtn">⏱ Auto-pull</button>
+      <button class="sec-btn no-print" id="pushCompanionBtn" onclick="pushToCompanion()" title="Force update companion wallboard">📺 Push to Companion</button>
       <span id="autoPullStatus" style="font-size:11px;color:#9ca3af;align-self:center"></span>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
     </div>
@@ -4114,6 +4115,75 @@ async function triggerManualAutoPull(){
   applyAutoPullRange(cfg);
   closeAutoPullSettings();
   await loadAll();
+}
+
+async function pushToCompanion(){
+  const btn=$$('pushCompanionBtn');
+  if(!btn) return;
+  const orig=btn.textContent;
+  btn.textContent='📺 Pushing...';
+  btn.disabled=true;
+
+  try{
+    // First sync current data to Sheets (what the companion reads)
+    if(_jobs.length){
+      $$('statusBar').textContent='Syncing to Sheets for companion...';
+      const from=$$('dateFrom')?.value||'';
+      const to=$$('dateTo')?.value||'';
+      await syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to);
+      $$('statusBar').textContent='✅ Companion updated — data pushed to Sheets';
+      btn.textContent='✅ Pushed!';
+      btn.style.background='#059669';
+      btn.style.color='#fff';
+      btn.style.border='none';
+      setTimeout(()=>{
+        btn.textContent=orig;
+        btn.style.background='';
+        btn.style.color='';
+        btn.style.border='';
+        btn.disabled=false;
+      },3000);
+    } else {
+      // No data loaded — trigger worker pull instead
+      if(!_workerUrl){
+        alert('Pull a report first, or connect to the worker to push.');
+        btn.textContent=orig;
+        btn.disabled=false;
+        return;
+      }
+      const res=await fetch(_workerUrl+'/cron-pull');
+      const data=await res.json();
+      if(data.success){
+        btn.textContent='✅ Pushed!';
+        btn.style.background='#059669';
+        btn.style.color='#fff';
+        btn.style.border='none';
+        $$('statusBar').textContent=`✅ Companion updated via worker — ${data.jobs} jobs, $${Math.round(data.revenue||0).toLocaleString()} revenue`;
+        setTimeout(()=>{
+          btn.textContent=orig;
+          btn.style.background='';
+          btn.style.color='';
+          btn.style.border='';
+          btn.disabled=false;
+        },3000);
+      } else {
+        throw new Error(data.error||'Worker pull failed');
+      }
+    }
+  }catch(e){
+    btn.textContent='❌ Failed';
+    btn.style.background='#dc2626';
+    btn.style.color='#fff';
+    btn.style.border='none';
+    $$('statusBar').textContent='Push failed: '+e.message;
+    setTimeout(()=>{
+      btn.textContent=orig;
+      btn.style.background='';
+      btn.style.color='';
+      btn.style.border='';
+      btn.disabled=false;
+    },3000);
+  }
 }
 
 async function triggerWorkerPull(){
