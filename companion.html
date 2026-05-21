@@ -1162,7 +1162,7 @@ const CONFIG = {
   MONTHLY_GOAL: 250000,
 
   // Data refresh interval (ms)
-  REFRESH_MS: 60000,
+  REFRESH_MS: 30000,  // 30s refresh — keep wallboard current
 
   // Scene rotation interval (ms)
   SCENE_MS: 20000,
@@ -1236,6 +1236,17 @@ const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8'];
 function sheetCSVUrl(tabName) {
   const encoded = encodeURIComponent(tabName);
   return `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encoded}`;
+}
+
+function convertDriveUrl(url){
+  if(!url) return url;
+  // Google Drive share links
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  // Google Drive open links
+  const m2 = url.match(/id=([a-zA-Z0-9_-]+)/);
+  if(m2 && url.includes('drive.google')) return `https://drive.google.com/uc?export=view&id=${m2[1]}`;
+  return url;
 }
 
 async function fetchCSV(tabName) {
@@ -1321,7 +1332,8 @@ async function loadData() {
     state.error = null;
     setStatus('ok');
     updateAll();
-    document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+    const now_ts = new Date();
+    document.getElementById('lastRefresh').textContent = now_ts.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' CST';
   } catch(e) {
     state.error = e.message;
     setStatus('error');
@@ -1823,7 +1835,9 @@ async function init() {
     refreshTimer = CONFIG.REFRESH_MS / 1000;
     await loadData();
     await loadSpotlightData();
-  updateS6(); // pre-load Win the Day
+    updateS6();
+    if(state.currentScene===6) updateS7();
+    if(state.currentScene===7) updateS8();
   }, CONFIG.REFRESH_MS);
 }
 
@@ -1915,7 +1929,7 @@ function updateS7() {
   }
   showSpotlight(_spIdx % _spItems.length);
   // Start sub-rotation within scene
-  if (_spRotateTimer) clearInterval(_spRotateTimer);
+  if (_spRotateTimer) { clearInterval(_spRotateTimer); _spRotateTimer = null; }
   if (_spItems.length > 1) {
     _spRotateTimer = setInterval(() => {
       _spIdx = (_spIdx + 1) % _spItems.length;
@@ -1945,7 +1959,7 @@ function showSpotlight(idx) {
     const photo = el('sp-photo');
     const initials = el('sp-initials');
     if (item.photoUrl) {
-      photo.src = item.photoUrl;
+      photo.src = convertDriveUrl(item.photoUrl);
       photo.style.display = 'block';
       initials.style.display = 'none';
     } else {
