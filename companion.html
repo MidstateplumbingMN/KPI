@@ -1365,12 +1365,52 @@ async function loadData() {
 // ============================================================
 function updateAll() {
   if (!state.loaded) return;
+  const hasSnap = Object.keys(state.snap).length > 0;
+  if (!hasSnap) { showNoDataState(); return; }
+  hideNoDataState();
   updateS1();
   updateS2();
   updateS3();
   updateS4();
   updateS5();
   if(state.currentScene===5) updateS6();
+  if(state.currentScene===6) updateS7();
+  if(state.currentScene===7) updateS8();
+}
+
+function showNoDataState() {
+  document.querySelectorAll('.scene').forEach(s=>{ s.classList.remove('visible'); s.style.display='none'; });
+  let w = document.getElementById('no-data-screen');
+  if (!w) {
+    w = document.createElement('div');
+    w.id = 'no-data-screen';
+    w.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;z-index:10;background:transparent';
+    w.innerHTML = `
+      <div style="font-family:var(--font-display);font-size:52px;letter-spacing:.15em;color:var(--text-3)">WAITING FOR DATA</div>
+      <div style="font-size:14px;color:var(--text-3);text-align:center;line-height:2.2">
+        Pull a report in the KPI Dashboard to populate this display.<br>
+        <span style="color:var(--blue);font-weight:600">Dashboard → Pull report → 📺 Push to Companion</span>
+      </div>
+      <div style="width:240px;height:3px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:60px;background:linear-gradient(90deg,transparent,var(--blue),transparent);animation:scanBar 2s ease-in-out infinite"></div>
+      </div>`;
+    const st = document.createElement('style');
+    st.textContent = '@keyframes scanBar{0%{transform:translateX(-60px)}100%{transform:translateX(240px)}}';
+    document.head.appendChild(st);
+    document.querySelector('.scenes').appendChild(w);
+  }
+  w.style.display = 'flex';
+  // Stop scene rotation while waiting
+  if (state.sceneTimer) { clearInterval(state.sceneTimer); state.sceneTimer = null; }
+}
+
+function hideNoDataState() {
+  const w = document.getElementById('no-data-screen');
+  if (w) w.style.display = 'none';
+  // Restart rotation if it was stopped
+  if (!state.sceneTimer) {
+    state.sceneTimer = setInterval(() => { nextScene(); restartProgress(); }, CONFIG.SCENE_MS);
+  }
 }
 
 // ---- SCENE 1: KPI OVERVIEW ----
@@ -1583,8 +1623,22 @@ async function updateS6() {
       return snapDate.includes(today);
     });
 
-    // If no today rows yet (early morning before first pull), use latest snapshot
-    const useRows = todayRows.length > 0 ? todayRows : state.kpi;
+    // If no today rows, show zeros — don't fall back to all-time data
+    const useRows = todayRows;
+    if (!useRows.length) {
+      // No today data — show zeros cleanly
+      animCount('wtd-revenue', 0, true);
+      el('wtd-jobs').textContent = '0';
+      el('wtd-avg').textContent = '$0';
+      el('wtd-completed').textContent = '0';
+      el('wtd-ests').textContent = '0';
+      el('wtd-conv').textContent = '—';
+      animCount('wtd-avg2', 0, true);
+      el('wtd-goal-pct').textContent = '0%';
+      el('wtd-goal-fill').style.width = '0%';
+      el('wtd-last-job').style.display = 'none';
+      return;
+    }
 
     // Sum across all employees
     const revenue  = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.revenue]), 0);
