@@ -104,6 +104,10 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="unpaid"]:hover{background:#fef2f2;color:#b91c1c}
 .tab[data-tab="plans"]:hover{background:#f0fdf4;color:#059669}
 .tab[data-tab="debug"]:hover{background:#f9fafb;color:#6b7280}
+.tab[data-tab="spotlight"].active{border-top:3px solid #F59E0B;color:#F59E0B}
+.tab[data-tab="spotlight"]:hover{background:#FFFBEB;color:#F59E0B}
+.tab[data-tab="promos"].active{border-top:3px solid #EC4899;color:#EC4899}
+.tab[data-tab="promos"]:hover{background:#FDF2F8;color:#EC4899}
 .tab .badge-count{font-size:10px;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700;line-height:1.4}
 .panel{display:none}.panel.active{display:block}
 /* METRICS */
@@ -414,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v13.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -443,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v13.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -500,6 +504,9 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="unpaid" id="unpaidTab" onclick="showTab('unpaid')">⚠️ Unpaid Jobs</button>
       <button class="tab" data-tab="ty" onclick="showTab('ty')">💌 Thank You Cards</button>
       <button class="tab" data-tab="plans" onclick="showTab('plans')">🛡 Service Plans</button>
+      <button class="tab" data-tab="spotlight" onclick="showTab('spotlight')">⭐ Employee Spotlight</button>
+      <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
+      <button class="tab" data-tab="spotlight" onclick="showTab('spotlight')">⭐ Spotlight</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
     </div>
 
@@ -855,6 +862,156 @@ tr:hover td{background:#fafafa}
       <div style="margin-top:12px;padding:10px 14px;background:#FFF9C3;border:1px solid #F59E0B;border-radius:7px;font-size:12px;color:#78350F">
         <strong>⚠ Apps Script must be redeployed</strong> for the TY_Cards sheet tab to appear and card status to sync across users.
         Deploy the updated <code>midstate_hcp_apps_script.gs</code> as a new version in Google Apps Script, then pull a fresh report — the TY_Cards tab will be created automatically.
+      </div>
+    </div>
+
+    <!-- EMPLOYEE SPOTLIGHT -->
+    <div class="panel" id="tab-spotlight">
+      <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:24px;height:100%">
+
+        <!-- LEFT: Create Spotlight Form -->
+        <div>
+          <div class="sec-head" style="margin-bottom:16px">⭐ Create Employee Spotlight</div>
+          <div style="background:linear-gradient(135deg,#FFFBEB,#FFF7ED);border:1px solid #FDE68A;border-radius:12px;padding:20px;margin-bottom:16px">
+
+            <!-- Employee select -->
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Employee</label>
+              <select id="sl-emp" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
+                <option value="">— Select employee —</option>
+              </select>
+            </div>
+
+            <!-- Accomplishment type -->
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Accomplishment</label>
+              <select id="sl-type" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
+                <option value="Highest Revenue">💰 Highest Revenue</option>
+                <option value="Highest Conversion">📈 Highest Conversion Rate</option>
+                <option value="Top Performer">🏆 Top Performer</option>
+                <option value="Most Improved">📊 Most Improved</option>
+                <option value="Team Player">🤝 Team Player</option>
+                <option value="Innovation Award">💡 Innovation Award</option>
+                <option value="Customer Favorite">⭐ Customer Favorite</option>
+                <option value="Above & Beyond">🚀 Above & Beyond</option>
+              </select>
+            </div>
+
+            <!-- Department -->
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Department</label>
+              <select id="sl-dept" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
+                <option value="HVAC">HVAC</option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="Office">Office</option>
+                <option value="Install">Install</option>
+              </select>
+            </div>
+
+            <!-- Photo URL -->
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Photo URL (Google Drive share link or direct image URL)</label>
+              <input type="text" id="sl-photo" placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:12px"
+                oninput="previewSpotlightPhoto(this.value)">
+              <div id="sl-photo-preview" style="margin-top:8px;display:none">
+                <img id="sl-photo-img" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #F59E0B;box-shadow:0 0 16px rgba(245,158,11,.3)" alt="Preview">
+              </div>
+            </div>
+
+            <!-- Praise text -->
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Extra Praise / Comment</label>
+              <textarea id="sl-praise" rows="3" placeholder="Write a personalized shoutout..."
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;resize:vertical"></textarea>
+            </div>
+
+            <button onclick="submitSpotlight()" style="width:100%;padding:10px;background:linear-gradient(135deg,#F59E0B,#EF4444);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.03em">
+              ⭐ Post Spotlight to Wallboard
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT: Active Spotlights -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div class="sec-head" style="margin:0">Active Spotlights</div>
+            <span style="font-size:11px;color:#9ca3af">Showing on companion wallboard</span>
+          </div>
+          <div id="spotlight-list" style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto">
+            <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px">No spotlights yet — create one!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROMOTIONS -->
+    <div class="panel" id="tab-promos">
+      <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:24px;height:100%">
+
+        <!-- LEFT: Create Promotion -->
+        <div>
+          <div class="sec-head" style="margin-bottom:16px">🎯 Create Promotion</div>
+          <div style="background:linear-gradient(135deg,#FDF2F8,#FCE7F3);border:1px solid #FBCFE8;border-radius:12px;padding:20px;margin-bottom:16px">
+
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Promotion Title</label>
+              <input type="text" id="pr-title" placeholder="e.g. Spring AC Tune-Up Special"
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:13px">
+            </div>
+
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Offer / Discount Text</label>
+              <input type="text" id="pr-offer" placeholder="e.g. $49 Tune-Up + Free Filter"
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:13px">
+            </div>
+
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Description</label>
+              <textarea id="pr-desc" rows="2" placeholder="Brief description of the promotion..."
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:13px;resize:vertical"></textarea>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">End Date</label>
+                <input type="date" id="pr-end" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:13px">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Accent Color</label>
+                <select id="pr-color" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:13px;background:#fff">
+                  <option value="#EC4899">Pink</option>
+                  <option value="#F59E0B">Amber</option>
+                  <option value="#10B981">Green</option>
+                  <option value="#3B82F6">Blue</option>
+                  <option value="#8B5CF6">Purple</option>
+                  <option value="#EF4444">Red</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Banner Image URL (optional)</label>
+              <input type="text" id="pr-image" placeholder="Direct image URL..."
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:12px">
+            </div>
+
+            <button onclick="submitPromotion()" style="width:100%;padding:10px;background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+              🎯 Add to Wallboard
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT: Active Promotions -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div class="sec-head" style="margin:0">Active Promotions</div>
+            <span style="font-size:11px;color:#9ca3af">Live on companion</span>
+          </div>
+          <div id="promos-list" style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto">
+            <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px">No active promotions</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1445,10 +1602,17 @@ function showTab(t){
   if(t==='contest') renderContest();
   if(t==='unpaid') renderUnpaid();
   if(t==='goals') renderGoals();
+  if(t==='spotlight'){ loadSpotlights(); populateSpotlightEmpDropdown(); }
+  if(t==='promos') loadPromotions();
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
     renderTYCards();
+  }
+  if(t==='spotlight'){
+    populateSpotlightEmployees();
+    renderSpotlightList();
+    renderPromoList();
   }
 }
 function printReport(){
@@ -1657,6 +1821,9 @@ async function loadAll(){
     $$('summaryBtn').style.display='';
     $$('refreshAllBtn').style.display='';
     loadTYCards();
+    loadSpotlights();
+    loadSpotlights();
+    loadPromotions();
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -4207,6 +4374,174 @@ async function triggerWorkerPull(){
     status.style.color='#dc2626';
   }
   btn.disabled=false;btn.textContent='☁ Force worker pull (server-side)';
+}
+
+// ============================================================
+// EMPLOYEE SPOTLIGHT & PROMOTIONS
+// ============================================================
+let _spotlights = [];
+let _promos = [];
+
+function loadSpotlights(){
+  try{ _spotlights=JSON.parse(localStorage.getItem('hcp_spotlights')||'[]'); }catch(e){ _spotlights=[]; }
+  try{ _promos=JSON.parse(localStorage.getItem('hcp_promos')||'[]'); }catch(e){ _promos=[]; }
+  renderSpotlightList();
+  renderPromoList();
+}
+
+function saveSpotlights(){
+  try{ localStorage.setItem('hcp_spotlights',JSON.stringify(_spotlights)); }catch(e){}
+  // Push to Sheets for companion
+  if(_sheetsProxy){
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
+      body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
+    }).catch(()=>{});
+  }
+}
+
+function previewSpotlightPhoto(url){
+  const preview=$$('spPhotoPreview');
+  const img=$$('spPhotoImg');
+  if(!preview||!img) return;
+  const converted=convertGoogleDriveUrl(url);
+  if(converted){
+    img.src=converted;
+    img.onload=()=>{ preview.style.display='block'; };
+    img.onerror=()=>{ preview.style.display='none'; };
+  } else {
+    preview.style.display='none';
+  }
+}
+
+function convertGoogleDriveUrl(url){
+  if(!url) return null;
+  // Convert Google Drive share link to direct image URL
+  const driveMatch=url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+  // Already a direct image URL
+  if(url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) return url;
+  // Google Photos
+  if(url.includes('googleusercontent.com')) return url;
+  return url; // try anyway
+}
+
+function populateSpotlightEmployees(){
+  const sel=$$('spEmpName');
+  if(!sel||!_employees.length) return;
+  const current=sel.value;
+  sel.innerHTML='<option value="">— Select employee —</option>';
+  _employees.forEach(e=>{
+    const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+    if(!name) return;
+    const opt=document.createElement('option');
+    opt.value=name; opt.textContent=name;
+    if(name===current) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+function createSpotlight(){
+  const name=$$('spEmpName')?.value?.trim();
+  const type=$$('spAccType')?.value;
+  const praise=$$('spPraise')?.value?.trim();
+  const photoUrl=$$('spPhotoUrl')?.value?.trim();
+  if(!name){ alert('Please select an employee.'); return; }
+  const spotlight={
+    id:Date.now(),
+    name, type, praise,
+    photoUrl:convertGoogleDriveUrl(photoUrl)||'',
+    dept: _employees.find(e=>((e.first_name||'')+' '+(e.last_name||'')).trim()===name)?.role||'',
+    createdAt:new Date().toISOString(),
+    active:true
+  };
+  _spotlights.unshift(spotlight);
+  saveSpotlights();
+  renderSpotlightList();
+  // Clear form
+  if($$('spEmpName')) $$('spEmpName').value='';
+  if($$('spPraise')) $$('spPraise').value='';
+  if($$('spPhotoUrl')) $$('spPhotoUrl').value='';
+  if($$('spPhotoPreview')) $$('spPhotoPreview').style.display='none';
+}
+
+function deleteSpotlight(id){
+  _spotlights=_spotlights.filter(s=>s.id!==id);
+  saveSpotlights(); renderSpotlightList();
+}
+
+function renderSpotlightList(){
+  const el=$$('spotlightList');
+  if(!el) return;
+  $$('spotlightCount').textContent=`${_spotlights.length} spotlight${_spotlights.length!==1?'s':''}`;
+  if(!_spotlights.length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No spotlights yet. Create one above.</div>';
+    return;
+  }
+  el.innerHTML=_spotlights.map(s=>`
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px">
+      ${s.photoUrl
+        ?`<img src="${s.photoUrl}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #f59e0b;flex-shrink:0" onerror="this.style.display='none'">`
+        :`<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⭐</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;color:#111827;font-size:13px">${s.name}</div>
+        <div style="font-size:11px;color:#f59e0b;font-weight:600">${s.type}</div>
+        ${s.praise?`<div style="font-size:11px;color:#6b7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${s.praise}"</div>`:''}
+      </div>
+      <button onclick="deleteSpotlight(${s.id})" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px">✕</button>
+    </div>`).join('');
+}
+
+function createPromo(){
+  const title=$$('promoTitle')?.value?.trim();
+  const offer=$$('promoOffer')?.value?.trim();
+  const desc=$$('promoDesc')?.value?.trim();
+  const end=$$('promoEnd')?.value;
+  const color=$$('promoColor')?.value||'#E8640A';
+  const banner=$$('promoBanner')?.value?.trim();
+  if(!title){ alert('Please enter a promotion title.'); return; }
+  const promo={
+    id:Date.now(),
+    title,offer,desc,end,color,banner,
+    createdAt:new Date().toISOString(),
+    active:true
+  };
+  _promos.unshift(promo);
+  saveSpotlights();
+  renderPromoList();
+  if($$('promoTitle')) $$('promoTitle').value='';
+  if($$('promoOffer')) $$('promoOffer').value='';
+  if($$('promoDesc')) $$('promoDesc').value='';
+  if($$('promoBanner')) $$('promoBanner').value='';
+}
+
+function deletePromo(id){
+  _promos=_promos.filter(p=>p.id!==id);
+  saveSpotlights(); renderPromoList();
+}
+
+function renderPromoList(){
+  const el=$$('promoList');
+  if(!el) return;
+  const active=_promos.filter(p=>!p.end||p.end>=new Date().toISOString().split('T')[0]);
+  $$('promoCount').textContent=`${active.length} active`;
+  if(!_promos.length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No promotions yet. Add one above.</div>';
+    return;
+  }
+  el.innerHTML=_promos.map(p=>{
+    const expired=p.end&&p.end<new Date().toISOString().split('T')[0];
+    return`<div style="background:#fff;border:1px solid ${expired?'#e5e7eb':p.color+'44'};border-left:3px solid ${expired?'#9ca3af':p.color};border-radius:10px;padding:12px;${expired?'opacity:.6':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1">
+          <div style="font-weight:700;color:#111827;font-size:13px">${p.title} ${expired?'<span style="font-size:10px;color:#9ca3af">(expired)</span>':''}</div>
+          ${p.offer?`<div style="font-size:12px;font-weight:700;color:${p.color};margin-top:2px">${p.offer}</div>`:''}
+          ${p.desc?`<div style="font-size:11px;color:#6b7280;margin-top:3px">${p.desc}</div>`:''}
+          ${p.end?`<div style="font-size:10px;color:#9ca3af;margin-top:3px">Ends ${p.end}</div>`:''}
+        </div>
+        <button onclick="deletePromo(${p.id})" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px;flex-shrink:0">✕</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function printCalendar(){
