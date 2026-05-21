@@ -525,7 +525,139 @@ html, body {
   100% { opacity: 0; transform: translateY(-100px) scale(.9); }
 }
 
+/* ============================================================
+   SCENE 7 — EMPLOYEE SPOTLIGHT
+   ============================================================ */
+#s7 { align-items: center; justify-content: center; }
+.spotlight-wrap {
+  width: 90%; max-width: 1000px;
+  display: grid; grid-template-columns: 1fr 1.6fr;
+  gap: 48px; align-items: center;
+}
+.spotlight-photo-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.spotlight-photo {
+  width: 220px; height: 220px; border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid transparent;
+  background: linear-gradient(#050810,#050810) padding-box,
+              linear-gradient(135deg,#FFD700,#FF6B35,#A855F7) border-box;
+  box-shadow: 0 0 60px rgba(255,215,0,.25), 0 0 120px rgba(255,107,53,.1);
+  animation: photoGlow 3s ease-in-out infinite alternate;
+}
+@keyframes photoGlow {
+  from { box-shadow: 0 0 40px rgba(255,215,0,.2), 0 0 80px rgba(255,107,53,.1); }
+  to   { box-shadow: 0 0 80px rgba(255,215,0,.4), 0 0 160px rgba(255,107,53,.2); }
+}
+.spotlight-initials {
+  width: 220px; height: 220px; border-radius: 50%;
+  background: linear-gradient(135deg, #F59E0B, #EF4444);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-size: 80px; color: #fff;
+  box-shadow: 0 0 60px rgba(245,158,11,.3);
+  animation: photoGlow 3s ease-in-out infinite alternate;
+}
+.spotlight-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 20px; border-radius: 99px;
+  background: linear-gradient(135deg, rgba(255,215,0,.15), rgba(255,107,53,.1));
+  border: 1px solid rgba(255,215,0,.3);
+  font-size: 13px; font-weight: 700; color: var(--gold);
+  text-shadow: 0 0 12px rgba(255,215,0,.5);
+}
+.spotlight-info { display: flex; flex-direction: column; gap: 16px; }
+.spotlight-header-label {
+  font-family: var(--font-display);
+  font-size: 14px; letter-spacing: .4em;
+  color: var(--gold); text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255,215,0,.4);
+}
+.spotlight-name {
+  font-family: var(--font-display);
+  font-size: 72px; line-height: .95;
+  letter-spacing: .02em;
+  background: linear-gradient(135deg, #fff 40%, var(--gold));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.spotlight-praise {
+  padding: 20px 24px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 12px 12px 0;
+  font-size: 16px; color: var(--text-2);
+  font-style: italic; line-height: 1.6;
+}
+.spotlight-confetti {
+  position: absolute; inset: 0; pointer-events: none;
+  overflow: hidden; z-index: 0;
+}
+.confetti-piece {
+  position: absolute; width: 8px; height: 8px; border-radius: 2px;
+  animation: confettiFall linear infinite;
+}
+@keyframes confettiFall {
+  from { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  to   { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* ============================================================
+   SCENE 8 — PROMOTIONS
+   ============================================================ */
+#s8 .promo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px; flex: 1; align-content: start;
+}
+.promo-card {
+  border-radius: 16px; overflow: hidden;
+  position: relative;
+  animation: promoSlideIn .6s ease forwards;
+}
+@keyframes promoSlideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.promo-banner {
+  width: 100%; height: 120px; object-fit: cover;
+  display: block;
+}
+.promo-body {
+  padding: 20px 22px;
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+}
+.promo-offer {
+  font-family: var(--font-display);
+  font-size: 36px; line-height: 1;
+  margin-bottom: 6px;
+}
+.promo-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.promo-desc { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+.promo-end {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 12px; padding: 4px 12px;
+  background: rgba(255,255,255,.06); border-radius: 99px;
+  font-size: 11px; color: var(--text-3);
+}
+.promo-urgency {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(239,68,68,.9);
+  color: #fff; font-size: 10px; font-weight: 800;
+  padding: 3px 10px; border-radius: 99px;
+  text-transform: uppercase; letter-spacing: .08em;
+  animation: urgencyPulse 1.5s ease-in-out infinite;
+}
+@keyframes urgencyPulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
 /* ---- STATUS BAR ---- */
+.status-bar {/* ---- STATUS BAR ---- */
 .status-bar {
   display: flex; align-items: center; gap: 16px;
   padding: 8px 40px;
@@ -547,6 +679,146 @@ html, body {
   to   { opacity: 1; transform: translateY(0); }
 }
 .counting { animation: countUp .5s ease forwards; }
+
+/* ============================================================
+   SCENE 7 — EMPLOYEE SPOTLIGHT
+   ============================================================ */
+.spotlight-wrap {
+  display: flex; align-items: center; gap: 60px;
+  padding: 48px 60px;
+  background: linear-gradient(135deg, rgba(245,158,11,.06), rgba(168,85,247,.06));
+  border: 1px solid rgba(245,158,11,.2);
+  border-radius: 24px;
+  max-width: 900px; width: 100%;
+  position: relative; overflow: hidden;
+}
+.spotlight-wrap::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 20% 50%, rgba(245,158,11,.08), transparent);
+  pointer-events: none;
+}
+.spotlight-photo-wrap {
+  position: relative; flex-shrink: 0;
+}
+.spotlight-photo {
+  width: 180px; height: 180px; border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #f59e0b;
+  box-shadow: 0 0 40px rgba(245,158,11,.4), 0 0 80px rgba(245,158,11,.15);
+}
+.spotlight-initials {
+  width: 180px; height: 180px; border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 72px;
+  box-shadow: 0 0 40px rgba(245,158,11,.4);
+}
+.spotlight-badge {
+  position: absolute; bottom: -8px; left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff; font-size: 11px; font-weight: 800;
+  padding: 4px 16px; border-radius: 99px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(245,158,11,.4);
+  letter-spacing: .04em;
+}
+.spotlight-info { flex: 1; z-index: 1; }
+.spotlight-header-label {
+  font-size: 11px; color: #f59e0b;
+  text-transform: uppercase; letter-spacing: .2em;
+  margin-bottom: 8px;
+}
+.spotlight-name {
+  font-family: var(--font-display);
+  font-size: 64px; line-height: 1;
+  background: linear-gradient(135deg, #fff 40%, #f59e0b);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+.spotlight-praise {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: rgba(245,158,11,.08);
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  font-size: 15px; color: var(--text-2);
+  font-style: italic; line-height: 1.6;
+}
+.spotlight-confetti {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute; width: 8px; height: 8px;
+  border-radius: 2px;
+  animation: confettiFall linear infinite;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+.spotlight-auto-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3);
+  color: #f59e0b; font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 99px;
+  text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   SCENE 8 — PROMOTIONS
+   ============================================================ */
+.promo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  flex: 1;
+  align-content: start;
+}
+.promo-card {
+  border-radius: 16px;
+  padding: 32px;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.promo-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.06), transparent);
+  pointer-events: none;
+}
+.promo-urgency {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .1em;
+  padding: 3px 10px; border-radius: 99px;
+  width: fit-content;
+}
+.promo-title-big {
+  font-family: var(--font-display);
+  font-size: 48px; line-height: 1;
+  letter-spacing: .02em;
+}
+.promo-offer-text {
+  font-size: 24px; font-weight: 800;
+  opacity: .9;
+}
+.promo-desc-text {
+  font-size: 14px; opacity: .7; line-height: 1.6;
+}
+.promo-end-text {
+  font-size: 11px; opacity: .5;
+  text-transform: uppercase; letter-spacing: .1em;
+}
+.promo-banner-img {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 40%; object-fit: cover; opacity: .2;
+  pointer-events: none;
+}
 
 /* ---- DATA TICKER ---- */
 .ticker-wrap {
@@ -801,6 +1073,43 @@ html, body {
       </div>
     </div><!-- end s6 -->
 
+
+    <!-- SCENE 7: EMPLOYEE SPOTLIGHT -->
+    <div class="scene" id="s7">
+      <div class="spotlight-confetti" id="confettiWrap"></div>
+      <div class="scene-title" style="position:relative;z-index:1">// Employee Spotlight</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:1">
+        <div class="spotlight-wrap" id="spotlight-display">
+          <div class="spotlight-photo-wrap">
+            <div class="spotlight-initials" id="sp-initials">⭐</div>
+            <img id="sp-photo" class="spotlight-photo" style="display:none" alt="">
+            <div class="spotlight-badge" id="sp-badge">⭐ Top Performer</div>
+          </div>
+          <div class="spotlight-info">
+            <div class="spotlight-auto-badge" id="sp-auto-badge" style="display:none">
+              <span>⚡</span><span id="sp-auto-label">Auto — this month</span>
+            </div>
+            <div class="spotlight-header-label">🏆 Employee Spotlight</div>
+            <div class="spotlight-name" id="sp-name">Loading...</div>
+            <div style="font-size:14px;color:var(--text-3);margin-top:4px" id="sp-dept">Department</div>
+            <div class="spotlight-praise" id="sp-praise" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Sub-dots for spotlight rotation -->
+      <div style="display:flex;justify-content:center;gap:8px;margin-top:12px;position:relative;z-index:1" id="sp-sub-dots"></div>
+    </div><!-- end s7 -->
+
+    <!-- SCENE 8: PROMOTIONS -->
+    <div class="scene" id="s8">
+      <div class="scene-title">// Current Promotions</div>
+      <div class="promo-grid" id="promo-display">
+        <div style="color:var(--text-3);text-align:center;padding:80px;font-size:16px">
+          No active promotions — add some in the Dashboard → ⭐ Spotlight tab
+        </div>
+      </div>
+    </div><!-- end s8 -->
+
   </div><!-- /scenes -->
 
   <!-- STATUS BAR -->
@@ -891,7 +1200,7 @@ const CONFIG = {
     { q: "Show up. Do the work. Earn the trust.", a: "Midstate Standard" },
     { q: "Every estimate is an opportunity.", a: "Service Excellence" },
     { q: "Happy customers come back. Great service creates them.", a: "Midstate Values" },
-    { q: "Get Shit Done!", a: "Ben Radant" },
+    { q: "The goal isn't a number. It's a standard.", a: "Cory Hanson" },
     { q: "Professional service starts before you ring the doorbell.", a: "Midstate Training" },
     { q: "A solved problem is worth more than a perfect estimate.", a: "Field Philosophy" },
   ],
@@ -919,7 +1228,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s3','s4','s5','s6'];
+const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8'];
 
 // ============================================================
 // GOOGLE SHEETS CSV FETCH
@@ -1386,6 +1695,8 @@ function goScene(idx) {
   // Scene-specific updates
   if (idx === 4) updateS5();
   if (idx === 5) updateS6();
+  if (idx === 6) updateS7();
+  if (idx === 7) updateS8();
 }
 
 function nextScene() {
@@ -1511,8 +1822,203 @@ async function init() {
   setInterval(async () => {
     refreshTimer = CONFIG.REFRESH_MS / 1000;
     await loadData();
+    await loadSpotlightData();
   updateS6(); // pre-load Win the Day
   }, CONFIG.REFRESH_MS);
+}
+
+// ============================================================
+// EMPLOYEE SPOTLIGHT & PROMOTIONS
+// ============================================================
+let _spotlights = [];
+let _promos = [];
+let _spIdx = 0;
+let _spItems = []; // combined auto + manual items
+let _spRotateTimer = null;
+
+async function loadSpotlightData() {
+  try {
+    // Try to load from Sheets (Spotlights tab)
+    const rows = await fetchCSV('Spotlights');
+    _spotlights = rows.slice(1)
+      .filter(r => r && r[0])
+      .map(r => ({
+        id: r[0], name: r[1]||'', type: r[2]||'⭐ Top Performer',
+        praise: r[3]||'', photoUrl: r[4]||'', dept: r[5]||'',
+        createdAt: r[6]||''
+      }));
+  } catch(e) {
+    // Spotlights tab may not exist yet — silently ignore
+    _spotlights = [];
+  }
+  try {
+    const rows = await fetchCSV('Promotions');
+    const today = new Date().toISOString().split('T')[0];
+    _promos = rows.slice(1)
+      .filter(r => r && r[0])
+      .filter(r => !r[4] || r[4] >= today) // not expired
+      .map(r => ({
+        id: r[0], title: r[1]||'', offer: r[2]||'',
+        desc: r[3]||'', end: r[4]||'', color: r[5]||'#E8640A', banner: r[6]||''
+      }));
+  } catch(e) {
+    _promos = [];
+  }
+}
+
+function buildSpotlightItems() {
+  // Auto entries: highest revenue + highest conversion from KPI data
+  const kpi = state.kpi;
+  const items = [];
+
+  if (kpi.length) {
+    const topRev = [...kpi].sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]))[0];
+    if (topRev) items.push({
+      name: topRev[CONFIG.KPI_COLS.name],
+      type: '💰 Highest Revenue This Month',
+      praise: `${dollars(num(topRev[CONFIG.KPI_COLS.revenue]))} in revenue — outstanding performance!`,
+      dept: topRev[CONFIG.KPI_COLS.role] || '',
+      photoUrl: '', isAuto: true, autoLabel: 'Auto · Revenue Leader'
+    });
+
+    const topConv = [...kpi]
+      .filter(r => num(r[CONFIG.KPI_COLS.estimates]) >= 3)
+      .sort((a,b) => num(b[CONFIG.KPI_COLS.convPct]) - num(a[CONFIG.KPI_COLS.convPct]))[0];
+    if (topConv && topConv !== topRev) items.push({
+      name: topConv[CONFIG.KPI_COLS.name],
+      type: '📋 Highest Conversion Rate',
+      praise: `${Math.round(num(topConv[CONFIG.KPI_COLS.convPct]))}% conversion — turning estimates into revenue!`,
+      dept: topConv[CONFIG.KPI_COLS.role] || '',
+      photoUrl: '', isAuto: true, autoLabel: 'Auto · Conversion Leader'
+    });
+  }
+
+  // Manual spotlights from dashboard
+  _spotlights.forEach(s => items.push({...s, isAuto: false}));
+
+  return items;
+}
+
+function updateS7() {
+  _spItems = buildSpotlightItems();
+  if (!_spItems.length) {
+    el('sp-name').textContent = 'Great work, team!';
+    el('sp-badge').textContent = '⭐ Midstate Plumbing';
+    return;
+  }
+  // Build sub-dots
+  const dotsEl = el('sp-sub-dots');
+  if (dotsEl) {
+    dotsEl.innerHTML = _spItems.map((_,i) =>
+      `<div style="width:7px;height:7px;border-radius:50%;background:${i===_spIdx%_spItems.length?'#f59e0b':'rgba(255,255,255,.2)'};transition:all .4s"></div>`
+    ).join('');
+  }
+  showSpotlight(_spIdx % _spItems.length);
+  // Start sub-rotation within scene
+  if (_spRotateTimer) clearInterval(_spRotateTimer);
+  if (_spItems.length > 1) {
+    _spRotateTimer = setInterval(() => {
+      _spIdx = (_spIdx + 1) % _spItems.length;
+      showSpotlight(_spIdx);
+      if (dotsEl) {
+        const dots = dotsEl.querySelectorAll('div');
+        dots.forEach((d,i) => d.style.background = i===_spIdx ? '#f59e0b' : 'rgba(255,255,255,.2)');
+      }
+    }, 8000);
+  }
+  // Confetti
+  spawnConfetti();
+}
+
+function showSpotlight(idx) {
+  const item = _spItems[idx];
+  if (!item) return;
+
+  const wrap = el('spotlight-display');
+  if (wrap) wrap.style.opacity = '0';
+  setTimeout(() => {
+    el('sp-name').textContent = item.name;
+    el('sp-badge').textContent = item.type;
+    el('sp-dept').textContent = item.dept || '';
+
+    // Photo
+    const photo = el('sp-photo');
+    const initials = el('sp-initials');
+    if (item.photoUrl) {
+      photo.src = item.photoUrl;
+      photo.style.display = 'block';
+      initials.style.display = 'none';
+    } else {
+      photo.style.display = 'none';
+      initials.style.display = 'flex';
+      // Show first letter of name
+      initials.textContent = item.name ? item.name.charAt(0).toUpperCase() : '⭐';
+    }
+
+    // Praise
+    const praiseEl = el('sp-praise');
+    if (item.praise) {
+      praiseEl.textContent = `"${item.praise}"`;
+      praiseEl.style.display = 'block';
+    } else {
+      praiseEl.style.display = 'none';
+    }
+
+    // Auto badge
+    const autoBadge = el('sp-auto-badge');
+    if (autoBadge) {
+      autoBadge.style.display = item.isAuto ? 'inline-flex' : 'none';
+      if (item.isAuto) el('sp-auto-label').textContent = item.autoLabel || 'Auto';
+    }
+
+    if (wrap) { wrap.style.opacity = '1'; wrap.style.transition = 'opacity .6s'; }
+  }, 300);
+}
+
+function spawnConfetti() {
+  const wrap = el('confettiWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const colors = ['#f59e0b','#fbbf24','#a855f7','#00D4FF','#00FF88','#FF6B35'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDuration = (3 + Math.random()*4) + 's';
+    p.style.animationDelay = (Math.random()*3) + 's';
+    p.style.width = p.style.height = (6 + Math.random()*8) + 'px';
+    wrap.appendChild(p);
+  }
+}
+
+function updateS8() {
+  const container = el('promo-display');
+  if (!container) return;
+  const active = _promos.filter(p => {
+    if (!p.end) return true;
+    return p.end >= new Date().toISOString().split('T')[0];
+  });
+  if (!active.length) {
+    container.innerHTML = `<div style="color:var(--text-3);text-align:center;padding:80px;font-size:16px;grid-column:1/-1">
+      No active promotions — add some in the Dashboard → ⭐ Spotlight tab
+    </div>`;
+    return;
+  }
+  container.innerHTML = active.map(p => {
+    const daysLeft = p.end ? Math.ceil((new Date(p.end) - new Date()) / (1000*60*60*24)) : null;
+    const urgent = daysLeft !== null && daysLeft <= 7;
+    return `<div class="promo-card" style="background:linear-gradient(135deg,${p.color}22,${p.color}08);border:1px solid ${p.color}44;color:#fff">
+      ${p.banner?`<img src="${p.banner}" class="promo-banner-img" alt="">`:''}
+      <div class="promo-urgency" style="background:${p.color}33;color:${p.color};border:1px solid ${p.color}44">
+        ${urgent?'🔥 Ending Soon':'📣 Active Promotion'}
+      </div>
+      <div class="promo-title-big" style="color:${p.color}">${p.title}</div>
+      ${p.offer?`<div class="promo-offer-text">${p.offer}</div>`:''}
+      ${p.desc?`<div class="promo-desc-text">${p.desc}</div>`:''}
+      ${daysLeft!==null?`<div class="promo-end-text">${daysLeft===0?'⚠ Ends today':daysLeft===1?'⚠ 1 day left':`${daysLeft} days remaining`} · Expires ${p.end}</div>`:''}
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
