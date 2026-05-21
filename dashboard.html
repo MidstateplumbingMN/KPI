@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.4</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3137,6 +3137,91 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     open_is:openIS,employees:employees.length,
   };
 
+  // Build full dashboard snapshot for companion
+  // Pre-compute everything so companion just reads and displays
+  const now_snap=new Date();
+  const dayOfYear_snap=Math.ceil((now_snap-new Date(now_snap.getFullYear(),0,1))/(1000*60*60*24));
+  const outstandingJobs_snap=jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)&&!isJobCanceled(j));
+  const totalOutstanding_snap=outstandingJobs_snap.reduce((s,j)=>s+getJobTotal(j),0);
+  const projectedAnnual_snap=dayOfYear_snap>0?totalRev/dayOfYear_snap*365:0;
+  const annualGoal_snap=ANNUAL_GOAL;
+
+  // Period revenues
+  const revAnnual=getRevenueForPeriod('year');
+  const revQuarterly=getRevenueForPeriod('quarter');
+  const revMonthly=getRevenueForPeriod('month');
+  const revWeekly=getRevenueForPeriod('week');
+  const revDaily=getRevenueForPeriod('day');
+
+  // Workdays remaining
+  function countWDRemaining(){
+    const t=new Date();t.setHours(0,0,0,0);
+    const yr=t.getFullYear();
+    const ye=new Date(yr,11,31);
+    let wds=0;const d=new Date(t);d.setDate(d.getDate()+1);
+    while(d<=ye){if(d.getDay()>=1&&d.getDay()<=5)wds++;d.setDate(d.getDate()+1);}
+    return wds;
+  }
+  const wdLeft=countWDRemaining();
+  const neededPerWorkday=wdLeft>0?Math.max(0,annualGoal_snap-revAnnual)/wdLeft:0;
+
+  // Top performer by revenue
+  const topEmpRev=Object.values(map).filter(e=>!e.installer).sort((a,b)=>b.revenue-a.revenue)[0];
+  const topEmpConv=Object.values(map).filter(e=>!e.installer&&e.estimates>=3).sort((a,b)=>(b.converted/b.estimates)-(a.converted/a.estimates))[0];
+
+  // Total plans
+  const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
+
+  const dashboardSnapshot={
+    // Metadata
+    pull_date: now_snap.toISOString(),
+    date_from: dateFrom,
+    date_to: dateTo,
+
+    // Revenue by period
+    rev_annual: revAnnual,
+    rev_quarterly: revQuarterly,
+    rev_monthly: revMonthly,
+    rev_weekly: revWeekly,
+    rev_daily: revDaily,
+
+    // Goals
+    goal_annual: annualGoal_snap,
+    goal_quarterly: 750000,
+    goal_monthly: 250000,
+    goal_weekly: 57692,
+    goal_daily: 8219,
+    goal_annual_pct: Math.round(revAnnual/annualGoal_snap*100),
+    goal_monthly_pct: Math.round(revMonthly/250000*100),
+    goal_quarterly_pct: Math.round(revQuarterly/750000*100),
+
+    // Pace
+    days_elapsed: dayOfYear_snap,
+    days_left: 365-dayOfYear_snap,
+    workdays_left: wdLeft,
+    projected_annual: Math.round(projectedAnnual_snap),
+    needed_per_workday: Math.round(neededPerWorkday),
+    outstanding: Math.round(totalOutstanding_snap),
+    outstanding_jobs: outstandingJobs_snap.length,
+
+    // Jobs & estimates
+    total_jobs: jobs.length,
+    paid_jobs: paidJobs.length,
+    total_revenue: totalRev,
+    total_estimates: estimates.length,
+    converted_estimates: convEsts.length,
+    conversion_pct: summary.conversion_pct,
+    avg_job: paidJobs.length>0?Math.round(totalRev/paidJobs.length):0,
+    open_is: openIS,
+
+    // Team
+    total_plans: totalPlans,
+    top_rev_name: topEmpRev?.name||'',
+    top_rev_amount: Math.round(topEmpRev?.revenue||0),
+    top_conv_name: topEmpConv?.name||'',
+    top_conv_pct: topEmpConv?Math.round(topEmpConv.converted/topEmpConv.estimates*100):0,
+  };
+
   try{
     const payload=JSON.stringify({
       action:'syncReport',
@@ -3146,6 +3231,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       kpi:kpiPayload,
       attribution:attrPayload,
       summary,
+      dashboardSnapshot,
     });
     const res=await fetch(PROXY,{
       method:'POST',
