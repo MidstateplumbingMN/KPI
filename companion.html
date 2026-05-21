@@ -848,7 +848,7 @@ html, body {
       <div class="hdr-logo-icon">🏠</div>
       <div>
         <div class="hdr-company">Midstate Plumbing</div>
-        <div class="hdr-sub">KPI Command Center</div>
+        <div class="hdr-sub">KPI Command Center <span style="opacity:.4;font-size:9px">v1.4</span></div>
       </div>
     </div>
 
@@ -1125,6 +1125,9 @@ html, body {
       transition:all .2s;text-transform:uppercase;position:relative;z-index:999">
       ↻ Refresh Now
     </button>
+    <div class="status-item" style="color:var(--text-3)">
+      Range: <span id="dataRange" style="color:rgba(255,255,255,.5)">—</span>
+    </div>
     <div class="status-item" style="margin-left:auto;color:var(--text-3)">
       Last refresh: <span id="lastRefresh">—</span>
     </div>
@@ -1151,8 +1154,9 @@ const CONFIG = {
 
   // Tab names — only KPI_Scores and Reports needed (no customer data)
   TABS: {
-    KPI:     'KPI_Scores',
-    REPORTS: 'Reports',
+    SNAPSHOT: 'KPI_Dashboard',  // pre-computed by dashboard — primary source
+    KPI:      'KPI_Scores',     // per-employee breakdown for leaderboard
+    REPORTS:  'Reports',
   },
 
   // Annual revenue goal
@@ -1215,12 +1219,13 @@ const CONFIG = {
 // STATE
 // ============================================================
 let state = {
-  kpi: [],       // latest KPI rows (most recent snapshot per employee)
-  reports: [],   // all report rows
+  snap: {},      // pre-computed dashboard snapshot (from KPI_Dashboard tab)
+  kpi: [],       // per-employee KPI rows
+  reports: [],
   latestReport: null,
   loaded: false,
   error: null,
-  rings: {},     // Chart.js ring instances
+  rings: {},
   barChart: null,
   currentScene: 0,
   sceneTimer: null,
@@ -1305,10 +1310,17 @@ function dollars(v) {
 async function loadData() {
   try {
     setStatus('loading');
-    const [kpiRows, rptRows] = await Promise.all([
+    const [snapRows, kpiRows, rptRows] = await Promise.all([
+      fetchCSV(CONFIG.TABS.SNAPSHOT),
       fetchCSV(CONFIG.TABS.KPI),
       fetchCSV(CONFIG.TABS.REPORTS),
     ]);
+
+    // Parse snapshot into key→value object
+    state.snap = {};
+    snapRows.slice(1).forEach(row => {
+      if (row && row[0]) state.snap[row[0]] = row[1];
+    });
 
     // KPI: group by employee, take most recent snapshot
     const empMap = {};
@@ -1334,6 +1346,13 @@ async function loadData() {
     updateAll();
     const now_ts = new Date();
     document.getElementById('lastRefresh').textContent = now_ts.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' CST';
+    // Show data range from Reports tab
+    const rangeEl = document.getElementById('dataRange');
+    if(rangeEl){
+      const from = state.snap['date_from'] || (state.latestReport?.[CONFIG.RPT_COLS.from]||'');
+      const to   = state.snap['date_to']   || (state.latestReport?.[CONFIG.RPT_COLS.to]||'');
+      if(from) rangeEl.textContent = from + ' → ' + to;
+    }
   } catch(e) {
     state.error = e.message;
     setStatus('error');
@@ -1356,21 +1375,21 @@ function updateAll() {
 
 // ---- SCENE 1: KPI OVERVIEW ----
 function updateS1() {
-  const r = state.latestReport;
-  const kpi = state.kpi;
+  const snap = state.snap;
+  const hasSnap = Object.keys(snap).length > 0;
 
-  const revenue    = r ? num(r[CONFIG.RPT_COLS.revenue]) : kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.revenue]),0);
-  const totalJobs  = r ? num(r[CONFIG.RPT_COLS.totalJobs]) : kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.jobs]),0);
-  const paidJobs   = r ? num(r[CONFIG.RPT_COLS.paidJobs]) : 0;
-  const convPct    = r ? num(r[CONFIG.RPT_COLS.convPct]) : avgKPI(CONFIG.KPI_COLS.convPct);
-  const avgJob     = paidJobs > 0 ? revenue / paidJobs : (kpi.length&&totalJobs ? revenue / totalJobs : 0);
-  const totalEsts  = r ? num(r[CONFIG.RPT_COLS.totalEsts]) : kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.estimates]),0);
-  const openIS     = r ? num(r[CONFIG.RPT_COLS.openIS]) : 0;
-  const goalPct    = Math.min(100, Math.round(revenue / CONFIG.MONTHLY_GOAL * 100));
+  const revenue   = num(snap['rev_monthly']||snap['total_revenue']||0);
+  const totalJobs = num(snap['total_jobs']||0);
+  const paidJobs  = num(snap['paid_jobs']||0);
+  const convPct   = num(snap['conversion_pct']||0);
+  const avgJob    = num(snap['avg_job']||0);
+  const totalEsts = num(snap['total_estimates']||0);
+  const openIS    = num(snap['open_is']||0);
+  const goalPct   = Math.min(100, Math.round(revenue / num(snap['goal_monthly']||250000) * 100));
+  const plans     = num(snap['total_plans']||0);
+  const dateFrom  = snap['date_from']||'';
+  const dateTo    = snap['date_to']||'';
 
-  // Show date range from report
-  const dateFrom = r ? r[CONFIG.RPT_COLS.from] : '';
-  const dateTo   = r ? r[CONFIG.RPT_COLS.to]   : '';
   const sceneTitle = document.querySelector('#s1 .scene-title');
   if(sceneTitle && dateFrom) sceneTitle.textContent = `// KPI Overview — ${dateFrom} → ${dateTo}`;
 
@@ -1381,63 +1400,48 @@ function updateS1() {
   animCount('s1-ests', totalEsts, false);
   animCount('s1-open', openIS, false);
   el('s1-goal-pct').textContent = goalPct + '%';
-  el('s1-paid-jobs').textContent = (paidJobs || totalJobs).toLocaleString();
-  el('s1-goal-label').textContent = dollars(CONFIG.MONTHLY_GOAL);
+  el('s1-paid-jobs').textContent = paidJobs.toLocaleString();
+  el('s1-goal-label').textContent = dollars(num(snap['goal_monthly']||250000));
   el('s1-goal-bar').style.width = goalPct + '%';
-
-  const plans = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.plans]),0);
   animCount('s1-plans', plans, false);
 }
 
 // ---- SCENE 2: GOALS ----
 function updateS2() {
-  const kpi = state.kpi;
-  const r = state.latestReport;
+  const snap = state.snap;
 
-  // Revenue goal — use all-time sum of KPI revenues as YTD
-  const ytdRev = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.revenue]),0);
-  const revPct = Math.min(100, Math.round(ytdRev / CONFIG.ANNUAL_GOAL * 100));
+  const revAnnual    = num(snap['rev_annual']||0);
+  const goalAnnual   = num(snap['goal_annual']||3000000);
+  const revMonthly   = num(snap['rev_monthly']||0);
+  const goalMonthly  = num(snap['goal_monthly']||250000);
+  const revQuarterly = num(snap['rev_quarterly']||0);
+  const goalQuarterly= num(snap['goal_quarterly']||750000);
 
-  // Days remaining for pacing
-  const now = new Date();
-  const yearEnd = new Date(now.getFullYear(), 11, 31);
-  const daysLeft = Math.ceil((yearEnd - now) / (1000*60*60*24));
-  const workdays = countWorkdays(now, yearEnd);
-  const needed = Math.max(0, CONFIG.ANNUAL_GOAL - ytdRev);
-  const perDay = workdays > 0 ? needed / workdays : 0;
+  const annualPct    = Math.min(100, Math.round(revAnnual / goalAnnual * 100));
+  const monthlyPct   = Math.min(100, Math.round(revMonthly / goalMonthly * 100));
+  const quarterPct   = Math.min(100, Math.round(revQuarterly / goalQuarterly * 100));
 
-  // Projected
-  const dayOfYear = Math.ceil((now - new Date(now.getFullYear(),0,1)) / (1000*60*60*24));
-  const projected = dayOfYear > 0 ? (ytdRev / dayOfYear) * 365 : 0;
-  const pacePct = Math.min(150, Math.round(projected / CONFIG.ANNUAL_GOAL * 100));
+  const projected    = num(snap['projected_annual']||0);
+  const pacePct      = Math.min(150, Math.round(projected / goalAnnual * 100));
+  const wdLeft       = num(snap['workdays_left']||0);
+  const neededPWD    = num(snap['needed_per_workday']||0);
+  const daysLeft     = num(snap['days_left']||0);
 
-  // Conversion
-  const totalEsts = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.estimates]),0);
-  const totalConv = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.converted]),0);
-  const convPct = totalEsts > 0 ? Math.min(100, Math.round(totalConv/totalEsts*100)) : 0;
+  const totalEsts    = num(snap['total_estimates']||0);
+  const convEsts     = num(snap['converted_estimates']||0);
+  const convPct      = num(snap['conversion_pct']||0);
 
-  el('ring-rev-pct').textContent = revPct + '%';
-  el('ring-conv-pct').textContent = convPct + '%';
+  el('ring-rev-pct').textContent  = annualPct + '%';
+  el('ring-conv-pct').textContent = Math.round(convPct) + '%';
   el('ring-pace-pct').textContent = pacePct + '%';
 
-  el('ring-rev-detail').innerHTML = `${dollars(ytdRev)} of ${dollars(CONFIG.ANNUAL_GOAL)}<br><span style="color:var(--text-3)">${dollars(perDay)}/workday needed · ${workdays} days left</span>`;
-  el('ring-conv-detail').innerHTML = `${totalConv} of ${totalEsts} estimates sold<br><span style="color:var(--text-3)">Target: 40%+</span>`;
-  el('ring-pace-detail').innerHTML = `Projected: ${dollars(projected)}<br><span style="color:var(--text-3)">vs ${dollars(CONFIG.ANNUAL_GOAL)} goal</span>`;
+  el('ring-rev-detail').innerHTML  = `${dollars(revAnnual)} of ${dollars(goalAnnual)}<br><span style="color:var(--text-3)">${dollars(neededPWD)}/workday needed · ${wdLeft} workdays left</span>`;
+  el('ring-conv-detail').innerHTML = `${convEsts} of ${totalEsts} estimates sold<br><span style="color:var(--text-3)">Target: 40%+</span>`;
+  el('ring-pace-detail').innerHTML = `Projected: ${dollars(projected)}<br><span style="color:var(--text-3)">vs ${dollars(goalAnnual)} goal</span>`;
 
-  drawRing('ringRevenue', revPct, '#00D4FF');
-  drawRing('ringConv', convPct, '#00FF88', 40);
-  drawRing('ringPace', Math.min(100,pacePct), '#FF6B35');
-}
-
-function countWorkdays(from, to) {
-  let count = 0;
-  const d = new Date(from);
-  while (d <= to) {
-    const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) count++;
-    d.setDate(d.getDate() + 1);
-  }
-  return count;
+  drawRing('ringRevenue', annualPct, '#00D4FF');
+  drawRing('ringConv', Math.round(convPct), '#00FF88', 40);
+  drawRing('ringPace', Math.min(100, pacePct), '#FF6B35');
 }
 
 // ---- SCENE 3: LEADERBOARD ----
@@ -1544,16 +1548,17 @@ function updateS4() {
 // ---- SCENE 5: MOTIVATION ----
 let quoteIdx = 0;
 function updateS5() {
-  const kpi = state.kpi;
+  const snap = state.snap;
   const q = CONFIG.QUOTES[quoteIdx % CONFIG.QUOTES.length];
   quoteIdx++;
 
   el('mot-quote').textContent = q.q;
   el('mot-author').textContent = '— ' + q.a;
 
-  const ytdRev = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.revenue]),0);
-  const ytdJobs = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.jobs]),0);
-  const ytdPlans = kpi.reduce((s,e)=>s+num(e[CONFIG.KPI_COLS.plans]),0);
+  // Use pre-computed values from dashboard snapshot
+  const ytdRev  = num(snap['rev_annual']||0);
+  const ytdJobs = num(snap['paid_jobs']||0);
+  const ytdPlans= num(snap['total_plans']||0);
 
   el('mot-ytd').textContent = dollars(ytdRev);
   animCount('mot-jobs', ytdJobs, false);
@@ -1588,7 +1593,8 @@ async function updateS6() {
     const converted= useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.converted]), 0);
     const avg      = jobs > 0 ? revenue / jobs : 0;
     const convPct  = ests > 0 ? Math.round(converted / ests * 100) : 0;
-    const goalPct  = Math.min(100, Math.round(revenue / CONFIG.DAILY_GOAL * 100));
+    const dailyGoalVal = num(state.snap['goal_daily']||CONFIG.DAILY_GOAL);
+    const goalPct  = Math.min(100, Math.round(revenue / dailyGoalVal * 100));
 
     // Top performer today
     const topEmp = [...useRows].sort((a,b) =>
@@ -1596,10 +1602,12 @@ async function updateS6() {
     )[0];
 
     // Date label
-    const now = new Date();
+    const now_wtd = new Date();
     el('wtd-date-label').textContent =
-      now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
-    el('wtd-daily-goal').textContent = dollars(CONFIG.DAILY_GOAL);
+      now_wtd.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+    // Use daily goal from snapshot if available
+    const dailyGoal = num(state.snap['goal_daily']||CONFIG.DAILY_GOAL);
+    el('wtd-daily-goal').textContent = dollars(dailyGoal);
 
     // Fire pop animation if revenue increased
     if (revenue > _wtdLastRevenue && _wtdLastRevenue > 0) {
