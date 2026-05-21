@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -457,6 +457,7 @@ tr:hover td{background:#fafafa}
       <button class="sec-btn no-print" onclick="showAutoPullSettings()" title="Auto-pull settings" id="autoPullBtn">⏱ Auto-pull</button>
       <button class="sec-btn no-print" id="pushCompanionBtn" onclick="pushToCompanion()" title="Force update companion wallboard">📺 Push to Companion</button>
       <span id="autoPullStatus" style="font-size:11px;color:#9ca3af;align-self:center"></span>
+      <button class="sec-btn no-print" onclick="clearAllData()" title="Clear all loaded data" style="color:#dc2626;border-color:#dc2626">🗑 Clear Data</button>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
     </div>
   </div>
@@ -1157,6 +1158,21 @@ function connect(){
   // Start auto-pull if enabled
   startAutoPull();
 }
+function clearAllData(){
+  if(!confirm('Clear all loaded report data? This only clears the current session — it does not affect Google Sheets or HCP. Pull a new report to reload.')) return;
+  _jobs=[];_estimates=[];_employees=[];_plans=[];
+  _jobAttribution={};
+  buildAttribution([],[]);
+  renderJobs([],[]);
+  renderEstimates([],[]);
+  renderKPI([],[],[],[]);
+  renderGoals();
+  renderAttr([],[]);
+  renderCalendar([]);
+  $$('statusBar').textContent='Data cleared — pull a report to reload.';
+  showToast('Data cleared','warning');
+}
+
 function disconnect(){
   _workerUrl='';_token='';_sheetsProxy='';
   stopAutoPull();
@@ -4371,64 +4387,59 @@ async function pushToCompanion(){
   btn.disabled=true;
 
   try{
-    // First sync current data to Sheets (what the companion reads)
     if(_jobs.length){
       $$('statusBar').textContent='Syncing to Sheets for companion...';
       const from=$$('dateFrom')?.value||'';
       const to=$$('dateTo')?.value||'';
-      await syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to);
-      $$('statusBar').textContent='✅ Companion updated — data pushed to Sheets';
+
+      // Sync report data AND spotlights/promos in parallel
+      await Promise.all([
+        syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to),
+        // Always push spotlights & promos so companion stays current
+        _sheetsProxy ? fetch(_sheetsProxy,{
+          method:'POST',
+          headers:{'Content-Type':'text/plain'},
+          body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
+        }).catch(()=>{}) : Promise.resolve()
+      ]);
+
+      $$('statusBar').textContent='✅ Companion updated — data + spotlights + promotions pushed';
       btn.textContent='✅ Pushed!';
-      btn.style.background='#059669';
-      btn.style.color='#fff';
-      btn.style.border='none';
+      btn.style.cssText='background:#059669;color:#fff;border:none';
       setTimeout(()=>{
         btn.textContent=orig;
-        btn.style.background='';
-        btn.style.color='';
-        btn.style.border='';
+        btn.style.cssText='';
         btn.disabled=false;
       },3000);
     } else {
-      // No data loaded — trigger worker pull instead
       if(!_workerUrl){
         alert('Pull a report first, or connect to the worker to push.');
-        btn.textContent=orig;
-        btn.disabled=false;
-        return;
+        btn.textContent=orig; btn.disabled=false; return;
       }
       const res=await fetch(_workerUrl+'/cron-pull');
       const data=await res.json();
       if(data.success){
+        // Also push spotlights
+        if(_sheetsProxy){
+          fetch(_sheetsProxy,{
+            method:'POST',
+            headers:{'Content-Type':'text/plain'},
+            body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
+          }).catch(()=>{});
+        }
         btn.textContent='✅ Pushed!';
-        btn.style.background='#059669';
-        btn.style.color='#fff';
-        btn.style.border='none';
-        $$('statusBar').textContent=`✅ Companion updated via worker — ${data.jobs} jobs, $${Math.round(data.revenue||0).toLocaleString()} revenue`;
-        setTimeout(()=>{
-          btn.textContent=orig;
-          btn.style.background='';
-          btn.style.color='';
-          btn.style.border='';
-          btn.disabled=false;
-        },3000);
+        btn.style.cssText='background:#059669;color:#fff;border:none';
+        $$('statusBar').textContent=`✅ Companion updated via worker — ${data.jobs} jobs · ${data.estimates} ests`;
+        setTimeout(()=>{btn.textContent=orig;btn.style.cssText='';btn.disabled=false;},3000);
       } else {
         throw new Error(data.error||'Worker pull failed');
       }
     }
   }catch(e){
     btn.textContent='❌ Failed';
-    btn.style.background='#dc2626';
-    btn.style.color='#fff';
-    btn.style.border='none';
+    btn.style.cssText='background:#dc2626;color:#fff;border:none';
     $$('statusBar').textContent='Push failed: '+e.message;
-    setTimeout(()=>{
-      btn.textContent=orig;
-      btn.style.background='';
-      btn.style.color='';
-      btn.style.border='';
-      btn.disabled=false;
-    },3000);
+    setTimeout(()=>{btn.textContent=orig;btn.style.cssText='';btn.disabled=false;},3000);
   }
 }
 
@@ -4465,10 +4476,28 @@ let _promos = [];
 // SPOTLIGHT & PROMOTIONS — unified system
 // ============================================================
 function loadSpotlights(){
+  // Load from localStorage first (instant)
   try{ _spotlights=JSON.parse(localStorage.getItem('hcp_spotlights')||'[]'); }catch(e){ _spotlights=[]; }
   try{ _promos=JSON.parse(localStorage.getItem('hcp_promos')||'[]'); }catch(e){ _promos=[]; }
   renderSpotlightList();
   renderPromoList();
+  // Then fetch from Sheets (source of truth — persists across browsers/sessions)
+  if(_sheetsProxy){
+    fetch(_sheetsProxy+'?action=getSpotlights',{redirect:'follow',mode:'cors'})
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.success){
+          if(data.spotlights) _spotlights=data.spotlights;
+          if(data.promos)     _promos=data.promos;
+          // Update localStorage cache
+          try{localStorage.setItem('hcp_spotlights',JSON.stringify(_spotlights));}catch(e){}
+          try{localStorage.setItem('hcp_promos',JSON.stringify(_promos));}catch(e){}
+          renderSpotlightList();
+          renderPromoList();
+        }
+      })
+      .catch(()=>{}); // silently fail — localStorage already shown
+  }
 }
 
 // Alias for missing function calls
@@ -4478,9 +4507,15 @@ function saveSpotlights(){
   try{ localStorage.setItem('hcp_spotlights',JSON.stringify(_spotlights)); }catch(e){}
   // Push to Sheets for companion
   if(_sheetsProxy){
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
+    fetch(_sheetsProxy,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      redirect:'follow',
       body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
-    }).catch(()=>{});
+    })
+    .then(r=>r.json())
+    .then(d=>{ if(d.success) showToast('✅ Synced to companion','success'); })
+    .catch(()=>{});
   }
 }
 
@@ -4595,8 +4630,11 @@ function submitSpotlight(){
 }
 
 function deleteSpotlight(id){
+  if(!confirm('Remove this spotlight from the wallboard?')) return;
   _spotlights=_spotlights.filter(s=>s.id!==id);
-  saveSpotlights(); renderSpotlightList();
+  saveSpotlights();
+  renderSpotlightList();
+  showToast('Spotlight removed','warning');
 }
 
 function renderSpotlightList(){
@@ -4652,8 +4690,11 @@ function submitPromotion(){
 }
 
 function deletePromo(id){
+  if(!confirm('Remove this promotion from the wallboard?')) return;
   _promos=_promos.filter(p=>p.id!==id);
-  saveSpotlights(); renderPromoList();
+  saveSpotlights();
+  renderPromoList();
+  showToast('Promotion removed','warning');
 }
 
 function renderPromoList(){
