@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.2</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.2</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -506,7 +506,6 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="plans" onclick="showTab('plans')">🛡 Service Plans</button>
       <button class="tab" data-tab="spotlight" onclick="showTab('spotlight')">⭐ Employee Spotlight</button>
       <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
-      <button class="tab" data-tab="spotlight" onclick="showTab('spotlight')">⭐ Spotlight</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
     </div>
 
@@ -877,24 +876,33 @@ tr:hover td{background:#fafafa}
             <!-- Employee select -->
             <div style="margin-bottom:12px">
               <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Employee</label>
-              <select id="sl-emp" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
+              <select id="sl-emp" onchange="onSlEmpChange(this)" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
                 <option value="">— Select employee —</option>
               </select>
+              <div id="sl-emp-manual-wrap" style="display:none;margin-top:6px">
+                <input type="text" id="sl-emp-manual" placeholder="Type employee name manually..."
+                  style="width:100%;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px">
+              </div>
             </div>
 
             <!-- Accomplishment type -->
             <div style="margin-bottom:12px">
               <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Accomplishment</label>
-              <select id="sl-type" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
-                <option value="Highest Revenue">💰 Highest Revenue</option>
-                <option value="Highest Conversion">📈 Highest Conversion Rate</option>
-                <option value="Top Performer">🏆 Top Performer</option>
-                <option value="Most Improved">📊 Most Improved</option>
-                <option value="Team Player">🤝 Team Player</option>
-                <option value="Innovation Award">💡 Innovation Award</option>
-                <option value="Customer Favorite">⭐ Customer Favorite</option>
-                <option value="Above & Beyond">🚀 Above & Beyond</option>
+              <select id="sl-type" onchange="document.getElementById('sl-type-custom-wrap').style.display=this.value==='__custom__'?'block':'none'" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px;background:#fff">
+                <option value="💰 Highest Revenue">💰 Highest Revenue</option>
+                <option value="📈 Highest Conversion Rate">📈 Highest Conversion Rate</option>
+                <option value="🏆 Top Performer">🏆 Top Performer</option>
+                <option value="📊 Most Improved">📊 Most Improved</option>
+                <option value="🤝 Team Player">🤝 Team Player</option>
+                <option value="💡 Innovation Award">💡 Innovation Award</option>
+                <option value="⭐ Customer Favorite">⭐ Customer Favorite</option>
+                <option value="🚀 Above & Beyond">🚀 Above & Beyond</option>
+                <option value="__custom__">✏️ Custom type...</option>
               </select>
+              <div id="sl-type-custom-wrap" style="display:none;margin-top:6px">
+                <input type="text" id="sl-type-custom" placeholder="e.g. Best Safety Record..."
+                  style="width:100%;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:13px">
+              </div>
             </div>
 
             <!-- Department -->
@@ -1602,18 +1610,14 @@ function showTab(t){
   if(t==='contest') renderContest();
   if(t==='unpaid') renderUnpaid();
   if(t==='goals') renderGoals();
-  if(t==='spotlight'){ loadSpotlights(); populateSpotlightEmpDropdown(); }
-  if(t==='promos') loadPromotions();
+  if(t==='spotlight'){ loadSpotlights(); populateSlEmpDropdown(); }
+  if(t==='promos'){ loadSpotlights(); }
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
     renderTYCards();
   }
-  if(t==='spotlight'){
-    populateSpotlightEmployees();
-    renderSpotlightList();
-    renderPromoList();
-  }
+
 }
 function printReport(){
   const active=document.querySelectorAll('.panel.active');
@@ -1691,6 +1695,7 @@ async function loadAll(){
 
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
+    populateSlEmpDropdown(); // keep spotlight dropdown fresh
 
     // HCP API doesn't expose service plans/agreements via any REST endpoint (all return 404)
     // Instead, scan SOLD estimate options for Home Club / service agreement sales
@@ -1812,8 +1817,6 @@ async function loadAll(){
     $$('refreshAllBtn').style.display='';
     loadTYCards();
     loadSpotlights();
-    loadSpotlights();
-    loadPromotions();
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -4372,12 +4375,18 @@ async function triggerWorkerPull(){
 let _spotlights = [];
 let _promos = [];
 
+// ============================================================
+// SPOTLIGHT & PROMOTIONS — unified system
+// ============================================================
 function loadSpotlights(){
   try{ _spotlights=JSON.parse(localStorage.getItem('hcp_spotlights')||'[]'); }catch(e){ _spotlights=[]; }
   try{ _promos=JSON.parse(localStorage.getItem('hcp_promos')||'[]'); }catch(e){ _promos=[]; }
   renderSpotlightList();
   renderPromoList();
 }
+
+// Alias for missing function calls
+function loadPromotions(){ loadSpotlights(); }
 
 function saveSpotlights(){
   try{ localStorage.setItem('hcp_spotlights',JSON.stringify(_spotlights)); }catch(e){}
@@ -4390,8 +4399,9 @@ function saveSpotlights(){
 }
 
 function previewSpotlightPhoto(url){
-  const preview=$$('spPhotoPreview');
-  const img=$$('spPhotoImg');
+  // Support both old and new ID schemes
+  const preview=$$('sl-photo-preview')||$$('spPhotoPreview');
+  const img=$$('sl-photo-img')||$$('spPhotoImg');
   if(!preview||!img) return;
   const converted=convertGoogleDriveUrl(url);
   if(converted){
@@ -4416,31 +4426,70 @@ function convertGoogleDriveUrl(url){
 }
 
 function populateSpotlightEmployees(){
-  const sel=$$('spEmpName');
-  if(!sel||!_employees.length) return;
-  const current=sel.value;
-  sel.innerHTML='<option value="">— Select employee —</option>';
-  _employees.forEach(e=>{
-    const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-    if(!name) return;
-    const opt=document.createElement('option');
-    opt.value=name; opt.textContent=name;
-    if(name===current) opt.selected=true;
-    sel.appendChild(opt);
+  populateSlEmpDropdown();
+}
+
+function populateSlEmpDropdown(){
+  // Populate all employee dropdowns on the spotlight tab
+  ['sl-emp','spEmpName'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const current=sel.value;
+    sel.innerHTML='<option value="">— Select employee —</option><option value="__manual__">✏️ Type a name manually...</option>';
+    if(_employees && _employees.length){
+      _employees
+        .filter(e=>e.role&&e.role!=='office staff')
+        .forEach(e=>{
+          const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+          if(!name) return;
+          const opt=document.createElement('option');
+          opt.value=name; opt.textContent=name;
+          if(name===current) opt.selected=true;
+          sel.appendChild(opt);
+        });
+    }
   });
 }
 
-function createSpotlight(){
-  const name=$$('spEmpName')?.value?.trim();
-  const type=$$('spAccType')?.value;
-  const praise=$$('spPraise')?.value?.trim();
-  const photoUrl=$$('spPhotoUrl')?.value?.trim();
-  if(!name){ alert('Please select an employee.'); return; }
+function onSlEmpChange(sel){
+  const manualWrap=document.getElementById('sl-emp-manual-wrap');
+  if(!manualWrap) return;
+  if(sel.value==='__manual__'){
+    manualWrap.style.display='block';
+  } else {
+    manualWrap.style.display='none';
+  }
+}
+
+function createSpotlight(){ submitSpotlight(); }
+
+function submitSpotlight(){
+  // Get values from sl- IDs (HTML uses these)
+  const empSel = document.getElementById('sl-emp');
+  const manualInp = document.getElementById('sl-emp-manual');
+  let name = '';
+  if(empSel){
+    name = empSel.value==='__manual__'
+      ? (manualInp?.value?.trim()||'')
+      : empSel.value?.trim();
+  }
+  // Custom type support
+  const typeEl = document.getElementById('sl-type');
+  const customTypeEl = document.getElementById('sl-type-custom');
+  let type = typeEl?.value||'⭐ Top Performer';
+  if(type==='__custom__' && customTypeEl) type = customTypeEl.value?.trim()||'Custom';
+  
+  const dept = document.getElementById('sl-dept')?.value||'';
+  const photoRaw = document.getElementById('sl-photo')?.value?.trim()||'';
+  const praise = document.getElementById('sl-praise')?.value?.trim()||'';
+
+  if(!name){ showToast('Please select or type an employee name.','error'); return; }
+
+  const photoUrl = convertGoogleDriveUrl(photoRaw);
   const spotlight={
     id:Date.now(),
-    name, type, praise,
-    photoUrl:convertGoogleDriveUrl(photoUrl)||'',
-    dept: _employees.find(e=>((e.first_name||'')+' '+(e.last_name||'')).trim()===name)?.role||'',
+    name, type, praise, dept,
+    photoUrl: photoUrl||'',
     createdAt:new Date().toISOString(),
     active:true
   };
@@ -4448,10 +4497,15 @@ function createSpotlight(){
   saveSpotlights();
   renderSpotlightList();
   // Clear form
-  if($$('spEmpName')) $$('spEmpName').value='';
-  if($$('spPraise')) $$('spPraise').value='';
-  if($$('spPhotoUrl')) $$('spPhotoUrl').value='';
-  if($$('spPhotoPreview')) $$('spPhotoPreview').style.display='none';
+  ['sl-emp','sl-emp-manual','sl-photo','sl-praise'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  const prev=document.getElementById('sl-photo-preview');
+  if(prev) prev.style.display='none';
+  const manWrap=document.getElementById('sl-emp-manual-wrap');
+  if(manWrap) manWrap.style.display='none';
+  showToast('✅ Spotlight posted to wallboard!','success');
 }
 
 function deleteSpotlight(id){
@@ -4460,9 +4514,10 @@ function deleteSpotlight(id){
 }
 
 function renderSpotlightList(){
-  const el=$$('spotlightList');
+  const el=document.getElementById('spotlightList')||document.getElementById('spotlight-list');
   if(!el) return;
-  $$('spotlightCount').textContent=`${_spotlights.length} spotlight${_spotlights.length!==1?'s':''}`;
+  const countEl=document.getElementById('spotlightCount');
+  if(countEl) countEl.textContent=`${_spotlights.length} spotlight${_spotlights.length!==1?'s':''}`;
   if(!_spotlights.length){
     el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No spotlights yet. Create one above.</div>';
     return;
@@ -4481,14 +4536,19 @@ function renderSpotlightList(){
     </div>`).join('');
 }
 
-function createPromo(){
-  const title=$$('promoTitle')?.value?.trim();
-  const offer=$$('promoOffer')?.value?.trim();
-  const desc=$$('promoDesc')?.value?.trim();
-  const end=$$('promoEnd')?.value;
-  const color=$$('promoColor')?.value||'#E8640A';
-  const banner=$$('promoBanner')?.value?.trim();
-  if(!title){ alert('Please enter a promotion title.'); return; }
+function createPromo(){ submitPromotion(); }
+
+function submitPromotion(){
+  // Support both pr- IDs (HTML) and promo* IDs (old JS)
+  const title=(document.getElementById('pr-title')||document.getElementById('promoTitle'))?.value?.trim();
+  const offer=(document.getElementById('pr-offer')||document.getElementById('promoOffer'))?.value?.trim();
+  const desc=(document.getElementById('pr-desc')||document.getElementById('promoDesc'))?.value?.trim();
+  const end=(document.getElementById('pr-end')||document.getElementById('promoEnd'))?.value;
+  const color=(document.getElementById('pr-color')||document.getElementById('promoColor'))?.value||'#E8640A';
+  const banner=convertGoogleDriveUrl((document.getElementById('pr-image')||document.getElementById('promoBanner'))?.value?.trim()||'')||'';
+  
+  if(!title){ showToast('Please enter a promotion title.','error'); return; }
+  
   const promo={
     id:Date.now(),
     title,offer,desc,end,color,banner,
@@ -4498,10 +4558,11 @@ function createPromo(){
   _promos.unshift(promo);
   saveSpotlights();
   renderPromoList();
-  if($$('promoTitle')) $$('promoTitle').value='';
-  if($$('promoOffer')) $$('promoOffer').value='';
-  if($$('promoDesc')) $$('promoDesc').value='';
-  if($$('promoBanner')) $$('promoBanner').value='';
+  ['pr-title','pr-offer','pr-desc','pr-image','promoTitle','promoOffer','promoDesc','promoBanner'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  showToast('📣 Promotion added to wallboard!','success');
 }
 
 function deletePromo(id){
@@ -4510,10 +4571,11 @@ function deletePromo(id){
 }
 
 function renderPromoList(){
-  const el=$$('promoList');
+  const el=document.getElementById('promoList')||document.getElementById('promos-list');
   if(!el) return;
   const active=_promos.filter(p=>!p.end||p.end>=new Date().toISOString().split('T')[0]);
-  $$('promoCount').textContent=`${active.length} active`;
+  const countEl=document.getElementById('promoCount');
+  if(countEl) countEl.textContent=`${active.length} active`;
   if(!_promos.length){
     el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No promotions yet. Add one above.</div>';
     return;
@@ -4532,6 +4594,26 @@ function renderPromoList(){
       </div>
     </div>`;
   }).join('');
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function showToast(msg, type='success'){
+  let wrap=document.getElementById('toastWrap');
+  if(!wrap){
+    wrap=document.createElement('div');
+    wrap.id='toastWrap';
+    wrap.style.cssText='position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none';
+    document.body.appendChild(wrap);
+  }
+  const t=document.createElement('div');
+  const bg=type==='error'?'#dc2626':type==='warning'?'#d97706':'#059669';
+  t.style.cssText=`background:${bg};color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transition:opacity .3s;pointer-events:none`;
+  t.textContent=msg;
+  wrap.appendChild(t);
+  requestAnimationFrame(()=>{ t.style.opacity='1'; });
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),400); },3000);
 }
 
 function printCalendar(){
