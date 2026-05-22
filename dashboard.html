@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v15.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v15.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v15.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v15.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1478,8 +1478,8 @@ function updateAutoPullStatus(msUntil){
 // HELPERS
 // ============================================================
 function fmt(d){return d.toISOString().split('T')[0];}
-function fmtD(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}catch(e){return s;}}
-function fmtDY(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch(e){return s;}}
+function fmtD(s){if(!s)return'—';try{const d=new Date(s);return`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;}catch(e){return s;}}
+function fmtDY(s){if(!s)return'—';try{const d=new Date(s);return`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;}catch(e){return s;}}
 // Global fmtKey — also defined locally in buildCalendarData for performance
 function fmtKey(d){if(!d)return null;try{const dt=new Date(d);if(isNaN(dt))return null;return dt.toISOString().split('T')[0];}catch(e){return null;}}
 function $$(id){return document.getElementById(id);}
@@ -3503,8 +3503,18 @@ function getRevenueForPeriod(period){
   const now = new Date();
   const paidJobs = _jobs.filter(isJobPaid);
 
-  // Collection date: use completed_at (when payment received), fall back to scheduled_start
-  function jobDate(j){ return new Date(j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at); }
+  // For daily/weekly: use ONLY completed_at or paid_at — not scheduled_start
+  // scheduled_start is when the job is booked, not when it was paid
+  function jobDate(j, strictPayment=false){
+    const completed = j.work_timestamps?.completed_at || j.completed_at;
+    const scheduled = j.schedule?.scheduled_start;
+    const created   = j.created_at;
+    if(strictPayment){
+      // For daily calc: only use completion date, not scheduled
+      return new Date(completed || created);
+    }
+    return new Date(completed || scheduled || created);
+  }
 
   if(period==='year'){
     return paidJobs.filter(j=>jobDate(j).getFullYear()===now.getFullYear()).reduce((s,j)=>s+getJobRevenue(j),0);
@@ -3521,13 +3531,20 @@ function getRevenueForPeriod(period){
     return paidJobs.filter(j=>jobDate(j)>=startOfWeek).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   if(period==='day'){
-    // Use local date comparison to avoid UTC timezone offset issues
+    // Use local date comparison, strict payment date only (no scheduled_start bleed)
     const todayLocal = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    return paidJobs.filter(j=>{
-      const d = jobDate(j);
+    const todayJobs = paidJobs.filter(j=>{
+      const d = jobDate(j, true); // strict — completed_at only
+      if(isNaN(d.getTime())) return false;
       const dLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       return dLocal === todayLocal;
-    }).reduce((s,j)=>s+getJobRevenue(j),0);
+    });
+    console.log(`[Daily Rev] Today=${todayLocal}, matched ${todayJobs.length} jobs`, todayJobs.map(j=>({
+      job: j.job_number,
+      completed: j.work_timestamps?.completed_at||j.completed_at||'none',
+      rev: getJobRevenue(j)
+    })));
+    return todayJobs.reduce((s,j)=>s+getJobRevenue(j),0);
   }
   return 0;
 }
@@ -6537,7 +6554,7 @@ function refreshEmailPreview(){
   const promoAmt=parseFloat(document.getElementById('isPromoAmount')?.value||0)||0;
   const expiryDate=document.getElementById('isPromoExpiry')?.value||'';
   const customPromo=document.getElementById('isPromoCustom')?.value||'';
-  const expiryStr=expiryDate?new Date(expiryDate).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'';
+  const expiryStr=expiryDate?(d=>(d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear())(new Date(expiryDate)):'';
   const expiryLine=expiryStr?` This offer expires ${expiryStr}.`:'';
 
   // Calculate dollar savings for % off
