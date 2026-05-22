@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v15.4</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v15.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v15.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v15.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -4721,7 +4721,7 @@ function loadWallboardSettings(){
   try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
   try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
   // Restore form values
-  if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'';
+  if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J';
   if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'Hastings, MN';
@@ -4959,15 +4959,51 @@ function previewSpotlightPhoto(url){
 }
 
 function convertGoogleDriveUrl(url){
-  if(!url) return null;
-  // Convert Google Drive share link to direct image URL
-  const driveMatch=url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  if(driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
-  // Already a direct image URL
-  if(url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) return url;
-  // Google Photos
-  if(url.includes('googleusercontent.com')) return url;
-  return url; // try anyway
+  if(!url||!url.trim()) return null;
+  url = url.trim();
+
+  // Already a converted drive URL
+  if(url.includes('drive.google.com/uc?')) return url;
+
+  // Standard Drive share link: /file/d/FILE_ID/view
+  const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(fileMatch) return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
+
+  // Drive open link: /open?id=FILE_ID
+  const openMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(openMatch && url.includes('drive.google')) return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
+
+  // Drive folder thumbnail: /d/FILE_ID
+  const dMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(dMatch) return `https://drive.google.com/uc?export=view&id=${dMatch[1]}`;
+
+  // Google Photos / Lh3 URLs — pass through
+  if(url.includes('googleusercontent.com') || url.includes('lh3.google')) return url;
+
+  // Direct image URL
+  if(url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i)) return url;
+
+  // Try as-is
+  return url;
+}
+
+// Universal handler — attach to any image URL input
+// Usage: oninput="previewImg(this,'preview-id')"
+function previewImg(input, previewId){
+  const url = convertGoogleDriveUrl(input.value?.trim());
+  const wrap = document.getElementById(previewId);
+  if(!wrap) return;
+  if(!url){ wrap.style.display='none'; return; }
+  // Reuse or create img
+  let img = wrap.querySelector('img');
+  if(!img){
+    img = document.createElement('img');
+    img.style.cssText='width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #f59e0b;margin-top:6px';
+    wrap.appendChild(img);
+  }
+  img.src = url;
+  img.onload  = () => wrap.style.display = 'block';
+  img.onerror = () => { wrap.style.display='none'; };
 }
 
 function populateSpotlightEmployees(){
