@@ -875,7 +875,7 @@ html, body {
   <!-- HEADER -->
   <header class="hdr">
     <div class="hdr-logo">
-      <div id="header-logo"><img src="https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J" style="height:40px;object-fit:contain" onerror="this.style.display='none'" alt="Midstate Plumbing"></div>
+      <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:40px;object-fit:contain" onerror="this.src='https://midstateplumbingmn.github.io/KPI/images/logo.png'" alt="Midstate Plumbing"></div>
       <div>
         <div class="hdr-company">Midstate Plumbing</div>
         <div class="hdr-sub">KPI Command Center <span style="opacity:.4;font-size:9px">v1.5</span></div>
@@ -1170,8 +1170,8 @@ html, body {
               <div class="metric-sub" id="wx-heatindex-label">Heat index</div>
             </div>
             <div class="card" style="padding:20px;background:rgba(255,107,53,.06);border-top:2px solid var(--orange)">
-              <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🏠 HVAC/Plumbing Insight</div>
-              <div id="wx-hvac-tip" style="font-size:13px;color:var(--text-2);line-height:1.6">Loading weather data...</div>
+              <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">🏠 HVAC/Plumbing Insight</div>
+              <div id="wx-hvac-tip" style="font-size:20px;font-weight:600;color:#fff;line-height:1.5">Loading weather data...</div>
             </div>
           </div>
         </div>
@@ -1274,7 +1274,7 @@ const CONFIG = {
     s2: 25000,  // Goals (has chart)
     s3: 20000,  // Leaderboard
     s4: 20000,  // Live Performance
-    s5: 15000,  // Motivation (per quote)
+    s5: 0,      // Announcements — self-managed (10s per shoutout)
     s6: 20000,  // Win the Day
     s7: 0,      // Spotlight — self-managed (8s per spotlight)
     s8: 0,      // Promotions — self-managed (8s per promo)
@@ -1333,7 +1333,7 @@ const CONFIG = {
 let state = {
   snap: {},      // pre-computed dashboard snapshot (from KPI_Dashboard tab)
   announcements: [], // motivation quotes/announcements
-  wbSettings: {logo_url:'https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J'},    // wallboard settings (logo, theme, weather, gap)
+  wbSettings: {logo_url:'https://midstateplumbingmn.github.io/KPI/images/logo.png'},    // wallboard settings (logo, theme, weather, gap)
   birthdays: [],     // team birthdays/anniversaries
   holidays: [],      // enabled holiday slides
   kpi: [],       // per-employee KPI rows
@@ -1357,6 +1357,13 @@ const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11'];
 function sheetCSVUrl(tabName) {
   const encoded = encodeURIComponent(tabName);
   return `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encoded}`;
+}
+
+function convertDriveToThumb(url){
+  if(!url||!url.trim()) return url;
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/)||url.match(/id=([a-zA-Z0-9_-]+)/);
+  if(m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w400`;
+  return convertDriveUrl(url);
 }
 
 function convertDriveUrl(url){
@@ -1644,13 +1651,17 @@ function updateS2() {
 function renderMonthlyBars() {
   const wrap = el('monthlyBarsWrap');
   if (!wrap) return;
-  // Try _monthly first, then fall back to parsing monthly_revenue key
-  let months = state.snap._monthly || [];
-  if (!months.length && state.snap['monthly_revenue']) {
-    try { months = JSON.parse(state.snap['monthly_revenue']||'[]'); } catch(e) { months = []; }
+  // Try multiple sources for monthly data
+  let months = [];
+  if (state.snap._monthly && state.snap._monthly.length) {
+    months = state.snap._monthly;
+  } else if (state.snap['monthly_revenue']) {
+    try { months = JSON.parse(state.snap['monthly_revenue']||'[]'); } catch(e) {}
   }
+  // Debug: log what we have
   if (!months.length) {
-    wrap.innerHTML = '<div style="color:var(--text-3);font-size:12px;text-align:center;width:100%">Pull a report to see monthly data</div>';
+    console.log('[Monthly] No data. snap keys:', Object.keys(state.snap).filter(k=>k.includes('monthly')));
+    wrap.innerHTML = '<div style="color:var(--text-3);font-size:11px;text-align:center;width:100%;padding:20px">Pull a YTD report to see monthly data</div>';
     return;
   }
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1823,22 +1834,28 @@ function updateS5() {
   _annIdx = 0;
   showAnnouncement(_annIdx, quotes);
 
-  if (quotes.length > 1) {
-    function rotateAnn() {
-      _annIdx++;
-      if (_annIdx >= quotes.length) {
-        resumeGlobalRotation();
-        nextScene();
-        return;
-      }
-      showAnnouncement(_annIdx, quotes);
-      _annTimer = setTimeout(rotateAnn, 10000);
+  const PER_ANN = 10000; // 10s per shoutout
+  startProgressFor(PER_ANN * quotes.length);
+
+  function rotateAnn() {
+    _annIdx++;
+    if (_annIdx >= quotes.length) {
+      // All shoutouts shown — advance to next scene
+      _annTimer = null;
+      resumeGlobalRotation();
+      nextScene();
+      return;
     }
-    _annTimer = setTimeout(rotateAnn, 10000);
-    // Progress bar for total time
-    startProgressFor(10000 * quotes.length);
+    // Fade out → swap → fade in
+    const card = document.querySelector('.motivation-card');
+    if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .4s'; }
+    setTimeout(() => {
+      showAnnouncement(_annIdx, quotes);
+      if (card) { card.style.opacity = '1'; }
+    }, 400);
+    _annTimer = setTimeout(rotateAnn, PER_ANN);
   }
-  // Single announcement timing handled by scheduleNextScene
+  _annTimer = setTimeout(rotateAnn, PER_ANN);
 }
 
 function showAnnouncement(idx, quotes) {
@@ -2017,7 +2034,7 @@ function goScene(idx) {
   else if (idx === 1) { updateS2(); scheduleNextScene('s2'); }
   else if (idx === 2) { updateS3(); scheduleNextScene('s3'); }
   else if (idx === 3) { updateS4(); scheduleNextScene('s4'); }
-  else if (idx === 4) { updateS5(); scheduleNextScene('s5'); }
+  else if (idx === 4) { updateS5(); } // self-managed — rotates each shoutout then advances
   else if (idx === 5) { updateS6(); scheduleNextScene('s6'); }
   else if (idx === 6) { updateS7(); } // self-managed
   else if (idx === 7) { updateS8Promo(); } // self-managed
@@ -2170,20 +2187,22 @@ async function init() {
   setInterval(tickRefresh, 1000);
 
   await loadData();
+  await loadSpotlightData();
+  await loadWallboardData();
+  checkVictoryMode();
   updateS6(); // pre-load Win the Day
 
-  // Auto-refresh
+  // Auto-refresh — fetch new data in background, don't disrupt self-managed scenes
   setInterval(async () => {
-    refreshTimer = CONFIG.REFRESH_MS / 1000;
     await loadData();
     await loadSpotlightData();
-    updateS6();
-    if(state.currentScene===6) updateS7();
-    if(state.currentScene===7) updateS8();
-    if(state.currentScene===8) updateS9();
-    if(state.currentScene===9) updateS10();
-    if(state.currentScene===10) updateS11();
+    await loadWallboardData();
     checkVictoryMode();
+    // Only re-render current scene if it's NOT self-managed
+    const selfManaged = [6, 7, 10]; // S7 spotlight, S8 promo, S11 holiday
+    if (!selfManaged.includes(state.currentScene)) {
+      goScene(state.currentScene);
+    }
   }, CONFIG.REFRESH_MS);
 }
 
@@ -2486,12 +2505,12 @@ function showPromoSlide(idx, promos) {
           ${urgent?'🔥 Ending Soon':'📣 Active Promotion'}
           ${daysLeft!==null?`<span style="opacity:.7">· ${daysLeft===0?'Today':daysLeft===1?'1 day left':daysLeft+' days'} · ${fmtDate(p.end)}</span>`:''}
         </div>
-        <div style="font-family:var(--font-display);font-size:72px;line-height:1;
-          color:${col};text-shadow:0 0 40px ${col}66;letter-spacing:.02em">
+        <div style="font-family:var(--font-display);font-size:${p.title.length>20?'48px':p.title.length>12?'60px':'72px'};line-height:1;
+          color:${col};text-shadow:0 0 40px ${col}66;letter-spacing:.02em;word-break:break-word">
           ${p.title}
         </div>
-        ${p.offer?`<div style="font-size:36px;font-weight:800;color:#fff;line-height:1.2">${p.offer}</div>`:''}
-        ${p.desc?`<div style="font-size:18px;color:rgba(255,255,255,.65);line-height:1.6">${p.desc}</div>`:''}
+        ${p.offer?`<div style="font-size:${p.offer.length>30?'24px':'30px'};font-weight:800;color:#fff;line-height:1.3;word-break:break-word">${p.offer}</div>`:''}
+        ${p.desc?`<div style="font-size:16px;color:rgba(255,255,255,.65);line-height:1.6">${p.desc}</div>`:''}
         ${promos.length > 1 ? `<div style="display:flex;gap:10px;margin-top:12px">
           ${promos.map((_,i)=>`<div style="width:10px;height:10px;border-radius:50%;
             background:${i===idx?col:'rgba(255,255,255,.2)'};transition:all .4s"></div>`).join('')}
@@ -2696,7 +2715,7 @@ function showHolidaySlide(idx) {
   if (!container) return;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const target = new Date(h.date + 'T12:00:00');
+  const target = new Date(h.date.includes('T') ? h.date : h.date + 'T12:00:00');
   const days = Math.ceil((target - today) / (1000*60*60*24));
 
   const countdownText = days === 0 ? 'TODAY! 🎉'
@@ -2812,20 +2831,172 @@ function updateS10() {
 // ============================================================
 // MANUAL REFRESH
 // ============================================================
+// ============================================================
+// WALLBOARD SETTINGS — load from Sheets
+// ============================================================
+async function loadWallboardData() {
+  try {
+    const rows = await fetchCSV('WallboardSettings');
+    const settings = {};
+    rows.slice(1).forEach(r => { if(r && r[0]) settings[r[0]] = r[1]; });
+    state.wbSettings = Object.assign({}, state.wbSettings, settings);
+  } catch(e) { /* use defaults */ }
+  try {
+    const brows = await fetchCSV('Birthdays');
+    state.birthdays = brows.slice(1).filter(r=>r&&r[0]).map(r=>({
+      id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
+    }));
+  } catch(e) { state.birthdays = []; }
+  try {
+    const hrows = await fetchCSV('Holidays');
+    state.holidays = hrows.slice(1).filter(r=>r&&r[0]&&r[4]==='true').map(r=>({
+      id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
+      enabled:true, message:r[5]||'', photoUrl:r[6]||''
+    }));
+  } catch(e) { state.holidays = []; }
+  applyWallboardSettings();
+}
+
+function applyWallboardSettings() {
+  const s = state.wbSettings;
+  // Logo
+  const logoEl = document.getElementById('header-logo');
+  const logoUrl = s['logo_url'] || s.logo_url || 'https://midstateplumbingmn.github.io/KPI/images/logo.png';
+  if(logoEl && logoUrl) {
+    logoEl.innerHTML = `<img src="${convertDriveToThumb(logoUrl)||logoUrl}" style="height:40px;object-fit:contain;border-radius:6px" onerror="this.style.display='none'" alt="Midstate">`;
+  }
+  // Theme
+  applyTheme(s['theme'] || s.theme || 'default');
+  // Holiday overlay
+  const holiday = s['holiday'] || s.holiday || '';
+  if(holiday) applyHolidayOverlay(holiday);
+}
+
+function applyTheme(theme) {
+  const themes = {
+    default: { bg:'#050810', blue:'#00D4FF', green:'#00FF88', orange:'#FF6B35', purple:'#A855F7' },
+    summer:  { bg:'#070A0E', blue:'#38BDF8', green:'#34D399', orange:'#FB923C', purple:'#C084FC' },
+    fall:    { bg:'#0C0800', blue:'#F97316', green:'#A3E635', orange:'#FBBF24', purple:'#E879F9' },
+    winter:  { bg:'#04080F', blue:'#93C5FD', green:'#6EE7F7', orange:'#818CF8', purple:'#C4B5FD' },
+    spring:  { bg:'#060B06', blue:'#4ADE80', green:'#86EFAC', orange:'#F472B6', purple:'#A78BFA' },
+    victory: { bg:'#080600', blue:'#FFD700', green:'#FFD700', orange:'#FFA500', purple:'#FFD700' },
+  };
+  const t = themes[theme] || themes.default;
+  const root = document.documentElement;
+  root.style.setProperty('--bg', t.bg);
+  root.style.setProperty('--blue', t.blue);
+  root.style.setProperty('--green', t.green);
+  root.style.setProperty('--orange', t.orange);
+  if(theme === 'victory') triggerVictoryMode();
+}
+
+function applyHolidayOverlay(holiday) {
+  const overlays = {
+    christmas:'🎄🎄🎄', halloween:'🎃👻', thanksgiving:'🦃🍂',
+    july4:'🎆🇺🇸', newyear:'🎆🥂🎉', valentines:'❤️💕',
+    memorial:'🇺🇸', labor:'🛠️'
+  };
+  const emojis = overlays[holiday];
+  if(!emojis) return;
+  let overlay = document.getElementById('holiday-overlay');
+  if(!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'holiday-overlay';
+    overlay.style.cssText = 'position:fixed;top:60px;right:20px;font-size:28px;z-index:50;opacity:.7;pointer-events:none;letter-spacing:4px';
+    document.body.appendChild(overlay);
+  }
+  overlay.textContent = emojis;
+}
+
+// ============================================================
+// VICTORY MODE
+// ============================================================
+let _victoryActive = false;
+function triggerVictoryMode() {
+  if(_victoryActive) return;
+  _victoryActive = true;
+  let banner = document.getElementById('victory-banner');
+  if(!banner) {
+    banner = document.createElement('div');
+    banner.id = 'victory-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:200;background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700);color:#000;font-family:var(--font-display);font-size:24px;letter-spacing:.15em;text-align:center;padding:10px;box-shadow:0 0 40px rgba(255,215,0,.6)';
+    banner.textContent = '🏆 GOAL ACHIEVED — OUTSTANDING WORK, TEAM! 🏆';
+    document.body.appendChild(banner);
+  }
+  spawnVictoryConfetti();
+  setTimeout(() => { _victoryActive = false; banner.remove(); }, 30000);
+}
+
+function spawnVictoryConfetti() {
+  for(let i=0;i<50;i++){
+    setTimeout(()=>{
+      const p=document.createElement('div');
+      p.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}%;width:8px;height:8px;border-radius:2px;z-index:199;pointer-events:none;background:${['#FFD700','#FFA500','#fff','#FF6B35'][Math.floor(Math.random()*4)]};animation:confettiFall ${3+Math.random()*3}s linear forwards`;
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(),6000);
+    }, i*80);
+  }
+}
+
+function checkVictoryMode() {
+  const snap = state.snap;
+  const monthPct = num(snap['goal_monthly_pct']||0);
+  const annualPct = num(snap['goal_annual_pct']||0);
+  if(monthPct >= 100 || annualPct >= 100) triggerVictoryMode();
+}
+
+// ============================================================
+// GAP TO GOAL — shown in Win the Day scene
+// ============================================================
+function addGapToGoalDisplay(revenue) {
+  const snap = state.wbSettings;
+  const dailyGoal  = num(state.snap['goal_daily'] || snap['daily_goal'] || 8219);
+  const openHour   = parseInt(snap['open_hour']  || 7);
+  const closeHour  = parseInt(snap['close_hour'] || 17);
+  const now = new Date();
+  const h = now.getHours() + now.getMinutes()/60;
+  const gap = Math.max(0, dailyGoal - revenue);
+  const hoursLeft = Math.max(0, closeHour - h);
+  const neededPerHour = hoursLeft > 0 ? gap / hoursLeft : 0;
+  const deadline = `${closeHour > 12 ? closeHour-12 : closeHour}:00 ${closeHour >= 12 ? 'PM' : 'AM'}`;
+  const gapEl = document.getElementById('wtd-gap');
+  if(!gapEl) return;
+  if(gap <= 0) {
+    gapEl.innerHTML = `<div style="color:var(--green);font-weight:800;font-size:18px">🏆 Daily goal achieved!</div>`;
+  } else if(hoursLeft <= 0) {
+    gapEl.innerHTML = `<div style="color:var(--text-3);font-size:14px">Business hours ended for today</div>`;
+  } else {
+    gapEl.innerHTML = `
+      <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;font-weight:800;margin-bottom:6px">⚡ Gap to Goal</div>
+      <div style="font-size:22px;font-weight:900;color:var(--orange);text-shadow:0 0 20px rgba(255,107,53,.5)">
+        Need ${dollars(gap)} by ${deadline}
+      </div>
+      <div style="font-size:13px;color:var(--text-3);margin-top:4px">
+        ${dollars(neededPerHour)}/hr needed &nbsp;·&nbsp; ${hoursLeft.toFixed(1)} hrs remaining
+      </div>`;
+  }
+}
+
 async function manualRefresh(){
   const btn = document.getElementById('refreshBtn');
   if(btn){ btn.textContent='↻ Refreshing...'; btn.style.opacity='.6'; btn.disabled=true; }
-  refreshTimer = CONFIG.REFRESH_MS / 1000;
-  await loadData();
-  if(state.currentScene===5) updateS6();
+  try {
+    await loadData();
+    await loadSpotlightData();
+    await loadWallboardData();
+    // Restart current scene with fresh data and reschedule timer
+    const cur = state.currentScene;
+    if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
+    goScene(cur);
+  } catch(e) {
+    console.error('Refresh error:', e);
+  }
   if(btn){ btn.textContent='↻ Refresh Now'; btn.style.opacity='1'; btn.disabled=false; }
 }
 
 function clearCompanionData(){
   // Reset all state
-  state.snap = {};
-  state.snap._monthly = [];
-  state.snap.total_plans = 0;
+  state.snap = { _monthly: [] };
   state.kpi = [];
   state.reports = [];
   state.latestReport = null;
