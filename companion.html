@@ -1158,6 +1158,7 @@ html, body {
             <div id="wx-temp" style="font-family:var(--font-display);font-size:96px;line-height:1;color:var(--blue);text-shadow:0 0 30px rgba(0,212,255,.4)">--°</div>
             <div id="wx-desc" style="font-size:18px;color:var(--text-2);margin-top:8px">Loading...</div>
             <div id="wx-feels" style="font-size:13px;color:var(--text-3);margin-top:4px">Feels like --°</div>
+            <div id="wx-age" style="font-size:11px;color:var(--text-3);margin-top:6px;opacity:.6"></div>
           </div>
           <!-- Stats -->
           <div style="display:flex;flex-direction:column;gap:16px">
@@ -1198,6 +1199,15 @@ html, body {
         </div>
       </div>
     </div><!-- end s10 -->
+
+
+    <!-- SCENE 11: HOLIDAY SLIDES -->
+    <div class="scene" id="s11">
+      <div class="scene-title">// Holiday Celebration</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div id="holiday-slide-display" style="width:100%;max-width:900px;text-align:center"></div>
+      </div>
+    </div><!-- end s11 -->
 
   </div><!-- /scenes -->
 
@@ -1322,6 +1332,7 @@ let state = {
   announcements: [], // motivation quotes/announcements
   wbSettings: {logo_url:'https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J'},    // wallboard settings (logo, theme, weather, gap)
   birthdays: [],     // team birthdays/anniversaries
+  holidays: [],      // enabled holiday slides
   kpi: [],       // per-employee KPI rows
   reports: [],
   latestReport: null,
@@ -1335,7 +1346,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10'];
+const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11'];
 
 // ============================================================
 // GOOGLE SHEETS CSV FETCH
@@ -1978,6 +1989,7 @@ function goScene(idx) {
   if (idx === 7) updateS8();
   if (idx === 8) { if(state.wbSettings['weather_enabled']==='true'||state.wbSettings['weather_enabled']===true) updateS9(); else { nextScene(); return; } }
   if (idx === 9) { if(state.birthdays && state.birthdays.length) updateS10(); else { nextScene(); return; } }
+  if (idx === 10) { if(state.holidays && state.holidays.length) updateS11(); else { nextScene(); return; } }
 
   // Restart global scene timer if it was paused by S7
   if (!state.sceneTimer) {
@@ -2117,6 +2129,7 @@ async function init() {
     if(state.currentScene===7) updateS8();
     if(state.currentScene===8) updateS9();
     if(state.currentScene===9) updateS10();
+    if(state.currentScene===10) updateS11();
     checkVictoryMode();
   }, CONFIG.REFRESH_MS);
 }
@@ -2450,6 +2463,13 @@ async function loadWallboardData() {
       id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
     }));
   } catch(e) { state.birthdays = []; }
+  try {
+    const hrows = await fetchCSV('Holidays');
+    state.holidays = hrows.slice(1).filter(r=>r&&r[0]&&r[4]==='true').map(r=>({
+      id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
+      enabled:true, message:r[5]||'', photoUrl:r[6]||''
+    }));
+  } catch(e) { state.holidays = []; }
 
   // Apply logo and theme
   applyWallboardSettings();
@@ -2613,13 +2633,45 @@ let _wxData = null;
 let _wxTimer = null;
 
 async function updateS9() {
-  const loc = state.wbSettings['weather_loc'] || 'Hastings,MN';
-  const key = state.wbSettings['weather_key'] || '';
-  const locEl = el('wx-location');
-  if(locEl) locEl.textContent = loc;
+  const snap = state.snap;
 
+  // First try pre-fetched weather from dashboard snapshot
+  const wxTemp   = snap['wx_temp'];
+  const wxCity   = snap['wx_city'] || snap['weather_loc'] || 'Hastings, MN';
+  const locEl = el('wx-location');
+  if(locEl) locEl.textContent = wxCity;
+
+  if(wxTemp) {
+    // Use snapshot data from weatherapi.com
+    const d = {
+      temp_f:       num(snap['wx_temp']),
+      feels_like_f: num(snap['wx_feels_like']),
+      humidity:     num(snap['wx_humidity']),
+      wind_mph:     num(snap['wx_wind_speed']),
+      wind_dir:     snap['wx_wind_dir'] || '',
+      description:  snap['wx_description'] || '',
+      icon_url:     snap['wx_icon_url'] || '',
+      icon_code:    num(snap['wx_icon_code']),
+      heat_index_f: num(snap['wx_heat_index']||snap['wx_temp']),
+      wind_chill_f: num(snap['wx_wind_chill']||snap['wx_temp']),
+      chance_rain:  num(snap['wx_chance_rain']||0),
+      city:         snap['wx_city'] || wxCity
+    };
+    renderWeatherAPI(d);
+    const fetchedAt = snap['wx_fetched_at'];
+    if(fetchedAt) {
+      const mins = Math.round((Date.now()-new Date(fetchedAt))/60000);
+      const ageEl = document.getElementById('wx-age');
+      if(ageEl) ageEl.textContent = `Updated ${mins < 2 ? 'just now' : mins + 'm ago'}`;
+    }
+    return;
+  }
+
+  // Fallback: fetch live if no snapshot data
+  const key = state.wbSettings['weather_key'] || 'f7cf8e60cafb429ca21131316262205';
+  const loc = state.wbSettings['weather_loc'] || 'Hastings,MN';
   if(!key) {
-    el('wx-desc').textContent = 'Add API key in Dashboard → 🎛 Wallboard';
+    el('wx-desc').textContent = 'Pull a report to load weather data';
     el('wx-temp').textContent = '--°';
     return;
   }
@@ -2630,57 +2682,87 @@ async function updateS9() {
     const d = await res.json();
     _wxData = d;
     renderWeather(d);
-    // Refresh every 10 min
-    if(_wxTimer) clearInterval(_wxTimer);
-    _wxTimer = setInterval(()=>updateS9(), 600000);
   } catch(e) {
     el('wx-desc').textContent = 'Weather unavailable';
     console.warn('Weather error:', e.message);
   }
 }
 
-function renderWeather(d) {
-  const temp = Math.round(d.main.temp);
-  const feels = Math.round(d.main.feels_like);
-  const humidity = d.main.humidity;
-  const windSpd = Math.round(d.wind.speed);
-  const windDir = degToCompass(d.wind.deg||0);
-  const desc = d.weather[0].description;
-  const code = d.weather[0].id;
+function renderWeatherAPI(d) {
+  el('wx-temp').textContent  = d.temp_f + '°F';
+  el('wx-desc').textContent  = d.description;
+  el('wx-feels').textContent = `Feels like ${d.feels_like_f}°F`;
+  el('wx-humidity').textContent  = d.humidity + '%';
+  el('wx-wind').textContent  = d.wind_mph + ' mph';
+  el('wx-wind-dir').textContent  = d.wind_dir + ' winds';
 
-  el('wx-temp').textContent = temp + '°F';
-  el('wx-desc').textContent = desc.charAt(0).toUpperCase() + desc.slice(1);
-  el('wx-feels').textContent = `Feels like ${feels}°F`;
-  el('wx-humidity').textContent = humidity + '%';
-  el('wx-wind').textContent = windSpd + ' mph';
-  el('wx-wind-dir').textContent = windDir + ' winds';
-  el('wx-icon').textContent = wxCodeToEmoji(code);
+  // Icon — use weatherapi image if available
+  const iconEl = el('wx-icon');
+  if(d.icon_url && iconEl) {
+    iconEl.innerHTML = `<img src="${d.icon_url}" style="width:80px;height:80px" alt="${d.description}">`;
+  } else if(iconEl) {
+    iconEl.textContent = wxCodeToEmojiWAPI(d.icon_code);
+  }
 
   // Heat index / wind chill
-  const heatIdx = el('wx-heatindex');
+  const heatEl  = el('wx-heatindex');
   const heatLbl = el('wx-heatindex-label');
-  if(temp >= 80) {
-    const hi = Math.round(-42.379 + 2.04901523*temp + 10.14333127*humidity - 0.22475541*temp*humidity - 0.00683783*temp*temp - 0.05481717*humidity*humidity + 0.00122874*temp*temp*humidity + 0.00085282*temp*humidity*humidity - 0.00000199*temp*temp*humidity*humidity);
-    heatIdx.textContent = hi + '°F'; heatLbl.textContent = 'Heat index';
-    if(hi >= 103) el('wx-alert').style.display='block', el('wx-alert').textContent='⚠️ HEAT WARNING: ' + hi + '°F heat index';
-  } else if(temp <= 50 && windSpd > 3) {
-    const wc = Math.round(35.74 + 0.6215*temp - 35.75*Math.pow(windSpd,0.16) + 0.4275*temp*Math.pow(windSpd,0.16));
-    heatIdx.textContent = wc + '°F'; heatLbl.textContent = 'Wind chill';
-  } else {
-    heatIdx.textContent = feels + '°F'; heatLbl.textContent = 'Feels like';
+  if(d.temp_f >= 80 && heatEl) {
+    heatEl.textContent = d.heat_index_f + '°F';
+    if(heatLbl) heatLbl.textContent = 'Heat index';
+    if(d.heat_index_f >= 103) {
+      const alertEl = el('wx-alert');
+      if(alertEl) { alertEl.style.display='block'; alertEl.textContent = `⚠️ HEAT WARNING: ${d.heat_index_f}°F heat index`; }
+    }
+  } else if(d.temp_f <= 50 && d.wind_mph > 3 && heatEl) {
+    heatEl.textContent = d.wind_chill_f + '°F';
+    if(heatLbl) heatLbl.textContent = 'Wind chill';
+  } else if(heatEl) {
+    heatEl.textContent = d.feels_like_f + '°F';
+    if(heatLbl) heatLbl.textContent = 'Feels like';
   }
 
   // HVAC/Plumbing business tip
   const tip = el('wx-hvac-tip');
   if(tip) {
-    if(temp >= 90)      tip.textContent = '🔥 High demand day — AC calls likely. Check schedule capacity.';
-    else if(temp >= 80) tip.textContent = '☀️ Warm day — good for AC tune-ups and estimates.';
-    else if(temp <= 20) tip.textContent = '❄️ Extreme cold — watch for frozen pipe and furnace calls.';
-    else if(temp <= 32) tip.textContent = '🌡️ Freezing temps — potential burst pipe and heating calls.';
-    else if(code >= 200 && code < 600) tip.textContent = '🌧️ Precipitation — drainage and sump pump inquiries possible.';
-    else                tip.textContent = '✅ Mild conditions — good day for installs and estimates.';
+    if(d.temp_f >= 90)         tip.textContent = '🔥 High demand — AC calls likely. Check schedule capacity.';
+    else if(d.temp_f >= 80)    tip.textContent = '☀️ Warm day — good for AC tune-ups and estimates.';
+    else if(d.temp_f <= 20)    tip.textContent = '❄️ Extreme cold — frozen pipe and furnace calls likely.';
+    else if(d.temp_f <= 32)    tip.textContent = '🌡️ Freezing — potential burst pipe and heating calls.';
+    else if(d.chance_rain > 60)tip.textContent = '🌧️ Rain likely — drainage and sump pump inquiries possible.';
+    else                        tip.textContent = '✅ Mild conditions — good day for installs and estimates.';
+  }
+
+  // Rain chance alert
+  if(d.chance_rain > 60) {
+    const alertEl = el('wx-alert');
+    if(alertEl && alertEl.style.display === 'none') {
+      alertEl.style.display = 'block';
+      alertEl.textContent = `🌧️ ${d.chance_rain}% chance of rain today`;
+    }
   }
 }
+
+// weatherapi.com condition codes → emoji
+function wxCodeToEmojiWAPI(code) {
+  if(!code) return '🌡️';
+  if(code === 1000) return '☀️';
+  if(code === 1003) return '⛅';
+  if(code === 1006 || code === 1009) return '☁️';
+  if(code >= 1030 && code <= 1035) return '🌫️';
+  if(code >= 1063 && code <= 1069) return '🌦️';
+  if(code >= 1072 && code <= 1087) return '🌨️';
+  if(code >= 1114 && code <= 1117) return '❄️';
+  if(code >= 1135 && code <= 1147) return '🌫️';
+  if(code >= 1150 && code <= 1201) return '🌧️';
+  if(code >= 1204 && code <= 1237) return '🌨️';
+  if(code >= 1240 && code <= 1264) return '🌧️';
+  if(code >= 1273 && code <= 1282) return '⛈️';
+  return '🌡️';
+}
+
+// Keep old renderWeather as alias
+function renderWeather(d) { renderWeatherAPI(d); }
 
 function wxCodeToEmoji(code) {
   if(code >= 200 && code < 300) return '⛈️';
@@ -2704,6 +2786,82 @@ function dollars(v) {
   if(n>=1000000) return '$'+(n/1000000).toFixed(2)+'M';
   if(n>=1000)    return '$'+(n/1000).toFixed(1)+'K';
   return '$'+Math.round(n).toLocaleString();
+}
+
+// ============================================================
+// SCENE 11 — HOLIDAY SLIDES
+// Rotates through enabled holidays, shows countdown
+// ============================================================
+let _holidayIdx = 0;
+let _holidayTimer = null;
+
+function updateS11() {
+  const holidays = state.holidays || [];
+  if (!holidays.length) { nextScene(); return; }
+
+  if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; }
+  _holidayIdx = 0;
+  showHolidaySlide(_holidayIdx);
+
+  if (holidays.length > 1) {
+    _holidayTimer = setInterval(() => {
+      _holidayIdx = (_holidayIdx + 1) % holidays.length;
+      showHolidaySlide(_holidayIdx);
+    }, 8000);
+  }
+
+  overrideSceneTimer();
+}
+
+function showHolidaySlide(idx) {
+  const holidays = state.holidays || [];
+  const h = holidays[idx];
+  if (!h) return;
+
+  const container = el('holiday-slide-display');
+  if (!container) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(h.date + 'T12:00:00');
+  const days = Math.ceil((target - today) / (1000*60*60*24));
+
+  const countdownText = days === 0 ? 'TODAY! 🎉'
+    : days === 1 ? 'Tomorrow!'
+    : days < 0  ? `${Math.abs(days)} days ago`
+    : `${days} days away`;
+
+  const urgent = days >= 0 && days <= 7;
+  const accentColor = urgent ? '#FFD700' : 'var(--blue)';
+
+  container.style.opacity = '0';
+  container.style.transition = 'opacity .6s';
+
+  setTimeout(() => {
+    container.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px">
+        ${h.photoUrl ? `<img src="${convertDriveUrl(h.photoUrl)}" style="width:160px;height:160px;border-radius:20px;object-fit:cover;border:4px solid ${accentColor};box-shadow:0 0 40px ${accentColor}66" onerror="this.style.display='none'">` : ''}
+        <div style="font-size:96px;line-height:1;filter:drop-shadow(0 0 20px rgba(255,255,255,.3))">${h.emoji}</div>
+        <div style="font-family:var(--font-display);font-size:72px;line-height:1;
+          background:linear-gradient(135deg,#fff,${accentColor});
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+          background-clip:text;letter-spacing:.02em">
+          ${h.name}
+        </div>
+        ${h.message ? `<div style="font-size:24px;color:var(--text-2);font-style:italic">"${h.message}"</div>` : ''}
+        <div style="display:flex;align-items:center;gap:16px;margin-top:8px">
+          <div style="font-family:var(--font-display);font-size:48px;color:${accentColor};
+            text-shadow:0 0 30px ${accentColor}88;letter-spacing:.05em">
+            ${countdownText}
+          </div>
+        </div>
+        ${days > 1 ? `<div style="font-size:14px;color:var(--text-3)">${(d=>((d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear()))(new Date(h.date+'T12:00:00'))}</div>` : ''}
+        ${holidays.length > 1 ? `<div style="display:flex;gap:8px;margin-top:8px">
+          ${holidays.map((_,i) => `<div style="width:8px;height:8px;border-radius:50%;background:${i===idx?accentColor:'rgba(255,255,255,.2)'};transition:all .4s"></div>`).join('')}
+        </div>` : ''}
+      </div>`;
+
+    container.style.opacity = '1';
+  }, 300);
 }
 
 // ============================================================
