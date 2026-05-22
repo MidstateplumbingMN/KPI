@@ -878,7 +878,7 @@ html, body {
       <div id="header-logo"><img src="https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J" style="height:40px;object-fit:contain" onerror="this.style.display='none'" alt="Midstate Plumbing"></div>
       <div>
         <div class="hdr-company">Midstate Plumbing</div>
-        <div class="hdr-sub">KPI Command Center <span style="opacity:.4;font-size:9px">v1.4</span></div>
+        <div class="hdr-sub">KPI Command Center <span style="opacity:.4;font-size:9px">v1.5</span></div>
       </div>
     </div>
 
@@ -1214,6 +1214,13 @@ html, body {
       transition:all .2s;text-transform:uppercase;position:relative;z-index:999">
       ↻ Refresh Now
     </button>
+    <button onclick="event.stopPropagation();clearCompanionData()" style="
+      background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);
+      color:#FF4757;font-size:11px;padding:4px 16px;border-radius:99px;
+      cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.06em;
+      transition:all .2s;text-transform:uppercase;position:relative;z-index:999">
+      🗑 Clear Data
+    </button>
     <div class="status-item" style="color:var(--text-3)">
       Range: <span id="dataRange" style="color:rgba(255,255,255,.5)">—</span>
     </div>
@@ -1222,6 +1229,9 @@ html, body {
     </div>
     <div style="color:var(--text-3)">
       Auto in <span id="nextRefresh">60</span>s
+    </div>
+    <div style="color:rgba(255,255,255,.2);font-size:10px;font-family:'JetBrains Mono',monospace">
+      v1.5
     </div>
   </div>
 </div>
@@ -2696,7 +2706,7 @@ function updateS10() {
     const bdayMD = b.birthday ? b.birthday.slice(0,5) : '';
     const isToday = bdayMD === todayMD;
     const yearsService = b.startDate ? Math.floor((today-new Date(b.startDate))/31536000000) : null;
-    const isAnniv = b.startDate && new Date(b.startDate).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit'}) === todayMD;
+    const isAnniv = b.startDate && (d=>(d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear())(new Date(b.startDate)) === todayMD;
     if(isToday || isAnniv) celebrations.push({...b, isToday, isAnniv, yearsService});
   });
 
@@ -2762,6 +2772,31 @@ async function manualRefresh(){
   await loadData();
   if(state.currentScene===5) updateS6();
   if(btn){ btn.textContent='↻ Refresh Now'; btn.style.opacity='1'; btn.disabled=false; }
+}
+
+function clearCompanionData(){
+  // Reset all state — shows waiting screen until next pull/refresh
+  state.snap = {};
+  state.snap._monthly = [];
+  state.kpi = [];
+  state.reports = [];
+  state.latestReport = null;
+  state.announcements = [];
+  state.loaded = false;
+  _spotlights = [];
+  _promos = [];
+  _wtdLastRevenue = 0;
+  // Reset displays
+  document.getElementById('dataRange').textContent = '—';
+  document.getElementById('lastRefresh').textContent = '—';
+  // Show waiting screen
+  showNoDataState();
+  // Reset status
+  const item = document.getElementById('statusSheet');
+  const dot = item?.querySelector('.status-dot');
+  const txt = item?.querySelector('span');
+  if(dot) dot.style.background = 'var(--gold)';
+  if(txt) txt.textContent = 'Cleared — pull a report to reload';
 }
 
 // Keyboard shortcuts
