@@ -113,7 +113,7 @@ html, body {
   background: rgba(5,8,16,.95);
   backdrop-filter: blur(20px);
   flex-shrink: 0;
-  min-height: 90px;
+  min-height: 120px;
 }
 .hdr-logo {
   display: flex; align-items: center; gap: 14px;
@@ -569,8 +569,10 @@ html, body {
   display: flex; flex-direction: column; align-items: center; gap: 20px;
 }
 .spotlight-photo {
-  width: 220px; height: 220px; border-radius: 50%;
-  object-fit: cover;
+  max-width: 280px; max-height: 280px;
+  width: auto; height: auto;
+  border-radius: 16px;
+  object-fit: contain;
   border: 4px solid transparent;
   background: linear-gradient(#050810,#050810) padding-box,
               linear-gradient(135deg,#FFD700,#FF6B35,#A855F7) border-box;
@@ -878,7 +880,7 @@ html, body {
   <!-- HEADER -->
   <header class="hdr">
     <div class="hdr-logo">
-      <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:82px;object-fit:contain;max-width:280px" alt="Midstate Plumbing"></div>
+      <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:140px;object-fit:contain;max-width:360px" alt="Midstate Plumbing"></div>
       <div>
         <div class="hdr-company" style="display:none">Midstate Plumbing</div>
         <div class="hdr-sub">KPI Command Center <span style="opacity:.4;font-size:9px">v1.5</span></div>
@@ -1076,7 +1078,11 @@ html, body {
 
     <!-- SCENE 6: WIN THE DAY -->
     <div class="scene" id="s6">
-      <div class="scene-title">// Win the Day — <span id="wtd-date-label">Today</span></div>
+      <!-- Big date header for Win the Day -->
+      <div style="padding:16px 40px 0;flex-shrink:0">
+        <div id="wtd-date-hero" style="font-family:var(--font-display);font-size:52px;line-height:1;letter-spacing:.04em;color:#fff;text-shadow:0 0 40px rgba(0,212,255,.2)">FRIDAY, MAY 22</div>
+        <div style="font-size:13px;color:var(--text-3);margin-top:4px;text-transform:uppercase;letter-spacing:.15em">// Win the Day — Today's Performance</div>
+      </div>
       <div class="wtd-grid">
         <div class="card wtd-hero" id="wtd-hero-card">
           <div class="wtd-hero-label">⚡ Revenue Today</div>
@@ -1734,7 +1740,7 @@ function updateS3() {
     const photoUrl = empData ? convertDriveUrl(empData[CONFIG.KPI_COLS.photo]||'') : '';
     return `<div class="lb-item">
       <div class="lb-rank ${i<3?'r'+(i+1):''}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
-      ${photoUrl ? `<img src="${photoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
+      ${photoUrl ? `<img src="${photoUrl}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div class="lb-info">
         <div class="lb-name">${name}</div>
         <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${pct}%;background:${color}"></div></div>
@@ -1875,7 +1881,7 @@ function showAnnouncement(idx, quotes) {
   if (photoWrap) {
     const photoUrl = item.photoUrl ? convertDriveUrl(item.photoUrl) : '';
     if (photoUrl) {
-      photoWrap.innerHTML = `<img src="${photoUrl}" style="width:140px;height:140px;border-radius:50%;object-fit:cover;border:4px solid var(--blue);box-shadow:0 0 30px rgba(0,212,255,.3);margin-bottom:20px" onerror="this.style.display='none'">`;
+      photoWrap.innerHTML = `<img src="${photoUrl}" style="max-width:260px;max-height:200px;width:auto;height:auto;border-radius:12px;object-fit:contain;border:3px solid var(--blue);box-shadow:0 0 30px rgba(0,212,255,.3);margin-bottom:20px" onerror="this.style.display='none'">`;
       photoWrap.style.display = 'block';
     } else {
       photoWrap.style.display = 'none';
@@ -1912,8 +1918,10 @@ async function updateS6() {
 
     // Date label
     const now_wtd = new Date();
-    el('wtd-date-label').textContent =
-      now_wtd.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+    // Set both the old label (backup) and new hero header
+    const wtdDateStr = now_wtd.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'}).toUpperCase();
+    const heroEl = document.getElementById('wtd-date-hero');
+    if(heroEl) heroEl.textContent = wtdDateStr;
     // Use daily goal from snapshot if available
     const dailyGoal = num(state.snap['goal_daily']||CONFIG.DAILY_GOAL);
     el('wtd-daily-goal').textContent = dollars(dailyGoal);
@@ -2737,7 +2745,7 @@ function showHolidaySlide(idx) {
   setTimeout(() => {
     container.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px">
-        ${h.photoUrl ? `<img src="${convertDriveUrl(h.photoUrl)}" style="width:160px;height:160px;border-radius:20px;object-fit:cover;border:4px solid ${accentColor};box-shadow:0 0 40px ${accentColor}66" onerror="this.style.display='none'">` : ''}
+        ${h.photoUrl ? `<img src="${convertDriveUrl(h.photoUrl)}" style="max-width:200px;max-height:160px;width:auto;height:auto;border-radius:16px;object-fit:contain;border:4px solid ${accentColor};box-shadow:0 0 40px ${accentColor}66" onerror="this.style.display='none'">` : ''}
         <div style="font-size:96px;line-height:1;filter:drop-shadow(0 0 20px rgba(255,255,255,.3))">${h.emoji}</div>
         <div style="font-family:var(--font-display);font-size:72px;line-height:1;
           background:linear-gradient(135deg,#fff,${accentColor});
@@ -2791,7 +2799,7 @@ function updateS10() {
         <div style="display:flex;gap:32px;margin-top:16px">
           ${(state.birthdays||[]).slice(0,4).map(b=>`
             <div style="text-align:center">
-              ${b.photoUrl?`<img src="${convertDriveUrl(b.photoUrl)}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--purple);margin-bottom:8px">`
+              ${b.photoUrl?`<img src="${convertDriveUrl(b.photoUrl)}" style="max-width:80px;max-height:80px;width:auto;height:auto;border-radius:8px;object-fit:contain;border:2px solid var(--purple);margin-bottom:8px">`
                 :`<div style="width:64px;height:64px;border-radius:50%;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px">👤</div>`}
               <div style="font-size:13px;color:var(--text-2)">${b.name}</div>
               <div style="font-size:11px;color:var(--text-3)">${b.birthday||'🎂 --'}</div>
@@ -2809,7 +2817,7 @@ function updateS10() {
       <div style="font-size:80px;animation:pulse 1s ease-in-out infinite alternate">
         ${cel.isAnniv && cel.yearsService ? '🏆' : '🎂'}
       </div>
-      ${cel.photoUrl?`<img src="${convertDriveUrl(cel.photoUrl)}" style="width:140px;height:140px;border-radius:50%;object-fit:cover;border:4px solid #EC4899;box-shadow:0 0 30px rgba(236,72,153,.4)">`
+      ${cel.photoUrl?`<img src="${convertDriveUrl(cel.photoUrl)}" style="max-width:220px;max-height:220px;width:auto;height:auto;border-radius:16px;object-fit:contain;border:4px solid #EC4899;box-shadow:0 0 30px rgba(236,72,153,.4)">`
         :`<div style="width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,#EC4899,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:56px">🎉</div>`}
       <div style="flex:1">
         <div style="font-size:14px;color:#EC4899;text-transform:uppercase;letter-spacing:.15em;font-weight:800;margin-bottom:8px">
@@ -2873,7 +2881,7 @@ function applyWallboardSettings() {
   const logoEl = document.getElementById('header-logo');
   const logoUrl = s['logo_url'] || s.logo_url || 'https://midstateplumbingmn.github.io/KPI/images/logo.png';
   if(logoEl && logoUrl) {
-    logoEl.innerHTML = `<img src="${convertDriveToThumb(logoUrl)||logoUrl}" style="height:82px;object-fit:contain;max-width:280px" alt="Midstate">`;
+    logoEl.innerHTML = `<img src="${convertDriveToThumb(logoUrl)||logoUrl}" style="height:140px;object-fit:contain;max-width:360px" alt="Midstate">`;
   }
   // Theme
   applyTheme(s['theme'] || s.theme || 'default');
