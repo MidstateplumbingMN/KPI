@@ -1353,7 +1353,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11'];
+const SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s5'];
 
 // ============================================================
 // GOOGLE SHEETS CSV FETCH
@@ -1991,9 +1991,9 @@ function buildDots() {
 
 function goScene(idx) {
   // Stop self-managed timers when leaving those scenes
-  if (state.currentScene === 6) { if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; } }
-  if (state.currentScene === 7) { if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; } }
-  if (state.currentScene === 10) { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
+  if (SCENES[state.currentScene] === 's7') { if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; } }
+  if (SCENES[state.currentScene] === 's8') { if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; } }
+  if (SCENES[state.currentScene] === 's11') { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
   if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
 
   // Hide all
@@ -2014,26 +2014,28 @@ function goScene(idx) {
   el('dot'+idx)?.classList.add('active');
 
   // Scene-specific updates — self-managed scenes skip scheduleNextScene
-  if (idx === 0) { updateS1(); scheduleNextScene('s1'); }
-  else if (idx === 1) { updateS2(); scheduleNextScene('s2'); }
-  else if (idx === 2) { updateS3(); scheduleNextScene('s3'); }
-  else if (idx === 3) { updateS4(); scheduleNextScene('s4'); }
-  else if (idx === 4) { updateS5(); } // self-managed — rotates each shoutout then advances
-  else if (idx === 5) { updateS6(); scheduleNextScene('s6'); }
-  else if (idx === 6) { updateS7(); } // self-managed
-  else if (idx === 7) { updateS8Promo(); } // self-managed
-  else if (idx === 8) {
-    const wxEnabled = state.wbSettings['weather_enabled'];
+  // SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s5']
+  const sceneId = SCENES[idx];
+  if      (sceneId==='s1') { updateS1(); scheduleNextScene('s1'); }
+  else if (sceneId==='s2') { updateS2(); scheduleNextScene('s2'); }
+  else if (sceneId==='s3') { updateS3(); scheduleNextScene('s3'); }
+  else if (sceneId==='s4') { updateS4(); scheduleNextScene('s4'); }
+  else if (sceneId==='s5') { updateS5(); } // self-managed — end of cycle
+  else if (sceneId==='s6') { updateS6(); scheduleNextScene('s6'); }
+  else if (sceneId==='s7') { updateS7(); } // self-managed
+  else if (sceneId==='s8') { updateS8Promo(); } // self-managed
+  else if (sceneId==='s9') {
     const wxHasData = !!state.snap['wx_temp'];
-    if (wxEnabled === 'true' || wxEnabled === true || wxHasData) { updateS9(); scheduleNextScene('s9'); }
+    const wxEnabled = state.wbSettings['weather_enabled'];
+    if (wxHasData || wxEnabled === 'true' || wxEnabled === true) { updateS9(); scheduleNextScene('s9'); }
     else { nextScene(); }
   }
-  else if (idx === 9) {
+  else if (sceneId==='s10') {
     if (state.birthdays && state.birthdays.length) { updateS10(); scheduleNextScene('s10'); }
     else { nextScene(); }
   }
-  else if (idx === 10) {
-    if (state.holidays && state.holidays.length) { updateS11(); } // self-managed
+  else if (sceneId==='s11') {
+    if (state.holidays && state.holidays.length) { updateS11(); }
     else { nextScene(); }
   }
 }
@@ -2183,8 +2185,9 @@ async function init() {
     await loadWallboardData();
     checkVictoryMode();
     // Only re-render current scene if it's NOT self-managed
-    const selfManaged = [6, 7, 10]; // S7 spotlight, S8 promo, S11 holiday
-    if (!selfManaged.includes(state.currentScene)) {
+    const selfManaged = ['s7','s8','s11','s5']; // Spotlight, Promo, Holiday, Announcements
+    const curSceneId = SCENES[state.currentScene];
+    if (!selfManaged.includes(curSceneId)) {
       goScene(state.currentScene);
     }
   }, CONFIG.REFRESH_MS);
