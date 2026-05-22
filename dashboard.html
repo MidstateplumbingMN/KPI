@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v16.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v16.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v16.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v16.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1078,7 +1078,7 @@ tr:hover td{background:#fafafa}
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
             <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Company Logo</div>
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Logo URL (Google Drive or direct)</div>
-            <input type="text" id="wb-logo-url" placeholder="https://drive.google.com/file/d/..."
+            <input type="text" id="wb-logo-url" placeholder="https://midstateplumbingmn.github.io/KPI/images/logo.png"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px"
               oninput="previewWbLogo(this.value)">
             <div id="wb-logo-preview" style="display:none;margin-bottom:8px">
@@ -1173,7 +1173,8 @@ tr:hover td{background:#fafafa}
                   style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
               </div>
             </div>
-            <input type="text" id="bday-photo" placeholder="Photo URL (optional)"
+            <button type="button" id="gh-picker-btn-bday-photo" onclick="showImagePicker('bday-photo','')" style="font-size:10px;padding:2px 8px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer;margin-bottom:4px">📁 Browse GitHub</button>
+            <input type="text" id="bday-photo" placeholder="https://midstateplumbingmn.github.io/KPI/images/Doug.JPG"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
             <button onclick="addBirthdayEntry()"
               style="width:100%;padding:7px;background:#EC4899;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
@@ -1208,12 +1209,13 @@ tr:hover td{background:#fafafa}
                 style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px">
             </div>
             <div style="margin-bottom:10px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Photo URL <span style="color:#9ca3af">(optional)</span></div>
-              <input type="text" id="ann-photo" placeholder="https://drive.google.com/file/d/..."
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Photo URL <span style="color:#9ca3af">(optional)</span> <button type="button" id="gh-picker-btn-ann-photo" onclick="showImagePicker('ann-photo','ann-photo-preview')" style="font-size:10px;padding:2px 8px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">📁 Browse GitHub</button></div>
+              <input type="text" id="ann-photo" placeholder="https://midstateplumbingmn.github.io/KPI/images/Doug.JPG"
                 style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px"
                 oninput="previewAnnPhoto(this.value)">
-              <div id="ann-photo-preview" style="display:none;margin-top:8px">
+              <div id="ann-photo-preview" style="display:none;margin-top:8px;display:flex;align-items:center;gap:8px">
                 <img id="ann-photo-img" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #8B5CF6" alt="">
+                <span style="font-size:11px;color:#059669">✅ Photo will show on companion wallboard</span>
               </div>
             </div>
             <div style="margin-bottom:12px">
@@ -4888,7 +4890,7 @@ function renderHolidayList(){
         <input type="text" value="${h.message||''}" placeholder="Message (e.g. Happy Thanksgiving!)"
           onchange="updateHolidayField('${h.id}','message',this.value)"
           style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%">
-        <input type="text" value="${h.photoUrl||''}" placeholder="Photo URL (optional — Google Drive link)"
+        <input type="text" value="${h.photoUrl||''}" placeholder="https://midstateplumbingmn.github.io/KPI/images/..."
           onchange="updateHolidayField('${h.id}','photoUrl',convertGoogleDriveUrl(this.value)||this.value)"
           style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%">
       </div>`:''}
@@ -5025,13 +5027,76 @@ function saveAnnouncements(){
   }
 }
 
+
+// ============================================================
+// GITHUB IMAGE PICKER — shows available images as clickable thumbnails
+// ============================================================
+const GITHUB_IMAGES = [
+  { name:'Doug McNamara',  file:'Doug.JPG' },
+  { name:'Eric Stoffel',   file:'Eric.JPG' },
+  { name:'Gannon Blaiser', file:'Gannon.JPG' },
+  { name:'Gordon Radant',  file:'Gordy.jpg' },
+  { name:'Jon Glenn',      file:'Jon.jpg' },
+  { name:'Lukas Schlosser',file:'Lukas.JPG' },
+  { name:'Company Logo',   file:'logo.png' },
+  { name:'Truck Photo',    file:'Photo_of_MidState_truck_in_Red_Wing_01.jpg' },
+  { name:'YouTube Ad',     file:'youtubead.png' },
+];
+const GH_BASE = 'https://midstateplumbingmn.github.io/KPI/images';
+
+function showImagePicker(targetInputId, previewId) {
+  // Remove existing picker
+  const old = document.getElementById('gh-image-picker');
+  if(old) { old.remove(); return; }
+
+  const input = document.getElementById(targetInputId);
+  if(!input) return;
+
+  const picker = document.createElement('div');
+  picker.id = 'gh-image-picker';
+  picker.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);display:flex;flex-wrap:wrap;gap:8px;max-width:480px;width:480px';
+
+  GITHUB_IMAGES.forEach(img => {
+    const url = GH_BASE + '/' + img.file;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px;border-radius:6px;border:2px solid transparent;transition:all .2s';
+    div.innerHTML = `<img src="${url}" style="width:56px;height:56px;object-fit:cover;border-radius:6px" onerror="this.style.opacity='.3'"><div style="font-size:9px;color:#374151;text-align:center;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${img.name}</div>`;
+    div.onmouseenter = () => div.style.borderColor = '#8B5CF6';
+    div.onmouseleave = () => div.style.borderColor = 'transparent';
+    div.onclick = () => {
+      input.value = url;
+      input.dispatchEvent(new Event('input'));
+      picker.remove();
+    };
+    picker.appendChild(div);
+  });
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', function handler(e) {
+    if(!picker.contains(e.target) && e.target.id !== 'gh-picker-btn-'+targetInputId) {
+      picker.remove();
+      document.removeEventListener('click', handler);
+    }
+  }), 100);
+
+  // Position near input
+  const rect = input.getBoundingClientRect();
+  picker.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  picker.style.left = rect.left + 'px';
+  document.body.appendChild(picker);
+}
+
 function previewAnnPhoto(url){
   const preview=$$('ann-photo-preview');
   const img=$$('ann-photo-img');
   if(!preview||!img) return;
-  const converted=convertGoogleDriveUrl(url);
-  if(converted){ img.src=converted; img.onload=()=>preview.style.display='block'; img.onerror=()=>preview.style.display='none'; }
-  else preview.style.display='none';
+  if(!url||!url.trim()){ preview.style.display='none'; return; }
+  // Convert Drive links, pass through everything else
+  const converted = convertGoogleDriveUrl(url.trim()) || url.trim();
+  img.src = converted;
+  img.onload  = () => preview.style.display = 'block';
+  img.onerror = () => { preview.style.display = 'none'; };
+  preview.style.display = 'block'; // show immediately, hide on error
 }
 
 function submitAnnouncement(){
