@@ -2503,7 +2503,7 @@ function showPromoSlide(idx, promos) {
 let _promoIdx = 0;
 let _promoTimer = null;
 
-function updateS9() {
+async function updateS9() {
   const snap = state.snap;
 
   // First try pre-fetched weather from dashboard snapshot
@@ -2652,12 +2652,7 @@ function degToCompass(deg) {
   return dirs[Math.round(deg/45)%8];
 }
 
-function dollars(v) {
-  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[$,]/g,''))||0;
-  if(n>=1000000) return '$'+(n/1000000).toFixed(2)+'M';
-  if(n>=1000)    return '$'+(n/1000).toFixed(1)+'K';
-  return '$'+Math.round(n).toLocaleString();
-}
+
 
 // ============================================================
 // SCENE 11 — HOLIDAY SLIDES
