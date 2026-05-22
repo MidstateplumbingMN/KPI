@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v15.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v16.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v15.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v16.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1089,7 +1089,7 @@ tr:hover td{background:#fafafa}
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
             <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Seasonal Theme</div>
             <select id="wb-theme" onchange="saveWbSetting('theme',this.value)"
-              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;margin-bottom:8px">
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
               <option value="default">🌑 Default Dark</option>
               <option value="summer">☀️ Summer</option>
               <option value="fall">🍂 Fall</option>
@@ -1097,19 +1097,16 @@ tr:hover td{background:#fafafa}
               <option value="spring">🌸 Spring</option>
               <option value="victory">🏆 Victory Mode</option>
             </select>
-            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Holiday Overlay</div>
-            <select id="wb-holiday" onchange="saveWbSetting('holiday',this.value)"
-              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
-              <option value="">None</option>
-              <option value="newyear">🎆 New Year</option>
-              <option value="valentines">❤️ Valentine's Day</option>
-              <option value="memorial">🇺🇸 Memorial Day</option>
-              <option value="july4">🎆 Fourth of July</option>
-              <option value="labor">🛠️ Labor Day</option>
-              <option value="halloween">🎃 Halloween</option>
-              <option value="thanksgiving">🦃 Thanksgiving</option>
-              <option value="christmas">🎄 Christmas</option>
-            </select>
+          </div>
+
+          <!-- HOLIDAY SLIDES -->
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;flex:1;overflow:hidden;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:12px;font-weight:700;color:#374151">🎉 Holiday Slides</div>
+              <span style="font-size:10px;color:#9ca3af">Toggle to show on companion</span>
+            </div>
+            <div id="holidayList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;max-height:320px"></div>
+            <button onclick="addCustomHoliday()" style="width:100%;padding:7px;background:#6366F1;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">+ Add Custom Holiday</button>
           </div>
         </div>
 
@@ -1120,9 +1117,9 @@ tr:hover td{background:#fafafa}
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
             <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Weather Location</div>
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
-            <input type="text" id="wb-weather-loc" placeholder="Hastings, MN"
+            <input type="text" id="wb-weather-loc" placeholder="55033 or Hastings,MN"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
-            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">OpenWeather API Key <span style="color:#9ca3af">(free at openweathermap.org)</span></div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">WeatherAPI Key <span style="color:#9ca3af">(free at weatherapi.com — pre-filled)</span></div>
             <input type="text" id="wb-weather-key" placeholder="your API key"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
             <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-bottom:6px">
@@ -2034,6 +2031,8 @@ async function loadAll(){
     // Load wallboard settings silently (not tab-specific)
     try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
     try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
+    try{ _holidays=JSON.parse(localStorage.getItem('hcp_holidays')||'[]'); }catch(e){ _holidays=[]; }
+    if(!_holidays.length) _holidays=JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -3391,6 +3390,36 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   // Total plans
   const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
 
+  // Fetch weather from weatherapi.com
+  let _weatherSnap = {};
+  try {
+    const _wxLoc = _wbSettings.weatherLoc||'55033';
+    const _wxKey = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
+    const _wxRes = await fetch(`https://api.weatherapi.com/v1/current.json?key=${_wxKey}&q=${encodeURIComponent(_wxLoc)}&aqi=no`);
+    if(_wxRes.ok){
+      const _wx = await _wxRes.json();
+      const cur = _wx.current;
+      _weatherSnap = {
+        temp:        Math.round(cur.temp_f),
+        feels_like:  Math.round(cur.feelslike_f),
+        humidity:    cur.humidity,
+        wind_speed:  Math.round(cur.wind_mph),
+        wind_dir:    cur.wind_dir,
+        wind_deg:    cur.wind_degree,
+        description: cur.condition.text,
+        icon_url:    'https:' + cur.condition.icon,
+        icon_code:   cur.condition.code,
+        heat_index:  Math.round(cur.heatindex_f),
+        wind_chill:  Math.round(cur.windchill_f),
+        chance_rain: cur.chance_of_rain||0,
+        is_day:      cur.is_day,
+        city:        _wx.location.name + ', ' + _wx.location.region,
+        fetched_at:  new Date().toISOString()
+      };
+      console.log('[Weather] fetched:', _weatherSnap.city, _weatherSnap.temp + '°F', _weatherSnap.description);
+    }
+  } catch(e) { console.warn('[Weather] fetch failed:', e.message); }
+
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
@@ -3453,6 +3482,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     top_rev_amount: Math.round(topEmpRev?.revenue||0),
     top_conv_name: topEmpConv?.name||'',
     top_conv_pct: topEmpConv?Math.round(topEmpConv.converted/topEmpConv.estimates*100):0,
+    weather: _weatherSnap,
   };
 
   try{
@@ -3468,6 +3498,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       announcements: _announcements||[],
       wallboardSettings: _wbSettings||{},
       birthdays: _bdayList||[],
+      holidays: (_holidays||[]).filter(h=>h.enabled),
     });
     const res=await fetch(PROXY,{
       method:'POST',
@@ -4734,15 +4765,135 @@ let _announcements = [];
 let _wbSettings = {};
 let _bdayList = [];
 
+// ============================================================
+// HOLIDAY MANAGEMENT
+// ============================================================
+const DEFAULT_HOLIDAYS = [
+  { id:'newyear',      emoji:'🎆', name:"New Year's Day",      date:`${new Date().getFullYear()}-01-01`, enabled:false, message:'Happy New Year!', photoUrl:'' },
+  { id:'mlk',          emoji:'✊', name:'MLK Day',              date:`${new Date().getFullYear()}-01-20`, enabled:false, message:'Honoring Dr. Martin Luther King Jr.', photoUrl:'' },
+  { id:'valentines',   emoji:'❤️', name:"Valentine's Day",     date:`${new Date().getFullYear()}-02-14`, enabled:false, message:'Happy Valentine\'s Day!', photoUrl:'' },
+  { id:'memorial',     emoji:'🇺🇸', name:'Memorial Day',       date:`${new Date().getFullYear()}-05-26`, enabled:false, message:'We honor those who served.', photoUrl:'' },
+  { id:'july4',        emoji:'🎆', name:'Independence Day',     date:`${new Date().getFullYear()}-07-04`, enabled:false, message:'Happy 4th of July!', photoUrl:'' },
+  { id:'labor',        emoji:'🛠️', name:'Labor Day',           date:`${new Date().getFullYear()}-09-01`, enabled:false, message:'Happy Labor Day!', photoUrl:'' },
+  { id:'halloween',    emoji:'🎃', name:'Halloween',            date:`${new Date().getFullYear()}-10-31`, enabled:false, message:'Happy Halloween!', photoUrl:'' },
+  { id:'thanksgiving', emoji:'🦃', name:'Thanksgiving',         date:`${new Date().getFullYear()}-11-27`, enabled:false, message:'Happy Thanksgiving!', photoUrl:'' },
+  { id:'christmas',    emoji:'🎄', name:'Christmas',            date:`${new Date().getFullYear()}-12-25`, enabled:false, message:'Merry Christmas!', photoUrl:'' },
+  { id:'newyeareve',   emoji:'🥂', name:"New Year's Eve",       date:`${new Date().getFullYear()}-12-31`, enabled:false, message:'Happy New Year\'s Eve!', photoUrl:'' },
+];
+
+let _holidays = [];
+
+function loadHolidays(){
+  try{
+    const stored = JSON.parse(localStorage.getItem('hcp_holidays')||'[]');
+    if(stored.length){
+      // Merge stored toggles/edits with default list (add new defaults if missing)
+      const storedMap = {};
+      stored.forEach(h=>storedMap[h.id]=h);
+      _holidays = DEFAULT_HOLIDAYS.map(d=>storedMap[d.id]||d);
+      // Add any custom ones stored
+      stored.filter(h=>!DEFAULT_HOLIDAYS.find(d=>d.id===h.id)).forEach(h=>_holidays.push(h));
+    } else {
+      _holidays = JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
+    }
+  }catch(e){ _holidays = JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS)); }
+  renderHolidayList();
+}
+
+function saveHolidays(){
+  try{localStorage.setItem('hcp_holidays',JSON.stringify(_holidays));}catch(e){}
+  saveWallboardSettingsToSheets();
+}
+
+function toggleHoliday(id){
+  const h = _holidays.find(h=>h.id===id);
+  if(h){ h.enabled=!h.enabled; saveHolidays(); renderHolidayList(); }
+}
+
+function updateHolidayField(id, field, val){
+  const h = _holidays.find(h=>h.id===id);
+  if(h){ h[field]=val; saveHolidays(); }
+}
+
+function deleteHoliday(id){
+  _holidays = _holidays.filter(h=>h.id!==id);
+  saveHolidays(); renderHolidayList();
+}
+
+function addCustomHoliday(){
+  const id = 'custom_' + Date.now();
+  const yr = new Date().getFullYear();
+  _holidays.push({ id, emoji:'🎉', name:'Custom Holiday', date:`${yr}-01-01`, enabled:true, message:'', photoUrl:'' });
+  saveHolidays(); renderHolidayList();
+  // Scroll to bottom
+  setTimeout(()=>{ const el=$$('holidayList'); if(el) el.scrollTop=el.scrollHeight; },100);
+}
+
+function getDaysUntil(dateStr){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr+'T12:00:00');
+  const diff = Math.ceil((target-today)/(1000*60*60*24));
+  return diff;
+}
+
+function renderHolidayList(){
+  const el=$$('holidayList');
+  if(!el) return;
+  if(!_holidays.length){ el.innerHTML='<div style="text-align:center;padding:12px;color:#9ca3af;font-size:12px">No holidays.</div>'; return; }
+  el.innerHTML = _holidays.map(h=>{
+    const days = getDaysUntil(h.date);
+    const upcoming = days >= 0 && days <= 30;
+    const past = days < 0;
+    return `<div style="background:#fff;border:1px solid ${h.enabled?'#6366F1':'#e5e7eb'};border-radius:10px;padding:10px;${past?'opacity:.5':''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${h.enabled?'8':'0'}px">
+        <span style="font-size:18px">${h.emoji}</span>
+        <div style="flex:1;min-width:0">
+          <input type="text" value="${h.name}" onchange="updateHolidayField('${h.id}','name',this.value)"
+            style="font-size:12px;font-weight:700;color:#111827;border:none;background:none;width:100%;padding:0;outline:none">
+          <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+            <input type="date" value="${h.date}" onchange="updateHolidayField('${h.id}','date',this.value)"
+              style="font-size:10px;color:#6b7280;border:none;background:none;padding:0;outline:none;cursor:pointer">
+            <span style="font-size:10px;color:${upcoming?'#059669':past?'#9ca3af':'#6b7280'};font-weight:600">
+              ${past?'passed':days===0?'TODAY!':days===1?'tomorrow':days+' days'}
+            </span>
+          </div>
+        </div>
+        <!-- Toggle -->
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0">
+          <div onclick="toggleHoliday('${h.id}')" style="
+            width:36px;height:20px;border-radius:99px;
+            background:${h.enabled?'#6366F1':'#d1d5db'};
+            position:relative;transition:background .2s;cursor:pointer">
+            <div style="position:absolute;top:2px;${h.enabled?'right:2px':'left:2px'};
+              width:16px;height:16px;border-radius:50%;background:#fff;
+              transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+          </div>
+        </label>
+        <button onclick="deleteHoliday('${h.id}')" style="font-size:13px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:2px;flex-shrink:0">✕</button>
+      </div>
+      ${h.enabled?`
+      <div style="display:flex;flex-direction:column;gap:5px;padding-top:6px;border-top:1px solid #f3f4f6">
+        <input type="text" value="${h.message||''}" placeholder="Message (e.g. Happy Thanksgiving!)"
+          onchange="updateHolidayField('${h.id}','message',this.value)"
+          style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%">
+        <input type="text" value="${h.photoUrl||''}" placeholder="Photo URL (optional — Google Drive link)"
+          onchange="updateHolidayField('${h.id}','photoUrl',convertGoogleDriveUrl(this.value)||this.value)"
+          style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%">
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
 function loadWallboardSettings(){
   try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
   try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
+  loadHolidays();
   // Restore form values
   if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J';
   if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
-  if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'Hastings, MN';
-  if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'';
+  if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
+  if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
   if($$('wb-weather-enabled')) $$('wb-weather-enabled').checked = !!_wbSettings.weatherEnabled;
   if($$('wb-daily-goal'))    $$('wb-daily-goal').value     = _wbSettings.dailyGoal||8219;
   if($$('wb-open-hour'))     $$('wb-open-hour').value      = _wbSettings.openHour||7;
@@ -4799,7 +4950,7 @@ function saveWallboardSettingsToSheets(){
   try{localStorage.setItem('hcp_wb_settings',JSON.stringify(_wbSettings));}catch(e){}
   if(_sheetsProxy){
     fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
-      body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList})
+      body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList,holidays:_holidays||[]})
     }).then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Wallboard settings synced','success'); }).catch(()=>{});
   }
 }
