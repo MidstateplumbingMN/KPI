@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.0</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -5065,20 +5065,47 @@ function saveAnnouncements(){
 // ============================================================
 // GITHUB IMAGE PICKER — shows available images as clickable thumbnails
 // ============================================================
-const GITHUB_IMAGES = [
-  { name:'Doug McNamara',  file:'Doug.JPG' },
-  { name:'Eric Stoffel',   file:'Eric.JPG' },
-  { name:'Gannon Blaiser', file:'Gannon.JPG' },
-  { name:'Gordon Radant',  file:'Gordy.jpg' },
-  { name:'Jon Glenn',      file:'Jon.jpg' },
-  { name:'Lukas Schlosser',file:'Lukas.JPG' },
-  { name:'Company Logo',   file:'logo.png' },
-  { name:'Truck Photo',    file:'Photo_of_MidState_truck_in_Red_Wing_01.jpg' },
-  { name:'YouTube Ad',     file:'youtubead.png' },
-];
 const GH_BASE = 'https://midstateplumbingmn.github.io/KPI/images';
 
-function showImagePicker(targetInputId, previewId) {
+// Dynamic GitHub image scanner — fetches directory listing from GitHub API
+let _ghImages = null; // cached
+
+async function loadGitHubImages() {
+  if (_ghImages) return _ghImages;
+  try {
+    // GitHub API to list images directory
+    const res = await fetch('https://api.github.com/repos/midstateplumbingmn/KPI/contents/images', {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) throw new Error('API ' + res.status);
+    const files = await res.json();
+    _ghImages = files
+      .filter(f => f.type === 'file' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.name))
+      .map(f => ({
+        name: f.name.replace(/\.[^.]+$/, '').replace(/_/g,' '),
+        file: f.name,
+        url: GH_BASE + '/' + f.name
+      }));
+    return _ghImages;
+  } catch(e) {
+    console.warn('[GitHub Images] Could not scan directory:', e.message);
+    // Fallback to known images
+    _ghImages = [
+      { name:'Doug McNamara',  file:'Doug.JPG',   url: GH_BASE+'/Doug.JPG' },
+      { name:'Eric Stoffel',   file:'Eric.JPG',   url: GH_BASE+'/Eric.JPG' },
+      { name:'Gannon Blaiser', file:'Gannon.JPG', url: GH_BASE+'/Gannon.JPG' },
+      { name:'Gordon Radant',  file:'Gordy.jpg',  url: GH_BASE+'/Gordy.jpg' },
+      { name:'Jon Glenn',      file:'Jon.jpg',    url: GH_BASE+'/Jon.jpg' },
+      { name:'Lukas Schlosser',file:'Lukas.JPG',  url: GH_BASE+'/Lukas.JPG' },
+      { name:'Company Logo',   file:'logo.png',   url: GH_BASE+'/logo.png' },
+      { name:'Truck Photo',    file:'Photo_of_MidState_truck_in_Red_Wing_01.jpg', url: GH_BASE+'/Photo_of_MidState_truck_in_Red_Wing_01.jpg' },
+      { name:'YouTube Ad',     file:'youtubead.png', url: GH_BASE+'/youtubead.png' },
+    ];
+    return _ghImages;
+  }
+}
+
+async function showImagePicker(targetInputId, previewId) {
   // Remove existing picker
   const old = document.getElementById('gh-image-picker');
   if(old) { old.remove(); return; }
@@ -5088,36 +5115,51 @@ function showImagePicker(targetInputId, previewId) {
 
   const picker = document.createElement('div');
   picker.id = 'gh-image-picker';
-  picker.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);display:flex;flex-wrap:wrap;gap:8px;max-width:480px;width:480px';
+  picker.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:520px;width:520px;max-height:380px;overflow-y:auto';
 
-  GITHUB_IMAGES.forEach(img => {
-    const url = GH_BASE + '/' + img.file;
+  // Loading state
+  picker.innerHTML = '<div style="padding:20px;text-align:center;color:#6b7280;font-size:12px">📡 Scanning GitHub images...</div>';
+
+  // Position near input first
+  const rect = input.getBoundingClientRect();
+  picker.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  picker.style.left = Math.min(rect.left, window.innerWidth - 530) + 'px';
+  document.body.appendChild(picker);
+
+  // Load images dynamically
+  const images = await loadGitHubImages();
+
+  picker.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f3f4f6">
+      <span style="font-size:11px;font-weight:700;color:#374151">📁 GitHub Images — ${images.length} found</span>
+      <button onclick="document.getElementById('gh-image-picker').remove()" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af">✕</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px" id="gh-picker-grid"></div>`;
+
+  const grid = picker.querySelector('#gh-picker-grid');
+  images.forEach(img => {
     const div = document.createElement('div');
-    div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px;border-radius:6px;border:2px solid transparent;transition:all .2s';
-    div.innerHTML = `<img src="${url}" style="width:56px;height:56px;object-fit:cover;border-radius:6px" onerror="this.style.opacity='.3'"><div style="font-size:9px;color:#374151;text-align:center;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${img.name}</div>`;
-    div.onmouseenter = () => div.style.borderColor = '#8B5CF6';
-    div.onmouseleave = () => div.style.borderColor = 'transparent';
+    div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent;transition:all .2s;width:80px';
+    div.innerHTML = `
+      <img src="${img.url}" style="width:64px;height:64px;object-fit:contain;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb" onerror="this.style.opacity='.3'">
+      <div style="font-size:9px;color:#374151;text-align:center;width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${img.name}">${img.name}</div>`;
+    div.onmouseenter = () => { div.style.borderColor='#8B5CF6'; div.style.background='#F5F3FF'; };
+    div.onmouseleave = () => { div.style.borderColor='transparent'; div.style.background=''; };
     div.onclick = () => {
-      input.value = url;
+      input.value = img.url;
       input.dispatchEvent(new Event('input'));
       picker.remove();
     };
-    picker.appendChild(div);
+    grid.appendChild(div);
   });
 
   // Close on outside click
   setTimeout(() => document.addEventListener('click', function handler(e) {
-    if(!picker.contains(e.target) && e.target.id !== 'gh-picker-btn-'+targetInputId) {
+    if(!picker.contains(e.target) && !e.target.id.startsWith('gh-picker-btn')) {
       picker.remove();
       document.removeEventListener('click', handler);
     }
   }), 100);
-
-  // Position near input
-  const rect = input.getBoundingClientRect();
-  picker.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-  picker.style.left = rect.left + 'px';
-  document.body.appendChild(picker);
 }
 
 function previewAnnPhoto(url){
