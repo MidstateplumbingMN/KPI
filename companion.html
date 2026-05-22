@@ -182,6 +182,7 @@ html, body {
   display: none;
   opacity: 0;
   transition: opacity .8s ease;
+  overflow: visible;
 }
 .scene.active {
   display: flex; flex-direction: column;
@@ -200,7 +201,7 @@ html, body {
 
 /* ---- PROGRESS BAR ---- */
 .progress-bar {
-  position: fixed; bottom: 0; left: 0;
+  position: fixed; bottom: 44px; left: 0;
   height: 3px;
   background: linear-gradient(90deg, var(--blue), var(--purple));
   width: 0%;
@@ -506,6 +507,35 @@ html, body {
   text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px;
 }
 .wtd-last-val { font-size: 16px; font-weight: 700; color: var(--text-1); }
+
+/* ============================================================
+   SPOTLIGHT CARD FLIP ANIMATION
+   ============================================================ */
+.cube-scene {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  flex: 1;
+  perspective: 1200px;
+}
+.flip-card {
+  width: 840px; height: 380px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 1s cubic-bezier(.4,0,.2,1);
+}
+.flip-card.flipping {
+  transform: rotateY(90deg);
+}
+.flip-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  border-radius: 20px;
+  display: flex; align-items: center; gap: 48px;
+  padding: 40px 48px;
+  background: linear-gradient(135deg, rgba(245,158,11,.07), rgba(168,85,247,.05));
+  border: 1px solid rgba(245,158,11,.2);
+  overflow: hidden;
+}
 
 /* Revenue pop animation */
 .revenue-pop {
@@ -845,7 +875,7 @@ html, body {
   <!-- HEADER -->
   <header class="hdr">
     <div class="hdr-logo">
-      <div class="hdr-logo-icon">🏠</div>
+      <div id="header-logo"><img src="https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J" style="height:40px;object-fit:contain" onerror="this.style.display='none'" alt="Midstate Plumbing"></div>
       <div>
         <div class="hdr-company">Midstate Plumbing</div>
         <div class="hdr-sub">KPI Command Center <span style="opacity:.4;font-size:9px">v1.4</span></div>
@@ -928,7 +958,8 @@ html, body {
     <!-- SCENE 2: GOALS -->
     <div class="scene" id="s2">
       <div class="scene-title">// Goal Progress — 2026 Annual</div>
-      <div class="grid">
+      <div style="display:flex;flex-direction:column;gap:16px;flex:1">
+      <div class="grid" style="flex:0 0 auto">
         <div class="card ring-card">
           <div class="ring-wrap">
             <canvas id="ringRevenue"></canvas>
@@ -973,7 +1004,23 @@ html, body {
             <span style="color:var(--text-3)">vs $3,000,000 goal</span>
           </div>
         </div>
+      </div><!-- end rings grid -->
+
+      <!-- Monthly Revenue Bar Chart -->
+      <div class="card" style="padding:20px 28px;flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px">
+          Monthly Revenue vs $250K Target
+        </div>
+        <div id="monthlyBarsWrap" style="flex:1;display:flex;align-items:flex-end;gap:6px;min-height:0">
+          <!-- bars rendered by JS -->
+        </div>
+        <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:var(--text-3)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;display:inline-block"></span>Revenue</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:2px;background:rgba(255,255,255,.3);display:inline-block"></span>$250K target</span>
+        </div>
       </div>
+
+      </div><!-- end flex column -->
     </div>
 
     <!-- SCENE 3: LEADERBOARD -->
@@ -1015,6 +1062,7 @@ html, body {
     <!-- SCENE 5: MOTIVATION -->
     <div class="scene" id="s5">
       <div class="motivation-card card">
+        <div id="mot-photo-wrap" style="display:none;text-align:center"></div>
         <div class="motivation-quote" id="mot-quote">Do great work.</div>
         <div class="motivation-author" id="mot-author">— Midstate Team</div>
         <div class="motivation-stats">
@@ -1044,6 +1092,7 @@ html, body {
           <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs &nbsp;·&nbsp; avg <span id="wtd-avg">$0</span></div>
           <div class="wtd-goal-bar"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
           <div style="font-size:11px;color:var(--text-3);margin-top:8px"><span id="wtd-goal-pct">0%</span> of daily goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
+          <div id="wtd-gap" style="margin-top:16px;padding:14px 16px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px"></div>
           <div class="wtd-last-job" id="wtd-last-job" style="display:none">
             <div class="wtd-last-label">🏆 Top performer</div>
             <div class="wtd-last-val" id="wtd-last-name">—</div>
@@ -1074,30 +1123,16 @@ html, body {
     </div><!-- end s6 -->
 
 
-    <!-- SCENE 7: EMPLOYEE SPOTLIGHT -->
+    <!-- SCENE 7: EMPLOYEE SPOTLIGHT — 3D CUBE -->
     <div class="scene" id="s7">
       <div class="spotlight-confetti" id="confettiWrap"></div>
       <div class="scene-title" style="position:relative;z-index:1">// Employee Spotlight</div>
-      <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:1">
-        <div class="spotlight-wrap" id="spotlight-display">
-          <div class="spotlight-photo-wrap">
-            <div class="spotlight-initials" id="sp-initials">⭐</div>
-            <img id="sp-photo" class="spotlight-photo" style="display:none" alt="">
-            <div class="spotlight-badge" id="sp-badge">⭐ Top Performer</div>
-          </div>
-          <div class="spotlight-info">
-            <div class="spotlight-auto-badge" id="sp-auto-badge" style="display:none">
-              <span>⚡</span><span id="sp-auto-label">Auto — this month</span>
-            </div>
-            <div class="spotlight-header-label">🏆 Employee Spotlight</div>
-            <div class="spotlight-name" id="sp-name">Loading...</div>
-            <div style="font-size:14px;color:var(--text-3);margin-top:4px" id="sp-dept">Department</div>
-            <div class="spotlight-praise" id="sp-praise" style="display:none"></div>
-          </div>
+      <div class="cube-scene" style="position:relative;z-index:1">
+        <div class="flip-card" id="spCube">
+          <div class="flip-face" id="cubeFace0"></div>
         </div>
       </div>
-      <!-- Sub-dots for spotlight rotation -->
-      <div style="display:flex;justify-content:center;gap:8px;margin-top:12px;position:relative;z-index:1" id="sp-sub-dots"></div>
+      <div style="display:flex;justify-content:center;gap:8px;margin-top:16px;position:relative;z-index:1" id="sp-sub-dots"></div>
     </div><!-- end s7 -->
 
     <!-- SCENE 8: PROMOTIONS -->
@@ -1109,6 +1144,60 @@ html, body {
         </div>
       </div>
     </div><!-- end s8 -->
+
+
+    <!-- SCENE 9: WEATHER & LOCAL CONDITIONS -->
+    <div class="scene" id="s9">
+      <div class="scene-title">// Weather &amp; Local Conditions — <span id="wx-location">Hastings, MN</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:20px;width:100%">
+          <!-- Main weather card -->
+          <div class="card" style="padding:40px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(135deg,rgba(14,165,233,.1),rgba(0,212,255,.05));border-top:2px solid var(--blue)">
+            <div style="font-size:12px;color:var(--blue);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px">Current Conditions</div>
+            <div id="wx-icon" style="font-size:80px;line-height:1;margin-bottom:12px">🌤</div>
+            <div id="wx-temp" style="font-family:var(--font-display);font-size:96px;line-height:1;color:var(--blue);text-shadow:0 0 30px rgba(0,212,255,.4)">--°</div>
+            <div id="wx-desc" style="font-size:18px;color:var(--text-2);margin-top:8px">Loading...</div>
+            <div id="wx-feels" style="font-size:13px;color:var(--text-3);margin-top:4px">Feels like --°</div>
+          </div>
+          <!-- Stats -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card metric accent-blue">
+              <div class="metric-label">Humidity</div>
+              <div class="metric-value glow-blue" id="wx-humidity">--%</div>
+              <div class="metric-sub">Relative humidity</div>
+            </div>
+            <div class="card metric accent-orange">
+              <div class="metric-label">Wind Speed</div>
+              <div class="metric-value glow-orange" id="wx-wind">-- mph</div>
+              <div class="metric-sub" id="wx-wind-dir">Direction</div>
+            </div>
+          </div>
+          <!-- Alerts & HVAC -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card metric accent-green">
+              <div class="metric-label">Heat Index / Wind Chill</div>
+              <div class="metric-value glow-green" id="wx-heatindex">--°</div>
+              <div class="metric-sub" id="wx-heatindex-label">Heat index</div>
+            </div>
+            <div class="card" style="padding:20px;background:rgba(255,107,53,.06);border-top:2px solid var(--orange)">
+              <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🏠 HVAC/Plumbing Insight</div>
+              <div id="wx-hvac-tip" style="font-size:13px;color:var(--text-2);line-height:1.6">Loading weather data...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="wx-alert" style="display:none;margin-top:12px;padding:12px 20px;background:rgba(255,71,87,.15);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:14px;font-weight:700;text-align:center"></div>
+    </div><!-- end s9 -->
+
+    <!-- SCENE 10: BIRTHDAYS & ANNIVERSARIES -->
+    <div class="scene" id="s10">
+      <div class="scene-title">// Team Celebrations</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div id="celebration-display" style="width:100%;max-width:900px">
+          <div style="text-align:center;color:var(--text-3);font-size:16px">No upcoming celebrations</div>
+        </div>
+      </div>
+    </div><!-- end s10 -->
 
   </div><!-- /scenes -->
 
@@ -1220,6 +1309,9 @@ const CONFIG = {
 // ============================================================
 let state = {
   snap: {},      // pre-computed dashboard snapshot (from KPI_Dashboard tab)
+  announcements: [], // motivation quotes/announcements
+  wbSettings: {logo_url:'https://drive.google.com/uc?export=view&id=1WFnsYfsmJECMgJjVwI-_4fO3KxGcOm3J'},    // wallboard settings (logo, theme, weather, gap)
+  birthdays: [],     // team birthdays/anniversaries
   kpi: [],       // per-employee KPI rows
   reports: [],
   latestReport: null,
@@ -1233,7 +1325,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8'];
+const SCENES = ['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10'];
 
 // ============================================================
 // GOOGLE SHEETS CSV FETCH
@@ -1297,6 +1389,24 @@ function num(v) {
   return parseFloat(String(v).replace(/[$,%]/g,'').replace(/,/g,'')) || 0;
 }
 
+// Normalize any date format to YYYY-MM-DD local date string
+function toLocalDate(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d)) return String(val).slice(0,10);
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+// Format date for display: "May 31"
+function fmtDate(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d)) return String(val).slice(0,10);
+  return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 function dollars(v) {
   const n = num(v);
   if (n >= 1000000) return '$' + (n/1000000).toFixed(2) + 'M';
@@ -1310,17 +1420,29 @@ function dollars(v) {
 async function loadData() {
   try {
     setStatus('loading');
-    const [snapRows, kpiRows, rptRows] = await Promise.all([
+    // Fetch snapshot (primary), KPI scores, and reports in parallel
+    // KPI_Dashboard must be published in Google Sheets for this to work
+    const [snapRows, kpiRows, rptRows] = await Promise.allSettled([
       fetchCSV(CONFIG.TABS.SNAPSHOT),
       fetchCSV(CONFIG.TABS.KPI),
       fetchCSV(CONFIG.TABS.REPORTS),
-    ]);
+    ]).then(results => results.map(r => r.status==='fulfilled' ? r.value : []));
 
     // Parse snapshot into key→value object
     state.snap = {};
-    snapRows.slice(1).forEach(row => {
-      if (row && row[0]) state.snap[row[0]] = row[1];
-    });
+    state.snap._monthly = []; // monthly revenue array
+    if (snapRows.length > 1) {
+      snapRows.slice(1).forEach(row => {
+        if (!row || !row[0]) return;
+        const key = row[0];
+        // monthly_revenue is stored as JSON array
+        if (key === 'monthly_revenue') {
+          try { state.snap._monthly = JSON.parse(row[1]||'[]'); } catch(e) { state.snap._monthly = []; }
+        } else {
+          state.snap[key] = row[1];
+        }
+      });
+    }
 
     // KPI: group by employee, take most recent snapshot
     const empMap = {};
@@ -1400,17 +1522,12 @@ function showNoDataState() {
     document.querySelector('.scenes').appendChild(w);
   }
   w.style.display = 'flex';
-  // Stop scene rotation while waiting
-  if (state.sceneTimer) { clearInterval(state.sceneTimer); state.sceneTimer = null; }
+  // Keep scene timer running — scenes just show waiting screen
 }
 
 function hideNoDataState() {
   const w = document.getElementById('no-data-screen');
   if (w) w.style.display = 'none';
-  // Restart rotation if it was stopped
-  if (!state.sceneTimer) {
-    state.sceneTimer = setInterval(() => { nextScene(); restartProgress(); }, CONFIG.SCENE_MS);
-  }
 }
 
 // ---- SCENE 1: KPI OVERVIEW ----
@@ -1482,11 +1599,66 @@ function updateS2() {
   drawRing('ringRevenue', annualPct, '#00D4FF');
   drawRing('ringConv', Math.round(convPct), '#00FF88', 40);
   drawRing('ringPace', Math.min(100, pacePct), '#FF6B35');
+
+  // Monthly bar chart
+  renderMonthlyBars();
+}
+
+function renderMonthlyBars() {
+  const wrap = el('monthlyBarsWrap');
+  if (!wrap) return;
+  const months = state.snap._monthly || [];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const TARGET = 250000;
+  const maxVal = Math.max(TARGET * 1.1, ...months);
+  const now = new Date();
+  const curMonth = now.getMonth();
+
+  wrap.innerHTML = MONTHS.map((name, i) => {
+    const rev = months[i] || 0;
+    const pct = Math.min(100, Math.round(rev / maxVal * 100));
+    const targetPct = Math.round(TARGET / maxVal * 100);
+    const isPast = i < curMonth;
+    const isCurrent = i === curMonth;
+    const isFuture = i > curMonth;
+    const barColor = rev >= TARGET ? '#00FF88' :
+                     rev > 0 ? '#FF6B35' : 'rgba(255,255,255,.06)';
+    const glowColor = rev >= TARGET ? 'rgba(0,255,136,.3)' :
+                      rev > 0 ? 'rgba(255,107,53,.3)' : 'none';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative">
+      <!-- Target line -->
+      <div style="position:absolute;bottom:${targetPct}%;left:0;right:0;height:1px;background:rgba(255,255,255,.25);z-index:1"></div>
+      <!-- Bar -->
+      <div style="width:100%;flex:1;display:flex;align-items:flex-end;position:relative">
+        <div style="width:100%;height:${Math.max(pct,2)}%;
+          background:${isFuture?'rgba(255,255,255,.05)':barColor};
+          border-radius:4px 4px 0 0;
+          box-shadow:${rev>0?'0 0 8px '+glowColor:'none'};
+          transition:height .8s ease;
+          position:relative;">
+          ${isCurrent?'<div style="position:absolute;top:-6px;left:0;right:0;height:3px;background:var(--blue);border-radius:99px;box-shadow:0 0 8px var(--blue)"></div>':''}
+        </div>
+      </div>
+      <!-- Amount -->
+      ${rev > 0 ? `<div style="font-size:8px;color:${barColor};font-weight:700;white-space:nowrap">${rev>=1000?'$'+(rev/1000).toFixed(0)+'K':'$'+rev}</div>` : '<div style="font-size:8px;color:transparent">—</div>'}
+      <!-- Label -->
+      <div style="font-size:9px;color:${isCurrent?'var(--blue)':'var(--text-3)'};font-weight:${isCurrent?'700':'400'}">${name}</div>
+    </div>`;
+  }).join('');
 }
 
 // ---- SCENE 3: LEADERBOARD ----
 function updateS3() {
-  const kpi = state.kpi;
+  const kpi = state.kpi.filter(r => {
+    const name = r[CONFIG.KPI_COLS.name]||'';
+    return name && !name.startsWith('job_') && !name.startsWith('pro_');
+  });
+
+  if (!kpi.length) {
+    el('lb-revenue').innerHTML = '<div style="padding:24px;color:var(--text-3);text-align:center">No data yet</div>';
+    el('lb-conv').innerHTML = '<div style="padding:24px;color:var(--text-3);text-align:center">No data yet</div>';
+    return;
+  }
 
   // Revenue leaderboard
   const byRev = [...kpi].sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]));
@@ -1532,7 +1704,10 @@ function updateS3() {
 
 // ---- SCENE 4: LIVE PERFORMANCE ----
 function updateS4() {
-  const kpi = state.kpi.slice(0, 8);
+  const kpi = state.kpi.filter(r => {
+    const name = r[CONFIG.KPI_COLS.name]||'';
+    return name && !name.startsWith('job_') && !name.startsWith('pro_');
+  }).slice(0, 8);
   if (!kpi.length) return;
 
   const labels = kpi.map(r => r[CONFIG.KPI_COLS.name].split(' ')[0]);
@@ -1589,11 +1764,27 @@ function updateS4() {
 let quoteIdx = 0;
 function updateS5() {
   const snap = state.snap;
-  const q = CONFIG.QUOTES[quoteIdx % CONFIG.QUOTES.length];
+  // Use dashboard announcements if available, fall back to built-in quotes
+  const quotes = state.announcements && state.announcements.length
+    ? state.announcements
+    : CONFIG.QUOTES.map(q => ({message: q.q, author: q.a, photoUrl: ''}));
+  const item = quotes[quoteIdx % quotes.length];
   quoteIdx++;
 
-  el('mot-quote').textContent = q.q;
-  el('mot-author').textContent = '— ' + q.a;
+  el('mot-quote').textContent = item.message || item.q || '';
+  el('mot-author').textContent = '— ' + (item.author || item.a || 'Midstate Team');
+
+  // Show photo if available
+  const photoWrap = document.getElementById('mot-photo-wrap');
+  if (photoWrap) {
+    const photoUrl = item.photoUrl ? convertDriveUrl(item.photoUrl) : '';
+    if (photoUrl) {
+      photoWrap.innerHTML = `<img src="${photoUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);margin-bottom:12px" onerror="this.style.display='none'">`;
+      photoWrap.style.display = 'block';
+    } else {
+      photoWrap.style.display = 'none';
+    }
+  }
 
   // Use pre-computed values from dashboard snapshot
   const ytdRev  = num(snap['rev_annual']||0);
@@ -1610,50 +1801,27 @@ let _wtdLastRevenue = 0;
 
 async function updateS6() {
   try {
-    // Use KPI_Scores — no customer data, safe to publish
-    // Filter to rows from today's snapshot date
-    const rows = await fetchCSV(CONFIG.TABS.KPI);
-    const today = new Date().toISOString().split('T')[0];
+    // Use pre-computed rev_daily from dashboard snapshot
+    // Dashboard already computed today's revenue correctly
+    const snap = state.snap;
+    const revenue   = num(snap['rev_daily']||0);
+    const dailyGoalVal = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
+    const goalPct   = Math.min(100, Math.round(revenue / dailyGoalVal * 100));
 
-    // Get today's rows — snapshot date matches today
-    // Fall back to most recent snapshot date if no today rows yet
-    const todayRows = rows.slice(1).filter(r => {
-      if (!r || !r[CONFIG.KPI_COLS.name]) return false;
-      const snapDate = r[CONFIG.KPI_COLS.date] || '';
-      return snapDate.includes(today);
-    });
+    // For jobs/estimates today use KPI scores but don't filter by date
+    // — use paid_jobs and total_jobs from snapshot as proxy
+    const jobs      = num(snap['paid_jobs']||0);
+    const ests      = num(snap['total_estimates']||0);
+    const converted = num(snap['converted_estimates']||0);
+    const avg       = jobs > 0 ? revenue / jobs : 0;
+    const convPct   = ests > 0 ? Math.round(converted / ests * 100) : 0;
 
-    // If no today rows, show zeros — don't fall back to all-time data
-    const useRows = todayRows;
-    if (!useRows.length) {
-      // No today data — show zeros cleanly
-      animCount('wtd-revenue', 0, true);
-      el('wtd-jobs').textContent = '0';
-      el('wtd-avg').textContent = '$0';
-      el('wtd-completed').textContent = '0';
-      el('wtd-ests').textContent = '0';
-      el('wtd-conv').textContent = '—';
-      animCount('wtd-avg2', 0, true);
-      el('wtd-goal-pct').textContent = '0%';
-      el('wtd-goal-fill').style.width = '0%';
-      el('wtd-last-job').style.display = 'none';
-      return;
-    }
-
-    // Sum across all employees
-    const revenue  = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.revenue]), 0);
-    const jobs     = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.completed]), 0);
-    const ests     = useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.estimates]), 0);
-    const converted= useRows.reduce((s,r) => s + num(r[CONFIG.KPI_COLS.converted]), 0);
-    const avg      = jobs > 0 ? revenue / jobs : 0;
-    const convPct  = ests > 0 ? Math.round(converted / ests * 100) : 0;
-    const dailyGoalVal = num(state.snap['goal_daily']||CONFIG.DAILY_GOAL);
-    const goalPct  = Math.min(100, Math.round(revenue / dailyGoalVal * 100));
-
-    // Top performer today
-    const topEmp = [...useRows].sort((a,b) =>
-      num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue])
-    )[0];
+    // Top performer from snapshot
+    const topEmp = snap['top_rev_name'] ? {
+      name: snap['top_rev_name'],
+      revenue: num(snap['top_rev_amount']||0),
+      jobs: jobs
+    } : null;
 
     // Date label
     const now_wtd = new Date();
@@ -1679,13 +1847,14 @@ async function updateS6() {
     animCount('wtd-avg2', avg, true);
     el('wtd-goal-pct').textContent = goalPct + '%';
     el('wtd-goal-fill').style.width = goalPct + '%';
+    addGapToGoalDisplay(revenue);
 
-    // Top performer instead of "most recent job"
+    // Top performer today
     if (topEmp) {
       el('wtd-last-job').style.display = 'block';
-      el('wtd-last-name').textContent = topEmp[CONFIG.KPI_COLS.name];
+      el('wtd-last-name').textContent = topEmp.name || '—';
       el('wtd-last-detail').textContent =
-        `${dollars(num(topEmp[CONFIG.KPI_COLS.revenue]))} · ${num(topEmp[CONFIG.KPI_COLS.completed])} jobs completed`;
+        `${dollars(topEmp.revenue)} revenue · ${topEmp.jobs} jobs`;
     }
 
     // Color hero based on pace
@@ -1755,6 +1924,11 @@ function buildDots() {
 }
 
 function goScene(idx) {
+  // Stop cube timer if leaving S7
+  if (state.currentScene === 6 && idx !== 6) {
+    if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; }
+  }
+
   // Hide all
   SCENES.forEach((id, i) => {
     const s = el(id);
@@ -1775,8 +1949,16 @@ function goScene(idx) {
   // Scene-specific updates
   if (idx === 4) updateS5();
   if (idx === 5) updateS6();
-  if (idx === 6) updateS7();
+  if (idx === 6) { updateS7(); return; } // S7 manages its own timer
   if (idx === 7) updateS8();
+  if (idx === 8) { if(state.wbSettings['weather_enabled']==='true'||state.wbSettings['weather_enabled']===true) updateS9(); else { nextScene(); return; } }
+  if (idx === 9) { if(state.birthdays && state.birthdays.length) updateS10(); else { nextScene(); return; } }
+
+  // Restart global scene timer if it was paused by S7
+  if (!state.sceneTimer) {
+    state.sceneTimer = setInterval(() => { nextScene(); restartProgress(); }, CONFIG.SCENE_MS);
+    restartProgress();
+  }
 }
 
 function nextScene() {
@@ -1856,9 +2038,11 @@ function setStatus(s) {
     item.classList.add('err');
     dot.style.background = 'var(--red)';
     const errMsg = state.error || 'Error';
-    txt.textContent = errMsg.includes('published') 
-      ? '⚠ Publish your Google Sheet: File → Share → Publish to web'
-      : 'Sheet Error: ' + errMsg.slice(0, 60);
+    if (errMsg.includes('403') || errMsg.includes('published') || errMsg.includes('404')) {
+      txt.textContent = '⚠ Publish KPI_Dashboard tab: Google Sheets → File → Share → Publish to web';
+    } else {
+      txt.textContent = 'Sheet Error: ' + errMsg.slice(0, 60);
+    }
   }
 }
 
@@ -1906,6 +2090,9 @@ async function init() {
     updateS6();
     if(state.currentScene===6) updateS7();
     if(state.currentScene===7) updateS8();
+    if(state.currentScene===8) updateS9();
+    if(state.currentScene===9) updateS10();
+    checkVictoryMode();
   }, CONFIG.REFRESH_MS);
 }
 
@@ -1919,6 +2106,14 @@ let _spItems = []; // combined auto + manual items
 let _spRotateTimer = null;
 
 async function loadSpotlightData() {
+  // Load announcements for motivation scene
+  try {
+    const annRows = await fetchCSV('Announcements');
+    state.announcements = annRows.slice(1)
+      .filter(r => r && r[0])
+      .map(r => ({ id:r[0], message:r[1]||'', author:r[2]||'Midstate Team', type:r[3]||'motivation', photoUrl:r[4]||'' }));
+  } catch(e) { state.announcements = []; }
+
   try {
     // Try to load from Sheets (Spotlights tab)
     const rows = await fetchCSV('Spotlights');
@@ -1988,80 +2183,135 @@ function buildSpotlightItems() {
   return items;
 }
 
-function updateS7() {
-  _spItems = buildSpotlightItems();
-  if (!_spItems.length) {
-    el('sp-name').textContent = 'Great work, team!';
-    el('sp-badge').textContent = '⭐ Midstate Plumbing';
-    return;
-  }
-  // Build sub-dots
-  const dotsEl = el('sp-sub-dots');
-  if (dotsEl) {
-    dotsEl.innerHTML = _spItems.map((_,i) =>
-      `<div style="width:7px;height:7px;border-radius:50%;background:${i===_spIdx%_spItems.length?'#f59e0b':'rgba(255,255,255,.2)'};transition:all .4s"></div>`
-    ).join('');
-  }
-  showSpotlight(_spIdx % _spItems.length);
-  // Start sub-rotation within scene
-  if (_spRotateTimer) { clearInterval(_spRotateTimer); _spRotateTimer = null; }
-  if (_spItems.length > 1) {
-    _spRotateTimer = setInterval(() => {
-      _spIdx = (_spIdx + 1) % _spItems.length;
-      showSpotlight(_spIdx);
-      if (dotsEl) {
-        const dots = dotsEl.querySelectorAll('div');
-        dots.forEach((d,i) => d.style.background = i===_spIdx ? '#f59e0b' : 'rgba(255,255,255,.2)');
-      }
-    }, 8000);
-  }
-  // Confetti
-  spawnConfetti();
+// ============================================================
+// SCENE 7 — 3D CUBE SPOTLIGHT ROTATION
+// Loads all spotlight items into cube faces, rotates through them
+// When all spotlights shown, scene advances automatically
+// ============================================================
+let _cubeAngle = 0;      // current Y rotation in degrees
+let _cubeIdx = 0;        // which spotlight is currently showing
+let _cubeTimer = null;   // rotation interval
+let _cubeFaceMap = {};   // which face index holds which spotlight
+
+const CUBE_FACES = ['front','right','back','left'];
+const CUBE_ANGLES = [0, -90, -180, -270]; // Y rotation to show each face
+
+function buildSpotlightFaceHTML(item) {
+  if (!item) return '';
+  const photoSrc = item.photoUrl ? convertDriveUrl(item.photoUrl) : '';
+  const initial = item.name ? item.name.charAt(0).toUpperCase() : '⭐';
+  const autoTag = item.isAuto
+    ? `<div class="spotlight-auto-badge"><span>⚡</span><span>${item.autoLabel||'Auto'}</span></div>` : '';
+  return `
+    <div class="spotlight-photo-wrap" style="flex-shrink:0">
+      ${photoSrc
+        ? `<img src="${photoSrc}" class="spotlight-photo" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ''}
+      <div class="spotlight-initials" style="${photoSrc?'display:none':'display:flex'}">${initial}</div>
+      <div class="spotlight-badge">${item.type||'⭐ Spotlight'}</div>
+    </div>
+    <div class="spotlight-info">
+      ${autoTag}
+      <div class="spotlight-header-label">🏆 Employee Spotlight</div>
+      <div class="spotlight-name">${item.name||'—'}</div>
+      <div style="font-size:14px;color:var(--text-3);margin-top:4px">${item.dept||''}</div>
+      ${item.praise ? `<div class="spotlight-praise">"${item.praise}"</div>` : ''}
+    </div>`;
 }
 
-function showSpotlight(idx) {
-  const item = _spItems[idx];
-  if (!item) return;
+function updateS7() {
+  _spItems = buildSpotlightItems();
 
-  const wrap = el('spotlight-display');
-  if (wrap) wrap.style.opacity = '0';
+  // Clear previous timer
+  if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; }
+
+  // No spotlights — show placeholder
+  if (!_spItems.length) {
+    const face0 = el('cubeFace0');
+    if (face0) face0.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+        <div style="font-size:64px">⭐</div>
+        <div style="font-family:var(--font-display);font-size:36px;color:var(--text-2)">Great Work, Team!</div>
+        <div style="font-size:14px;color:var(--text-3)">Add spotlights in Dashboard → ⭐ Spotlight tab</div>
+      </div>`;
+    el('sp-sub-dots').innerHTML = '';
+    spawnConfetti();
+    return;
+  }
+
+  // Load first spotlight into the flip card
+  _cubeIdx = 0;
+  const face0 = el('cubeFace0');
+  if (face0) face0.innerHTML = buildSpotlightFaceHTML(_spItems[0]);
+
+  // Build dots
+  updateCubeDots();
+  spawnConfetti();
+
+  // If only 1 spotlight — no rotation needed, hold for full scene duration
+  if (_spItems.length === 1) return;
+
+  // Rotate through spotlights — 8s per spotlight
+  // When all shown, advance to next scene
+  _cubeTimer = setInterval(() => {
+    _cubeIdx++;
+
+    if (_cubeIdx >= _spItems.length) {
+      // All spotlights shown — stop timer and advance scene
+      clearInterval(_cubeTimer);
+      _cubeTimer = null;
+      setTimeout(() => nextScene(), 1000);
+      return;
+    }
+
+    // Rotate cube to next face
+    rotateCubeToNext();
+    updateCubeDots();
+  }, 8000);
+
+  // Override scene auto-advance — scene7 controls its own timing
+  overrideSceneTimer();
+}
+
+function rotateCubeToNext() {
+  const card = el('spCube');
+  const face = el('cubeFace0');
+  if (!card || !face) return;
+
+  // Step 1: Rotate card 90deg (face disappears edge-on)
+  card.classList.add('flipping');
+
   setTimeout(() => {
-    el('sp-name').textContent = item.name;
-    el('sp-badge').textContent = item.type;
-    el('sp-dept').textContent = item.dept || '';
+    // Step 2: Swap content while edge-on (invisible moment)
+    face.innerHTML = buildSpotlightFaceHTML(_spItems[_cubeIdx]);
+    updateCubeDots();
+    // Step 3: Rotate back to 0 (new face appears)
+    card.classList.remove('flipping');
+  }, 520); // halfway through 1s transition
+}
 
-    // Photo
-    const photo = el('sp-photo');
-    const initials = el('sp-initials');
-    if (item.photoUrl) {
-      photo.src = convertDriveUrl(item.photoUrl);
-      photo.style.display = 'block';
-      initials.style.display = 'none';
-    } else {
-      photo.style.display = 'none';
-      initials.style.display = 'flex';
-      // Show first letter of name
-      initials.textContent = item.name ? item.name.charAt(0).toUpperCase() : '⭐';
-    }
+function updateCubeDots() {
+  const dotsEl = el('sp-sub-dots');
+  if (!dotsEl || !_spItems.length) return;
+  dotsEl.innerHTML = _spItems.map((item, i) => `
+    <div title="${item.name}" style="
+      width:${i===_cubeIdx?10:7}px;
+      height:${i===_cubeIdx?10:7}px;
+      border-radius:50%;
+      background:${i===_cubeIdx?'#f59e0b':'rgba(255,255,255,.2)'};
+      box-shadow:${i===_cubeIdx?'0 0 8px #f59e0b':'none'};
+      transition:all .4s;
+    "></div>`
+  ).join('');
+}
 
-    // Praise
-    const praiseEl = el('sp-praise');
-    if (item.praise) {
-      praiseEl.textContent = `"${item.praise}"`;
-      praiseEl.style.display = 'block';
-    } else {
-      praiseEl.style.display = 'none';
-    }
-
-    // Auto badge
-    const autoBadge = el('sp-auto-badge');
-    if (autoBadge) {
-      autoBadge.style.display = item.isAuto ? 'inline-flex' : 'none';
-      if (item.isAuto) el('sp-auto-label').textContent = item.autoLabel || 'Auto';
-    }
-
-    if (wrap) { wrap.style.opacity = '1'; wrap.style.transition = 'opacity .6s'; }
-  }, 300);
+let _sceneOverrideTimer = null;
+function overrideSceneTimer() {
+  // Pause the global scene rotation while cube is cycling
+  if (state.sceneTimer) {
+    clearInterval(state.sceneTimer);
+    state.sceneTimer = null;
+  }
 }
 
 function spawnConfetti() {
@@ -2081,33 +2331,425 @@ function spawnConfetti() {
   }
 }
 
+
+
 function updateS8() {
   const container = el('promo-display');
   if (!container) return;
-  const active = _promos.filter(p => {
-    if (!p.end) return true;
-    return p.end >= new Date().toISOString().split('T')[0];
-  });
+  const today = new Date().toISOString().split('T')[0];
+  const active = _promos.filter(p => !p.end || toLocalDate(p.end) >= today);
+
   if (!active.length) {
-    container.innerHTML = `<div style="color:var(--text-3);text-align:center;padding:80px;font-size:16px;grid-column:1/-1">
-      No active promotions — add some in the Dashboard → ⭐ Spotlight tab
+    container.innerHTML = `<div style="
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      height:100%;color:var(--text-3);text-align:center;gap:16px">
+      <div style="font-size:48px">📣</div>
+      <div style="font-family:var(--font-display);font-size:36px">No Active Promotions</div>
+      <div style="font-size:14px">Add promotions in Dashboard → ⭐ Spotlight tab</div>
     </div>`;
+    container.style.display = 'flex';
     return;
   }
+
+  // Scale font sizes based on number of promos
+  const count = active.length;
+  const titleSize  = count === 1 ? '72px' : count === 2 ? '54px' : count <= 4 ? '40px' : '32px';
+  const offerSize  = count === 1 ? '40px' : count === 2 ? '30px' : count <= 4 ? '24px' : '20px';
+  const descSize   = count === 1 ? '20px' : count === 2 ? '16px' : '14px';
+  const padding    = count === 1 ? '52px 60px' : count === 2 ? '36px 48px' : '24px 32px';
+  const cols       = count <= 2 ? '1fr'.repeat(count).split('').join(' ') :
+                     count <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
+
+  container.style.display = 'grid';
+  container.style.gridTemplateColumns = cols;
+  container.style.gap = count === 1 ? '0' : '20px';
+  container.style.alignContent = 'stretch';
+
   container.innerHTML = active.map(p => {
-    const daysLeft = p.end ? Math.ceil((new Date(p.end) - new Date()) / (1000*60*60*24)) : null;
+    const daysLeft = p.end ? Math.ceil((new Date(toLocalDate(p.end)) - new Date(today)) / (1000*60*60*24)) : null;
     const urgent = daysLeft !== null && daysLeft <= 7;
-    return `<div class="promo-card" style="background:linear-gradient(135deg,${p.color}22,${p.color}08);border:1px solid ${p.color}44;color:#fff">
-      ${p.banner?`<img src="${p.banner}" class="promo-banner-img" alt="">`:''}
-      <div class="promo-urgency" style="background:${p.color}33;color:${p.color};border:1px solid ${p.color}44">
-        ${urgent?'🔥 Ending Soon':'📣 Active Promotion'}
+    const col = p.color || '#E8640A';
+    return `<div style="
+        background:linear-gradient(135deg,${col}18,${col}06,rgba(0,0,0,.2));
+        border:2px solid ${col}55;
+        border-radius:20px;
+        padding:${padding};
+        position:relative;
+        overflow:hidden;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        gap:12px;">
+      <!-- Glow accent -->
+      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,transparent,${col},transparent)"></div>
+      <!-- Urgency badge -->
+      <div style="display:inline-flex;align-items:center;gap:8px;width:fit-content;
+        background:${col}25;border:1px solid ${col}55;border-radius:99px;
+        padding:4px 14px;font-size:12px;font-weight:800;color:${col};
+        text-transform:uppercase;letter-spacing:.1em">
+        ${urgent?'🔥 Ending Soon':'📣 Live Now'}
+        ${daysLeft!==null?`<span style="opacity:.7">· ${daysLeft<=0?'Ends today':daysLeft===1?'1 day left':daysLeft+' days'} · ${fmtDate(p.end)}</span>`:''}
       </div>
-      <div class="promo-title-big" style="color:${p.color}">${p.title}</div>
-      ${p.offer?`<div class="promo-offer-text">${p.offer}</div>`:''}
-      ${p.desc?`<div class="promo-desc-text">${p.desc}</div>`:''}
-      ${daysLeft!==null?`<div class="promo-end-text">${daysLeft===0?'⚠ Ends today':daysLeft===1?'⚠ 1 day left':`${daysLeft} days remaining`} · Expires ${p.end}</div>`:''}
+      <!-- Title -->
+      <div style="font-family:var(--font-display);font-size:${titleSize};line-height:1;
+        color:${col};text-shadow:0 0 40px ${col}66;letter-spacing:.02em">
+        ${p.title}
+      </div>
+      <!-- Offer -->
+      ${p.offer?`<div style="font-size:${offerSize};font-weight:800;color:#fff;
+        text-shadow:0 2px 8px rgba(0,0,0,.3);line-height:1.2">
+        ${p.offer}
+      </div>`:''}
+      <!-- Description -->
+      ${p.desc?`<div style="font-size:${descSize};color:rgba(255,255,255,.65);
+        line-height:1.6;max-width:700px">
+        ${p.desc}
+      </div>`:''}
     </div>`;
   }).join('');
+}
+
+// ============================================================
+// LOAD WALLBOARD SETTINGS INTO STATE
+// ============================================================
+async function loadWallboardData() {
+  try {
+    const rows = await fetchCSV('WallboardSettings');
+    const settings = {};
+    rows.slice(1).forEach(r => { if(r[0]) settings[r[0]] = r[1]; });
+    state.wbSettings = settings;
+  } catch(e) { state.wbSettings = {}; }
+  try {
+    const brows = await fetchCSV('Birthdays');
+    state.birthdays = brows.slice(1).filter(r=>r&&r[0]).map(r=>({
+      id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
+    }));
+  } catch(e) { state.birthdays = []; }
+
+  // Apply logo and theme
+  applyWallboardSettings();
+}
+
+function applyWallboardSettings() {
+  const s = state.wbSettings;
+  // Logo in header
+  const logoEl = document.getElementById('header-logo');
+  if(logoEl && s.logo_url) {
+    logoEl.innerHTML = `<img src="${convertDriveUrl(s.logo_url)}" style="height:36px;object-fit:contain;border-radius:6px" onerror="this.style.display='none'">`;
+  }
+  // Theme
+  applyTheme(s.theme || 'default');
+  // Holiday overlay
+  if(s.holiday) applyHolidayOverlay(s.holiday);
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  const themes = {
+    default: { bg:'#050810', blue:'#00D4FF', green:'#00FF88', orange:'#FF6B35' },
+    summer:  { bg:'#070A0E', blue:'#38BDF8', green:'#34D399', orange:'#FB923C' },
+    fall:    { bg:'#0C0800', blue:'#F97316', green:'#A3E635', orange:'#FBBF24' },
+    winter:  { bg:'#04080F', blue:'#93C5FD', green:'#6EE7F7', orange:'#818CF8' },
+    spring:  { bg:'#060B06', blue:'#4ADE80', green:'#86EFAC', orange:'#F472B6' },
+    victory: { bg:'#080600', blue:'#FFD700', green:'#FFD700', orange:'#FFA500' },
+  };
+  const t = themes[theme] || themes.default;
+  root.style.setProperty('--bg', t.bg);
+  root.style.setProperty('--blue', t.blue);
+  root.style.setProperty('--green', t.green);
+  root.style.setProperty('--orange', t.orange);
+
+  if(theme === 'victory') triggerVictoryMode();
+}
+
+function applyHolidayOverlay(holiday) {
+  const overlays = {
+    christmas:    '🎄🎄🎄',
+    halloween:    '🎃👻🕸️',
+    thanksgiving: '🦃🍂',
+    july4:        '🎆🇺🇸🎇',
+    newyear:      '🎆🥂🎉',
+    valentines:   '❤️💕',
+    memorial:     '🇺🇸',
+    labor:        '🛠️'
+  };
+  const emojis = overlays[holiday];
+  if(!emojis) return;
+  let overlay = document.getElementById('holiday-overlay');
+  if(!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'holiday-overlay';
+    overlay.style.cssText = 'position:fixed;top:60px;right:20px;font-size:28px;z-index:50;opacity:.7;pointer-events:none;letter-spacing:4px';
+    document.body.appendChild(overlay);
+  }
+  overlay.textContent = emojis;
+}
+
+// ============================================================
+// VICTORY MODE
+// ============================================================
+let _victoryActive = false;
+function triggerVictoryMode() {
+  if(_victoryActive) return;
+  _victoryActive = true;
+
+  // Golden banner
+  let banner = document.getElementById('victory-banner');
+  if(!banner) {
+    banner = document.createElement('div');
+    banner.id = 'victory-banner';
+    banner.style.cssText = `
+      position:fixed;top:0;left:0;right:0;z-index:200;
+      background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700);
+      color:#000;font-family:var(--font-display);font-size:28px;
+      letter-spacing:.15em;text-align:center;padding:12px;
+      box-shadow:0 0 40px rgba(255,215,0,.6);
+      animation:victorySweep 3s ease-in-out infinite alternate;`;
+    banner.textContent = '🏆 GOAL ACHIEVED — OUTSTANDING WORK, TEAM! 🏆';
+    document.body.appendChild(banner);
+  }
+
+  // Gold confetti rain
+  spawnVictoryConfetti();
+
+  const style = document.createElement('style');
+  style.textContent = `@keyframes victorySweep{from{opacity:.8}to{opacity:1}}`;
+  document.head.appendChild(style);
+
+  // Auto-dismiss after 30s
+  setTimeout(() => {
+    _victoryActive = false;
+    if(banner) banner.remove();
+  }, 30000);
+}
+
+function spawnVictoryConfetti() {
+  for(let i=0;i<50;i++){
+    setTimeout(()=>{
+      const p=document.createElement('div');
+      p.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}%;
+        width:8px;height:8px;border-radius:2px;z-index:199;pointer-events:none;
+        background:${['#FFD700','#FFA500','#fff','#FF6B35'][Math.floor(Math.random()*4)]};
+        animation:confettiFall ${3+Math.random()*3}s linear forwards`;
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(),6000);
+    }, i*100);
+  }
+}
+
+// Check if victory should trigger based on snap data
+function checkVictoryMode() {
+  const snap = state.snap;
+  const monthPct = num(snap['goal_monthly_pct']||0);
+  const annualPct = num(snap['goal_annual_pct']||0);
+  if(monthPct >= 100 || annualPct >= 100) triggerVictoryMode();
+}
+
+// ============================================================
+// SCENE 6 — WIN THE DAY + GAP TO GOAL
+// ============================================================
+// Update Win the Day to include gap pressure display
+function addGapToGoalDisplay(revenue) {
+  const snap = state.wbSettings;
+  const dailyGoal = num(state.snap['goal_daily'] || snap['daily_goal'] || 8219);
+  const openHour  = parseInt(snap['open_hour']  || 7);
+  const closeHour = parseInt(snap['close_hour'] || 17);
+  const now = new Date();
+  const h = now.getHours() + now.getMinutes()/60;
+
+  const gap = Math.max(0, dailyGoal - revenue);
+  const hoursLeft = Math.max(0, closeHour - h);
+  const neededPerHour = hoursLeft > 0 ? gap / hoursLeft : 0;
+  const deadline = `${closeHour > 12 ? closeHour-12 : closeHour}:00 ${closeHour >= 12 ? 'PM' : 'AM'}`;
+
+  const gapEl = document.getElementById('wtd-gap');
+  if(!gapEl) return;
+
+  if(gap <= 0) {
+    gapEl.innerHTML = `<div style="color:var(--green);font-weight:800;font-size:18px">🏆 Daily goal achieved!</div>`;
+  } else if(hoursLeft <= 0) {
+    gapEl.innerHTML = `<div style="color:var(--text-3);font-size:14px">Business hours ended</div>`;
+  } else {
+    gapEl.innerHTML = `
+      <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;font-weight:800;margin-bottom:6px">⚡ Gap to Goal</div>
+      <div style="font-size:24px;font-weight:900;color:var(--orange);text-shadow:0 0 20px rgba(255,107,53,.5)">
+        Need ${dollars(gap)} by ${deadline}
+      </div>
+      <div style="font-size:13px;color:var(--text-3);margin-top:4px">
+        ${dollars(neededPerHour)}/hr needed · ${hoursLeft.toFixed(1)} hrs remaining
+      </div>`;
+  }
+}
+
+// ============================================================
+// SCENE 9 — WEATHER
+// ============================================================
+let _wxData = null;
+let _wxTimer = null;
+
+async function updateS9() {
+  const loc = state.wbSettings['weather_loc'] || 'Hastings,MN';
+  const key = state.wbSettings['weather_key'] || '';
+  const locEl = el('wx-location');
+  if(locEl) locEl.textContent = loc;
+
+  if(!key) {
+    el('wx-desc').textContent = 'Add API key in Dashboard → 🎛 Wallboard';
+    el('wx-temp').textContent = '--°';
+    return;
+  }
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(loc)}&appid=${key}&units=imperial`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Weather API error');
+    const d = await res.json();
+    _wxData = d;
+    renderWeather(d);
+    // Refresh every 10 min
+    if(_wxTimer) clearInterval(_wxTimer);
+    _wxTimer = setInterval(()=>updateS9(), 600000);
+  } catch(e) {
+    el('wx-desc').textContent = 'Weather unavailable';
+    console.warn('Weather error:', e.message);
+  }
+}
+
+function renderWeather(d) {
+  const temp = Math.round(d.main.temp);
+  const feels = Math.round(d.main.feels_like);
+  const humidity = d.main.humidity;
+  const windSpd = Math.round(d.wind.speed);
+  const windDir = degToCompass(d.wind.deg||0);
+  const desc = d.weather[0].description;
+  const code = d.weather[0].id;
+
+  el('wx-temp').textContent = temp + '°F';
+  el('wx-desc').textContent = desc.charAt(0).toUpperCase() + desc.slice(1);
+  el('wx-feels').textContent = `Feels like ${feels}°F`;
+  el('wx-humidity').textContent = humidity + '%';
+  el('wx-wind').textContent = windSpd + ' mph';
+  el('wx-wind-dir').textContent = windDir + ' winds';
+  el('wx-icon').textContent = wxCodeToEmoji(code);
+
+  // Heat index / wind chill
+  const heatIdx = el('wx-heatindex');
+  const heatLbl = el('wx-heatindex-label');
+  if(temp >= 80) {
+    const hi = Math.round(-42.379 + 2.04901523*temp + 10.14333127*humidity - 0.22475541*temp*humidity - 0.00683783*temp*temp - 0.05481717*humidity*humidity + 0.00122874*temp*temp*humidity + 0.00085282*temp*humidity*humidity - 0.00000199*temp*temp*humidity*humidity);
+    heatIdx.textContent = hi + '°F'; heatLbl.textContent = 'Heat index';
+    if(hi >= 103) el('wx-alert').style.display='block', el('wx-alert').textContent='⚠️ HEAT WARNING: ' + hi + '°F heat index';
+  } else if(temp <= 50 && windSpd > 3) {
+    const wc = Math.round(35.74 + 0.6215*temp - 35.75*Math.pow(windSpd,0.16) + 0.4275*temp*Math.pow(windSpd,0.16));
+    heatIdx.textContent = wc + '°F'; heatLbl.textContent = 'Wind chill';
+  } else {
+    heatIdx.textContent = feels + '°F'; heatLbl.textContent = 'Feels like';
+  }
+
+  // HVAC/Plumbing business tip
+  const tip = el('wx-hvac-tip');
+  if(tip) {
+    if(temp >= 90)      tip.textContent = '🔥 High demand day — AC calls likely. Check schedule capacity.';
+    else if(temp >= 80) tip.textContent = '☀️ Warm day — good for AC tune-ups and estimates.';
+    else if(temp <= 20) tip.textContent = '❄️ Extreme cold — watch for frozen pipe and furnace calls.';
+    else if(temp <= 32) tip.textContent = '🌡️ Freezing temps — potential burst pipe and heating calls.';
+    else if(code >= 200 && code < 600) tip.textContent = '🌧️ Precipitation — drainage and sump pump inquiries possible.';
+    else                tip.textContent = '✅ Mild conditions — good day for installs and estimates.';
+  }
+}
+
+function wxCodeToEmoji(code) {
+  if(code >= 200 && code < 300) return '⛈️';
+  if(code >= 300 && code < 400) return '🌦️';
+  if(code >= 500 && code < 600) return '🌧️';
+  if(code >= 600 && code < 700) return '❄️';
+  if(code >= 700 && code < 800) return '🌫️';
+  if(code === 800)               return '☀️';
+  if(code === 801)               return '🌤️';
+  if(code <= 804)                return '☁️';
+  return '🌡️';
+}
+
+function degToCompass(deg) {
+  const dirs=['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round(deg/45)%8];
+}
+
+function dollars(v) {
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[$,]/g,''))||0;
+  if(n>=1000000) return '$'+(n/1000000).toFixed(2)+'M';
+  if(n>=1000)    return '$'+(n/1000).toFixed(1)+'K';
+  return '$'+Math.round(n).toLocaleString();
+}
+
+// ============================================================
+// SCENE 10 — BIRTHDAYS & ANNIVERSARIES
+// ============================================================
+function updateS10() {
+  const container = el('celebration-display');
+  if(!container) return;
+  const today = new Date();
+  const todayMD = `${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
+
+  // Find today's and upcoming celebrations
+  const celebrations = [];
+  (state.birthdays||[]).forEach(b => {
+    const bdayMD = b.birthday ? b.birthday.slice(0,5) : '';
+    const isToday = bdayMD === todayMD;
+    const yearsService = b.startDate ? Math.floor((today-new Date(b.startDate))/31536000000) : null;
+    const isAnniv = b.startDate && new Date(b.startDate).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit'}) === todayMD;
+    if(isToday || isAnniv) celebrations.push({...b, isToday, isAnniv, yearsService});
+  });
+
+  if(!celebrations.length) {
+    // Show upcoming
+    container.innerHTML = `
+      <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px">
+        <div style="font-size:64px">🎉</div>
+        <div style="font-family:var(--font-display);font-size:48px;color:var(--text-2)">Team Celebrations</div>
+        <div style="font-size:16px;color:var(--text-3)">No celebrations today — check back soon!</div>
+        <div style="display:flex;gap:32px;margin-top:16px">
+          ${(state.birthdays||[]).slice(0,4).map(b=>`
+            <div style="text-align:center">
+              ${b.photoUrl?`<img src="${convertDriveUrl(b.photoUrl)}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--purple);margin-bottom:8px">`
+                :`<div style="width:64px;height:64px;border-radius:50%;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px">👤</div>`}
+              <div style="font-size:13px;color:var(--text-2)">${b.name}</div>
+              <div style="font-size:11px;color:var(--text-3)">${b.birthday||'🎂 --'}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Show today's celebrations
+  container.innerHTML = celebrations.map(cel => `
+    <div style="background:linear-gradient(135deg,rgba(236,72,153,.08),rgba(168,85,247,.06));
+      border:2px solid rgba(236,72,153,.3);border-radius:20px;padding:48px;
+      display:flex;align-items:center;gap:48px;margin-bottom:16px">
+      <div style="font-size:80px;animation:pulse 1s ease-in-out infinite alternate">
+        ${cel.isAnniv && cel.yearsService ? '🏆' : '🎂'}
+      </div>
+      ${cel.photoUrl?`<img src="${convertDriveUrl(cel.photoUrl)}" style="width:140px;height:140px;border-radius:50%;object-fit:cover;border:4px solid #EC4899;box-shadow:0 0 30px rgba(236,72,153,.4)">`
+        :`<div style="width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,#EC4899,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:56px">🎉</div>`}
+      <div style="flex:1">
+        <div style="font-size:14px;color:#EC4899;text-transform:uppercase;letter-spacing:.15em;font-weight:800;margin-bottom:8px">
+          ${cel.isAnniv ? `🏆 Work Anniversary` : '🎂 Birthday Today!'}
+        </div>
+        <div style="font-family:var(--font-display);font-size:64px;line-height:1;
+          background:linear-gradient(135deg,#fff,#EC4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          ${cel.name}
+        </div>
+        ${cel.isAnniv && cel.yearsService ? `
+          <div style="font-size:28px;font-weight:800;color:#FFD700;margin-top:12px;text-shadow:0 0 20px rgba(255,215,0,.4)">
+            ${cel.yearsService} Year${cel.yearsService!==1?'s':''} with Midstate! 🎉
+          </div>` : `
+          <div style="font-size:20px;color:var(--text-2);margin-top:12px">
+            Wishing you a wonderful birthday from the whole team!
+          </div>`}
+      </div>
+    </div>`).join('');
+
+  // Spawn confetti for celebrations
+  spawnConfetti();
 }
 
 // ============================================================
