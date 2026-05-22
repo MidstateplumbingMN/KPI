@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v16.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v16.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v16.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v16.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1272,6 +1272,16 @@ let _jobs=[], _estimates=[], _employees=[], _plans=[];
 let _attr = {};
 const INSTALLER_IDS = new Set(); // populated from employee list by name
 const INSTALLER_NAMES = ['Andy Mitchell','Gannon Blaiser'];
+
+// GitHub-hosted technician photos
+const GITHUB_PHOTOS = {
+  'Doug McNamara':   'https://midstateplumbingmn.github.io/KPI/images/Doug.JPG',
+  'Eric Stoffel':    'https://midstateplumbingmn.github.io/KPI/images/Eric.JPG',
+  'Gannon Blaiser':  'https://midstateplumbingmn.github.io/KPI/images/Gannon.JPG',
+  'Gordon Radant':   'https://midstateplumbingmn.github.io/KPI/images/Gordy.jpg',
+  'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg',
+  'Lukas Schlosser': 'https://midstateplumbingmn.github.io/KPI/images/Lukas.JPG',
+};
 // Gannon became an installer ~30 days ago — his pre-transition sales still count
 // Jobs/estimates BEFORE his transition date credit him as seller
 const GANNON_TRANSITION = new Date();
