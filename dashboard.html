@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.1</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -644,6 +644,7 @@ tr:hover td{background:#fafafa}
     <!-- GOALS -->
     <div class="panel" id="tab-goals">
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
+        <button onclick="syncGoalsToSheet(this)" style="font-size:12px;padding:5px 14px;border:1px solid #059669;border-radius:5px;background:#059669;color:#fff;cursor:pointer;font-weight:600">📊 Sync Goals to Sheet</button>
         <button onclick="printGoals()" style="font-size:12px;padding:5px 14px;border:1px solid #1A3A5C;border-radius:5px;background:#1A3A5C;color:#fff;cursor:pointer;font-weight:600">🖨 Print Goals</button>
       </div>
       <div id="goalsContent"></div>
@@ -3530,6 +3531,10 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     top_rev_amount: Math.round(topEmpRev?.revenue||0),
     top_conv_name: topEmpConv?.name||'',
     top_conv_pct: topEmpConv?Math.round(topEmpConv.converted/topEmpConv.estimates*100):0,
+
+    // Holidays and birthdays — embedded so companion reads from KPI_Dashboard tab
+    holidays: (_holidays||[]).filter(h=>h.enabled),
+    birthdays: _bdayList||[],
     weather: _weatherSnap,
   };
 
@@ -4129,6 +4134,89 @@ function printKPI(){
   win.document.close();
 }
 
+
+async function syncGoalsToSheet(btn){
+  if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); return; }
+  const orig = btn.textContent;
+  btn.textContent = '⏳ Syncing...'; btn.disabled = true;
+
+  // Build the complete goals payload matching what's shown on the Goals tab
+  const paidJobs = _jobs.filter(isJobPaid);
+  const totalRev = paidJobs.reduce((s,j)=>s+getJobRevenue(j),0);
+  const convEsts = _estimates.filter(isConv);
+
+  const goals = {
+    pull_date:        new Date().toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}),
+    date_from:        $$('dateFrom')?.value||'',
+    date_to:          $$('dateTo')?.value||'',
+
+    // Annual
+    rev_annual:       getRevenueForPeriod('year'),
+    goal_annual:      ANNUAL_GOAL,
+    pct_annual:       Math.round(getRevenueForPeriod('year')/ANNUAL_GOAL*100),
+    projected_annual: (() => {
+      const now=new Date(); const day=Math.ceil((now-new Date(now.getFullYear(),0,1))/(864e5));
+      return day>0?Math.round(getRevenueForPeriod('year')/day*365):0;
+    })(),
+
+    // Quarterly
+    rev_quarterly:    getRevenueForPeriod('quarter'),
+    goal_quarterly:   750000,
+    pct_quarterly:    Math.round(getRevenueForPeriod('quarter')/750000*100),
+
+    // Monthly
+    rev_monthly:      getRevenueForPeriod('month'),
+    goal_monthly:     250000,
+    pct_monthly:      Math.round(getRevenueForPeriod('month')/250000*100),
+
+    // Weekly
+    rev_weekly:       getRevenueForPeriod('week'),
+    goal_weekly:      57692,
+    pct_weekly:       Math.round(getRevenueForPeriod('week')/57692*100),
+
+    // Daily
+    rev_daily:        getRevenueForPeriod('day'),
+    goal_daily:       8219,
+    pct_daily:        Math.round(getRevenueForPeriod('day')/8219*100),
+
+    // Jobs & estimates
+    total_jobs:       _jobs.length,
+    paid_jobs:        paidJobs.length,
+    total_revenue:    totalRev,
+    outstanding:      _jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)).reduce((s,j)=>s+getJobTotal(j),0),
+    total_estimates:  _estimates.length,
+    converted:        convEsts.length,
+    conversion_pct:   _estimates.length?Math.round(convEsts.length/_estimates.length*100):0,
+    avg_job:          paidJobs.length?Math.round(totalRev/paidJobs.length):0,
+
+    // Monthly breakdown
+    monthly_revenue:  Array.from({length:12},(_,i)=>{
+      return _jobs.filter(isJobPaid).reduce((s,j)=>{
+        const d=new Date(j.work_timestamps?.completed_at||j.completed_at||j.created_at);
+        return d.getMonth()===i&&d.getFullYear()===new Date().getFullYear()?s+getJobRevenue(j):s;
+      },0);
+    }).map(Math.round),
+  };
+
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action: 'syncGoals', goals })
+    });
+    const data = await res.json();
+    if(data.success){
+      btn.textContent = '✅ Synced!';
+      btn.style.background = '#047857';
+      showToast('✅ Goals synced to Sheets','success');
+    } else {
+      throw new Error(data.error||'Failed');
+    }
+  } catch(e) {
+    showToast('Sync failed: '+e.message,'error');
+    btn.textContent = orig;
+  }
+  setTimeout(()=>{ btn.textContent=orig; btn.style.background='#059669'; btn.disabled=false; },3000);
+}
 
 function printGoals(){
   const content=$$('goalsContent');
