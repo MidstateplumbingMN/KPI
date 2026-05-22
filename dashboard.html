@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v14.8</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v15.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v14.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v15.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -506,6 +506,8 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="ty" onclick="showTab('ty')">💌 Thank You Cards</button>
       <button class="tab" data-tab="plans" onclick="showTab('plans')">🛡 Service Plans</button>
       <button class="tab" data-tab="spotlight" onclick="showTab('spotlight')">⭐ Employee Spotlight</button>
+      <button class="tab" data-tab="announcements" onclick="showTab('announcements')">💬 Announcements</button>
+      <button class="tab" data-tab="wallboard" onclick="showTab('wallboard')">🎛 Wallboard</button>
       <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
     </div>
@@ -1064,6 +1066,186 @@ tr:hover td{background:#fafafa}
 
     </div>
 
+
+    <!-- WALLBOARD SETTINGS -->
+    <div class="panel" id="tab-wallboard">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+
+        <!-- COLUMN 1: Branding & Theme -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="sec-head" style="margin:0">🎨 Branding &amp; Theme</div>
+
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Company Logo</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Logo URL (Google Drive or direct)</div>
+            <input type="text" id="wb-logo-url" placeholder="https://drive.google.com/file/d/..."
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px"
+              oninput="previewWbLogo(this.value)">
+            <div id="wb-logo-preview" style="display:none;margin-bottom:8px">
+              <img id="wb-logo-img" style="height:48px;object-fit:contain;border-radius:6px" alt="Logo preview">
+            </div>
+          </div>
+
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Seasonal Theme</div>
+            <select id="wb-theme" onchange="saveWbSetting('theme',this.value)"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;margin-bottom:8px">
+              <option value="default">🌑 Default Dark</option>
+              <option value="summer">☀️ Summer</option>
+              <option value="fall">🍂 Fall</option>
+              <option value="winter">❄️ Winter</option>
+              <option value="spring">🌸 Spring</option>
+              <option value="victory">🏆 Victory Mode</option>
+            </select>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Holiday Overlay</div>
+            <select id="wb-holiday" onchange="saveWbSetting('holiday',this.value)"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
+              <option value="">None</option>
+              <option value="newyear">🎆 New Year</option>
+              <option value="valentines">❤️ Valentine's Day</option>
+              <option value="memorial">🇺🇸 Memorial Day</option>
+              <option value="july4">🎆 Fourth of July</option>
+              <option value="labor">🛠️ Labor Day</option>
+              <option value="halloween">🎃 Halloween</option>
+              <option value="thanksgiving">🦃 Thanksgiving</option>
+              <option value="christmas">🎄 Christmas</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- COLUMN 2: Weather & Gap to Goal -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="sec-head" style="margin:0">🌤 Weather &amp; Gap to Goal</div>
+
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Weather Location</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
+            <input type="text" id="wb-weather-loc" placeholder="Hastings, MN"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">OpenWeather API Key <span style="color:#9ca3af">(free at openweathermap.org)</span></div>
+            <input type="text" id="wb-weather-key" placeholder="your API key"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-bottom:6px">
+              <input type="checkbox" id="wb-weather-enabled" onchange="saveWbSetting('weatherEnabled',this.checked)">
+              Show weather scene on companion
+            </label>
+            <button onclick="saveWeatherSettings()"
+              style="width:100%;padding:7px;background:#0EA5E9;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+              💾 Save Weather Settings
+            </button>
+          </div>
+
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Gap to Goal Settings</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Daily revenue goal ($)</div>
+            <input type="number" id="wb-daily-goal" placeholder="8219"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Business hours</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+              <select id="wb-open-hour" style="font-size:12px;padding:6px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
+                <option value="7">7:00 AM</option><option value="8">8:00 AM</option><option value="9">9:00 AM</option>
+              </select>
+              <select id="wb-close-hour" style="font-size:12px;padding:6px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
+                <option value="17">5:00 PM</option><option value="18">6:00 PM</option><option value="19">7:00 PM</option>
+              </select>
+            </div>
+            <button onclick="saveGapSettings()"
+              style="width:100%;padding:7px;background:#F59E0B;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+              💾 Save Gap Settings
+            </button>
+          </div>
+        </div>
+
+        <!-- COLUMN 3: Birthdays & Anniversaries -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="sec-head" style="margin:0">🎂 Birthdays &amp; Anniversaries</div>
+
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Add Team Member</div>
+            <input type="text" id="bday-name" placeholder="Employee name"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:6px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+              <div>
+                <div style="font-size:10px;color:#6b7280;margin-bottom:3px">Birthday (MM/DD)</div>
+                <input type="text" id="bday-bday" placeholder="05/21"
+                  style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+              </div>
+              <div>
+                <div style="font-size:10px;color:#6b7280;margin-bottom:3px">Start date (MM/DD/YYYY)</div>
+                <input type="text" id="bday-start" placeholder="03/15/2020"
+                  style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+              </div>
+            </div>
+            <input type="text" id="bday-photo" placeholder="Photo URL (optional)"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <button onclick="addBirthdayEntry()"
+              style="width:100%;padding:7px;background:#EC4899;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+              🎂 Add Team Member
+            </button>
+          </div>
+
+          <div id="bdayList" style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:280px"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ANNOUNCEMENTS -->
+    <div class="panel" id="tab-announcements">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;height:100%">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div class="sec-head" style="margin:0">💬 Motivation &amp; Announcements</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Shown on companion wallboard motivation scene</div>
+          </div>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px">
+            <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:14px">✨ Add Announcement</div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Message / Quote</div>
+              <textarea id="ann-message" rows="3" placeholder="e.g. Show up. Do the work. Earn the trust."
+                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit"></textarea>
+            </div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Author / Source <span style="color:#9ca3af">(optional)</span></div>
+              <input type="text" id="ann-author" placeholder="e.g. Cory Hanson"
+                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px">
+            </div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Photo URL <span style="color:#9ca3af">(optional)</span></div>
+              <input type="text" id="ann-photo" placeholder="https://drive.google.com/file/d/..."
+                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px"
+                oninput="previewAnnPhoto(this.value)">
+              <div id="ann-photo-preview" style="display:none;margin-top:8px">
+                <img id="ann-photo-img" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #8B5CF6" alt="">
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Type</div>
+              <select id="ann-type" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
+                <option value="motivation">💪 Motivation</option>
+                <option value="announcement">📢 Announcement</option>
+                <option value="achievement">🏆 Achievement</option>
+                <option value="reminder">🔔 Reminder</option>
+              </select>
+            </div>
+            <button onclick="submitAnnouncement()"
+              style="width:100%;padding:9px;background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;border:none;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer">
+              💬 Post to Wallboard
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="sec-head" style="margin:0">Active Announcements</div>
+            <span style="font-size:11px;color:#9ca3af" id="annCount">0 items</span>
+          </div>
+          <div id="annList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+            <div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No announcements yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- DEBUG -->
     <div class="panel" id="tab-debug">
       <p style="font-size:12px;color:#6b7280;margin-top:0">Raw API responses for field name reference.</p>
@@ -1302,6 +1484,19 @@ function fmtDY(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('e
 function fmtKey(d){if(!d)return null;try{const dt=new Date(d);if(isNaN(dt))return null;return dt.toISOString().split('T')[0];}catch(e){return null;}}
 function $$(id){return document.getElementById(id);}
 function centsToD(n){const v=parseFloat(n)||0;return v>500?v/100:v;}
+function toLocalDateDB(val){
+  if(!val) return '';
+  const d=new Date(val);
+  if(isNaN(d)) return String(val).slice(0,10);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDateDB(val){
+  if(!val) return '';
+  const d=new Date(val);
+  if(isNaN(d)) return String(val).slice(0,10);
+  return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function getJobTotal(j){return centsToD(j.total_amount??j.invoice_total??0);}
 function getEstTotal(e){
@@ -1627,6 +1822,8 @@ function showTab(t){
   if(t==='unpaid') renderUnpaid();
   if(t==='goals') renderGoals();
   if(t==='spotlight'){ loadSpotlights(); populateSlEmpDropdown(); }
+  if(t==='announcements'){ loadAnnouncements(); }
+  if(t==='wallboard'){ loadWallboardSettings(); }
   if(t==='promos'){ loadSpotlights(); }
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
@@ -1833,6 +2030,10 @@ async function loadAll(){
     $$('refreshAllBtn').style.display='';
     loadTYCards();
     loadSpotlights();
+    loadAnnouncements();
+    // Load wallboard settings silently (not tab-specific)
+    try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
+    try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
   }catch(e){
@@ -3159,7 +3360,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dayOfYear_snap=Math.ceil((now_snap-new Date(now_snap.getFullYear(),0,1))/(1000*60*60*24));
   const outstandingJobs_snap=jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)&&!isJobCanceled(j));
   const totalOutstanding_snap=outstandingJobs_snap.reduce((s,j)=>s+getJobTotal(j),0);
-  const projectedAnnual_snap=dayOfYear_snap>0?totalRev/dayOfYear_snap*365:0;
+  // Pace uses YTD revenue — always use annual revenue for accurate projection
+  const ytdRevForPace = getRevenueForPeriod('year');
+  const projectedAnnual_snap=dayOfYear_snap>0?(ytdRevForPace||totalRev)/dayOfYear_snap*365:0;
   const annualGoal_snap=ANNUAL_GOAL;
 
   // Period revenues
@@ -3200,6 +3403,20 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     rev_monthly: revMonthly,
     rev_weekly: revWeekly,
     rev_daily: revDaily,
+
+    // Monthly breakdown for companion bar chart
+    monthly_revenue: (() => {
+      const months = {};
+      const yr = now_snap.getFullYear();
+      _jobs.filter(isJobPaid).forEach(j => {
+        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at);
+        if(d.getFullYear()===yr){
+          const m = d.getMonth(); // 0-11
+          months[m] = (months[m]||0) + getJobRevenue(j);
+        }
+      });
+      return Array.from({length:12},(_,i)=>Math.round(months[i]||0));
+    })(),
 
     // Goals
     goal_annual: annualGoal_snap,
@@ -3248,6 +3465,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       attribution:attrPayload,
       summary,
       dashboardSnapshot,
+      announcements: _announcements||[],
+      wallboardSettings: _wbSettings||{},
+      birthdays: _bdayList||[],
     });
     const res=await fetch(PROXY,{
       method:'POST',
@@ -3301,8 +3521,13 @@ function getRevenueForPeriod(period){
     return paidJobs.filter(j=>jobDate(j)>=startOfWeek).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   if(period==='day'){
-    const today=now.toISOString().split('T')[0];
-    return paidJobs.filter(j=>jobDate(j).toISOString().split('T')[0]===today).reduce((s,j)=>s+getJobRevenue(j),0);
+    // Use local date comparison to avoid UTC timezone offset issues
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    return paidJobs.filter(j=>{
+      const d = jobDate(j);
+      const dLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      return dLocal === todayLocal;
+    }).reduce((s,j)=>s+getJobRevenue(j),0);
   }
   return 0;
 }
@@ -4392,18 +4617,24 @@ async function pushToCompanion(){
       const from=$$('dateFrom')?.value||'';
       const to=$$('dateTo')?.value||'';
 
-      // Sync report data AND spotlights/promos in parallel
+      // Sync report data AND spotlights/promos/announcements in parallel
       await Promise.all([
         syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to),
-        // Always push spotlights & promos so companion stays current
         _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',
-          headers:{'Content-Type':'text/plain'},
+          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
           body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
+        }).catch(()=>{}) : Promise.resolve(),
+        _sheetsProxy ? fetch(_sheetsProxy,{
+          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+          body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements||[]})
+        }).catch(()=>{}) : Promise.resolve(),
+        _sheetsProxy ? fetch(_sheetsProxy,{
+          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+          body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings||{},birthdays:_bdayList||[]})
         }).catch(()=>{}) : Promise.resolve()
       ]);
 
-      $$('statusBar').textContent='✅ Companion updated — data + spotlights + promotions pushed';
+      $$('statusBar').textContent='✅ Companion updated — data + spotlights + promotions + announcements pushed';
       btn.textContent='✅ Pushed!';
       btn.style.cssText='background:#059669;color:#fff;border:none';
       setTimeout(()=>{
@@ -4475,6 +4706,199 @@ let _promos = [];
 // ============================================================
 // SPOTLIGHT & PROMOTIONS — unified system
 // ============================================================
+// ============================================================
+// ANNOUNCEMENTS — motivation quotes with photos
+// ============================================================
+let _announcements = [];
+
+// ============================================================
+// WALLBOARD SETTINGS
+// ============================================================
+let _wbSettings = {};
+let _bdayList = [];
+
+function loadWallboardSettings(){
+  try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
+  try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
+  // Restore form values
+  if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'';
+  if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
+  if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
+  if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'Hastings, MN';
+  if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'';
+  if($$('wb-weather-enabled')) $$('wb-weather-enabled').checked = !!_wbSettings.weatherEnabled;
+  if($$('wb-daily-goal'))    $$('wb-daily-goal').value     = _wbSettings.dailyGoal||8219;
+  if($$('wb-open-hour'))     $$('wb-open-hour').value      = _wbSettings.openHour||7;
+  if($$('wb-close-hour'))    $$('wb-close-hour').value     = _wbSettings.closeHour||17;
+  if(_wbSettings.logoUrl)    previewWbLogo(_wbSettings.logoUrl);
+  renderBdayList();
+  // Fetch from Sheets
+  if(_sheetsProxy){
+    fetch(_sheetsProxy+'?action=getWallboardSettings',{redirect:'follow'})
+      .then(r=>r.json())
+      .then(d=>{
+        if(d.success){
+          if(d.settings)  { _wbSettings=d.settings; }
+          if(d.birthdays) { _bdayList=d.birthdays; try{localStorage.setItem('hcp_bday_list',JSON.stringify(_bdayList));}catch(e){} renderBdayList(); }
+        }
+      }).catch(()=>{});
+  }
+}
+
+function saveWbSetting(key, val){
+  _wbSettings[key]=val;
+  try{localStorage.setItem('hcp_wb_settings',JSON.stringify(_wbSettings));}catch(e){}
+}
+
+function previewWbLogo(url){
+  const preview=$$('wb-logo-preview');
+  const img=$$('wb-logo-img');
+  if(!preview||!img) return;
+  const converted=convertGoogleDriveUrl(url)||url;
+  if(converted){ img.src=converted; img.onload=()=>preview.style.display='block'; img.onerror=()=>preview.style.display='none'; }
+  else preview.style.display='none';
+}
+
+function saveWeatherSettings(){
+  _wbSettings.weatherLoc=$$('wb-weather-loc')?.value?.trim()||'Hastings, MN';
+  _wbSettings.weatherKey=$$('wb-weather-key')?.value?.trim()||'';
+  _wbSettings.weatherEnabled=$$('wb-weather-enabled')?.checked||false;
+  _wbSettings.logoUrl=convertGoogleDriveUrl($$('wb-logo-url')?.value?.trim()||'')||$$('wb-logo-url')?.value?.trim()||'';
+  _wbSettings.theme=$$('wb-theme')?.value||'default';
+  _wbSettings.holiday=$$('wb-holiday')?.value||'';
+  saveWallboardSettingsToSheets();
+  showToast('✅ Weather settings saved','success');
+}
+
+function saveGapSettings(){
+  _wbSettings.dailyGoal=parseInt($$('wb-daily-goal')?.value||8219);
+  _wbSettings.openHour=parseInt($$('wb-open-hour')?.value||7);
+  _wbSettings.closeHour=parseInt($$('wb-close-hour')?.value||17);
+  saveWallboardSettingsToSheets();
+  showToast('✅ Gap to Goal settings saved','success');
+}
+
+function saveWallboardSettingsToSheets(){
+  try{localStorage.setItem('hcp_wb_settings',JSON.stringify(_wbSettings));}catch(e){}
+  if(_sheetsProxy){
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList})
+    }).then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Wallboard settings synced','success'); }).catch(()=>{});
+  }
+}
+
+function addBirthdayEntry(){
+  const name=$$('bday-name')?.value?.trim();
+  const bday=$$('bday-bday')?.value?.trim();
+  const start=$$('bday-start')?.value?.trim();
+  const photo=convertGoogleDriveUrl($$('bday-photo')?.value?.trim()||'')||'';
+  if(!name){ showToast('Please enter a name','error'); return; }
+  _bdayList.push({ id:Date.now(), name, birthday:bday||'', startDate:start||'', photoUrl:photo });
+  saveWallboardSettingsToSheets();
+  renderBdayList();
+  ['bday-name','bday-bday','bday-start','bday-photo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  showToast('🎂 Team member added!','success');
+}
+
+function deleteBdayEntry(id){
+  _bdayList=_bdayList.filter(b=>b.id!==id);
+  saveWallboardSettingsToSheets(); renderBdayList();
+}
+
+function renderBdayList(){
+  const el=$$('bdayList');
+  if(!el) return;
+  if(!_bdayList.length){ el.innerHTML='<div style="text-align:center;padding:12px;color:#9ca3af;font-size:12px">No team members added yet.</div>'; return; }
+  const today=new Date();
+  el.innerHTML=_bdayList.map(b=>{
+    const isBdayToday = b.birthday && new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit'})===b.birthday.slice(0,5);
+    const yearsService = b.startDate ? Math.floor((today-new Date(b.startDate))/31536000000) : null;
+    return `<div style="background:#fff;border:1px solid ${isBdayToday?'#EC4899':'#e5e7eb'};border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px">
+      ${b.photoUrl?`<img src="${b.photoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        :`<div style="width:36px;height:36px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${isBdayToday?'🎂':'👤'}</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:12px;color:#111827">${b.name} ${isBdayToday?'🎂 Today!':''}</div>
+        <div style="font-size:10px;color:#6b7280">${b.birthday?'🎂 '+b.birthday:''}${b.startDate?' · 📅 '+yearsService+'yr':''}  </div>
+      </div>
+      <button onclick="deleteBdayEntry(${b.id})" style="font-size:14px;background:none;border:none;cursor:pointer;color:#9ca3af">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function loadAnnouncements(){
+  try{ _announcements=JSON.parse(localStorage.getItem('hcp_announcements')||'[]'); }catch(e){ _announcements=[]; }
+  renderAnnList();
+  if(_sheetsProxy){
+    fetch(_sheetsProxy+'?action=getAnnouncements',{redirect:'follow'})
+      .then(r=>r.json())
+      .then(d=>{ if(d.success&&d.announcements){ _announcements=d.announcements; try{localStorage.setItem('hcp_announcements',JSON.stringify(_announcements));}catch(e){} renderAnnList(); }})
+      .catch(()=>{});
+  }
+}
+
+function saveAnnouncements(){
+  try{localStorage.setItem('hcp_announcements',JSON.stringify(_announcements));}catch(e){}
+  if(_sheetsProxy){
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements})})
+    .then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Announcements synced to companion','success'); }).catch(()=>{});
+  }
+}
+
+function previewAnnPhoto(url){
+  const preview=$$('ann-photo-preview');
+  const img=$$('ann-photo-img');
+  if(!preview||!img) return;
+  const converted=convertGoogleDriveUrl(url);
+  if(converted){ img.src=converted; img.onload=()=>preview.style.display='block'; img.onerror=()=>preview.style.display='none'; }
+  else preview.style.display='none';
+}
+
+function submitAnnouncement(){
+  const message=$$('ann-message')?.value?.trim();
+  const author=$$('ann-author')?.value?.trim()||'Midstate Team';
+  const photoRaw=$$('ann-photo')?.value?.trim()||'';
+  const type=$$('ann-type')?.value||'motivation';
+  if(!message){ showToast('Please enter a message.','error'); return; }
+  const ann={
+    id:Date.now(), message, author, type,
+    photoUrl:convertGoogleDriveUrl(photoRaw)||'',
+    createdAt:new Date().toISOString()
+  };
+  _announcements.unshift(ann);
+  saveAnnouncements();
+  renderAnnList();
+  ['ann-message','ann-author','ann-photo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  $$('ann-photo-preview').style.display='none';
+  showToast('💬 Announcement posted!','success');
+}
+
+function deleteAnnouncement(id){
+  if(!confirm('Remove this announcement?')) return;
+  _announcements=_announcements.filter(a=>a.id!==id);
+  saveAnnouncements(); renderAnnList();
+  showToast('Announcement removed','warning');
+}
+
+function renderAnnList(){
+  const el=$$('annList');
+  if(!el) return;
+  const countEl=$$('annCount');
+  if(countEl) countEl.textContent=`${_announcements.length} item${_announcements.length!==1?'s':''}`;
+  if(!_announcements.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No announcements yet.</div>'; return; }
+  const icons={'motivation':'💪','announcement':'📢','achievement':'🏆','reminder':'🔔'};
+  el.innerHTML=_announcements.map(a=>`
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:10px">
+      ${a.photoUrl?`<img src="${a.photoUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid #8B5CF6;flex-shrink:0">`
+        :`<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${icons[a.type]||'💬'}</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:#111827;line-height:1.4">"${a.message}"</div>
+        <div style="font-size:11px;color:#8B5CF6;margin-top:3px">— ${a.author}</div>
+      </div>
+      <button onclick="deleteAnnouncement(${a.id})" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:2px;flex-shrink:0">✕</button>
+    </div>`).join('');
+}
+
 function loadSpotlights(){
   // Load from localStorage first (instant)
   try{ _spotlights=JSON.parse(localStorage.getItem('hcp_spotlights')||'[]'); }catch(e){ _spotlights=[]; }
@@ -4700,7 +5124,8 @@ function deletePromo(id){
 function renderPromoList(){
   const el=document.getElementById('promoList')||document.getElementById('promos-list');
   if(!el) return;
-  const active=_promos.filter(p=>!p.end||p.end>=new Date().toISOString().split('T')[0]);
+  const today=new Date().toISOString().split('T')[0];
+  const active=_promos.filter(p=>!p.end||toLocalDateDB(p.end)>=today);
   const countEl=document.getElementById('promoCount');
   if(countEl) countEl.textContent=`${active.length} active`;
   if(!_promos.length){
@@ -4708,14 +5133,15 @@ function renderPromoList(){
     return;
   }
   el.innerHTML=_promos.map(p=>{
-    const expired=p.end&&p.end<new Date().toISOString().split('T')[0];
+    const today2=new Date().toISOString().split('T')[0];
+    const expired=p.end&&toLocalDateDB(p.end)<today2;
     return`<div style="background:#fff;border:1px solid ${expired?'#e5e7eb':p.color+'44'};border-left:3px solid ${expired?'#9ca3af':p.color};border-radius:10px;padding:12px;${expired?'opacity:.6':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1">
           <div style="font-weight:700;color:#111827;font-size:13px">${p.title} ${expired?'<span style="font-size:10px;color:#9ca3af">(expired)</span>':''}</div>
           ${p.offer?`<div style="font-size:12px;font-weight:700;color:${p.color};margin-top:2px">${p.offer}</div>`:''}
           ${p.desc?`<div style="font-size:11px;color:#6b7280;margin-top:3px">${p.desc}</div>`:''}
-          ${p.end?`<div style="font-size:10px;color:#9ca3af;margin-top:3px">Ends ${p.end}</div>`:''}
+          ${p.end?`<div style="font-size:10px;color:#9ca3af;margin-top:3px">Ends ${fmtDateDB(p.end)}</div>`:''}
         </div>
         <button onclick="deletePromo(${p.id})" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px;flex-shrink:0">✕</button>
       </div>
