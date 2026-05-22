@@ -178,7 +178,7 @@ html, body {
 
 .scene {
   position: absolute; inset: 0;
-  padding: 28px 40px 20px;
+  padding: 28px 40px 64px;
   display: none;
   opacity: 0;
   transition: opacity .8s ease;
@@ -201,7 +201,7 @@ html, body {
 
 /* ---- PROGRESS BAR ---- */
 .progress-bar {
-  position: fixed; bottom: 44px; left: 0;
+  position: fixed; bottom: 46px; left: 0;
   height: 3px;
   background: linear-gradient(90deg, var(--blue), var(--purple));
   width: 0%;
@@ -687,7 +687,7 @@ html, body {
 }
 
 /* ---- STATUS BAR ---- */
-.status-bar {/* ---- STATUS BAR ---- */
+/* ---- STATUS BAR ---- */
 .status-bar {
   display: flex; align-items: center; gap: 16px;
   padding: 8px 40px;
@@ -1532,6 +1532,19 @@ function showNoDataState() {
     document.querySelector('.scenes').appendChild(w);
   }
   w.style.display = 'flex';
+
+  // Clear ring charts so they don't show stale data
+  Object.keys(state.rings).forEach(k => {
+    try {
+      state.rings[k].data.datasets[0].data = [0, 100];
+      state.rings[k].update('none');
+    } catch(e) {}
+  });
+  // Reset ring labels
+  ['ring-rev-pct','ring-conv-pct','ring-pace-pct'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = '—';
+  });
   // Keep scene timer running — scenes just show waiting screen
 }
 
@@ -1714,6 +1727,8 @@ function updateS3() {
 
 // ---- SCENE 4: LIVE PERFORMANCE ----
 function updateS4() {
+  // Don't render if no snap data
+  if (!state.loaded || Object.keys(state.snap).length === 0) return;
   const kpi = state.kpi.filter(r => {
     const name = r[CONFIG.KPI_COLS.name]||'';
     return name && !name.startsWith('job_') && !name.startsWith('pro_');
@@ -2775,7 +2790,7 @@ async function manualRefresh(){
 }
 
 function clearCompanionData(){
-  // Reset all state — shows waiting screen until next pull/refresh
+  // Reset all state
   state.snap = {};
   state.snap._monthly = [];
   state.kpi = [];
@@ -2783,15 +2798,42 @@ function clearCompanionData(){
   state.latestReport = null;
   state.announcements = [];
   state.loaded = false;
+  state.error = null;
   _spotlights = [];
   _promos = [];
   _wtdLastRevenue = 0;
-  // Reset displays
+  _spItems = [];
+  _cubeIdx = 0;
+
+  // Destroy Chart.js instances so they don't show stale data
+  if (state.barChart) { state.barChart.destroy(); state.barChart = null; }
+  Object.keys(state.rings).forEach(k => { try{ state.rings[k].destroy(); }catch(e){} });
+  state.rings = {};
+
+  // Clear rendered content in all scenes
+  ['lb-revenue','lb-conv','monthlyBarsWrap','cubeFace0'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '';
+  });
+
+  // Reset all metric displays to —
+  ['s1-revenue','s1-avg','s1-jobs','s1-ests','s1-open','s1-plans',
+   'wtd-revenue','wtd-avg2','wtd-completed','wtd-ests',
+   'mot-ytd','mot-jobs','mot-plans',
+   'ring-rev-pct','ring-conv-pct','ring-pace-pct',
+   's4-top-name','s4-conv-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = '—';
+  });
+  ['s1-conv','wtd-conv'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='—'; });
+
+  // Reset status bar
   document.getElementById('dataRange').textContent = '—';
   document.getElementById('lastRefresh').textContent = '—';
+
   // Show waiting screen
   showNoDataState();
-  // Reset status
+
   const item = document.getElementById('statusSheet');
   const dot = item?.querySelector('.status-dot');
   const txt = item?.querySelector('span');
