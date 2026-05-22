@@ -1109,8 +1109,8 @@ html, body {
         <!-- Estimates converted today -->
         <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
           <div class="metric-label">Converted</div>
-          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:72px">—</div>
-          <div class="metric-sub" id="wtd-conv-sub">Estimates sold today</div>
+          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+          <div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div>
         </div>
       </div>
     </div><!-- end s6 -->
@@ -1276,7 +1276,7 @@ const CONFIG = {
   SCENE_DURATIONS: {
     s1: 20000,  // KPI Overview
     s2: 25000,  // Goals (has chart)
-    s3: 20000,  // Leaderboard
+    s3: 30000,  // Leaderboard — 30s for two columns
     s4: 20000,  // Live Performance
     s5: 0,      // Announcements — self-managed (10s per shoutout)
     s6: 20000,  // Win the Day
@@ -1353,7 +1353,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s5'];
+const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s5'];
 
 // ============================================================
 // GOOGLE SHEETS CSV FETCH
@@ -1475,6 +1475,18 @@ async function loadData() {
         // monthly_revenue is stored as JSON array
         if (key === 'monthly_revenue') {
           try { state.snap._monthly = JSON.parse(row[1]||'[]'); } catch(e) { state.snap._monthly = []; }
+        } else if (key === 'holidays_json') {
+          try {
+            const h = JSON.parse(row[1]||'[]');
+            state.holidays = Array.isArray(h) ? h : [];
+          } catch(e) {}
+          state.snap[key] = row[1];
+        } else if (key === 'birthdays_json') {
+          try {
+            const b = JSON.parse(row[1]||'[]');
+            state.birthdays = Array.isArray(b) ? b : [];
+          } catch(e) {}
+          state.snap[key] = row[1];
         } else {
           state.snap[key] = row[1];
         }
@@ -1527,14 +1539,15 @@ function updateAll() {
   const hasSnap = Object.keys(state.snap).length > 0;
   if (!hasSnap) { showNoDataState(); return; }
   hideNoDataState();
-  updateS1();
-  updateS2();
-  updateS3();
-  updateS4();
-  updateS5();
-  if(state.currentScene===5) updateS6();
-  if(state.currentScene===6) updateS7();
-  if(state.currentScene===7) updateS8();
+  // Only update the currently visible scene — prevents flickering mid-display
+  const cur = SCENES[state.currentScene];
+  if      (cur==='s1') updateS1();
+  else if (cur==='s2') updateS2();
+  else if (cur==='s3') updateS3();
+  else if (cur==='s4') updateS4();
+  else if (cur==='s6') updateS6();
+  // s5/s7/s8/s11 are self-managed — don't interrupt them
+  checkVictoryMode();
 }
 
 function showNoDataState() {
@@ -2828,24 +2841,47 @@ async function loadWallboardData() {
     rows.slice(1).forEach(r => { if(r && r[0]) settings[r[0]] = r[1]; });
     state.wbSettings = Object.assign({}, state.wbSettings, settings);
   } catch(e) { /* use defaults */ }
-  try {
-    const brows = await fetchCSV('Birthdays');
-    state.birthdays = brows.slice(1).filter(r=>r&&r[0]).map(r=>({
-      id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
-    }));
-  } catch(e) { state.birthdays = []; }
-  try {
-    const hrows = await fetchCSV('Holidays');
-    const parsed = hrows.slice(1).filter(r=>r&&r[0]&&r[4]==='true').map(r=>({
-      id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
-      enabled:true, message:r[5]||'', photoUrl:r[6]||''
-    }));
-    state.holidays = parsed;
-    if(!state.holidays.length) console.log('[Holidays] Tab empty or not published — publish Holidays tab in Google Sheets');
-  } catch(e) {
-    state.holidays = [];
-    console.log('[Holidays] Could not load tab:', e.message, '— publish Holidays tab in Sheets');
+
+  // Load holidays from KPI_Dashboard snapshot first (most reliable)
+  // Falls back to separate Holidays tab if snap doesn't have them
+  const snapHolidays = state.snap['holidays_json'];
+  if (snapHolidays) {
+    try {
+      const parsed = JSON.parse(snapHolidays);
+      if (Array.isArray(parsed) && parsed.length) {
+        state.holidays = parsed;
+        console.log('[Holidays] Loaded', state.holidays.length, 'from snapshot');
+      }
+    } catch(e) {}
   }
+  if (!state.holidays || !state.holidays.length) {
+    try {
+      const hrows = await fetchCSV('Holidays');
+      const parsed = hrows.slice(1).filter(r=>r&&r[0]&&r[4]==='true').map(r=>({
+        id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
+        enabled:true, message:r[5]||'', photoUrl:r[6]||''
+      }));
+      if (parsed.length) state.holidays = parsed;
+    } catch(e) {}
+  }
+
+  // Load birthdays from snapshot first
+  const snapBirthdays = state.snap['birthdays_json'];
+  if (snapBirthdays) {
+    try {
+      const parsed = JSON.parse(snapBirthdays);
+      if (Array.isArray(parsed) && parsed.length) state.birthdays = parsed;
+    } catch(e) {}
+  }
+  if (!state.birthdays || !state.birthdays.length) {
+    try {
+      const brows = await fetchCSV('Birthdays');
+      state.birthdays = brows.slice(1).filter(r=>r&&r[0]).map(r=>({
+        id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
+      }));
+    } catch(e) { state.birthdays = []; }
+  }
+
   applyWallboardSettings();
 }
 
