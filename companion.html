@@ -1059,25 +1059,14 @@ html, body {
       </div>
     </div>
 
-    <!-- SCENE 5: MOTIVATION -->
+    <!-- SCENE 5: ANNOUNCEMENTS & MOTIVATION -->
     <div class="scene" id="s5">
-      <div class="motivation-card card">
-        <div id="mot-photo-wrap" style="display:none;text-align:center"></div>
-        <div class="motivation-quote" id="mot-quote">Do great work.</div>
-        <div class="motivation-author" id="mot-author">— Midstate Team</div>
-        <div class="motivation-stats">
-          <div class="mot-stat">
-            <div class="mot-stat-val" id="mot-ytd">$0</div>
-            <div class="mot-stat-lbl">Revenue YTD</div>
-          </div>
-          <div class="mot-stat">
-            <div class="mot-stat-val" id="mot-jobs">0</div>
-            <div class="mot-stat-lbl">Jobs Completed</div>
-          </div>
-          <div class="mot-stat">
-            <div class="mot-stat-val" id="mot-plans">0</div>
-            <div class="mot-stat-lbl">Active Plans</div>
-          </div>
+      <div class="scene-title">// Announcements &amp; Motivation</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div class="motivation-card card" style="width:85%;max-width:1000px">
+          <div id="mot-photo-wrap" style="display:none;text-align:center;margin-bottom:16px"></div>
+          <div class="motivation-quote" id="mot-quote">Do great work.</div>
+          <div class="motivation-author" id="mot-author">— Midstate Team</div>
         </div>
       </div>
     </div>
@@ -1277,8 +1266,22 @@ const CONFIG = {
   // Data refresh interval (ms)
   REFRESH_MS: 30000,  // 30s refresh — keep wallboard current
 
-  // Scene rotation interval (ms)
+  // Default scene duration (ms) — overridden per scene
   SCENE_MS: 20000,
+  // Per-scene durations (ms) — rotating scenes get more time
+  SCENE_DURATIONS: {
+    s1: 20000,  // KPI Overview
+    s2: 25000,  // Goals (has chart)
+    s3: 20000,  // Leaderboard
+    s4: 20000,  // Live Performance
+    s5: 15000,  // Motivation (per quote)
+    s6: 20000,  // Win the Day
+    s7: 0,      // Spotlight — self-managed (8s per spotlight)
+    s8: 0,      // Promotions — self-managed (8s per promo)
+    s9: 20000,  // Weather
+    s10: 20000, // Birthdays
+    s11: 0,     // Holidays — self-managed (8s per holiday)
+  },
 
   // KPI_Scores column mapping (0-indexed)
   // 'Snapshot Date','Date Range','Employee','Role','HVAC Revenue','Plumbing Revenue',
@@ -1289,7 +1292,7 @@ const CONFIG = {
     hvac: 4, plumbing: 5, other: 6, revenue: 7,
     jobs: 8, completed: 9, completionPct: 10,
     estimates: 11, converted: 12, convPct: 13,
-    avgJob: 14, plans: 15, score: 16
+    avgJob: 14, plans: 15, score: 16, photo: 17
   },
 
   // Reports column mapping (0-indexed)
@@ -1641,7 +1644,15 @@ function updateS2() {
 function renderMonthlyBars() {
   const wrap = el('monthlyBarsWrap');
   if (!wrap) return;
-  const months = state.snap._monthly || [];
+  // Try _monthly first, then fall back to parsing monthly_revenue key
+  let months = state.snap._monthly || [];
+  if (!months.length && state.snap['monthly_revenue']) {
+    try { months = JSON.parse(state.snap['monthly_revenue']||'[]'); } catch(e) { months = []; }
+  }
+  if (!months.length) {
+    wrap.innerHTML = '<div style="color:var(--text-3);font-size:12px;text-align:center;width:100%">Pull a report to see monthly data</div>';
+    return;
+  }
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const TARGET = 250000;
   const maxVal = Math.max(TARGET * 1.1, ...months);
@@ -1703,8 +1714,11 @@ function updateS3() {
     const pct = Math.round(rev / maxRev * 100);
     const name = row[CONFIG.KPI_COLS.name];
     const color = CONFIG.COLORS[i] || '#6b7280';
+    const empData = (state.kpi||[]).find(r=>r[CONFIG.KPI_COLS.name]===name);
+    const photoUrl = empData ? convertDriveUrl(empData[CONFIG.KPI_COLS.photo]||'') : '';
     return `<div class="lb-item">
       <div class="lb-rank ${i<3?'r'+(i+1):''}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+      ${photoUrl ? `<img src="${photoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div class="lb-info">
         <div class="lb-name">${name}</div>
         <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${pct}%;background:${color}"></div></div>
@@ -1796,40 +1810,55 @@ function updateS4() {
   }
 }
 
-// ---- SCENE 5: MOTIVATION ----
-let quoteIdx = 0;
+// ---- SCENE 5: ANNOUNCEMENTS & MOTIVATION ----
+let _annIdx = 0;
+let _annTimer = null;
+
 function updateS5() {
-  const snap = state.snap;
-  // Use dashboard announcements if available, fall back to built-in quotes
   const quotes = state.announcements && state.announcements.length
     ? state.announcements
     : CONFIG.QUOTES.map(q => ({message: q.q, author: q.a, photoUrl: ''}));
-  const item = quotes[quoteIdx % quotes.length];
-  quoteIdx++;
 
-  el('mot-quote').textContent = item.message || item.q || '';
-  el('mot-author').textContent = '— ' + (item.author || item.a || 'Midstate Team');
+  if (_annTimer) { clearTimeout(_annTimer); _annTimer = null; }
+  _annIdx = 0;
+  showAnnouncement(_annIdx, quotes);
 
-  // Show photo if available
+  if (quotes.length > 1) {
+    function rotateAnn() {
+      _annIdx++;
+      if (_annIdx >= quotes.length) {
+        resumeGlobalRotation();
+        nextScene();
+        return;
+      }
+      showAnnouncement(_annIdx, quotes);
+      _annTimer = setTimeout(rotateAnn, 10000);
+    }
+    _annTimer = setTimeout(rotateAnn, 10000);
+    // Progress bar for total time
+    startProgressFor(10000 * quotes.length);
+  }
+  // Single announcement timing handled by scheduleNextScene
+}
+
+function showAnnouncement(idx, quotes) {
+  const item = quotes[idx % quotes.length];
+  const quoteEl = el('mot-quote');
+  const authorEl = el('mot-author');
   const photoWrap = document.getElementById('mot-photo-wrap');
+
+  if (quoteEl) quoteEl.textContent = item.message || item.q || '';
+  if (authorEl) authorEl.textContent = '— ' + (item.author || item.a || 'Midstate Team');
+
   if (photoWrap) {
     const photoUrl = item.photoUrl ? convertDriveUrl(item.photoUrl) : '';
     if (photoUrl) {
-      photoWrap.innerHTML = `<img src="${photoUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);margin-bottom:12px" onerror="this.style.display='none'">`;
+      photoWrap.innerHTML = `<img src="${photoUrl}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);margin-bottom:16px" onerror="this.style.display='none'">`;
       photoWrap.style.display = 'block';
     } else {
       photoWrap.style.display = 'none';
     }
   }
-
-  // Use pre-computed values from dashboard snapshot
-  const ytdRev  = num(snap['rev_annual']||0);
-  const ytdJobs = num(snap['paid_jobs']||0);
-  const ytdPlans= num(snap['total_plans']||0);
-
-  el('mot-ytd').textContent = dollars(ytdRev);
-  animCount('mot-jobs', ytdJobs, false);
-  animCount('mot-plans', ytdPlans, false);
 }
 
 // ---- SCENE 6: WIN THE DAY ----
@@ -1960,41 +1989,51 @@ function buildDots() {
 }
 
 function goScene(idx) {
-  // Stop cube timer if leaving S7
-  if (state.currentScene === 6 && idx !== 6) {
-    if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; }
-  }
+  // Stop self-managed timers when leaving those scenes
+  if (state.currentScene === 6) { if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; } }
+  if (state.currentScene === 7) { if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; } }
+  if (state.currentScene === 10) { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
+  if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
 
   // Hide all
   SCENES.forEach((id, i) => {
     const s = el(id);
+    if (!s) return;
     s.classList.remove('visible');
-    setTimeout(() => {
-      if (state.currentScene !== i) s.style.display = 'none';
-    }, 800);
+    setTimeout(() => { if (state.currentScene !== i) s.style.display = 'none'; }, 800);
     el('dot'+i)?.classList.remove('active');
   });
 
   // Show new
   state.currentScene = idx;
   const sc = el(SCENES[idx]);
+  if (!sc) { nextScene(); return; }
   sc.style.display = 'flex';
   requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.add('visible')));
   el('dot'+idx)?.classList.add('active');
 
-  // Scene-specific updates
-  if (idx === 4) updateS5();
-  if (idx === 5) updateS6();
-  if (idx === 6) { updateS7(); return; } // S7 manages its own timer
-  if (idx === 7) updateS8();
-  if (idx === 8) { if(state.wbSettings['weather_enabled']==='true'||state.wbSettings['weather_enabled']===true) updateS9(); else { nextScene(); return; } }
-  if (idx === 9) { if(state.birthdays && state.birthdays.length) updateS10(); else { nextScene(); return; } }
-  if (idx === 10) { if(state.holidays && state.holidays.length) updateS11(); else { nextScene(); return; } }
-
-  // Restart global scene timer if it was paused by S7
-  if (!state.sceneTimer) {
-    state.sceneTimer = setInterval(() => { nextScene(); restartProgress(); }, CONFIG.SCENE_MS);
-    restartProgress();
+  // Scene-specific updates — self-managed scenes skip scheduleNextScene
+  if (idx === 0) { updateS1(); scheduleNextScene('s1'); }
+  else if (idx === 1) { updateS2(); scheduleNextScene('s2'); }
+  else if (idx === 2) { updateS3(); scheduleNextScene('s3'); }
+  else if (idx === 3) { updateS4(); scheduleNextScene('s4'); }
+  else if (idx === 4) { updateS5(); scheduleNextScene('s5'); }
+  else if (idx === 5) { updateS6(); scheduleNextScene('s6'); }
+  else if (idx === 6) { updateS7(); } // self-managed
+  else if (idx === 7) { updateS8Promo(); } // self-managed
+  else if (idx === 8) {
+    const wxEnabled = state.wbSettings['weather_enabled'];
+    const wxHasData = !!state.snap['wx_temp'];
+    if (wxEnabled === 'true' || wxEnabled === true || wxHasData) { updateS9(); scheduleNextScene('s9'); }
+    else { nextScene(); }
+  }
+  else if (idx === 9) {
+    if (state.birthdays && state.birthdays.length) { updateS10(); scheduleNextScene('s10'); }
+    else { nextScene(); }
+  }
+  else if (idx === 10) {
+    if (state.holidays && state.holidays.length) { updateS11(); } // self-managed
+    else { nextScene(); }
   }
 }
 
@@ -2005,26 +2044,39 @@ function nextScene() {
 function startRotation() {
   buildDots();
   goScene(0);
-  startProgress();
+}
 
-  state.sceneTimer = setInterval(() => {
+function scheduleNextScene(sceneId) {
+  if (state.sceneTimer) { clearInterval(state.sceneTimer); state.sceneTimer = null; }
+  const dur = CONFIG.SCENE_DURATIONS[sceneId] || CONFIG.SCENE_MS;
+  if (dur === 0) return; // self-managed scene handles its own advance
+  startProgressFor(dur);
+  state.sceneTimer = setTimeout(() => {
     nextScene();
-    restartProgress();
-  }, CONFIG.SCENE_MS);
+  }, dur);
+}
+
+function resumeGlobalRotation() {
+  if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
+  const sceneId = SCENES[state.currentScene];
+  scheduleNextScene(sceneId);
 }
 
 // ---- Progress bar ----
-function startProgress() {
+function startProgressFor(ms) {
   const bar = el('progressBar');
+  if (!bar) return;
   bar.style.transition = 'none';
   bar.style.width = '0%';
   requestAnimationFrame(() => {
-    bar.style.transition = `width ${CONFIG.SCENE_MS}ms linear`;
+    bar.style.transition = `width ${ms}ms linear`;
     bar.style.width = '100%';
   });
 }
+function startProgress() { startProgressFor(CONFIG.SCENE_MS); }
 function restartProgress() {
   const bar = el('progressBar');
+  if (!bar) return;
   bar.style.transition = 'none';
   bar.style.width = '0%';
   requestAnimationFrame(() => startProgress());
@@ -2111,7 +2163,8 @@ function el(id) { return document.getElementById(id); }
 // INIT
 // ============================================================
 async function init() {
-  startRotation();
+  buildDots();
+  goScene(0);
   setInterval(updateClock, 1000);
   updateClock();
   setInterval(tickRefresh, 1000);
@@ -2295,10 +2348,9 @@ function updateS7() {
     _cubeIdx++;
 
     if (_cubeIdx >= _spItems.length) {
-      // All spotlights shown — stop timer and advance scene
-      clearInterval(_cubeTimer);
-      _cubeTimer = null;
-      setTimeout(() => nextScene(), 1000);
+      clearInterval(_cubeTimer); _cubeTimer = null;
+      resumeGlobalRotation();
+      setTimeout(() => nextScene(), 800);
       return;
     }
 
@@ -2371,268 +2423,87 @@ function spawnConfetti() {
 
 
 
-function updateS8() {
+function updateS8Promo() {
   const container = el('promo-display');
-  if (!container) return;
+  if (!container) { nextScene(); return; }
   const today = new Date().toISOString().split('T')[0];
   const active = _promos.filter(p => !p.end || toLocalDate(p.end) >= today);
+  if (!active.length) { nextScene(); return; }
 
-  if (!active.length) {
-    container.innerHTML = `<div style="
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      height:100%;color:var(--text-3);text-align:center;gap:16px">
-      <div style="font-size:48px">📣</div>
-      <div style="font-family:var(--font-display);font-size:36px">No Active Promotions</div>
-      <div style="font-size:14px">Add promotions in Dashboard → ⭐ Spotlight tab</div>
-    </div>`;
-    container.style.display = 'flex';
-    return;
-  }
+  _promoIdx = 0;
+  showPromoSlide(_promoIdx, active);
 
-  // Scale font sizes based on number of promos
-  const count = active.length;
-  const titleSize  = count === 1 ? '72px' : count === 2 ? '54px' : count <= 4 ? '40px' : '32px';
-  const offerSize  = count === 1 ? '40px' : count === 2 ? '30px' : count <= 4 ? '24px' : '20px';
-  const descSize   = count === 1 ? '20px' : count === 2 ? '16px' : '14px';
-  const padding    = count === 1 ? '52px 60px' : count === 2 ? '36px 48px' : '24px 32px';
-  const cols       = count <= 2 ? '1fr'.repeat(count).split('').join(' ') :
-                     count <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
+  if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; }
 
-  container.style.display = 'grid';
-  container.style.gridTemplateColumns = cols;
-  container.style.gap = count === 1 ? '0' : '20px';
-  container.style.alignContent = 'stretch';
-
-  container.innerHTML = active.map(p => {
-    const daysLeft = p.end ? Math.ceil((new Date(toLocalDate(p.end)) - new Date(today)) / (1000*60*60*24)) : null;
-    const urgent = daysLeft !== null && daysLeft <= 7;
-    const col = p.color || '#E8640A';
-    return `<div style="
-        background:linear-gradient(135deg,${col}18,${col}06,rgba(0,0,0,.2));
-        border:2px solid ${col}55;
-        border-radius:20px;
-        padding:${padding};
-        position:relative;
-        overflow:hidden;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        gap:12px;">
-      <!-- Glow accent -->
-      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,transparent,${col},transparent)"></div>
-      <!-- Urgency badge -->
-      <div style="display:inline-flex;align-items:center;gap:8px;width:fit-content;
-        background:${col}25;border:1px solid ${col}55;border-radius:99px;
-        padding:4px 14px;font-size:12px;font-weight:800;color:${col};
-        text-transform:uppercase;letter-spacing:.1em">
-        ${urgent?'🔥 Ending Soon':'📣 Live Now'}
-        ${daysLeft!==null?`<span style="opacity:.7">· ${daysLeft<=0?'Ends today':daysLeft===1?'1 day left':daysLeft+' days'} · ${fmtDate(p.end)}</span>`:''}
-      </div>
-      <!-- Title -->
-      <div style="font-family:var(--font-display);font-size:${titleSize};line-height:1;
-        color:${col};text-shadow:0 0 40px ${col}66;letter-spacing:.02em">
-        ${p.title}
-      </div>
-      <!-- Offer -->
-      ${p.offer?`<div style="font-size:${offerSize};font-weight:800;color:#fff;
-        text-shadow:0 2px 8px rgba(0,0,0,.3);line-height:1.2">
-        ${p.offer}
-      </div>`:''}
-      <!-- Description -->
-      ${p.desc?`<div style="font-size:${descSize};color:rgba(255,255,255,.65);
-        line-height:1.6;max-width:700px">
-        ${p.desc}
-      </div>`:''}
-    </div>`;
-  }).join('');
-}
-
-// ============================================================
-// LOAD WALLBOARD SETTINGS INTO STATE
-// ============================================================
-async function loadWallboardData() {
-  try {
-    const rows = await fetchCSV('WallboardSettings');
-    const settings = {};
-    rows.slice(1).forEach(r => { if(r[0]) settings[r[0]] = r[1]; });
-    state.wbSettings = settings;
-  } catch(e) { state.wbSettings = {}; }
-  try {
-    const brows = await fetchCSV('Birthdays');
-    state.birthdays = brows.slice(1).filter(r=>r&&r[0]).map(r=>({
-      id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
-    }));
-  } catch(e) { state.birthdays = []; }
-  try {
-    const hrows = await fetchCSV('Holidays');
-    state.holidays = hrows.slice(1).filter(r=>r&&r[0]&&r[4]==='true').map(r=>({
-      id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
-      enabled:true, message:r[5]||'', photoUrl:r[6]||''
-    }));
-  } catch(e) { state.holidays = []; }
-
-  // Apply logo and theme
-  applyWallboardSettings();
-}
-
-function applyWallboardSettings() {
-  const s = state.wbSettings;
-  // Logo in header
-  const logoEl = document.getElementById('header-logo');
-  if(logoEl && s.logo_url) {
-    logoEl.innerHTML = `<img src="${convertDriveUrl(s.logo_url)}" style="height:36px;object-fit:contain;border-radius:6px" onerror="this.style.display='none'">`;
-  }
-  // Theme
-  applyTheme(s.theme || 'default');
-  // Holiday overlay
-  if(s.holiday) applyHolidayOverlay(s.holiday);
-}
-
-function applyTheme(theme) {
-  const root = document.documentElement;
-  const themes = {
-    default: { bg:'#050810', blue:'#00D4FF', green:'#00FF88', orange:'#FF6B35' },
-    summer:  { bg:'#070A0E', blue:'#38BDF8', green:'#34D399', orange:'#FB923C' },
-    fall:    { bg:'#0C0800', blue:'#F97316', green:'#A3E635', orange:'#FBBF24' },
-    winter:  { bg:'#04080F', blue:'#93C5FD', green:'#6EE7F7', orange:'#818CF8' },
-    spring:  { bg:'#060B06', blue:'#4ADE80', green:'#86EFAC', orange:'#F472B6' },
-    victory: { bg:'#080600', blue:'#FFD700', green:'#FFD700', orange:'#FFA500' },
-  };
-  const t = themes[theme] || themes.default;
-  root.style.setProperty('--bg', t.bg);
-  root.style.setProperty('--blue', t.blue);
-  root.style.setProperty('--green', t.green);
-  root.style.setProperty('--orange', t.orange);
-
-  if(theme === 'victory') triggerVictoryMode();
-}
-
-function applyHolidayOverlay(holiday) {
-  const overlays = {
-    christmas:    '🎄🎄🎄',
-    halloween:    '🎃👻🕸️',
-    thanksgiving: '🦃🍂',
-    july4:        '🎆🇺🇸🎇',
-    newyear:      '🎆🥂🎉',
-    valentines:   '❤️💕',
-    memorial:     '🇺🇸',
-    labor:        '🛠️'
-  };
-  const emojis = overlays[holiday];
-  if(!emojis) return;
-  let overlay = document.getElementById('holiday-overlay');
-  if(!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'holiday-overlay';
-    overlay.style.cssText = 'position:fixed;top:60px;right:20px;font-size:28px;z-index:50;opacity:.7;pointer-events:none;letter-spacing:4px';
-    document.body.appendChild(overlay);
-  }
-  overlay.textContent = emojis;
-}
-
-// ============================================================
-// VICTORY MODE
-// ============================================================
-let _victoryActive = false;
-function triggerVictoryMode() {
-  if(_victoryActive) return;
-  _victoryActive = true;
-
-  // Golden banner
-  let banner = document.getElementById('victory-banner');
-  if(!banner) {
-    banner = document.createElement('div');
-    banner.id = 'victory-banner';
-    banner.style.cssText = `
-      position:fixed;top:0;left:0;right:0;z-index:200;
-      background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700);
-      color:#000;font-family:var(--font-display);font-size:28px;
-      letter-spacing:.15em;text-align:center;padding:12px;
-      box-shadow:0 0 40px rgba(255,215,0,.6);
-      animation:victorySweep 3s ease-in-out infinite alternate;`;
-    banner.textContent = '🏆 GOAL ACHIEVED — OUTSTANDING WORK, TEAM! 🏆';
-    document.body.appendChild(banner);
-  }
-
-  // Gold confetti rain
-  spawnVictoryConfetti();
-
-  const style = document.createElement('style');
-  style.textContent = `@keyframes victorySweep{from{opacity:.8}to{opacity:1}}`;
-  document.head.appendChild(style);
-
-  // Auto-dismiss after 30s
-  setTimeout(() => {
-    _victoryActive = false;
-    if(banner) banner.remove();
-  }, 30000);
-}
-
-function spawnVictoryConfetti() {
-  for(let i=0;i<50;i++){
-    setTimeout(()=>{
-      const p=document.createElement('div');
-      p.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}%;
-        width:8px;height:8px;border-radius:2px;z-index:199;pointer-events:none;
-        background:${['#FFD700','#FFA500','#fff','#FF6B35'][Math.floor(Math.random()*4)]};
-        animation:confettiFall ${3+Math.random()*3}s linear forwards`;
-      document.body.appendChild(p);
-      setTimeout(()=>p.remove(),6000);
-    }, i*100);
-  }
-}
-
-// Check if victory should trigger based on snap data
-function checkVictoryMode() {
-  const snap = state.snap;
-  const monthPct = num(snap['goal_monthly_pct']||0);
-  const annualPct = num(snap['goal_annual_pct']||0);
-  if(monthPct >= 100 || annualPct >= 100) triggerVictoryMode();
-}
-
-// ============================================================
-// SCENE 6 — WIN THE DAY + GAP TO GOAL
-// ============================================================
-// Update Win the Day to include gap pressure display
-function addGapToGoalDisplay(revenue) {
-  const snap = state.wbSettings;
-  const dailyGoal = num(state.snap['goal_daily'] || snap['daily_goal'] || 8219);
-  const openHour  = parseInt(snap['open_hour']  || 7);
-  const closeHour = parseInt(snap['close_hour'] || 17);
-  const now = new Date();
-  const h = now.getHours() + now.getMinutes()/60;
-
-  const gap = Math.max(0, dailyGoal - revenue);
-  const hoursLeft = Math.max(0, closeHour - h);
-  const neededPerHour = hoursLeft > 0 ? gap / hoursLeft : 0;
-  const deadline = `${closeHour > 12 ? closeHour-12 : closeHour}:00 ${closeHour >= 12 ? 'PM' : 'AM'}`;
-
-  const gapEl = document.getElementById('wtd-gap');
-  if(!gapEl) return;
-
-  if(gap <= 0) {
-    gapEl.innerHTML = `<div style="color:var(--green);font-weight:800;font-size:18px">🏆 Daily goal achieved!</div>`;
-  } else if(hoursLeft <= 0) {
-    gapEl.innerHTML = `<div style="color:var(--text-3);font-size:14px">Business hours ended</div>`;
+  if (active.length > 1) {
+    _promoTimer = setInterval(() => {
+      _promoIdx++;
+      if (_promoIdx >= active.length) {
+        clearInterval(_promoTimer); _promoTimer = null;
+        resumeGlobalRotation();
+        nextScene();
+        return;
+      }
+      // Flip transition
+      const card = el('promo-flip-card');
+      if (card) card.classList.add('flipping');
+      setTimeout(() => {
+        showPromoSlide(_promoIdx, active);
+        if (card) card.classList.remove('flipping');
+      }, 520);
+    }, 8000);
   } else {
-    gapEl.innerHTML = `
-      <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;font-weight:800;margin-bottom:6px">⚡ Gap to Goal</div>
-      <div style="font-size:24px;font-weight:900;color:var(--orange);text-shadow:0 0 20px rgba(255,107,53,.5)">
-        Need ${dollars(gap)} by ${deadline}
-      </div>
-      <div style="font-size:13px;color:var(--text-3);margin-top:4px">
-        ${dollars(neededPerHour)}/hr needed · ${hoursLeft.toFixed(1)} hrs remaining
-      </div>`;
+    // Single promo — hold then advance
+    state.sceneTimer = setTimeout(() => { resumeGlobalRotation(); nextScene(); }, 8000);
+    startProgressFor(8000);
   }
 }
 
-// ============================================================
-// SCENE 9 — WEATHER
-// ============================================================
-let _wxData = null;
-let _wxTimer = null;
+function showPromoSlide(idx, promos) {
+  const container = el('promo-display');
+  if (!container) return;
+  const p = promos[idx];
+  const today = new Date().toISOString().split('T')[0];
+  const daysLeft = p.end ? Math.ceil((new Date(toLocalDate(p.end)) - new Date(today)) / (1000*60*60*24)) : null;
+  const urgent = daysLeft !== null && daysLeft <= 7;
+  const col = p.color || '#E8640A';
 
-async function updateS9() {
+  // Update total progress dots
+  startProgressFor(8000 * promos.length);
+
+  container.innerHTML = `
+    <div class="flip-card" id="promo-flip-card" style="width:100%;height:100%;max-height:460px">
+      <div class="flip-face" style="
+        background:linear-gradient(135deg,${col}18,${col}06,rgba(0,0,0,.3));
+        border:2px solid ${col}55;width:100%;height:100%;
+        flex-direction:column;justify-content:center;gap:16px;padding:60px 80px">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;
+          background:linear-gradient(90deg,transparent,${col},transparent)"></div>
+        <div style="display:inline-flex;align-items:center;gap:8px;width:fit-content;
+          background:${col}25;border:1px solid ${col}55;border-radius:99px;
+          padding:4px 16px;font-size:13px;font-weight:800;color:${col};
+          text-transform:uppercase;letter-spacing:.1em">
+          ${urgent?'🔥 Ending Soon':'📣 Active Promotion'}
+          ${daysLeft!==null?`<span style="opacity:.7">· ${daysLeft===0?'Today':daysLeft===1?'1 day left':daysLeft+' days'} · ${fmtDate(p.end)}</span>`:''}
+        </div>
+        <div style="font-family:var(--font-display);font-size:72px;line-height:1;
+          color:${col};text-shadow:0 0 40px ${col}66;letter-spacing:.02em">
+          ${p.title}
+        </div>
+        ${p.offer?`<div style="font-size:36px;font-weight:800;color:#fff;line-height:1.2">${p.offer}</div>`:''}
+        ${p.desc?`<div style="font-size:18px;color:rgba(255,255,255,.65);line-height:1.6">${p.desc}</div>`:''}
+        ${promos.length > 1 ? `<div style="display:flex;gap:10px;margin-top:12px">
+          ${promos.map((_,i)=>`<div style="width:10px;height:10px;border-radius:50%;
+            background:${i===idx?col:'rgba(255,255,255,.2)'};transition:all .4s"></div>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+let _promoIdx = 0;
+let _promoTimer = null;
+
+function updateS9() {
   const snap = state.snap;
 
   // First try pre-fetched weather from dashboard snapshot
@@ -2805,12 +2676,20 @@ function updateS11() {
 
   if (holidays.length > 1) {
     _holidayTimer = setInterval(() => {
-      _holidayIdx = (_holidayIdx + 1) % holidays.length;
+      _holidayIdx++;
+      if (_holidayIdx >= holidays.length) {
+        clearInterval(_holidayTimer); _holidayTimer = null;
+        resumeGlobalRotation();
+        nextScene();
+        return;
+      }
       showHolidaySlide(_holidayIdx);
     }, 8000);
+    startProgressFor(8000 * holidays.length);
+  } else {
+    state.sceneTimer = setTimeout(() => { resumeGlobalRotation(); nextScene(); }, 12000);
+    startProgressFor(12000);
   }
-
-  overrideSceneTimer();
 }
 
 function showHolidaySlide(idx) {
@@ -2951,6 +2830,7 @@ function clearCompanionData(){
   // Reset all state
   state.snap = {};
   state.snap._monthly = [];
+  state.snap.total_plans = 0;
   state.kpi = [];
   state.reports = [];
   state.latestReport = null;
@@ -2977,7 +2857,7 @@ function clearCompanionData(){
   // Reset all metric displays to —
   ['s1-revenue','s1-avg','s1-jobs','s1-ests','s1-open','s1-plans',
    'wtd-revenue','wtd-avg2','wtd-completed','wtd-ests',
-   'mot-ytd','mot-jobs','mot-plans',
+   'mot-ytd',
    'ring-rev-pct','ring-conv-pct','ring-pace-pct',
    's4-top-name','s4-conv-name'].forEach(id => {
     const el = document.getElementById(id);
