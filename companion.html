@@ -943,7 +943,7 @@ html, body {
           <div class="metric-sub">In period</div>
         </div>
         <div class="card metric accent-purple">
-          <div class="metric-label">Estimates Run</div>
+          <div class="metric-label">Estimates Scheduled</div>
           <div class="metric-value glow-purple" id="s1-ests">0</div>
           <div class="metric-sub">Total estimates</div>
         </div>
@@ -1037,7 +1037,7 @@ html, body {
           <div class="lb-list" id="lb-revenue"></div>
         </div>
         <div class="card" style="display:flex;flex-direction:column">
-          <div class="lb-title">📋 Conversion Rate</div>
+          <div class="lb-title" id="lb-conv-title">📋 Overall Conversion</div>
           <div class="lb-list" id="lb-conv"></div>
         </div>
       </div>
@@ -1102,9 +1102,9 @@ html, body {
         </div>
         <!-- Estimates run today -->
         <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-label">Estimates Run</div>
+          <div class="metric-label">Estimates Scheduled</div>
           <div class="metric-value glow-blue" id="wtd-ests" style="font-size:72px">0</div>
-          <div class="metric-sub">Visits today</div>
+          <div class="metric-sub">Scheduled today</div>
         </div>
         <!-- Estimates converted today -->
         <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -1234,7 +1234,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.6
+      v1.8
     </div>
   </div>
 </div>
@@ -1764,27 +1764,61 @@ function updateS3() {
     </div>`;
   }).join('');
 
-  // Conversion leaderboard
-  const byConv = [...kpi]
-    .filter(r => num(r[CONFIG.KPI_COLS.estimates]) >= 3)
+  // Conversion leaderboard — rotates by department every 10s
+  if (_deptRotateTimer) { clearInterval(_deptRotateTimer); _deptRotateTimer = null; }
+  _deptIdx = 0;
+  renderConvByDept(kpi, _deptIdx);
+  _deptRotateTimer = setInterval(() => {
+    _deptIdx = (_deptIdx + 1) % 3; // 0=Overall, 1=HVAC, 2=Plumbing
+    renderConvByDept(kpi, _deptIdx);
+  }, 10000);
+}
+
+function renderConvByDept(kpi, deptIdx) {
+  const depts = ['Overall', 'HVAC', 'Plumbing'];
+  const deptLabel = depts[deptIdx];
+
+  // Filter kpi by dept if needed
+  let filtered = kpi;
+  if (deptIdx === 1) filtered = kpi.filter(r => {
+    const hvac = num(r[CONFIG.KPI_COLS.hvac]);
+    const plumb = num(r[CONFIG.KPI_COLS.plumbing]);
+    return hvac > 0 || (hvac === 0 && plumb === 0 && r[CONFIG.KPI_COLS.role]?.toLowerCase().includes('hvac'));
+  });
+  if (deptIdx === 2) filtered = kpi.filter(r => {
+    const plumb = num(r[CONFIG.KPI_COLS.plumbing]);
+    return plumb > 0 || r[CONFIG.KPI_COLS.role]?.toLowerCase().includes('plumb');
+  });
+
+  const byConv = [...filtered]
+    .filter(r => num(r[CONFIG.KPI_COLS.estimates]) >= 2)
     .sort((a,b) => num(b[CONFIG.KPI_COLS.convPct]) - num(a[CONFIG.KPI_COLS.convPct]));
   const maxConv = num(byConv[0]?.[CONFIG.KPI_COLS.convPct] || 1);
 
-  el('lb-conv').innerHTML = byConv.slice(0, 6).map((row, i) => {
+  // Update card title
+  const titleEl = document.querySelector('#lb-conv-title');
+  if (titleEl) {
+    const icons = ['📋','🔥','🔧'];
+    titleEl.textContent = icons[deptIdx] + ' ' + deptLabel + ' Conversion';
+  }
+
+  el('lb-conv').innerHTML = byConv.slice(0, 7).map((row, i) => {
     const pctVal = num(row[CONFIG.KPI_COLS.convPct]);
     const bar = Math.round(pctVal / Math.max(maxConv, 1) * 100);
     const name = row[CONFIG.KPI_COLS.name];
+    const conv = num(row[CONFIG.KPI_COLS.converted]);
+    const ests = num(row[CONFIG.KPI_COLS.estimates]);
     const color = CONFIG.COLORS[i] || '#6b7280';
-    return `<div class="lb-item">
+    return `<div class="lb-item" style="padding:7px 0">
       <div class="lb-rank ${i<3?'r'+(i+1):''}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
       <div class="lb-info">
         <div class="lb-name">${name}</div>
-        <div class="lb-dept">${num(row[CONFIG.KPI_COLS.converted])} of ${num(row[CONFIG.KPI_COLS.estimates])} estimates</div>
+        <div class="lb-dept">${conv} of ${ests} estimates</div>
         <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${bar}%;background:${color}"></div></div>
       </div>
       <div class="lb-value" style="color:${color}">${Math.round(pctVal)}%</div>
     </div>`;
-  }).join('');
+  }).join('') || '<div style="padding:20px;color:var(--text-3);text-align:center;font-size:13px">No data for ' + deptLabel + '</div>';
 }
 
 // ---- SCENE 4: LIVE PERFORMANCE ----
@@ -2318,7 +2352,9 @@ function buildSpotlightItems() {
 // Loads all spotlight items into cube faces, rotates through them
 // When all spotlights shown, scene advances automatically
 // ============================================================
-let _cubeAngle = 0;      // current Y rotation in degrees
+let _cubeAngle = 0;
+let _deptRotateTimer = null;
+let _deptIdx = 0;      // current Y rotation in degrees
 let _cubeIdx = 0;        // which spotlight is currently showing
 let _cubeTimer = null;   // rotation interval
 let _cubeFaceMap = {};   // which face index holds which spotlight
