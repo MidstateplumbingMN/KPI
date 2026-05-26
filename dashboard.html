@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1282,6 +1282,30 @@ let _attr = {};
 const INSTALLER_IDS = new Set(); // populated from employee list by name
 const INSTALLER_NAMES = ['Andy Mitchell','Gannon Blaiser'];
 
+// Authoritative department assignments
+const DEPT_MAP = {
+  'Mark Daniels':    'Plumbing',
+  'Gordon Radant':   'Plumbing',
+  'Jon Glenn':       'Plumbing',
+  'Jeff Hohenauer':  'Plumbing',
+  'Eric Stoffel':    'HVAC',
+  'Lukas Schlosser': 'HVAC',
+  'Doug McNamara':   'HVAC',
+  'Gannon Blaiser':  'Install',
+  'Andy Mitchell':   'Install',
+  'Robert Danaher':  'Dispatch',
+  'Bob Danaher':     'Dispatch',
+  'Victoria Ellsworth': 'Dispatch',
+  'Victoria':        'Dispatch',
+  'Jody Serres':     'Office',
+  'Office Staff':    'Office',
+};
+
+// Employees fully excluded from KPI (no revenue, no plans tracking)
+const KPI_EXCLUDE = new Set([
+  'Jody Serres','Office Staff'
+]);
+
 // GitHub-hosted technician photos
 const GITHUB_PHOTOS = {
   'Doug McNamara':   'https://midstateplumbingmn.github.io/KPI/images/Doug.JPG',
@@ -1552,6 +1576,7 @@ function getCust(x){
   return x.customer_name||x.client_name||'—';
 }
 function getCustId(x){return x.customer?.id||x.customer_id||'';}
+function getDeptFromTags(emp){ return getDept(emp); }
 function getDept(x){
   return x.job_fields?.business_unit?.name||x.estimate_fields?.business_unit?.name||x.business_unit?.name||'Other';
 }
@@ -2963,7 +2988,8 @@ function renderKPI(jobs,estimates,employees,plans){
     map[emp.id]={name,role:emp.role||'Technician',installer,
       jobs:0,installs:0,revenue:0,depts:{},
       estimates:0,converted:0,plans:0,
-      photoUrl: GITHUB_PHOTOS[name] || convertGoogleDriveUrl(emp.avatar_url||'') || emp.avatar_url || ''};
+      photoUrl: GITHUB_PHOTOS[name] || convertGoogleDriveUrl(emp.avatar_url||'') || emp.avatar_url || '',
+      deptOverride: DEPT_MAP[name] || ''};
   });
   function ensure(id,name,role){
     if(!map[id])map[id]={name:name||'Unknown',role:role||'Technician',installer:INSTALLER_NAMES.includes(name||''),
@@ -3323,7 +3349,13 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     ensureEmp(e.id,n,e.role);
     map[e.id].plans++;
   });
-  const kpiPayload=Object.values(map).filter(e=>e.jobs>0||e.estimates>0||e.plans>0).map(emp=>{
+  // Dispatch/Office excluded from KPI UNLESS they sold service plans
+  const PLANS_ONLY = new Set(['Robert Danaher','Bob Danaher','Victoria Ellsworth','Victoria']);
+  const kpiPayload=Object.values(map).filter(e=>{
+    if(KPI_EXCLUDE.has(e.name)) return false; // Jody, Office Staff — never show
+    if(PLANS_ONLY.has(e.name)) return e.plans > 0; // Bob/Victoria only if they have plans
+    return e.jobs>0||e.estimates>0||e.plans>0;
+  }).map(emp=>{
     const cr=emp.jobs>0?Math.round(emp.completed/emp.jobs*100):0;
     const er=emp.estimates>0?Math.round(emp.converted/emp.estimates*100):0;
     const avg=emp.completed>0?Math.round(emp.revenue/emp.completed):0;
@@ -3412,33 +3444,65 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   // Total plans
   const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
 
-  // Fetch weather from weatherapi.com
+  // Fetch weather forecast from weatherapi.com (1 day = free tier)
   let _weatherSnap = {};
   try {
     const _wxLoc = _wbSettings.weatherLoc||'55033';
     const _wxKey = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
-    const _wxRes = await fetch(`https://api.weatherapi.com/v1/current.json?key=${_wxKey}&q=${encodeURIComponent(_wxLoc)}&aqi=no`);
+    const _wxRes = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${_wxKey}&q=${encodeURIComponent(_wxLoc)}&days=1&aqi=no&alerts=yes`);
     if(_wxRes.ok){
       const _wx = await _wxRes.json();
       const cur = _wx.current;
+      const day = _wx.forecast?.forecastday?.[0]?.day || {};
+      const hours = _wx.forecast?.forecastday?.[0]?.hour || [];
+      const alerts = _wx.alerts?.alert || [];
+
+      // Find peak heat hour (highest feels-like temp)
+      let peakHeatHour = null, peakHeatTemp = 0;
+      hours.forEach(h => {
+        if(h.feelslike_f > peakHeatTemp){ peakHeatTemp = h.feelslike_f; peakHeatHour = h.time; }
+      });
+      const peakTime = peakHeatHour ? new Date(peakHeatHour).toLocaleTimeString('en-US',{hour:'numeric',hour12:true}) : null;
+
+      // Rain hours — find windows with >30% chance
+      const rainHours = hours.filter(h=>h.chance_of_rain>30).map(h=>new Date(h.time).getHours());
+      const rainWindow = rainHours.length > 0 ?
+        `${rainHours[0] > 12 ? rainHours[0]-12 : rainHours[0] || 12}${rainHours[0]>=12?'PM':'AM'}–${rainHours[rainHours.length-1] > 12 ? rainHours[rainHours.length-1]-12 : rainHours[rainHours.length-1] || 12}${rainHours[rainHours.length-1]>=12?'PM':'AM'}` : null;
+
       _weatherSnap = {
-        temp:        Math.round(cur.temp_f),
-        feels_like:  Math.round(cur.feelslike_f),
-        humidity:    cur.humidity,
-        wind_speed:  Math.round(cur.wind_mph),
-        wind_dir:    cur.wind_dir,
-        wind_deg:    cur.wind_degree,
-        description: cur.condition.text,
-        icon_url:    'https:' + cur.condition.icon,
-        icon_code:   cur.condition.code,
-        heat_index:  Math.round(cur.heatindex_f),
-        wind_chill:  Math.round(cur.windchill_f),
-        chance_rain: cur.chance_of_rain||0,
-        is_day:      cur.is_day,
-        city:        _wx.location.name + ', ' + _wx.location.region,
-        fetched_at:  new Date().toISOString()
+        // Current conditions
+        temp:         Math.round(cur.temp_f),
+        feels_like:   Math.round(cur.feelslike_f),
+        humidity:     cur.humidity,
+        wind_speed:   Math.round(cur.wind_mph),
+        wind_dir:     cur.wind_dir,
+        wind_deg:     cur.wind_degree,
+        description:  cur.condition.text,
+        icon_url:     'https:' + cur.condition.icon,
+        icon_code:    cur.condition.code,
+        heat_index:   Math.round(cur.heatindex_f),
+        wind_chill:   Math.round(cur.windchill_f),
+        chance_rain:  cur.chance_of_rain||0,
+        is_day:       cur.is_day,
+        uv:           cur.uv||0,
+        city:         _wx.location.name + ', ' + _wx.location.region,
+        // Forecast for today
+        high_f:       Math.round(day.maxtemp_f||0),
+        low_f:        Math.round(day.mintemp_f||0),
+        avg_humidity: day.avghumidity||cur.humidity,
+        max_wind:     Math.round(day.maxwind_mph||cur.wind_mph),
+        daily_rain_chance: day.daily_chance_of_rain||0,
+        daily_rain_in:    day.totalprecip_in||0,
+        max_uv:       day.uv||cur.uv||0,
+        peak_heat_time: peakTime||'',
+        peak_heat_temp: Math.round(peakHeatTemp)||0,
+        rain_window:  rainWindow||'',
+        // Alerts
+        alert_count:  alerts.length,
+        alert_headline: alerts.length ? alerts[0].headline||alerts[0].event||'' : '',
+        fetched_at:   new Date().toISOString()
       };
-      console.log('[Weather] fetched:', _weatherSnap.city, _weatherSnap.temp + '°F', _weatherSnap.description);
+      console.log('[Weather] forecast fetched:', _weatherSnap.city, _weatherSnap.temp+'°F', 'H:'+_weatherSnap.high_f+' L:'+_weatherSnap.low_f, _weatherSnap.description);
     }
   } catch(e) { console.warn('[Weather] fetch failed:', e.message); }
 
