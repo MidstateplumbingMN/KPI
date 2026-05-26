@@ -113,10 +113,12 @@ html, body {
   background: rgba(5,8,16,.98);
   backdrop-filter: blur(20px);
   flex-shrink: 0;
-  height: 48px;
+  height: 52px;
+  overflow: visible;
 }
 .hdr-logo {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 10px;
+  overflow: visible;
 }
 .hdr-logo-icon {
   width: 36px; height: 36px;
@@ -1168,6 +1170,12 @@ html, body {
             </div>
           </div>
           <div id="wx-age" style="font-size:10px;color:var(--text-3);margin-top:8px;opacity:.5"></div>
+          <!-- Heat trend sparkline -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Today's Temperature Trend</div>
+            <svg id="wx-trend-svg" viewBox="0 0 280 60" style="width:100%;height:60px"></svg>
+            <div id="wx-trend-labels" style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-3);margin-top:2px"></div>
+          </div>
         </div>
 
         <!-- MIDDLE: Forecast details -->
@@ -1266,7 +1274,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.12
+      v1.13
     </div>
   </div>
 </div>
@@ -2290,6 +2298,7 @@ async function init() {
   await loadData();
   await loadSpotlightData();
   await loadWallboardData();
+  await loadMonthlyRevenue();
   checkVictoryMode();
   updateS6();
 
@@ -2558,6 +2567,7 @@ function updateS8Promo() {
 
   _promoIdx = 0;
   showPromoSlide(_promoIdx, active);
+  startProgressFor(10000 * active.length); // set full duration once
 
   if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; }
 
@@ -2577,11 +2587,11 @@ function updateS8Promo() {
         showPromoSlide(_promoIdx, active);
         if (card) card.classList.remove('flipping');
       }, 520);
-    }, 8000);
+    }, 10000);
   } else {
     // Single promo — hold then advance
-    state.sceneTimer = setTimeout(() => { resumeGlobalRotation(); nextScene(); }, 8000);
-    startProgressFor(8000);
+    state.sceneTimer = setTimeout(() => { resumeGlobalRotation(); nextScene(); }, 10000);
+    startProgressFor(10000);
   }
 }
 
@@ -2593,9 +2603,6 @@ function showPromoSlide(idx, promos) {
   const daysLeft = p.end ? Math.ceil((new Date(toLocalDate(p.end)) - new Date(today)) / (1000*60*60*24)) : null;
   const urgent = daysLeft !== null && daysLeft <= 7;
   const col = p.color || '#E8640A';
-
-  // Update total progress dots
-  startProgressFor(8000 * promos.length);
 
   container.innerHTML = `
     <div class="flip-card" id="promo-flip-card" style="width:100%;flex:1;min-height:0">
@@ -2666,6 +2673,9 @@ async function updateS9() {
       alert_count:        num(snap['wx_alert_count']||0),
       alert_headline:     snap['wx_alert_headline'] || '',
     };
+    let hourly = [];
+    try { hourly = JSON.parse(snap['wx_hourly_temps']||'[]'); } catch(e) {}
+    renderHeatTrend(hourly, d.high_f, d.low_f);
     renderWeatherAPI(d);
     const fetchedAt = snap['wx_fetched_at'];
     if(fetchedAt) {
@@ -2694,6 +2704,64 @@ async function updateS9() {
   } catch(e) {
     el('wx-desc').textContent = 'Weather unavailable';
     console.warn('Weather error:', e.message);
+  }
+}
+
+function renderHeatTrend(hourly, highF, lowF) {
+  const svg = document.getElementById('wx-trend-svg');
+  const labelsEl = document.getElementById('wx-trend-labels');
+  if(!svg) return;
+
+  if(!hourly || !hourly.length) {
+    svg.innerHTML = '<text x="140" y="35" fill="rgba(255,255,255,.2)" font-size="10" text-anchor="middle">No hourly data — pull a report</text>';
+    return;
+  }
+
+  const W = 280, H = 60, pad = 12;
+  const temps = hourly.map(h => h.temp_f);
+  const minT = Math.min(...temps) - 2;
+  const maxT = Math.max(...temps) + 2;
+  const xStep = (W - pad*2) / (hourly.length - 1);
+
+  const toX = i => pad + i * xStep;
+  const toY = t => H - pad - ((t - minT) / (maxT - minT)) * (H - pad*2);
+
+  // Build polyline points
+  const pts = hourly.map((h,i) => `${toX(i).toFixed(1)},${toY(h.temp_f).toFixed(1)}`).join(' ');
+  // Fill area under curve
+  const fillPts = `${toX(0).toFixed(1)},${H} ${pts} ${toX(hourly.length-1).toFixed(1)},${H}`;
+
+  // Color line by temp
+  const avgTemp = temps.reduce((a,b)=>a+b,0)/temps.length;
+  const lineColor = avgTemp >= 90 ? '#EF4444' : avgTemp >= 75 ? '#F97316' : avgTemp >= 55 ? '#38BDF8' : '#818CF8';
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <polygon points="${fillPts}" fill="url(#trendGrad)"/>
+    <polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${hourly.map((h,i) => {
+      const x = toX(i), y = toY(h.temp_f);
+      const isHigh = h.temp_f === Math.max(...temps);
+      const isLow  = h.temp_f === Math.min(...temps);
+      if(isHigh || isLow) return `
+        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${isHigh?'#F97316':'#38BDF8'}"/>
+        <text x="${x.toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${isHigh?'#F97316':'#38BDF8'}" font-size="8" text-anchor="middle" font-weight="700">${h.temp_f}°</text>`;
+      return '';
+    }).join('')}
+  `;
+
+  // Time labels
+  if(labelsEl) {
+    labelsEl.innerHTML = hourly.map(h => {
+      const hr = h.time;
+      const label = hr === 0 ? '12a' : hr === 12 ? '12p' : hr > 12 ? `${hr-12}p` : `${hr}a`;
+      return `<span>${label}</span>`;
+    }).join('');
   }
 }
 
@@ -3037,7 +3105,42 @@ async function loadWallboardData() {
     } catch(e) { state.birthdays = []; }
   }
 
+  // Monthly revenue — read from dedicated Monthly_Revenue tab (no sensitive data)
+  if(!state.snap._monthly || !state.snap._monthly.length) {
+    try {
+      const mrows = await fetchCSV('Monthly_Revenue');
+      if(mrows.length > 1) {
+        const arr = new Array(12).fill(0);
+        mrows.slice(1).forEach(r => {
+          const monthNum = parseInt(r[1]||0) - 1; // Month_Num col is 1-indexed
+          const rev = parseFloat(r[2]||0);
+          if(monthNum >= 0 && monthNum < 12) arr[monthNum] = rev;
+        });
+        state.snap._monthly = arr;
+        console.log('[Monthly Revenue] Loaded from tab:', arr.filter(v=>v>0).length, 'months with data');
+      }
+    } catch(e) { console.log('[Monthly Revenue] Tab not available:', e.message); }
+  }
   applyWallboardSettings();
+}
+
+async function loadMonthlyRevenue() {
+  if(state.snap._monthly && state.snap._monthly.some(v=>v>0)) return;
+  try {
+    const mrows = await fetchCSV('Monthly_Revenue');
+    if(mrows.length > 1) {
+      const arr = new Array(12).fill(0);
+      mrows.slice(1).forEach(r => {
+        const monthNum = parseInt(r[1]||0) - 1;
+        const rev = parseFloat((r[2]||'').replace(/[^0-9.]/g,''))||0;
+        if(monthNum >= 0 && monthNum < 12) arr[monthNum] = rev;
+      });
+      if(arr.some(v=>v>0)) {
+        state.snap._monthly = arr;
+        console.log('[Monthly Revenue] Loaded:', arr.filter(v=>v>0).length, 'months with data');
+      }
+    }
+  } catch(e) { console.log('[Monthly Revenue] Not published yet:', e.message); }
 }
 
 function applyWallboardSettings() {
