@@ -1853,19 +1853,17 @@ function updateS5() {
   _annIdx = 0;
   showAnnouncement(_annIdx, quotes);
 
-  const PER_ANN = 10000; // 10s per shoutout
+  const PER_ANN = 12000; // 12s per shoutout — enough time to read
   startProgressFor(PER_ANN * quotes.length);
 
   function rotateAnn() {
     _annIdx++;
     if (_annIdx >= quotes.length) {
-      // All shoutouts shown — advance to next scene
       _annTimer = null;
       resumeGlobalRotation();
       nextScene();
       return;
     }
-    // Fade out → swap → fade in
     const card = document.querySelector('.motivation-card');
     if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .4s'; }
     setTimeout(() => {
@@ -1874,6 +1872,7 @@ function updateS5() {
     }, 400);
     _annTimer = setTimeout(rotateAnn, PER_ANN);
   }
+  // Always start the timer — single OR multiple announcements
   _annTimer = setTimeout(rotateAnn, PER_ANN);
 }
 
@@ -2180,16 +2179,19 @@ function el(id) { return document.getElementById(id); }
 // ============================================================
 async function init() {
   buildDots();
-  goScene(0);
   setInterval(updateClock, 1000);
   updateClock();
   setInterval(tickRefresh, 1000);
 
+  // Load ALL data before starting rotation
   await loadData();
   await loadSpotlightData();
   await loadWallboardData();
   checkVictoryMode();
-  updateS6(); // pre-load Win the Day
+  updateS6();
+
+  // NOW start rotation — all data is loaded
+  goScene(0);
 
   // Auto-refresh — fetch new data in background, don't disrupt self-managed scenes
   setInterval(async () => {
@@ -2857,10 +2859,16 @@ async function loadWallboardData() {
   if (!state.holidays || !state.holidays.length) {
     try {
       const hrows = await fetchCSV('Holidays');
-      const parsed = hrows.slice(1).filter(r=>r&&r[0]&&r[4]==='true').map(r=>({
+      console.log('[Holidays] CSV rows:', hrows.length, 'raw[1]:', hrows[1]);
+      const parsed = hrows.slice(1).filter(r => {
+        if(!r || !r[0]) return false;
+        const enabled = String(r[4]).trim().toUpperCase();
+        return enabled === 'TRUE' || enabled === 'true' || enabled === '1';
+      }).map(r=>({
         id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
         enabled:true, message:r[5]||'', photoUrl:r[6]||''
       }));
+      console.log('[Holidays] Enabled holidays:', parsed.map(h=>h.name));
       if (parsed.length) state.holidays = parsed;
     } catch(e) {}
   }
