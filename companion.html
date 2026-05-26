@@ -1234,7 +1234,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.8
+      v1.11
     </div>
   </div>
 </div>
@@ -1354,6 +1354,27 @@ let state = {
 };
 
 const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s5'];
+
+// Authoritative department assignments
+const DEPT_MAP = {
+  'Mark Daniels':    'Plumbing',
+  'Gordon Radant':   'Plumbing',
+  'Jon Glenn':       'Plumbing',
+  'Jeff Hohenauer':  'Plumbing',
+  'Eric Stoffel':    'HVAC',
+  'Lukas Schlosser': 'HVAC',
+  'Doug McNamara':   'HVAC',
+  'Gannon Blaiser':  'Install',
+  'Andy Mitchell':   'Install',
+  'Robert Danaher':  'Dispatch',
+  'Bob Danaher':     'Dispatch',
+  'Victoria Ellsworth': 'Dispatch',
+  'Jody Serres':     'Office',
+  'Office Staff':    'Office',
+};
+const KPI_EXCLUDE = new Set(['Jody Serres','Office Staff']);
+const KPI_PLANS_ONLY = new Set(['Robert Danaher','Bob Danaher','Victoria Ellsworth','Victoria']);
+function empDept(name) { return DEPT_MAP[name] || 'Other'; }
 
 // ============================================================
 // GOOGLE SHEETS CSV FETCH
@@ -1726,7 +1747,11 @@ function renderMonthlyBars() {
 function updateS3() {
   const kpi = state.kpi.filter(r => {
     const name = r[CONFIG.KPI_COLS.name]||'';
-    return name && !name.startsWith('job_') && !name.startsWith('pro_');
+    if(!name || name.startsWith('job_') || name.startsWith('pro_')) return false;
+    if(KPI_EXCLUDE.has(name)) return false;
+    // Dispatch only shows if they have plans
+    if(KPI_PLANS_ONLY.has(name)) return num(r[CONFIG.KPI_COLS.plans]) > 0;
+    return true;
   });
 
   if (!kpi.length) {
@@ -1758,6 +1783,7 @@ function updateS3() {
       ${photoUrl ? `<img src="${photoUrl}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div class="lb-info">
         <div class="lb-name" style="font-size:${nameFontSize}">${name}</div>
+        <div style="font-size:9px;color:var(--text-3);margin-top:1px">${empDept(name)}</div>
         <div class="lb-bar-track" style="height:${barHeight}"><div class="lb-bar-fill" style="width:${pct}%;background:${color};height:${barHeight}"></div></div>
       </div>
       <div class="lb-value" style="color:${color};font-size:${valFontSize}">${dollars(rev)}</div>
@@ -1780,15 +1806,8 @@ function renderConvByDept(kpi, deptIdx) {
 
   // Filter kpi by dept if needed
   let filtered = kpi;
-  if (deptIdx === 1) filtered = kpi.filter(r => {
-    const hvac = num(r[CONFIG.KPI_COLS.hvac]);
-    const plumb = num(r[CONFIG.KPI_COLS.plumbing]);
-    return hvac > 0 || (hvac === 0 && plumb === 0 && r[CONFIG.KPI_COLS.role]?.toLowerCase().includes('hvac'));
-  });
-  if (deptIdx === 2) filtered = kpi.filter(r => {
-    const plumb = num(r[CONFIG.KPI_COLS.plumbing]);
-    return plumb > 0 || r[CONFIG.KPI_COLS.role]?.toLowerCase().includes('plumb');
-  });
+  if (deptIdx === 1) filtered = kpi.filter(r => empDept(r[CONFIG.KPI_COLS.name]) === 'HVAC');
+  if (deptIdx === 2) filtered = kpi.filter(r => empDept(r[CONFIG.KPI_COLS.name]) === 'Plumbing');
 
   const byConv = [...filtered]
     .filter(r => num(r[CONFIG.KPI_COLS.estimates]) >= 2)
