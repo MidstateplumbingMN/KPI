@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.3</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1623,18 +1623,18 @@ function jBadge(j){
 }
 
 function isConv(e){
+  // An estimate is converted only if it resulted in a booked/paid job
+  // "complete" status means the visit happened — NOT that they bought
   if(e.options&&e.options.length){
     return e.options.some(o=>{
       const s=(o.approval_status||o.status||'').toLowerCase();
       return s==='approved'||s==='pro approved'||s==='customer approved'||
-             s==='created job from estimate'||s==='converted'||
-             s==='complete'||s==='completed'||s==='done';
+             s==='created job from estimate'||s==='converted';
     });
   }
   const s=(e.status||e.work_status||'').toLowerCase();
   return s==='created job from estimate'||s==='approved'||s==='pro approved'||
-         s==='customer approved'||s==='converted'||s==='job_scheduled'||
-         s==='complete'||s==='completed'||s==='done'||!!e.job_id;
+         s==='customer approved'||s==='converted'||s==='job_scheduled'||!!e.job_id;
 }
 function isApprovedStatus(s){
   const v=(s||'').toLowerCase();
@@ -3466,17 +3466,19 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     })(),
     daily_estimates: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
+      // Count estimates where the scheduled visit is today
       return _estimates.filter(e => {
-        const d = new Date(e.created_at||e.schedule?.scheduled_start||'');
+        const d = new Date(e.schedule?.scheduled_start||e.created_at||'');
         if(isNaN(d)) return false;
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
     })(),
     daily_converted: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
+      // Converted = estimate from today that has a linked job (actually sold)
       return _estimates.filter(e => {
         if(!isConv(e)) return false;
-        const d = new Date(e.created_at||'');
+        const d = new Date(e.schedule?.scheduled_start||e.created_at||'');
         if(isNaN(d)) return false;
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
