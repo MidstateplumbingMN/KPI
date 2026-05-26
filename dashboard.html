@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v17.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v17.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1289,6 +1289,7 @@ const GITHUB_PHOTOS = {
   'Gannon Blaiser':  'https://midstateplumbingmn.github.io/KPI/images/Gannon.JPG',
   'Gordon Radant':   'https://midstateplumbingmn.github.io/KPI/images/Gordy.jpg',
   'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg',
+  'Jeff Hohenauer':  '', // add Jeff.jpg to GitHub images folder when available
   'Lukas Schlosser': 'https://midstateplumbingmn.github.io/KPI/images/Lukas.JPG',
 };
 // Gannon became an installer ~30 days ago — his pre-transition sales still count
@@ -3466,18 +3467,36 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     })(),
     daily_estimates: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
-      // Count estimates where the scheduled visit is today
+      // Count estimates SCHEDULED for today (not created today — avoids false positives)
       return _estimates.filter(e => {
-        const d = new Date(e.schedule?.scheduled_start||e.created_at||'');
+        const sched = e.schedule?.scheduled_start;
+        if(!sched) return false; // skip if no scheduled date
+        const d = new Date(sched);
         if(isNaN(d)) return false;
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
     })(),
+    // Department revenue for conversion rotation in companion S3
+    dept_hvac_rev:       getRevenueForPeriod('year',null,'HVAC'),
+    dept_plumbing_rev:   getRevenueForPeriod('year',null,'Plumbing'),
+    dept_hvac_conv: (() => {
+      const hvacEsts = _estimates.filter(e=>getDept(e)==='HVAC');
+      const conv = hvacEsts.filter(isConv).length;
+      return { total: hvacEsts.length, converted: conv, pct: hvacEsts.length ? Math.round(conv/hvacEsts.length*100) : 0 };
+    })(),
+    dept_plumbing_conv: (() => {
+      const pEsts = _estimates.filter(e=>getDept(e)==='Plumbing');
+      const conv = pEsts.filter(isConv).length;
+      return { total: pEsts.length, converted: conv, pct: pEsts.length ? Math.round(conv/pEsts.length*100) : 0 };
+    })(),
+
     daily_converted: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
       const matches = _estimates.filter(e => {
         if(!isConv(e)) return false;
-        const d = new Date(e.schedule?.scheduled_start||e.created_at||'');
+        const sched = e.schedule?.scheduled_start;
+        if(!sched) return false;
+        const d = new Date(sched);
         if(isNaN(d)) return false;
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       });
@@ -4916,7 +4935,9 @@ const DEFAULT_HOLIDAYS = [
   { id:'newyear',      emoji:'🎆', name:"New Year's Day",      date:`${new Date().getFullYear()}-01-01`, enabled:false, message:'Happy New Year!', photoUrl:'' },
   { id:'mlk',          emoji:'✊', name:'MLK Day',              date:`${new Date().getFullYear()}-01-20`, enabled:false, message:'Honoring Dr. Martin Luther King Jr.', photoUrl:'' },
   { id:'valentines',   emoji:'❤️', name:"Valentine's Day",     date:`${new Date().getFullYear()}-02-14`, enabled:false, message:'Happy Valentine\'s Day!', photoUrl:'' },
+  { id:'mothers',      emoji:'💐', name:"Mother's Day",        date:`${new Date().getFullYear()}-05-11`, enabled:false, message:"Happy Mother's Day!", photoUrl:'' },
   { id:'memorial',     emoji:'🇺🇸', name:'Memorial Day',       date:`${new Date().getFullYear()}-05-26`, enabled:false, message:'We honor those who served.', photoUrl:'' },
+  { id:'fathers',      emoji:'👔', name:"Father's Day",         date:`${new Date().getFullYear()}-06-15`, enabled:false, message:"Happy Father's Day!", photoUrl:'' },
   { id:'july4',        emoji:'🎆', name:'Independence Day',     date:`${new Date().getFullYear()}-07-04`, enabled:false, message:'Happy 4th of July!', photoUrl:'' },
   { id:'labor',        emoji:'🛠️', name:'Labor Day',           date:`${new Date().getFullYear()}-09-01`, enabled:false, message:'Happy Labor Day!', photoUrl:'' },
   { id:'halloween',    emoji:'🎃', name:'Halloween',            date:`${new Date().getFullYear()}-10-31`, enabled:false, message:'Happy Halloween!', photoUrl:'' },
@@ -4956,7 +4977,10 @@ function toggleHoliday(id){
 
 function updateHolidayField(id, field, val){
   const h = _holidays.find(h=>h.id===id);
-  if(h){ h[field]=val; saveHolidays(); }
+  if(!h || val === undefined || val === null) return;
+  h[field] = val;
+  // Save immediately for date changes
+  if(field === 'date') saveHolidays();
 }
 
 function deleteHoliday(id){
@@ -4995,8 +5019,11 @@ function renderHolidayList(){
           <input type="text" value="${h.name}" onchange="updateHolidayField('${h.id}','name',this.value)"
             style="font-size:12px;font-weight:700;color:#111827;border:none;background:none;width:100%;padding:0;outline:none">
           <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-            <input type="date" value="${h.date}" onchange="updateHolidayField('${h.id}','date',this.value)"
-              style="font-size:10px;color:#6b7280;border:none;background:none;padding:0;outline:none;cursor:pointer">
+            <input type="date" value="${h.date}"
+              oninput="updateHolidayField('${h.id}','date',this.value)"
+              onchange="updateHolidayField('${h.id}','date',this.value)"
+              onblur="updateHolidayField('${h.id}','date',this.value);saveHolidays();renderHolidayList()"
+              style="font-size:11px;color:#374151;border:1px solid #e5e7eb;border-radius:4px;padding:2px 4px;background:#fff;cursor:pointer">
             <span style="font-size:10px;color:${upcoming?'#059669':past?'#9ca3af':'#6b7280'};font-weight:600">
               ${past?'passed':days===0?'TODAY!':days===1?'tomorrow':days+' days'}
             </span>
