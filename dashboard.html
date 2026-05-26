@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.4</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3673,9 +3673,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 }
 
 async function syncMonthlyRevenueToSheet(monthly) {
-  if(!PROXY) return;
+  if(!_sheetsProxy) return;
   try {
-    const res = await fetch(PROXY, {
+    const res = await fetch(_sheetsProxy, {
       method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
       body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
     });
@@ -5134,9 +5134,14 @@ function renderHolidayList(){
         <input type="text" value="${h.message||''}" placeholder="Message (e.g. Happy Thanksgiving!)"
           onchange="updateHolidayField('${h.id}','message',this.value)"
           style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%">
-        <input type="text" value="${h.photoUrl||''}" placeholder="https://midstateplumbingmn.github.io/KPI/images/..."
-          onchange="updateHolidayField('${h.id}','photoUrl',convertGoogleDriveUrl(this.value)||this.value)"
-          style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%">
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="hol-photo-${h.id}" value="${h.photoUrl||''}" placeholder="Photo URL (optional)"
+            oninput="updateHolidayField('${h.id}','photoUrl',this.value)"
+            onchange="updateHolidayField('${h.id}','photoUrl',this.value)"
+            style="font-size:11px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;flex:1">
+          <button type="button" id="gh-picker-btn-hol-photo-${h.id}" onclick="showImagePicker('hol-photo-${h.id}','')"
+            style="padding:5px 10px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0">📁 Browse</button>
+        </div>
       </div>`:''}
     </div>`;
   }).join('');
