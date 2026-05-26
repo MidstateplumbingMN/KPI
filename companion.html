@@ -108,12 +108,12 @@ html, body {
 /* ---- HEADER BAR ---- */
 .hdr {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 32px;
+  padding: 4px 24px;
   border-bottom: 1px solid var(--border);
-  background: rgba(5,8,16,.95);
+  background: rgba(5,8,16,.98);
   backdrop-filter: blur(20px);
   flex-shrink: 0;
-  min-height: 0;
+  height: 48px;
 }
 .hdr-logo {
   display: flex; align-items: center; gap: 14px;
@@ -138,9 +138,9 @@ html, body {
 .hdr-center {
   display: flex; align-items: center; gap: 12px;
 }
-.scene-dots { display: flex; gap: 8px; }
+.scene-dots { display: flex; gap: 6px; }
 .scene-dot {
-  width: 8px; height: 8px; border-radius: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
   background: var(--border-hi);
   transition: all .4s;
 }
@@ -154,12 +154,12 @@ html, body {
   display: flex; align-items: center; gap: 24px;
 }
 .live-badge {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; color: var(--green);
-  text-transform: uppercase; letter-spacing: .1em;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--green);
+  text-transform: uppercase; letter-spacing: .08em;
 }
 .live-dot {
-  width: 8px; height: 8px; border-radius: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
   background: var(--green);
   animation: livePulse 2s ease-in-out infinite;
 }
@@ -169,17 +169,17 @@ html, body {
 }
 .hdr-time {
   font-family: var(--font-mono);
-  font-size: 18px; color: var(--text-2);
+  font-size: 14px; color: var(--text-2);
   letter-spacing: .05em;
 }
-.hdr-date { font-size: 11px; color: var(--text-3); text-align: right; }
+.hdr-date { font-size: 10px; color: var(--text-3); text-align: right; }
 
 /* ---- SCENE CONTAINER ---- */
 .scenes { flex: 1; position: relative; overflow: hidden; }
 
 .scene {
   position: absolute; inset: 0;
-  padding: 12px 40px 64px;
+  padding: 8px 36px 64px;
   display: none;
   opacity: 0;
   transition: opacity .8s ease;
@@ -880,10 +880,10 @@ html, body {
   <!-- HEADER -->
   <header class="hdr">
     <div class="hdr-logo">
-      <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:140px;object-fit:contain;max-width:360px" alt="Midstate Plumbing"></div>
+      <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:38px;object-fit:contain;max-width:180px" alt="Midstate Plumbing"></div>
       <div>
         <div class="hdr-company" style="display:none">Midstate Plumbing</div>
-        <div class="hdr-sub">KPI Command Center</div>
+        
       </div>
     </div>
 
@@ -1735,6 +1735,13 @@ function updateS3() {
     return;
   }
 
+  // Scale font based on number of technicians
+  const count = kpi.length;
+  const nameFontSize = count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
+  const valFontSize  = count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
+  const itemPadding  = count <= 5 ? '10px 0' : count <= 7 ? '7px 0' : '5px 0';
+  const barHeight    = count <= 5 ? '5px' : '3px';
+
   // Revenue leaderboard
   const byRev = [...kpi].sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]));
   const maxRev = num(byRev[0]?.[CONFIG.KPI_COLS.revenue] || 1);
@@ -1746,14 +1753,14 @@ function updateS3() {
     const color = CONFIG.COLORS[i] || '#6b7280';
     const empData = (state.kpi||[]).find(r=>r[CONFIG.KPI_COLS.name]===name);
     const photoUrl = empData ? convertDriveUrl(empData[CONFIG.KPI_COLS.photo]||'') : '';
-    return `<div class="lb-item">
-      <div class="lb-rank ${i<3?'r'+(i+1):''}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
-      ${photoUrl ? `<img src="${photoUrl}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
+    return `<div class="lb-item" style="padding:${itemPadding}">
+      <div class="lb-rank ${i<3?'r'+(i+1):''}" style="font-size:${nameFontSize}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+      ${photoUrl ? `<img src="${photoUrl}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div class="lb-info">
-        <div class="lb-name">${name}</div>
-        <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="lb-name" style="font-size:${nameFontSize}">${name}</div>
+        <div class="lb-bar-track" style="height:${barHeight}"><div class="lb-bar-fill" style="width:${pct}%;background:${color};height:${barHeight}"></div></div>
       </div>
-      <div class="lb-value" style="color:${color}">${dollars(rev)}</div>
+      <div class="lb-value" style="color:${color};font-size:${valFontSize}">${dollars(rev)}</div>
     </div>`;
   }).join('');
 
