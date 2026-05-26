@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.3</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3500,6 +3500,14 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         // Alerts
         alert_count:  alerts.length,
         alert_headline: alerts.length ? alerts[0].headline||alerts[0].event||'' : '',
+        // Hourly temps for trend chart (every 3 hours: 0,3,6,9,12,15,18,21)
+        hourly_temps: hours.filter((_,i) => i % 3 === 0).map(h => ({
+          time: new Date(h.time).getHours(),
+          temp_f: Math.round(h.temp_f),
+          feels_f: Math.round(h.feelslike_f),
+          rain_chance: h.chance_of_rain || 0,
+        })),
+
         fetched_at:   new Date().toISOString()
       };
       console.log('[Weather] forecast fetched:', _weatherSnap.city, _weatherSnap.temp+'°F', 'H:'+_weatherSnap.high_f+' L:'+_weatherSnap.low_f, _weatherSnap.description);
@@ -3653,6 +3661,8 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     const result=await res.json();
     if(result.success){
       $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
+      // Also sync monthly revenue to its own tab so companion can display bar chart
+      syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
     } else {
       $$('statusBar').textContent=`Report loaded · Sheets sync failed: ${result.error||'unknown error'}`;
     }
@@ -3660,6 +3670,19 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     console.warn('Report sync failed:',err.message);
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
   }
+}
+
+async function syncMonthlyRevenueToSheet(monthly) {
+  if(!PROXY) return;
+  try {
+    const res = await fetch(PROXY, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
+    });
+    const d = await res.json();
+    if(d.success) console.log('[Monthly Revenue] Tab synced:', d.rows, 'rows');
+    else console.warn('[Monthly Revenue] Sync failed:', d.error);
+  } catch(e) { console.warn('[Monthly Revenue] Sync error:', e.message); }
 }
 
 // ============================================================
