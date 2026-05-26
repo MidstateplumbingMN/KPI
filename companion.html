@@ -1272,7 +1272,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.14
+      v1.16
     </div>
   </div>
 </div>
@@ -2383,7 +2383,7 @@ function buildSpotlightItems() {
       name: topRev[CONFIG.KPI_COLS.name],
       type: '💰 Highest Revenue This Month',
       praise: `${dollars(num(topRev[CONFIG.KPI_COLS.revenue]))} in revenue — outstanding performance!`,
-      dept: topRev[CONFIG.KPI_COLS.role] || '',
+      dept: empDept(topRev[CONFIG.KPI_COLS.name]) || topRev[CONFIG.KPI_COLS.role] || '',
       photoUrl: '', isAuto: true, autoLabel: 'Auto · Revenue Leader'
     });
 
@@ -2394,13 +2394,13 @@ function buildSpotlightItems() {
       name: topConv[CONFIG.KPI_COLS.name],
       type: '📋 Highest Conversion Rate',
       praise: `${Math.round(num(topConv[CONFIG.KPI_COLS.convPct]))}% conversion — turning estimates into revenue!`,
-      dept: topConv[CONFIG.KPI_COLS.role] || '',
+      dept: empDept(topConv[CONFIG.KPI_COLS.name]) || topConv[CONFIG.KPI_COLS.role] || '',
       photoUrl: '', isAuto: true, autoLabel: 'Auto · Conversion Leader'
     });
   }
 
   // Manual spotlights from dashboard
-  _spotlights.forEach(s => items.push({...s, isAuto: false}));
+  _spotlights.forEach(s => items.push({...s, dept: empDept(s.name)||s.dept||'', isAuto: false}));
 
   return items;
 }
@@ -2710,55 +2710,101 @@ function renderHeatTrend(hourly, highF, lowF) {
   const labelsEl = document.getElementById('wx-trend-labels');
   if(!svg) return;
 
-  if(!hourly || !hourly.length) {
-    svg.innerHTML = '<text x="140" y="35" fill="rgba(255,255,255,.2)" font-size="10" text-anchor="middle">No hourly data — pull a report</text>';
+  // Build predictive hourly curve from High/Low
+  // Even if we have hourly API data, generate a smooth forecast curve
+  const now = new Date();
+  const curHour = now.getHours();
+  const curTemp = highF || lowF || 60; // fallback
+
+  // Use real hourly data if available, otherwise predict
+  let pts24 = [];
+  if(hourly && hourly.length >= 4) {
+    // Use API data — fill all 24 hours by interpolating
+    const apiMap = {};
+    hourly.forEach(h => { apiMap[h.time] = h.temp_f; });
+    for(let h=0; h<24; h++) {
+      if(apiMap[h] !== undefined) { pts24.push({h, t: apiMap[h]}); }
+      else {
+        // interpolate between known points
+        const keys = Object.keys(apiMap).map(Number).sort((a,b)=>a-b);
+        const prev = keys.filter(k=>k<=h).pop();
+        const next = keys.filter(k=>k>=h).shift();
+        if(prev !== undefined && next !== undefined && prev !== next) {
+          const frac = (h - prev) / (next - prev);
+          pts24.push({h, t: Math.round(apiMap[prev] + (apiMap[next]-apiMap[prev])*frac)});
+        } else {
+          pts24.push({h, t: prev !== undefined ? apiMap[prev] : (next !== undefined ? apiMap[next] : (highF+lowF)/2)});
+        }
+      }
+    }
+  } else if(highF && lowF) {
+    // Predictive bell curve: low at 6am, high at 3pm
+    for(let h=0; h<24; h++) {
+      const peakHour = 15; // 3pm typical peak
+      const troughHour = 6; // 6am typical low
+      // Smooth cosine interpolation
+      let progress;
+      if(h >= troughHour && h <= peakHour) {
+        progress = (h - troughHour) / (peakHour - troughHour);
+      } else if(h > peakHour) {
+        progress = 1 - (h - peakHour) / (24 - peakHour + troughHour) * 0.7;
+      } else {
+        progress = 1 - (troughHour - h) / troughHour * 0.4;
+      }
+      const t = lowF + (highF - lowF) * (0.5 - 0.5 * Math.cos(Math.PI * Math.max(0,Math.min(1,progress))));
+      pts24.push({h, t: Math.round(t)});
+    }
+  } else {
+    svg.innerHTML = '<text x="140" y="35" fill="rgba(255,255,255,.2)" font-size="10" text-anchor="middle">Pull a report to see forecast</text>';
     return;
   }
 
-  const W = 280, H = 60, pad = 12;
-  const temps = hourly.map(h => h.temp_f);
+  // Only show every 3 hours for labels: 12a,3,6,9,12p,3,6,9
+  const labelHours = [0,3,6,9,12,15,18,21];
+  const displayPts = labelHours.map(h => pts24.find(p=>p.h===h)||{h, t:(highF+lowF)/2});
+
+  const W = 280, H = 58, padX = 8, padY = 10;
+  const temps = pts24.map(p=>p.t);
   const minT = Math.min(...temps) - 2;
   const maxT = Math.max(...temps) + 2;
-  const xStep = (W - pad*2) / (hourly.length - 1);
 
-  const toX = i => pad + i * xStep;
-  const toY = t => H - pad - ((t - minT) / (maxT - minT)) * (H - pad*2);
+  const toX = h => padX + (h / 23) * (W - padX*2);
+  const toY = t => H - padY - ((t - minT) / (maxT - minT)) * (H - padY*2);
 
-  // Build polyline points
-  const pts = hourly.map((h,i) => `${toX(i).toFixed(1)},${toY(h.temp_f).toFixed(1)}`).join(' ');
-  // Fill area under curve
-  const fillPts = `${toX(0).toFixed(1)},${H} ${pts} ${toX(hourly.length-1).toFixed(1)},${H}`;
+  // Smooth polyline using all 24 points
+  const polyPts = pts24.map(p => `${toX(p.h).toFixed(1)},${toY(p.t).toFixed(1)}`).join(' ');
+  const fillPts = `${toX(0)},${H} ${polyPts} ${toX(23)},${H}`;
 
-  // Color line by temp
-  const avgTemp = temps.reduce((a,b)=>a+b,0)/temps.length;
-  const lineColor = avgTemp >= 90 ? '#EF4444' : avgTemp >= 75 ? '#F97316' : avgTemp >= 55 ? '#38BDF8' : '#818CF8';
+  const avgTemp = (highF + lowF) / 2;
+  const lineColor = avgTemp >= 90 ? '#EF4444' : avgTemp >= 78 ? '#F97316' : avgTemp >= 60 ? '#38BDF8' : '#818CF8';
+
+  // Current time marker
+  const nowX = toX(curHour);
+  const nowT = pts24.find(p=>p.h===curHour)?.t || ((highF+lowF)/2);
+  const nowY = toY(nowT);
 
   svg.innerHTML = `
     <defs>
-      <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
-        <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
+      <linearGradient id="tGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.03"/>
       </linearGradient>
     </defs>
-    <polygon points="${fillPts}" fill="url(#trendGrad)"/>
-    <polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    ${hourly.map((h,i) => {
-      const x = toX(i), y = toY(h.temp_f);
-      const isHigh = h.temp_f === Math.max(...temps);
-      const isLow  = h.temp_f === Math.min(...temps);
-      if(isHigh || isLow) return `
-        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${isHigh?'#F97316':'#38BDF8'}"/>
-        <text x="${x.toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${isHigh?'#F97316':'#38BDF8'}" font-size="8" text-anchor="middle" font-weight="700">${h.temp_f}°</text>`;
-      return '';
-    }).join('')}
+    <polygon points="${fillPts}" fill="url(#tGrad)"/>
+    <polyline points="${polyPts}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <!-- Current time marker -->
+    <line x1="${nowX.toFixed(1)}" y1="${padY}" x2="${nowX.toFixed(1)}" y2="${H-padY/2}" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="2,2"/>
+    <circle cx="${nowX.toFixed(1)}" cy="${nowY.toFixed(1)}" r="3.5" fill="${lineColor}" stroke="#fff" stroke-width="1.5"/>
+    <!-- High/Low labels -->
+    <text x="${toX(15).toFixed(1)}" y="${(toY(highF)-4).toFixed(1)}" fill="${lineColor}" font-size="9" text-anchor="middle" font-weight="700">H:${highF}°</text>
+    <text x="${toX(6).toFixed(1)}" y="${(toY(lowF)+12).toFixed(1)}" fill="rgba(255,255,255,.5)" font-size="9" text-anchor="middle">L:${lowF}°</text>
   `;
 
-  // Time labels
   if(labelsEl) {
-    labelsEl.innerHTML = hourly.map(h => {
-      const hr = h.time;
-      const label = hr === 0 ? '12a' : hr === 12 ? '12p' : hr > 12 ? `${hr-12}p` : `${hr}a`;
-      return `<span>${label}</span>`;
+    labelsEl.innerHTML = labelHours.map(h => {
+      const label = h===0?'12a':h===12?'12p':h>12?`${h-12}p`:`${h}a`;
+      const isCurrent = h === labelHours.reduce((a,b) => Math.abs(b-curHour)<Math.abs(a-curHour)?b:a);
+      return `<span style="${isCurrent?'color:#fff;font-weight:700':''}">${label}</span>`;
     }).join('');
   }
 }
