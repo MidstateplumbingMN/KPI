@@ -994,8 +994,8 @@ html, body {
           <span>Monthly Revenue vs $250K Target</span>
           <span id="monthly-range-note" style="font-size:9px;color:var(--text-3);opacity:.6;text-transform:none;letter-spacing:0"></span>
         </div>
-        <div id="monthlyBarsWrap" style="flex:1;display:flex;align-items:flex-end;gap:6px;min-height:0">
-          <!-- bars rendered by JS -->
+        <div id="monthlyBarsWrap" style="flex:1;min-height:0;position:relative">
+          <svg id="monthlyBarsSvg" width="100%" height="100%" style="display:block;overflow:visible"></svg>
         </div>
         <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:var(--text-3)">
           <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;display:inline-block"></span>Revenue</span>
@@ -1259,7 +1259,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.18
+      v1.19
     </div>
   </div>
 </div>
@@ -1711,64 +1711,118 @@ function updateS2() {
 
   // Monthly bar chart
   renderMonthlyBars();
+  // Re-render after layout settles so SVG gets correct dimensions
+  requestAnimationFrame(() => requestAnimationFrame(() => renderMonthlyBars()));
 }
 
 function renderMonthlyBars() {
   const wrap = el('monthlyBarsWrap');
-  if (!wrap) return;
-  // Try multiple sources for monthly data
+  const svg  = el('monthlyBarsSvg');
+  if (!wrap || !svg) return;
+
+  // Data
   let months = [];
-  if (state.snap._monthly && state.snap._monthly.length) {
+  if (state.snap._monthly && state.snap._monthly.some(v=>v>0)) {
     months = state.snap._monthly;
   } else if (state.snap['monthly_revenue']) {
     try { months = JSON.parse(state.snap['monthly_revenue']||'[]'); } catch(e) {}
   }
-  // Debug: log what we have
-  if (!months.length) {
-    console.log('[Monthly] No data. snap keys:', Object.keys(state.snap).filter(k=>k.includes('monthly')));
-    wrap.innerHTML = '<div style="color:var(--text-3);font-size:11px;text-align:center;width:100%;padding:20px">Pull a YTD report to see monthly data</div>';
+
+  if (!months.length || !months.some(v=>v>0)) {
+    svg.innerHTML = '<text x="50%" y="50%" fill="rgba(255,255,255,.2)" font-size="13" text-anchor="middle" dominant-baseline="middle">Pull a YTD report to see monthly data</text>';
+    const noteEl = el('monthly-range-note');
+    if(noteEl) noteEl.textContent = '';
     return;
   }
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
   const monthsWithData = months.filter(v=>v>0).length;
   const noteEl = el('monthly-range-note');
-  if(noteEl) noteEl.textContent = monthsWithData > 0 ? `${monthsWithData} months` : 'Pull YTD report for full chart';
-  const TARGET = 250000;
-  const maxVal = Math.max(TARGET * 1.1, ...months);
-  const now = new Date();
-  const curMonth = now.getMonth();
+  if(noteEl) noteEl.textContent = monthsWithData + ' months';
 
-  wrap.innerHTML = MONTHS.map((name, i) => {
-    const rev = months[i] || 0;
-    const pct = Math.min(100, Math.round(rev / maxVal * 100));
-    const targetPct = Math.round(TARGET / maxVal * 100);
-    const isPast = i < curMonth;
-    const isCurrent = i === curMonth;
-    const isFuture = i > curMonth;
-    const barColor = rev >= TARGET ? '#00FF88' :
-                     rev > 0 ? '#FF6B35' : 'rgba(255,255,255,.06)';
-    const glowColor = rev >= TARGET ? 'rgba(0,255,136,.3)' :
-                      rev > 0 ? 'rgba(255,107,53,.3)' : 'none';
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative">
-      <!-- Target line -->
-      <div style="position:absolute;bottom:${targetPct}%;left:0;right:0;height:1px;background:rgba(255,255,255,.25);z-index:1"></div>
-      <!-- Bar -->
-      <div style="width:100%;flex:1;display:flex;align-items:flex-end;position:relative">
-        <div style="width:100%;height:${Math.max(pct,2)}%;
-          background:${isFuture?'rgba(255,255,255,.05)':barColor};
-          border-radius:4px 4px 0 0;
-          box-shadow:${rev>0?'0 0 8px '+glowColor:'none'};
-          transition:height .8s ease;
-          position:relative;">
-          ${isCurrent?'<div style="position:absolute;top:-6px;left:0;right:0;height:3px;background:var(--blue);border-radius:99px;box-shadow:0 0 8px var(--blue)"></div>':''}
-        </div>
-      </div>
-      <!-- Amount -->
-      ${rev > 0 ? `<div style="font-size:8px;color:${barColor};font-weight:700;white-space:nowrap">${rev>=1000?'$'+(rev/1000).toFixed(0)+'K':'$'+rev}</div>` : '<div style="font-size:8px;color:transparent">—</div>'}
-      <!-- Label -->
-      <div style="font-size:9px;color:${isCurrent?'var(--blue)':'var(--text-3)'};font-weight:${isCurrent?'700':'400'}">${name}</div>
-    </div>`;
-  }).join('');
+  const LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const TARGET = 250000;
+  const curMonth = new Date().getMonth();
+
+  // Measure available space
+  const W = wrap.offsetWidth  || 800;
+  const H = wrap.offsetHeight || 200;
+
+  const padTop    = 24;  // room for value labels above bars
+  const padBottom = 22;  // room for month labels
+  const padLeft   = 4;
+  const padRight  = 4;
+  const chartW    = W - padLeft - padRight;
+  const chartH    = H - padTop - padBottom;
+
+  const maxVal = Math.max(TARGET * 1.05, ...months);
+  const barW   = chartW / 12;
+  const gap    = barW * 0.18;
+  const bw     = barW - gap;
+
+  // Target line Y
+  const targetY = padTop + chartH * (1 - TARGET / maxVal);
+
+  let svgContent = '';
+
+  // Target line
+  svgContent += `<line x1="${padLeft}" y1="${targetY.toFixed(1)}" x2="${W-padRight}" y2="${targetY.toFixed(1)}"
+    stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  svgContent += `<text x="${W-padRight-2}" y="${(targetY-4).toFixed(1)}" fill="rgba(255,255,255,.4)"
+    font-size="9" text-anchor="end">$250K</text>`;
+
+  months.forEach((rev, i) => {
+    const x       = padLeft + i * barW + gap/2;
+    const barH    = rev > 0 ? chartH * (rev / maxVal) : 2;
+    const y       = padTop + chartH - barH;
+    const isCur   = i === curMonth;
+    const isFut   = i > curMonth;
+    const hitGoal = rev >= TARGET;
+
+    const fill = isFut      ? 'rgba(255,255,255,.06)' :
+                 hitGoal    ? '#00FF88' :
+                 rev > 0    ? '#00D4FF' : 'rgba(255,255,255,.08)';
+    const glow = hitGoal    ? 'rgba(0,255,136,.5)' :
+                 rev > 0    ? 'rgba(0,212,255,.4)' : 'none';
+
+    // Bar
+    svgContent += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+      width="${bw.toFixed(1)}" height="${Math.max(barH,2).toFixed(1)}"
+      rx="3" fill="${fill}"
+      ${glow!=='none' ? `filter="url(#glow${i})"` : ''}/>`;
+
+    // Glow filter
+    if(glow !== 'none') {
+      svgContent += `<defs><filter id="glow${i}" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter></defs>`;
+    }
+
+    // Current month highlight bar (blue top strip)
+    if(isCur) {
+      svgContent += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+        width="${bw.toFixed(1)}" height="3" rx="1.5" fill="var(--blue)" opacity="0.9"/>`;
+    }
+
+    // Value label above bar
+    if(rev > 0 && !isFut) {
+      const label = rev >= 1000000 ? '$'+(rev/1000000).toFixed(1)+'M' :
+                    rev >= 1000    ? '$'+(rev/1000).toFixed(0)+'K' : '$'+rev;
+      svgContent += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-5).toFixed(1)}"
+        fill="${hitGoal?'#00FF88':'rgba(255,255,255,.7)'}"
+        font-size="${bw > 50 ? '10' : '8'}" text-anchor="middle" font-weight="700">${label}</text>`;
+    }
+
+    // Month label
+    const labelColor = isCur ? '#00D4FF' : 'rgba(255,255,255,.4)';
+    const labelWeight = isCur ? '700' : '400';
+    svgContent += `<text x="${(x+bw/2).toFixed(1)}" y="${(H-4).toFixed(1)}"
+      fill="${labelColor}" font-size="${bw > 50 ? '11' : '9'}"
+      text-anchor="middle" font-weight="${labelWeight}">${LABELS[i]}</text>`;
+  });
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = svgContent;
 }
 
 // ---- SCENE 3: LEADERBOARD ----
