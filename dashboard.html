@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.7</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.7</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3583,16 +3583,22 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
     // Monthly breakdown for companion bar chart
     monthly_revenue: (() => {
+      // Use ALL paid jobs regardless of date range — sum by month for current year
+      // This ensures monthly chart shows full year even if date picker is "This Month"
       const months = {};
       const yr = now_snap.getFullYear();
-      _jobs.filter(isJobPaid).forEach(j => {
+      // Use the raw _jobs array which contains ALL fetched jobs
+      const allPaidJobs = _jobs.filter(isJobPaid);
+      allPaidJobs.forEach(j => {
         const d = new Date(j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at);
         if(d.getFullYear()===yr){
-          const m = d.getMonth(); // 0-11
+          const m = d.getMonth();
           months[m] = (months[m]||0) + getJobRevenue(j);
         }
       });
-      return Array.from({length:12},(_,i)=>Math.round(months[i]||0));
+      const result = Array.from({length:12},(_,i)=>Math.round(months[i]||0));
+      console.log('[Monthly] Built from', allPaidJobs.length, 'paid jobs. Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
+      return result;
     })(),
 
     // Goals
