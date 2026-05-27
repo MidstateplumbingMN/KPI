@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.0</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.0</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1009,9 +1009,14 @@ tr:hover td{background:#fafafa}
             </div>
 
             <div style="margin-bottom:16px">
-              <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Banner Image URL (optional)</label>
-              <input type="text" id="pr-image" placeholder="Direct image URL..."
-                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:12px">
+              <label style="font-size:11px;font-weight:700;color:#9D174D;text-transform:uppercase;letter-spacing:.05em">Image or Video (optional)</label>
+              <div style="display:flex;gap:6px;margin-top:4px">
+                <input type="text" id="pr-image" placeholder="Image URL or .mp4 video URL..."
+                  style="flex:1;padding:8px 10px;border:1px solid #FBCFE8;border-radius:7px;font-size:12px">
+                <button type="button" id="gh-picker-btn-pr-image" onclick="showImagePicker('pr-image','')"
+                  style="padding:7px 12px;background:#EC4899;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">📁 Browse</button>
+              </div>
+              <div style="font-size:10px;color:#9ca3af;margin-top:3px">Supports images and .mp4 videos from GitHub</div>
             </div>
 
             <button onclick="submitPromotion()" style="width:100%;padding:10px;background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
@@ -2883,7 +2888,9 @@ function kpiEmpSelectTechs(){
   _employees.forEach(e=>{
     const role=(e.role||'').toLowerCase();
     const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-    if(!INSTALLER_NAMES.includes(name)&&(role.includes('tech')||role.includes('field')))_kpiSelectedEmps.add(e.id);
+    // Include if HCP tags as tech/field OR if they're in our DEPT_MAP (authoritative)
+    const inDeptMap = DEPT_MAP[name] && DEPT_MAP[name] !== 'Dispatch' && DEPT_MAP[name] !== 'Office';
+    if(!INSTALLER_NAMES.includes(name)&&(role.includes('tech')||role.includes('field')||inDeptMap))_kpiSelectedEmps.add(e.id);
   });
   saveKPIEmpFilter();document.querySelectorAll('#kpiEmpCheckboxList input').forEach(cb=>{cb.checked=_kpiSelectedEmps.has(cb.value);});
   updateKPIEmpLabel();if(_jobs.length)renderKPI(_jobs,_estimates,_employees,_plans);
@@ -5344,7 +5351,7 @@ async function loadGitHubImages() {
     if (!res.ok) throw new Error('API ' + res.status);
     const files = await res.json();
     _ghImages = files
-      .filter(f => f.type === 'file' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.name))
+      .filter(f => f.type === 'file' && /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)$/i.test(f.name))
       .map(f => ({
         name: f.name.replace(/\.[^.]+$/, '').replace(/_/g,' '),
         file: f.name,
@@ -5404,9 +5411,15 @@ async function showImagePicker(targetInputId, previewId) {
   images.forEach(img => {
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent;transition:all .2s;width:80px';
-    div.innerHTML = `
-      <img src="${img.url}" style="width:64px;height:64px;object-fit:contain;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb" onerror="this.style.opacity='.3'">
-      <div style="font-size:9px;color:#374151;text-align:center;width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${img.name}">${img.name}</div>`;
+    const isVideo = /\.(mp4|webm|mov)$/i.test(img.file);
+    div.innerHTML = isVideo
+      ? `<div style="width:64px;height:64px;border-radius:6px;background:#1e293b;border:1px solid #334155;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+           <span style="font-size:24px">🎬</span>
+           <span style="font-size:7px;color:#94a3b8;text-transform:uppercase">${img.file.split('.').pop()}</span>
+         </div>
+         <div style="font-size:9px;color:#374151;text-align:center;width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${img.name}">${img.name}</div>`
+      : `<img src="${img.url}" style="width:64px;height:64px;object-fit:contain;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb" onerror="this.style.opacity='.3'">
+         <div style="font-size:9px;color:#374151;text-align:center;width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${img.name}">${img.name}</div>`;
     div.onmouseenter = () => { div.style.borderColor='#8B5CF6'; div.style.background='#F5F3FF'; };
     div.onmouseleave = () => { div.style.borderColor='transparent'; div.style.background=''; };
     div.onclick = () => {
