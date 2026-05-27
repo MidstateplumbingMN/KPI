@@ -318,8 +318,8 @@ html, body {
 }
 .ring-card {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 16px;
-  padding: 32px;
+  justify-content: space-between;
+  padding: 28px 20px 20px;
 }
 .ring-wrap { position: relative; width: 180px; height: 180px; }
 .ring-wrap canvas { position: absolute; inset: 0; }
@@ -337,9 +337,9 @@ html, body {
   text-transform: uppercase; letter-spacing: .1em;
 }
 .ring-title {
-  font-size: 13px; color: #fff;
+  font-size: 14px; color: #fff; font-weight: 700;
   text-transform: uppercase; letter-spacing: .1em;
-  text-align: center;
+  text-align: center; margin-top: 12px;
 }
 .ring-detail {
   font-size: 12px; color: #fff; text-align: center;
@@ -905,34 +905,22 @@ html, body {
 
         <!-- Stat cards -->
         <div class="card metric accent-blue">
-          <div class="metric-label">Avg Job Value</div>
-          <div class="metric-value glow-blue" id="s1-avg">$0</div>
-          <div class="metric-sub">Per paid job</div>
+          <div class="metric-value glow-blue" id="s1-avg">$0</div><div class="metric-sub">Per paid job</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Avg Job Value</div>
         </div>
         <div class="card metric accent-green">
-          <div class="metric-label">Conversion Rate</div>
-          <div class="metric-value glow-green" id="s1-conv">0%</div>
-          <div class="metric-sub">Estimates → Jobs</div>
+          <div class="metric-value glow-green" id="s1-conv">0%</div><div class="metric-sub">Estimates → Jobs</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Conversion Rate</div>
         </div>
         <div class="card metric accent-orange">
-          <div class="metric-label">Total Jobs</div>
-          <div class="metric-value glow-orange" id="s1-jobs">0</div>
-          <div class="metric-sub">In period</div>
+          <div class="metric-value glow-orange" id="s1-jobs">0</div><div class="metric-sub">In period</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Total Jobs</div>
         </div>
         <div class="card metric accent-purple">
-          <div class="metric-label">Estimates Scheduled</div>
-          <div class="metric-value glow-purple" id="s1-ests">0</div>
-          <div class="metric-sub">Total estimates</div>
+          <div class="metric-value glow-purple" id="s1-ests">0</div><div class="metric-sub">Total estimates</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Estimates Scheduled</div>
         </div>
         <div class="card metric accent-gold">
-          <div class="metric-label">Open Opportunities</div>
-          <div class="metric-value glow-gold" id="s1-open">0</div>
-          <div class="metric-sub">IS pipeline</div>
+          <div class="metric-value glow-gold" id="s1-open">0</div><div class="metric-sub">IS pipeline</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Open Opportunities</div>
         </div>
         <div class="card metric accent-blue">
-          <div class="metric-label">Service Plans</div>
-          <div class="metric-value glow-blue" id="s1-plans">0</div>
-          <div class="metric-sub">Active memberships</div>
+          <div class="metric-value glow-blue" id="s1-plans">0</div><div class="metric-sub">Active memberships</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Service Plans</div>
         </div>
       </div>
     </div>
@@ -976,7 +964,7 @@ html, body {
         <div class="card ring-card" id="gap-card" style="position:relative;overflow:hidden">
           <div style="position:absolute;top:10px;right:12px;display:flex;gap:6px" id="gap-period-dots"></div>
           <div style="font-size:10px;color:rgba(255,255,255,.9);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px" id="gap-period-label">Day</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.9);margin-bottom:4px">Revenue</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.9);margin-bottom:4px">Revenue</div>
           <div style="font-family:var(--font-display);font-size:32px;font-weight:900;line-height:1" id="gap-revenue">$0</div>
           <div style="font-size:11px;color:rgba(255,255,255,.9);margin:10px 0 4px">Gap to Goal</div>
           <div style="font-size:28px;font-weight:900;line-height:1" id="gap-amount">$0</div>
@@ -1012,12 +1000,12 @@ html, body {
       <div class="scene-title">// Team Leaderboard — Revenue Leaders</div>
       <div class="grid">
         <div class="card" style="display:flex;flex-direction:column">
-          <div class="lb-title">💰 Revenue — YTD</div>
-          <div class="lb-list" id="lb-revenue"></div>
+          <div class="lb-list" id="lb-revenue" style="flex:1"></div>
+          <div class="lb-title" style="text-align:center;padding:12px 24px 8px;border-top:1px solid rgba(255,255,255,.08);border-bottom:none;font-size:14px;font-weight:700">💰 Revenue — YTD</div>
         </div>
         <div class="card" style="display:flex;flex-direction:column">
-          <div class="lb-title" id="lb-conv-title">📋 Overall Conversion</div>
-          <div class="lb-list" id="lb-conv"></div>
+          <div class="lb-list" id="lb-conv" style="flex:1"></div>
+          <div class="lb-title" id="lb-conv-title" style="text-align:center;padding:12px 24px 8px;border-top:1px solid rgba(255,255,255,.08);border-bottom:none;font-size:14px;font-weight:700">📋 Overall Conversion</div>
         </div>
       </div>
     </div>
@@ -1031,14 +1019,10 @@ html, body {
           <canvas id="chartRevenue"></canvas>
         </div>
         <div class="card metric accent-blue">
-          <div class="metric-label">Top Earner</div>
-          <div class="metric-value" id="s4-top-name" style="font-size:32px">—</div>
-          <div class="metric-sub" id="s4-top-rev">$0 revenue</div>
+          <div class="metric-value" id="s4-top-name" style="font-size:32px">—</div><div class="metric-sub" id="s4-top-rev">$0 revenue</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Top Earner</div>
         </div>
         <div class="card metric accent-green">
-          <div class="metric-label">Best Converter</div>
-          <div class="metric-value" id="s4-conv-name" style="font-size:32px">—</div>
-          <div class="metric-sub" id="s4-conv-pct">0% conversion</div>
+          <div class="metric-value" id="s4-conv-name" style="font-size:32px">—</div><div class="metric-sub" id="s4-conv-pct">0% conversion</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Best Converter</div>
         </div>
       </div>
     </div>
@@ -1057,16 +1041,15 @@ html, body {
 
     <!-- SCENE 6: WIN THE DAY -->
     <div class="scene" id="s6">
-      <!-- Big date header — padded to clear floating logo -->
-      <div style="padding:0 0 8px;flex-shrink:0">
-        <div id="wtd-date-hero" style="font-family:var(--font-display);font-size:48px;line-height:1;letter-spacing:.03em;color:#fff;text-shadow:0 0 40px rgba(0,212,255,.2)">FRIDAY, MAY 22</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.9);margin-top:4px;text-transform:uppercase;letter-spacing:.15em">// Win the Day — Today Only</div>
+      <!-- Date — absolute top-left, out of grid flow -->
+      <div style="position:absolute;top:12px;left:36px;z-index:2;pointer-events:none">
+        <div id="wtd-date-hero" style="font-family:var(--font-display);font-size:36px;line-height:1;letter-spacing:.03em;color:rgba(255,255,255,.9)">FRIDAY, MAY 22</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:3px;text-transform:uppercase;letter-spacing:.15em">// Win the Day</div>
       </div>
       <!-- Three main metrics + revenue hero -->
       <div style="flex:1;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:16px;padding:0 40px 16px;min-height:0">
         <!-- Revenue hero -->
         <div class="card wtd-hero" id="wtd-hero-card" style="display:flex;flex-direction:column;justify-content:center">
-          <div class="wtd-hero-label">⚡ Revenue Today</div>
           <div class="wtd-hero-val" id="wtd-revenue">$0</div>
           <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs</div>
           <div class="wtd-goal-bar" style="margin-top:16px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
@@ -1074,24 +1057,19 @@ html, body {
           <!-- Thermometer — large central -->
           <div id="wtd-thermo" style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:16px;flex:1;min-height:0"></div>
           <div id="wtd-gap" style="margin-top:12px;padding:12px 14px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px"></div>
+          <div style="text-align:center;margin-top:12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff">⚡ Revenue Today</div>
         </div>
         <!-- Jobs completed today -->
         <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-label">Jobs Completed</div>
-          <div class="metric-value glow-green" id="wtd-completed" style="font-size:72px">0</div>
-          <div class="metric-sub">Paid &amp; closed today</div>
+          <div class="metric-value glow-green" id="wtd-completed" style="font-size:72px">0</div><div class="metric-sub">Paid &amp; closed today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Jobs Completed</div>
         </div>
         <!-- Estimates run today -->
         <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-label">Estimates Scheduled</div>
-          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:72px">0</div>
-          <div class="metric-sub">Scheduled today</div>
+          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:72px">0</div><div class="metric-sub">Scheduled today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Estimates Scheduled</div>
         </div>
         <!-- Estimates converted today -->
         <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-label">Converted</div>
-          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
-          <div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div>
+          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:64px;white-space:nowrap">—</div><div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Converted</div>
         </div>
       </div>
     </div><!-- end s6 -->
@@ -1261,7 +1239,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.32
+      v1.35
     </div>
   </div>
 </div>
@@ -1587,15 +1565,97 @@ function updateAll() {
   const hasSnap = Object.keys(state.snap).length > 0;
   if (!hasSnap) { showNoDataState(); return; }
   hideNoDataState();
-  // Only update the currently visible scene — prevents flickering mid-display
+  // Refresh data values only — never restart timers or animations
   const cur = SCENES[state.currentScene];
-  if      (cur==='s1') updateS1();
-  else if (cur==='s2') updateS2();
-  else if (cur==='s3') updateS3();
-  else if (cur==='s4') updateS4();
-  else if (cur==='s6') updateS6();
-  // s5/s7/s8/s11 are self-managed — don't interrupt them
+  if      (cur==='s1') refreshS1Data();
+  else if (cur==='s2') refreshS2Data();
+  else if (cur==='s3') refreshS3Data();
+  else if (cur==='s6') refreshS6Data();
+  // s4/s5/s7/s8/s9/s10/s11 — don't interrupt mid-display
   checkVictoryMode();
+}
+
+// ---- Lightweight data refreshers (no timer restarts) ----
+function refreshS1Data() { updateS1(); } // S1 has no timers, safe to call
+
+function refreshS2Data() {
+  // Only update the ring numbers and bar chart — DON'T restart gap rotation
+  const snap = state.snap;
+  const revAnnual  = num(snap['rev_annual']||0);
+  const goalAnnual = num(snap['goal_annual']||3000000);
+  const annualPct  = Math.min(100, Math.round(revAnnual/goalAnnual*100));
+  const convPct    = num(snap['conversion_pct']||0);
+  const convEsts   = num(snap['converted_estimates']||0);
+  const totalEsts  = num(snap['total_estimates']||0);
+  const neededPWD  = num(snap['needed_per_workday']||0);
+  const wdLeft     = num(snap['workdays_left']||0);
+  if(el('ring-rev-pct'))  el('ring-rev-pct').textContent  = annualPct + '%';
+  if(el('ring-conv-pct')) el('ring-conv-pct').textContent = Math.round(convPct) + '%';
+  if(el('ring-rev-detail'))  el('ring-rev-detail').innerHTML  = `${dollars(revAnnual)} of ${dollars(goalAnnual)}<br><span style="color:#fff">${dollars(neededPWD)}/workday · ${wdLeft} left</span>`;
+  if(el('ring-conv-detail')) el('ring-conv-detail').innerHTML = `${convEsts} of ${totalEsts} estimates<br><span style="color:#fff">Target: 40%+</span>`;
+  drawRing('ringRevenue', annualPct, '#00D4FF');
+  drawRing('ringConv', Math.round(convPct), '#00FF88', 40);
+  renderMonthlyBars(); // safe — just redraws SVG
+}
+
+function refreshS3Data() {
+  // Only update current dept view without restarting rotation
+  const kpi = state.kpi.filter(r => {
+    const name = r[CONFIG.KPI_COLS.name]||'';
+    if(!name || name.startsWith('job_') || name.startsWith('pro_')) return false;
+    if(KPI_EXCLUDE.has(name)) return false;
+    if(KPI_PLANS_ONLY.has(name)) return num(r[CONFIG.KPI_COLS.plans]) > 0;
+    return true;
+  });
+  const count = kpi.length;
+  // Refresh revenue list
+  const byRev = [...kpi].sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]));
+  const maxRev = num(byRev[0]?.[CONFIG.KPI_COLS.revenue] || 1);
+  const nameFontSize = count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
+  const valFontSize  = count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
+  const itemPadding  = count <= 5 ? '10px 0' : count <= 7 ? '7px 0' : '5px 0';
+  const barHeight    = count <= 5 ? '5px' : '3px';
+  if(el('lb-revenue')) el('lb-revenue').innerHTML = byRev.slice(0,8).map((row,i) => {
+    const name = row[CONFIG.KPI_COLS.name];
+    const rev  = num(row[CONFIG.KPI_COLS.revenue]);
+    const pct  = Math.round(rev / maxRev * 100);
+    const color = CONFIG.COLORS[i] || '#6b7280';
+    const empData = (state.kpi||[]).find(r=>r[CONFIG.KPI_COLS.name]===name);
+    const photoUrl = empData ? convertDriveUrl(empData[CONFIG.KPI_COLS.photo]||'') : '';
+    return `<div class="lb-item" style="padding:${itemPadding}">
+      <div class="lb-rank ${i<3?'r'+(i+1):''}" style="font-size:${nameFontSize}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+      ${photoUrl?`<img src="${photoUrl}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">`:''}
+      <div class="lb-info">
+        <div class="lb-name" style="font-size:${nameFontSize}">${name}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.9);margin-top:1px">${empDept(name)}</div>
+        <div class="lb-bar-track" style="height:${barHeight}"><div class="lb-bar-fill" style="width:${pct}%;background:${color};height:${barHeight}"></div></div>
+      </div>
+      <div class="lb-value" style="color:${color};font-size:${valFontSize}">${dollars(rev)}</div>
+    </div>`;
+  }).join('');
+  // Refresh current dept conv without restarting rotation
+  if (_deptRotateTimer) renderConvByDept(kpi, _deptIdx, count);
+}
+
+function refreshS6Data() {
+  // Only update numbers — don't restart flip timer or thermometer animation
+  const snap = state.snap;
+  const revenue   = num(snap['rev_daily']||0);
+  const dailyJobs = num(snap['daily_jobs']||0);
+  const dailyEsts = num(snap['daily_estimates']||0);
+  const dailyConv = num(snap['daily_converted']||0);
+  const dailyGoal = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
+  const goalPct   = Math.min(100, Math.round(revenue/dailyGoal*100));
+  const convPct   = dailyEsts > 0 ? Math.round(dailyConv/dailyEsts*100) : null;
+  if(el('wtd-revenue'))   el('wtd-revenue').textContent  = dollars(revenue);
+  if(el('wtd-jobs'))      el('wtd-jobs').textContent     = dailyJobs;
+  if(el('wtd-completed')) el('wtd-completed').textContent= dailyJobs;
+  if(el('wtd-ests'))      el('wtd-ests').textContent     = dailyEsts;
+  if(el('wtd-conv'))      el('wtd-conv').textContent     = convPct !== null ? dailyConv+' / '+dailyEsts : '—';
+  if(el('wtd-goal-pct'))  el('wtd-goal-pct').textContent = goalPct + '%';
+  if(el('wtd-goal-fill')) el('wtd-goal-fill').style.width = goalPct + '%';
+  if(el('wtd-daily-goal'))el('wtd-daily-goal').textContent = dollars(dailyGoal);
+  addGapToGoalDisplay(revenue);
 }
 
 function showNoDataState() {
@@ -2098,7 +2158,7 @@ function showAnnouncement(idx, quotes) {
   if (authorEl) authorEl.textContent = '— ' + (item.author || item.a || 'Midstate Team');
 
   if (photoWrap) {
-    const photoUrl = item.photoUrl ? convertDriveUrl(item.photoUrl) : '';
+    const photoUrl = item.photoUrl ? item.photoUrl.trim() : '';
     if (photoUrl) {
       photoWrap.innerHTML = `<img src="${photoUrl}" style="max-width:420px;max-height:320px;width:auto;height:auto;border-radius:16px;object-fit:contain;border:3px solid var(--blue);box-shadow:0 0 40px rgba(0,212,255,.3);margin-bottom:24px" onerror="this.style.display='none'">`;
       photoWrap.style.display = 'block';
@@ -2594,7 +2654,7 @@ const CUBE_ANGLES = [0, -90, -180, -270]; // Y rotation to show each face
 
 function buildSpotlightFaceHTML(item) {
   if (!item) return '';
-  const photoSrc = item.photoUrl ? convertDriveUrl(item.photoUrl) : '';
+  const photoSrc = item.photoUrl ? (item.photoUrl.trim()) : '';
   const initial = item.name ? item.name.charAt(0).toUpperCase() : '⭐';
   const autoTag = item.isAuto
     ? `<div class="spotlight-auto-badge"><span>⚡</span><span>${item.autoLabel||'Auto'}</span></div>` : '';
@@ -2606,12 +2666,11 @@ function buildSpotlightFaceHTML(item) {
       <div class="spotlight-initials" style="${photoSrc?'display:none':'display:flex'}">${initial}</div>
       <div class="spotlight-badge">${item.type||'⭐ Spotlight'}</div>
     </div>
-    <div class="spotlight-info">
-      ${autoTag}
-      <div class="spotlight-header-label">🏆 Employee Spotlight</div>
-      <div class="spotlight-name">${item.name||'—'}</div>
-      <div style="font-size:14px;color:rgba(255,255,255,.9);margin-top:4px">${item.dept||''}</div>
-      ${item.praise ? `<div class="spotlight-praise">"${item.praise}"</div>` : ''}
+    <div class="spotlight-info" style="display:none"></div>
+    <div id="sp-name-bar" style="text-align:center;padding:16px 0 0">
+      <div style="font-family:var(--font-display);font-size:36px;color:#fff;letter-spacing:.05em">${item.name||'—'}</div>
+      <div style="font-size:16px;color:rgba(255,255,255,.85);margin-top:4px">${item.dept||''} · ${item.type||'⭐ Spotlight'}</div>
+      ${item.praise ? `<div style="font-size:14px;color:rgba(255,255,255,.8);margin-top:8px;font-style:italic">"${item.praise}"</div>` : ''}
     </div>`;
 }
 
@@ -3166,7 +3225,7 @@ function showHolidaySlide(idx) {
   setTimeout(() => {
     container.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px">
-        ${h.photoUrl ? `<img src="${convertDriveUrl(h.photoUrl)}" style="max-width:200px;max-height:160px;width:auto;height:auto;border-radius:16px;object-fit:contain;border:4px solid ${accentColor};box-shadow:0 0 40px ${accentColor}66" onerror="this.style.display='none'">` : ''}
+        ${h.photoUrl ? `<img src="${h.photoUrl.includes('github.io')?h.photoUrl:convertDriveUrl(h.photoUrl)}" style="max-width:200px;max-height:160px;width:auto;height:auto;border-radius:16px;object-fit:contain;border:4px solid ${accentColor};box-shadow:0 0 40px ${accentColor}66" onerror="this.style.display='none'">` : ''}
         <div style="font-size:96px;line-height:1;filter:drop-shadow(0 0 20px rgba(255,255,255,.3))">${h.emoji}</div>
         <div style="font-family:var(--font-display);font-size:72px;line-height:1;
           background:linear-gradient(135deg,#fff,${accentColor});
