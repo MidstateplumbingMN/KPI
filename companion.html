@@ -870,14 +870,17 @@ html, body {
 <div class="progress-bar" id="progressBar"></div>
 
 <div id="app">
-  <!-- Floating logo — top left -->
-  <div style="position:fixed;top:8px;left:16px;z-index:100;pointer-events:none">
-    <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:36px;object-fit:contain;max-width:160px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))" alt="Midstate Plumbing"></div>
-  </div>
-
-  <!-- Floating dots — top center -->
-  <div style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100;pointer-events:none">
+  <!-- Floating top bar: logo + date stacked left, dots centered -->
+  <div style="position:fixed;top:0;left:0;right:0;height:56px;z-index:100;pointer-events:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:linear-gradient(to bottom,rgba(5,8,16,.85) 60%,transparent)">
+    <!-- Left: logo on top, date beneath -->
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:1px">
+      <div id="header-logo"><img src="https://midstateplumbingmn.github.io/KPI/images/logo.png" style="height:28px;object-fit:contain;max-width:140px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.8))" alt="Midstate Plumbing"></div>
+      <div style="font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.06em;padding-left:2px" id="dateDisp">---</div>
+    </div>
+    <!-- Center: dots -->
     <div class="scene-dots" id="sceneDots"></div>
+    <!-- Right: clock -->
+    <div style="font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.5);letter-spacing:.05em;text-align:right" id="clock">--:--:--</div>
   </div>
 
   <!-- SCENES -->
@@ -995,8 +998,8 @@ html, body {
           <span>Monthly Revenue vs $250K Target</span>
           <span id="monthly-range-note" style="font-size:9px;color:var(--text-3);opacity:.6;text-transform:none;letter-spacing:0"></span>
         </div>
-        <div id="monthlyBarsWrap" style="flex:1;min-height:0;position:relative">
-          <svg id="monthlyBarsSvg" width="100%" height="100%" style="display:block;overflow:visible"></svg>
+        <div id="monthlyBarsWrap" style="flex:1;min-height:0;position:relative;width:100%">
+          <svg id="monthlyBarsSvg" style="position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible"></svg>
         </div>
         <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:var(--text-3)">
           <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;display:inline-block"></span>Revenue</span>
@@ -1058,7 +1061,7 @@ html, body {
     <!-- SCENE 6: WIN THE DAY -->
     <div class="scene" id="s6">
       <!-- Big date header — padded to clear floating logo -->
-      <div style="padding:48px 40px 8px;flex-shrink:0">
+      <div style="padding:8px 40px 8px;flex-shrink:0">
         <div id="wtd-date-hero" style="font-family:var(--font-display);font-size:56px;line-height:1;letter-spacing:.04em;color:#fff;text-shadow:0 0 40px rgba(0,212,255,.2)">FRIDAY, MAY 22</div>
         <div style="font-size:12px;color:var(--text-3);margin-top:4px;text-transform:uppercase;letter-spacing:.15em">// Win the Day — Today Only</div>
       </div>
@@ -1071,6 +1074,8 @@ html, body {
           <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs</div>
           <div class="wtd-goal-bar" style="margin-top:16px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
           <div style="font-size:11px;color:var(--text-3);margin-top:8px"><span id="wtd-goal-pct">0%</span> of daily goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
+          <!-- Thermometer -->
+          <div id="wtd-thermo" style="margin-top:14px;display:flex;align-items:flex-end;gap:10px;height:80px"></div>
           <div id="wtd-gap" style="margin-top:12px;padding:12px 14px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px"></div>
         </div>
         <!-- Jobs completed today -->
@@ -1244,14 +1249,11 @@ html, body {
     <div class="status-item" style="color:var(--text-3)">
       Range: <span id="dataRange" style="color:rgba(255,255,255,.5)">—</span>
     </div>
-    <!-- Clock + live moved from header -->
     <div class="status-item" style="margin-left:auto;gap:12px">
       <div class="live-badge">
         <div class="live-dot"></div>
         <span id="liveStatus">Live</span>
       </div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-2);letter-spacing:.05em" id="clock">--:--:--</div>
-      <div style="font-size:10px;color:var(--text-3)" id="dateDisp">---</div>
     </div>
     <div class="status-item" style="color:var(--text-3)">
       Last refresh: <span id="lastRefresh">—</span>
@@ -1260,7 +1262,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.20
+      v1.22
     </div>
   </div>
 </div>
@@ -1752,10 +1754,24 @@ function updateS2() {
   requestAnimationFrame(() => requestAnimationFrame(() => renderMonthlyBars()));
 }
 
+// ResizeObserver for monthly bars — re-renders when card resizes (fullscreen etc)
+let _monthlyResizeObs = null;
+
 function renderMonthlyBars() {
   const wrap = el('monthlyBarsWrap');
   const svg  = el('monthlyBarsSvg');
   if (!wrap || !svg) return;
+
+  // Use getBoundingClientRect for accurate dimensions even in flex layouts
+  const rect = wrap.getBoundingClientRect();
+  const W = Math.floor(rect.width)  || wrap.clientWidth  || wrap.offsetWidth  || 800;
+  const H = Math.floor(rect.height) || wrap.clientHeight || wrap.offsetHeight || 220;
+
+  // Skip if not yet visible
+  if (W < 50 || H < 30) {
+    requestAnimationFrame(() => requestAnimationFrame(() => renderMonthlyBars()));
+    return;
+  }
 
   // Data
   let months = [];
@@ -1766,100 +1782,84 @@ function renderMonthlyBars() {
   }
 
   if (!months.length || !months.some(v=>v>0)) {
-    svg.innerHTML = '<text x="50%" y="50%" fill="rgba(255,255,255,.2)" font-size="13" text-anchor="middle" dominant-baseline="middle">Pull a YTD report to see monthly data</text>';
-    const noteEl = el('monthly-range-note');
-    if(noteEl) noteEl.textContent = '';
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" fill="rgba(255,255,255,.2)" font-size="13" text-anchor="middle" dominant-baseline="middle">Pull a YTD report to see monthly data</text>`;
     return;
   }
 
-  const monthsWithData = months.filter(v=>v>0).length;
   const noteEl = el('monthly-range-note');
-  if(noteEl) noteEl.textContent = monthsWithData + ' months';
+  if(noteEl) noteEl.textContent = months.filter(v=>v>0).length + ' months';
 
-  const LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const TARGET = 250000;
+  const LABELS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const TARGET  = 250000;
   const curMonth = new Date().getMonth();
+  const maxVal  = Math.max(TARGET * 1.35, ...months);
 
-  // Measure available space
-  const W = wrap.offsetWidth  || 800;
-  const H = wrap.offsetHeight || 200;
-
-  const padTop    = 24;  // room for value labels above bars
-  const padBottom = 22;  // room for month labels
-  const padLeft   = 4;
-  const padRight  = 4;
-  const chartW    = W - padLeft - padRight;
+  const padTop    = 22;
+  const padBottom = 20;
+  const padSide   = 6;
+  const chartW    = W - padSide * 2;
   const chartH    = H - padTop - padBottom;
 
-  const maxVal = Math.max(TARGET * 1.05, ...months);
-  const barW   = chartW / 12;
-  const gap    = barW * 0.18;
-  const bw     = barW - gap;
-
-  // Target line Y
+  const barW  = chartW / 12;
+  const gap   = Math.max(2, barW * 0.16);
+  const bw    = barW - gap;
   const targetY = padTop + chartH * (1 - TARGET / maxVal);
 
-  let svgContent = '';
+  let out = '';
 
-  // Target line
-  svgContent += `<line x1="${padLeft}" y1="${targetY.toFixed(1)}" x2="${W-padRight}" y2="${targetY.toFixed(1)}"
-    stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
-  svgContent += `<text x="${W-padRight-2}" y="${(targetY-4).toFixed(1)}" fill="rgba(255,255,255,.4)"
-    font-size="9" text-anchor="end">$250K</text>`;
+  // Target dashed line
+  out += `<line x1="${padSide}" y1="${targetY.toFixed(1)}" x2="${(W-padSide).toFixed(1)}" y2="${targetY.toFixed(1)}"
+    stroke="rgba(255,255,255,.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="${(W-padSide-2).toFixed(1)}" y="${(targetY-5).toFixed(1)}"
+    fill="rgba(255,255,255,.45)" font-size="9" text-anchor="end">$250K</text>`;
 
   months.forEach((rev, i) => {
-    const x       = padLeft + i * barW + gap/2;
-    const barH    = rev > 0 ? chartH * (rev / maxVal) : 2;
-    const y       = padTop + chartH - barH;
-    const isCur   = i === curMonth;
-    const isFut   = i > curMonth;
+    const x    = padSide + i * barW + gap / 2;
+    const cx   = x + bw / 2;
+    const barH = rev > 0 ? Math.max(2, chartH * (rev / maxVal)) : 2;
+    const y    = padTop + chartH - barH;
+    const isCur  = i === curMonth;
+    const isFut  = i > curMonth;
     const hitGoal = rev >= TARGET;
 
-    const fill = isFut      ? 'rgba(255,255,255,.06)' :
-                 hitGoal    ? '#00FF88' :
-                 rev > 0    ? '#00D4FF' : 'rgba(255,255,255,.08)';
-    const glow = hitGoal    ? 'rgba(0,255,136,.5)' :
-                 rev > 0    ? 'rgba(0,212,255,.4)' : 'none';
+    const fill  = isFut ? 'rgba(255,255,255,.05)' : hitGoal ? '#00FF88' : rev > 0 ? '#00D4FF' : 'rgba(255,255,255,.07)';
+    const gid   = `g${i}`;
+
+    if(rev > 0 && !isFut) {
+      out += `<defs><filter id="${gid}"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    }
 
     // Bar
-    svgContent += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
-      width="${bw.toFixed(1)}" height="${Math.max(barH,2).toFixed(1)}"
-      rx="3" fill="${fill}"
-      ${glow!=='none' ? `filter="url(#glow${i})"` : ''}/>`;
+    out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${barH.toFixed(1)}"
+      rx="3" fill="${fill}" ${rev>0&&!isFut?`filter="url(#${gid})"`:''}/>`;
 
-    // Glow filter
-    if(glow !== 'none') {
-      svgContent += `<defs><filter id="glow${i}" x="-30%" y="-30%" width="160%" height="160%">
-        <feGaussianBlur stdDeviation="3" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter></defs>`;
-    }
+    // Current month top indicator
+    if(isCur) out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="3" rx="1.5" fill="var(--blue)"/>`;
 
-    // Current month highlight bar (blue top strip)
-    if(isCur) {
-      svgContent += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
-        width="${bw.toFixed(1)}" height="3" rx="1.5" fill="var(--blue)" opacity="0.9"/>`;
-    }
-
-    // Value label above bar
+    // Value label
     if(rev > 0 && !isFut) {
-      const label = rev >= 1000000 ? '$'+(rev/1000000).toFixed(1)+'M' :
-                    rev >= 1000    ? '$'+(rev/1000).toFixed(0)+'K' : '$'+rev;
-      svgContent += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-5).toFixed(1)}"
-        fill="${hitGoal?'#00FF88':'rgba(255,255,255,.7)'}"
-        font-size="${bw > 50 ? '10' : '8'}" text-anchor="middle" font-weight="700">${label}</text>`;
+      const lbl = rev >= 1000000 ? '$'+(rev/1000000).toFixed(1)+'M' : rev >= 1000 ? '$'+(rev/1000).toFixed(0)+'K' : '$'+rev;
+      const fs  = bw > 55 ? 10 : bw > 35 ? 8 : 7;
+      out += `<text x="${cx.toFixed(1)}" y="${(y-4).toFixed(1)}"
+        fill="${hitGoal?'#00FF88':'rgba(255,255,255,.75)'}" font-size="${fs}" text-anchor="middle" font-weight="700">${lbl}</text>`;
     }
 
     // Month label
-    const labelColor = isCur ? '#00D4FF' : 'rgba(255,255,255,.4)';
-    const labelWeight = isCur ? '700' : '400';
-    svgContent += `<text x="${(x+bw/2).toFixed(1)}" y="${(H-4).toFixed(1)}"
-      fill="${labelColor}" font-size="${bw > 50 ? '11' : '9'}"
-      text-anchor="middle" font-weight="${labelWeight}">${LABELS[i]}</text>`;
+    const fs2 = bw > 55 ? 11 : bw > 35 ? 9 : 7;
+    out += `<text x="${cx.toFixed(1)}" y="${(H-4).toFixed(1)}"
+      fill="${isCur?'#00D4FF':'rgba(255,255,255,.4)'}" font-size="${fs2}" text-anchor="middle" font-weight="${isCur?'700':'400'}">${LABELS[i]}</text>`;
   });
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.innerHTML = svgContent;
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.innerHTML = out;
+
+  // Wire ResizeObserver so fullscreen re-renders correctly
+  if(!_monthlyResizeObs && window.ResizeObserver) {
+    _monthlyResizeObs = new ResizeObserver(() => renderMonthlyBars());
+    _monthlyResizeObs.observe(wrap);
+  }
 }
 
 // ---- SCENE 3: LEADERBOARD ----
@@ -2089,7 +2089,47 @@ function showAnnouncement(idx, quotes) {
 // ---- SCENE 6: WIN THE DAY ----
 let _wtdLastRevenue = 0;
 
+function renderThermometer(containerId, current, goal) {
+  const el_ = document.getElementById(containerId);
+  if(!el_) return;
+  const pct = Math.min(100, current > 0 ? Math.round(current/goal*100) : 0);
+  const met = current >= goal;
+  const color = met ? '#00FF88' : pct > 66 ? '#00D4FF' : pct > 33 ? '#FF6B35' : '#EF4444';
+
+  el_.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <!-- Thermometer tube -->
+      <div style="width:22px;height:64px;background:rgba(255,255,255,.08);border-radius:11px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.15)">
+        <!-- Goal line -->
+        <div style="position:absolute;bottom:100%;margin-bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,.4);z-index:2;top:0"></div>
+        <!-- Fill -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:${pct}%;background:${color};border-radius:0 0 10px 10px;transition:height 1.2s ease;box-shadow:0 0 12px ${color}88"></div>
+        <!-- Bulb -->
+        <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color}"></div>
+      </div>
+      <div style="font-size:9px;color:rgba(255,255,255,.5);text-align:center;margin-top:6px">${pct}%</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:2px 0">
+      <!-- Goal marker at top -->
+      <div style="display:flex;align-items:center;gap:4px">
+        <div style="width:8px;height:1px;background:rgba(255,255,255,.4)"></div>
+        <div style="font-size:9px;color:rgba(255,255,255,.5)">Goal: ${dollars(goal)}</div>
+      </div>
+      <!-- Current value in middle -->
+      <div style="font-size:${current>=10000?'13px':'15px'};font-weight:900;color:${color}">${dollars(current)}</div>
+      <!-- Base -->
+      <div style="display:flex;align-items:center;gap:4px">
+        <div style="width:8px;height:1px;background:rgba(255,255,255,.15)"></div>
+        <div style="font-size:9px;color:rgba(255,255,255,.25)">$0</div>
+      </div>
+    </div>`;
+}
+
 async function updateS6() {
+  // Debounce — don't re-run if already running (prevents multiple rapid calls)
+  if (updateS6._running) return;
+  updateS6._running = true;
+  setTimeout(() => { updateS6._running = false; }, 2000);
   try {
     const snap = state.snap;
 
@@ -2118,6 +2158,30 @@ async function updateS6() {
     el('wtd-jobs').textContent      = dailyJobs;
     el('wtd-completed').textContent = dailyJobs;
     el('wtd-ests').textContent      = dailyEsts;
+
+    // Alternate Jobs Completed card between paid jobs and estimates every 6s
+    if(window._wtdJobsFlipTimer) clearInterval(window._wtdJobsFlipTimer);
+    let _wtdFlipState = 0;
+    function flipJobsCard() {
+      const lbl = el('wtd-jobs-label');
+      const val = el('wtd-completed');
+      const sub = el('wtd-jobs-sub');
+      if(_wtdFlipState % 2 === 0) {
+        if(lbl) lbl.textContent = 'Jobs Completed';
+        if(val) { val.textContent = dailyJobs; val.className = 'metric-value glow-green'; }
+        if(sub) sub.textContent = 'Paid & closed today';
+      } else {
+        if(lbl) lbl.textContent = 'Estimates Scheduled';
+        if(val) { val.textContent = dailyEsts; val.className = 'metric-value glow-blue'; }
+        if(sub) sub.textContent = 'Visits scheduled today';
+      }
+      _wtdFlipState++;
+    }
+    flipJobsCard();
+    window._wtdJobsFlipTimer = setInterval(flipJobsCard, 6000);
+
+    // Thermometer for revenue vs daily goal
+    renderThermometer('wtd-thermo', revenue, dailyGoal);
     el('wtd-conv').textContent      = convPct !== null ? dailyConv + ' / ' + dailyEsts : '—';
     const convSub = el('wtd-conv-sub');
     if(convSub) convSub.textContent = convPct !== null ? convPct + '% conversion rate' : 'Estimates sold today';
@@ -3382,10 +3446,10 @@ function addGapToGoalDisplay(revenue) {
     gapEl.innerHTML = `
       <div style="font-size:11px;color:var(--orange);text-transform:uppercase;letter-spacing:.1em;font-weight:800;margin-bottom:6px">⚡ Gap to Goal</div>
       <div style="font-size:22px;font-weight:900;color:var(--orange);text-shadow:0 0 20px rgba(255,107,53,.5)">
-        Need ${dollars(gap)} by ${deadline}
+        Need ${dollars(gap)} today
       </div>
       <div style="font-size:13px;color:var(--text-3);margin-top:4px">
-        ${dollars(neededPerHour)}/hr needed &nbsp;·&nbsp; ${hoursLeft.toFixed(1)} hrs remaining
+        ${dollars(neededPerHour)}/hr avg needed &nbsp;·&nbsp; ${hoursLeft.toFixed(1)} hrs left
       </div>`;
   }
 }
