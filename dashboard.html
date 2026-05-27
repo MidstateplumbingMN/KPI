@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.0</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -4388,6 +4388,35 @@ async function syncGoalsToSheet(btn){
   setTimeout(()=>{ btn.textContent=orig; btn.style.background='#059669'; btn.disabled=false; },3000);
 }
 
+
+async function pushHolidaysToCompanion(btn) {
+  if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); return; }
+  const orig = btn.textContent;
+  btn.textContent = '⏳ Pushing...'; btn.disabled = true;
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({
+        action: 'syncReport',
+        dateFrom: $$('dateFrom')?.value||'',
+        dateTo:   $$('dateTo')?.value||'',
+        jobs: [], estimates: [], kpi: [], attribution: [],
+        summary: {},
+        dashboardSnapshot: {
+          holidays: (_holidays||[]).filter(h=>h.enabled),
+          birthdays: _bdayList||[]
+        },
+        announcements: _announcements||[],
+        wallboardSettings: _wbSettings||{}
+      })
+    });
+    const data = await res.json();
+    if(data.success){ btn.textContent='✅ Pushed!'; showToast('✅ Holidays pushed to companion','success'); }
+    else throw new Error(data.error||'Failed');
+  } catch(e) { showToast('Push failed: '+e.message,'error'); btn.textContent=orig; }
+  setTimeout(()=>{ btn.textContent=orig; btn.disabled=false; }, 3000);
+}
+
 function printGoals(){
   const content=$$('goalsContent');
   if(!content||!_jobs.length){alert('Pull a report first.');return;}
@@ -5391,6 +5420,15 @@ async function showImagePicker(targetInputId, previewId) {
   // Loading state
   picker.innerHTML = '<div style="padding:20px;text-align:center;color:#6b7280;font-size:12px">📡 Scanning GitHub images...</div>';
 
+  // Refresh button clears cache so we rescan
+  picker._refreshImages = async () => {
+    _ghImages = null;
+    const grid = picker.querySelector('#gh-picker-grid');
+    if(grid) grid.innerHTML = '<div style="padding:10px;color:#6b7280;font-size:11px">↻ Refreshing...</div>';
+    const images = await loadGitHubImages();
+    renderPickerGrid(images, input, picker);
+  };
+
   // Position near input first
   const rect = input.getBoundingClientRect();
   picker.style.top = (rect.bottom + window.scrollY + 4) + 'px';
@@ -5399,15 +5437,24 @@ async function showImagePicker(targetInputId, previewId) {
 
   // Load images dynamically
   const images = await loadGitHubImages();
-
   picker.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f3f4f6">
       <span style="font-size:11px;font-weight:700;color:#374151">📁 GitHub Images — ${images.length} found</span>
-      <button onclick="document.getElementById('gh-image-picker').remove()" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af">✕</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="document.getElementById('gh-image-picker')._refreshImages()" style="font-size:10px;padding:3px 8px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">↻ Refresh</button>
+        <button onclick="document.getElementById('gh-image-picker').remove()" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af">✕</button>
+      </div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px" id="gh-picker-grid"></div>`;
+  renderPickerGrid(images, input, picker);
 
+  // renderPickerGrid is defined before this is called
+}
+
+function renderPickerGrid(images, input, picker) {
   const grid = picker.querySelector('#gh-picker-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
   images.forEach(img => {
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent;transition:all .2s;width:80px';
@@ -5452,6 +5499,25 @@ function previewAnnPhoto(url){
   preview.style.display = 'block'; // show immediately, hide on error
 }
 
+
+function editAnnouncement(id) {
+  const ann = _announcements.find(a=>a.id===id);
+  if(!ann) return;
+  // Populate the form with existing values
+  const msgEl = $$('ann-message');
+  const authEl = $$('ann-author');
+  const photoEl = $$('ann-photo');
+  if(msgEl)   msgEl.value   = ann.message || '';
+  if(authEl)  authEl.value  = ann.author  || '';
+  if(photoEl) { photoEl.value = ann.photoUrl || ''; previewAnnPhoto(ann.photoUrl||''); }
+  // Remove the existing one
+  deleteAnnouncement(id);
+  // Scroll to form
+  $$('ann-message')?.scrollIntoView({behavior:'smooth', block:'center'});
+  $$('ann-message')?.focus();
+  showToast('✏️ Editing announcement — update and re-post','info');
+}
+
 function submitAnnouncement(){
   const message=$$('ann-message')?.value?.trim();
   const author=$$('ann-author')?.value?.trim()||'Midstate Team';
@@ -5493,7 +5559,10 @@ function renderAnnList(){
         <div style="font-size:13px;font-weight:600;color:#111827;line-height:1.4">"${a.message}"</div>
         <div style="font-size:11px;color:#8B5CF6;margin-top:3px">— ${a.author}</div>
       </div>
-      <button onclick="deleteAnnouncement(${a.id})" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:2px;flex-shrink:0">✕</button>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button onclick="editAnnouncement(${a.id})" style="font-size:10px;padding:3px 8px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">✏️ Edit</button>
+        <button onclick="deleteAnnouncement(${a.id})" style="font-size:10px;padding:3px 8px;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;cursor:pointer">✕ Delete</button>
+      </div>
     </div>`).join('');
 }
 
