@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.7</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v18.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.7</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v18.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2062,9 +2062,11 @@ async function loadAll(){
     }
     // Sync to Google Sheets in background
     syncReportToSheets(jobs,estimates,employees,plans,from,to);
-    fetchTYCardsFromSheets(); // create TY_Cards tab if missing
-    // Initialize TY_Cards sheet tab (creates it if missing) — runs silently in background
     fetchTYCardsFromSheets();
+
+    // Fetch full-year paid jobs in background for monthly bar chart
+    // Runs regardless of selected date range so monthly chart always shows full year
+    fetchYTDMonthlyRevenue();
 
     $$('main').style.display='block';
     $$('printBtn').style.display='';
@@ -3689,6 +3691,47 @@ async function syncMonthlyRevenueToSheet(monthly) {
     if(d.success) console.log('[Monthly Revenue] Tab synced:', d.rows, 'rows');
     else console.warn('[Monthly Revenue] Sync failed:', d.error);
   } catch(e) { console.warn('[Monthly Revenue] Sync error:', e.message); }
+}
+
+// ============================================================
+// YTD MONTHLY REVENUE — fetch full year for bar chart
+// Runs in background after main pull, independent of date range
+// ============================================================
+async function fetchYTDMonthlyRevenue() {
+  if (!_workerUrl) return;
+  try {
+    const yr = new Date().getFullYear();
+    const from = `${yr}-01-01`;
+    const to   = `${yr}-12-31`;
+    console.log('[YTD Monthly] Fetching full year jobs for monthly chart...');
+
+    // Fetch all paid jobs for the year using the worker
+    const allJobs = await fetchAllPages(`${_workerUrl}/jobs?page_size=200&status[]=paid&work_start_date=${from}&work_end_date=${to}`);
+    if (!allJobs.length) { console.log('[YTD Monthly] No jobs returned'); return; }
+
+    // Compute monthly totals
+    const months = new Array(12).fill(0);
+    allJobs.forEach(j => {
+      if (!isJobPaid(j)) return;
+      const d = new Date(j.work_timestamps?.completed_at||j.completed_at||j.created_at);
+      if (isNaN(d) || d.getFullYear() !== yr) return;
+      months[d.getMonth()] += getJobRevenue(j);
+    });
+    const monthly = months.map(Math.round);
+    console.log('[YTD Monthly] Computed:', monthly.filter(v=>v>0).length, 'months with data');
+
+    // Push directly to Apps Script
+    if (_sheetsProxy) {
+      const res = await fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+        body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
+      });
+      const d = await res.json();
+      if(d.success) console.log('[YTD Monthly] Synced to Monthly_Revenue tab');
+    }
+  } catch(e) {
+    console.warn('[YTD Monthly] Background fetch failed:', e.message);
+  }
 }
 
 // ============================================================
