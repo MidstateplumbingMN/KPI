@@ -1237,7 +1237,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.38
+      v1.39
     </div>
   </div>
 </div>
@@ -1911,8 +1911,9 @@ function renderMonthlyBars() {
     if(rev > 0 && !isFut) {
       const lbl = rev >= 1000000 ? '$'+(rev/1000000).toFixed(1)+'M' : rev >= 1000 ? '$'+(rev/1000).toFixed(0)+'K' : '$'+rev;
       const fs  = bw > 55 ? 16 : bw > 35 ? 13 : 11;
-      out += `<text x="${cx.toFixed(1)}" y="${(y-4).toFixed(1)}"
-        fill="${hitGoal?'#00FF88':'rgba(255,255,255,.75)'}" font-size="${fs}" text-anchor="middle" font-weight="700">${lbl}</text>`;
+      const labelY = Math.max(fs + 2, y - 4); // keep inside SVG
+      out += `<text x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}"
+        fill="${hitGoal?'#00FF88':'#fff'}" font-size="${fs}" text-anchor="middle" font-weight="700">${lbl}</text>`;
     }
 
     // Month label
