@@ -1042,32 +1042,45 @@ html, body {
     </div>
 
     <!-- SCENE 6: WIN THE DAY -->
-    <div class="scene" id="s6">
-      <!-- Three main metrics + revenue hero -->
-      <div style="flex:1;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:clamp(8px,1.5vw,20px);padding:0 clamp(12px,3vw,40px) 16px;min-height:0;overflow:hidden">
-        <!-- Revenue hero -->
-        <div class="card wtd-hero" id="wtd-hero-card" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;min-height:0">
+    <div class="scene" id="s6" style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Row 1: 3 metric cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(8px,1.5vw,16px);padding:0 clamp(12px,3vw,40px);flex-shrink:0">
+        <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
+          <div class="metric-value glow-green" id="wtd-completed" style="font-size:clamp(40px,6vw,72px)">0</div>
+          <div class="metric-sub" id="wtd-jobs-sub">Paid &amp; closed today</div>
+          <div class="metric-label" style="margin-top:8px;font-size:13px;font-weight:700;text-align:center" id="wtd-jobs-label">Jobs Completed</div>
+        </div>
+        <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
+          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:clamp(40px,6vw,72px)">0</div>
+          <div class="metric-sub">Scheduled today</div>
+          <div class="metric-label" style="margin-top:8px;font-size:13px;font-weight:700;text-align:center">Estimates Scheduled</div>
+        </div>
+        <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
+          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:clamp(36px,5vw,60px);white-space:nowrap">—</div>
+          <div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div>
+          <div class="metric-label" style="margin-top:8px;font-size:13px;font-weight:700;text-align:center">Converted</div>
+        </div>
+      </div>
+
+      <!-- Row 2: Revenue + thermometer — fills remaining space -->
+      <div style="flex:1;min-height:0;padding:0 clamp(12px,3vw,40px);display:flex;gap:clamp(8px,1.5vw,16px)">
+
+        <!-- Left: revenue number + goal bar + gap -->
+        <div class="card wtd-hero" id="wtd-hero-card" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:20px 24px;gap:8px">
           <div class="wtd-hero-val" id="wtd-revenue">$0</div>
           <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs</div>
-          <div class="wtd-goal-bar" style="margin-top:16px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
-          <div style="font-size:11px;color:rgba(255,255,255,.9);margin-top:8px"><span id="wtd-goal-pct">0%</span> of daily goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
-          <!-- Thermometer — contained height -->
-          <div id="wtd-thermo" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:16px;max-height:min(160px,20vh);overflow:hidden"></div>
-          <div id="wtd-gap" style="margin-top:48px;padding:12px 14px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px"></div>
-          <div style="text-align:center;margin-top:12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff">⚡ Revenue Today</div>
+          <div class="wtd-goal-bar" style="margin-top:8px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
+          <div style="font-size:11px;color:rgba(255,255,255,.9)"><span id="wtd-goal-pct">0%</span> of goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
+          <div id="wtd-gap" style="padding:10px 12px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px;margin-top:4px"></div>
+          <div style="text-align:center;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff;margin-top:8px">⚡ Revenue Today</div>
         </div>
-        <!-- Jobs completed today -->
-        <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-green" id="wtd-completed" style="font-size:clamp(48px,7vw,72px)">0</div><div class="metric-sub">Paid &amp; closed today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Jobs Completed</div>
+
+        <!-- Right: thermometer — large, centered, full height -->
+        <div class="card" style="width:clamp(140px,18vw,220px);display:flex;align-items:center;justify-content:center;padding:16px">
+          <div id="wtd-thermo" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"></div>
         </div>
-        <!-- Estimates run today -->
-        <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:clamp(48px,7vw,72px)">0</div><div class="metric-sub">Scheduled today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Estimates Scheduled</div>
-        </div>
-        <!-- Estimates converted today -->
-        <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:clamp(40px,6vw,64px);white-space:nowrap">—</div><div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Converted</div>
-        </div>
+
       </div>
     </div><!-- end s6 -->
 
@@ -1236,7 +1249,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.42
+      v1.47
     </div>
   </div>
 </div>
@@ -1376,6 +1389,12 @@ const DEPT_MAP = {
 };
 const KPI_EXCLUDE = new Set(['Jody Serres','Office Staff']);
 const KPI_PLANS_ONLY = new Set(['Robert Danaher','Bob Danaher','Victoria Ellsworth','Victoria']);
+// Force-include DEPT_MAP employees in KPI leaderboard
+function empShouldShowInKPI(name) {
+  if(KPI_EXCLUDE.has(name)) return false;
+  if(KPI_PLANS_ONLY.has(name)) return true; // show if has plans
+  return !!DEPT_MAP[name]; // anyone in DEPT_MAP is a valid tech
+}
 function empDept(name) { return DEPT_MAP[name] || 'Other'; }
 
 // ============================================================
@@ -1576,7 +1595,10 @@ function updateAll() {
 function refreshS1Data() { updateS1(); } // S1 has no timers, safe to call
 
 function refreshS2Data() {
-  // Only update the ring numbers and bar chart — DON'T restart gap rotation
+  // Ensure monthly data is loaded before rendering
+  if(!state.snap._monthly || !state.snap._monthly.some(v=>v>0)) {
+    loadMonthlyRevenue().then(() => renderMonthlyBars());
+  }
   const snap = state.snap;
   const revAnnual  = num(snap['rev_annual']||0);
   const goalAnnual = num(snap['goal_annual']||3000000);
@@ -1635,15 +1657,19 @@ function refreshS3Data() {
 }
 
 function isDailyStale() {
-  // Check if the snapshot is from a previous day (reset daily at 7am)
+  // Check if snapshot is from a previous calendar day
   const pullDate = state.snap['pull_date'] || state.snap['date_to'] || '';
   if(!pullDate) return false;
   const now = new Date();
-  const resetHour = 7; // 7am reset
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), resetHour);
-  const pulled = new Date(pullDate);
-  // If pulled before today's 7am and it's now past 7am, data is stale
-  return pulled < today && now >= today;
+  // Parse date string as local date (add T12:00:00 to avoid UTC midnight timezone shift)
+  const dateStr = String(pullDate).trim().split('T')[0]; // get YYYY-MM-DD part
+  const pulled = new Date(dateStr + 'T12:00:00'); // noon local time = unambiguous
+  if(isNaN(pulled)) return false;
+  const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+  const resetHour = 7;
+  const pastReset = now.getHours() >= resetHour;
+  // Stale only if pulled on a PREVIOUS calendar day AND it's past 7am today
+  return pulled < todayNoon && pastReset && pulled.toDateString() !== now.toDateString();
 }
 
 function refreshS6Data() {
@@ -1949,9 +1975,9 @@ function updateS3() {
     const name = r[CONFIG.KPI_COLS.name]||'';
     if(!name || name.startsWith('job_') || name.startsWith('pro_')) return false;
     if(KPI_EXCLUDE.has(name)) return false;
-    // Dispatch only shows if they have plans
     if(KPI_PLANS_ONLY.has(name)) return num(r[CONFIG.KPI_COLS.plans]) > 0;
-    return true;
+    // Include if in DEPT_MAP (handles new hires like Jeff) OR has revenue/jobs
+    return DEPT_MAP[name] || num(r[CONFIG.KPI_COLS.revenue]) > 0 || num(r[CONFIG.KPI_COLS.jobs]) > 0;
   });
 
   if (!kpi.length) {
@@ -2186,7 +2212,7 @@ function renderThermometer(containerId, current, goal) {
   const pct    = Math.min(100, current > 0 ? Math.round(current/goal*100) : 0);
   const met    = current >= goal;
   const color  = met ? '#00FF88' : pct > 80 ? '#00D4FF' : pct > 50 ? '#38BDF8' : pct > 30 ? '#FF6B35' : '#EF4444';
-  const H      = Math.min(el_.parentElement?.clientHeight || 160, 180);
+  const H      = Math.max(80, Math.min(el_.clientHeight || el_.parentElement?.clientHeight || 160, 240));
   const tubeH  = Math.max(H - 40, 80); // leave room for labels
 
   el_.innerHTML = `
@@ -2600,7 +2626,8 @@ async function loadSpotlightData() {
       .filter(r => !r[4] || r[4] >= today) // not expired
       .map(r => ({
         id: r[0], title: r[1]||'', offer: r[2]||'',
-        desc: r[3]||'', end: r[4]||'', color: r[5]||'#E8640A', banner: r[6]||''
+        desc: r[3]||'', end: r[4]||'', color: r[5]||'#E8640A',
+        banner: r[6]||'', imageUrl: r[6]||''  // imageUrl alias for display
       }));
   } catch(e) {
     _promos = [];
@@ -2947,6 +2974,15 @@ async function updateS9() {
   }
 }
 
+function tempToColor(t) {
+  if(t >= 95) return '#EF4444'; // red — very hot
+  if(t >= 85) return '#F97316'; // orange — hot
+  if(t >= 75) return '#FBBF24'; // yellow — warm
+  if(t >= 60) return '#86EFAC'; // green — mild
+  if(t >= 45) return '#38BDF8'; // light blue — cool
+  return '#818CF8';             // purple — cold
+}
+
 function renderHeatTrend(hourly, highF, lowF) {
   const svg = document.getElementById('wx-trend-svg');
   const labelsEl = document.getElementById('wx-trend-labels');
@@ -3025,15 +3061,31 @@ function renderHeatTrend(hourly, highF, lowF) {
   const nowT = pts24.find(p=>p.h===curHour)?.t || ((highF+lowF)/2);
   const nowY = toY(nowT);
 
+  // Build gradient stops from left (coldest) to right based on hourly temps
+  const gradStops = pts24.map((p, i) => {
+    const pct = Math.round(i / 23 * 100);
+    return `<stop offset="${pct}%" stop-color="${tempToColor(p.t)}"/>`;
+  }).join('');
+
+  // Per-segment colored line using small rects for gradient effect
+  const segments = pts24.slice(0, -1).map((p, i) => {
+    const x1 = toX(p.h), y1 = toY(p.t);
+    const x2 = toX(pts24[i+1].h), y2 = toY(pts24[i+1].t);
+    const col = tempToColor((p.t + pts24[i+1].t) / 2);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>`;
+  }).join('');
+
   svg.innerHTML = `
     <defs>
-      <linearGradient id="tGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.03"/>
+      <linearGradient id="tGrad" x1="0" y1="0" x2="1" y2="0">
+        ${gradStops}
+      </linearGradient>
+      <linearGradient id="tFill" x1="0" y1="0" x2="1" y2="0">
+        ${gradStops.replace(/stop-color/g,'stop-color').replace(/\/>$/mg,' stop-opacity="0.25"/>')}
       </linearGradient>
     </defs>
-    <polygon points="${fillPts}" fill="url(#tGrad)"/>
-    <polyline points="${polyPts}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <polygon points="${fillPts}" fill="url(#tGrad)" opacity="0.2"/>
+    ${segments}
     <!-- Current time marker -->
     <line x1="${nowX.toFixed(1)}" y1="${padY}" x2="${nowX.toFixed(1)}" y2="${H-padY/2}" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="2,2"/>
     <circle cx="${nowX.toFixed(1)}" cy="${nowY.toFixed(1)}" r="3.5" fill="${lineColor}" stroke="#fff" stroke-width="1.5"/>
@@ -3391,27 +3443,11 @@ async function loadWallboardData() {
     } catch(e) { state.birthdays = []; }
   }
 
-  // Monthly revenue — read from dedicated Monthly_Revenue tab (no sensitive data)
-  if(!state.snap._monthly || !state.snap._monthly.length) {
-    try {
-      const mrows = await fetchCSV('Monthly_Revenue');
-      if(mrows.length > 1) {
-        const arr = new Array(12).fill(0);
-        mrows.slice(1).forEach(r => {
-          const monthNum = parseInt(r[1]||0) - 1; // Month_Num col is 1-indexed
-          const rev = parseFloat(r[2]||0);
-          if(monthNum >= 0 && monthNum < 12) arr[monthNum] = rev;
-        });
-        state.snap._monthly = arr;
-        console.log('[Monthly Revenue] Loaded from tab:', arr.filter(v=>v>0).length, 'months with data');
-      }
-    } catch(e) { console.log('[Monthly Revenue] Tab not available:', e.message); }
-  }
   applyWallboardSettings();
 }
 
 async function loadMonthlyRevenue() {
-  if(state.snap._monthly && state.snap._monthly.some(v=>v>0)) return;
+  // Try Monthly_Revenue tab first (dedicated tab, no sensitive data)
   try {
     const mrows = await fetchCSV('Monthly_Revenue');
     if(mrows.length > 1) {
@@ -3423,10 +3459,22 @@ async function loadMonthlyRevenue() {
       });
       if(arr.some(v=>v>0)) {
         state.snap._monthly = arr;
-        console.log('[Monthly Revenue] Loaded:', arr.filter(v=>v>0).length, 'months with data');
+        console.log('[Monthly Revenue] Loaded from Monthly_Revenue tab:', arr.filter(v=>v>0).length, 'months');
+        return;
       }
     }
-  } catch(e) { console.log('[Monthly Revenue] Not published yet:', e.message); }
+  } catch(e) { console.log('[Monthly Revenue] Monthly_Revenue tab not available:', e.message); }
+
+  // Fallback: parse monthly_revenue JSON from KPI_Dashboard snap
+  if(state.snap['monthly_revenue']) {
+    try {
+      const arr = JSON.parse(state.snap['monthly_revenue']||'[]');
+      if(Array.isArray(arr) && arr.some(v=>v>0)) {
+        state.snap._monthly = arr;
+        console.log('[Monthly Revenue] Loaded from KPI_Dashboard snap:', arr.filter(v=>v>0).length, 'months');
+      }
+    } catch(e) {}
+  }
 }
 
 function applyWallboardSettings() {
