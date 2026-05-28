@@ -1249,7 +1249,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.47
+      v1.48
     </div>
   </div>
 </div>
@@ -1389,6 +1389,21 @@ const DEPT_MAP = {
 };
 const KPI_EXCLUDE = new Set(['Jody Serres','Office Staff']);
 const KPI_PLANS_ONLY = new Set(['Robert Danaher','Bob Danaher','Victoria Ellsworth','Victoria']);
+
+// GitHub photos map in companion — mirrors dashboard GITHUB_PHOTOS
+const COMPANION_PHOTOS = {
+  'Doug McNamara':   'https://midstateplumbingmn.github.io/KPI/images/Doug.JPG',
+  'Eric Stoffel':    'https://midstateplumbingmn.github.io/KPI/images/Eric.JPG',
+  'Gannon Blaiser':  'https://midstateplumbingmn.github.io/KPI/images/Gannon.JPG',
+  'Gordon Radant':   'https://midstateplumbingmn.github.io/KPI/images/Gordy.jpg',
+  'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg',
+  'Lukas Schlosser': 'https://midstateplumbingmn.github.io/KPI/images/Lukas.JPG',
+};
+function getEmpPhoto(name, kpiPhotoUrl) {
+  if(kpiPhotoUrl && kpiPhotoUrl.trim()) return kpiPhotoUrl.trim();
+  return COMPANION_PHOTOS[name] || '';
+}
+
 // Force-include DEPT_MAP employees in KPI leaderboard
 function empShouldShowInKPI(name) {
   if(KPI_EXCLUDE.has(name)) return false;
@@ -1640,7 +1655,8 @@ function refreshS3Data() {
     const pct  = Math.round(rev / maxRev * 100);
     const color = CONFIG.COLORS[i] || '#6b7280';
     const empData = (state.kpi||[]).find(r=>r[CONFIG.KPI_COLS.name]===name);
-    const photoUrl = empData ? convertDriveUrl(empData[CONFIG.KPI_COLS.photo]||'') : '';
+    const empPhoto = empData ? empData[CONFIG.KPI_COLS.photo]||'' : '';
+    const photoUrl = getEmpPhoto(name, empPhoto);
     return `<div class="lb-item" style="padding:${itemPadding}">
       <div class="lb-rank ${i<3?'r'+(i+1):''}" style="font-size:${nameFontSize}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
       ${photoUrl?`<img src="${photoUrl}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">`:''}
@@ -1856,15 +1872,22 @@ function renderMonthlyBars() {
   const svg  = el('monthlyBarsSvg');
   if (!wrap || !svg) return;
 
-  // Measure wrap dimensions
-  const W = wrap.clientWidth  || wrap.offsetWidth  || 800;
-  const H = wrap.clientHeight || wrap.offsetHeight || 220;
+  // Measure wrap dimensions — retry up to 5 times with delay for TV browsers
+  const W = wrap.clientWidth  || wrap.offsetWidth  || wrap.getBoundingClientRect().width  || 0;
+  const H = wrap.clientHeight || wrap.offsetHeight || wrap.getBoundingClientRect().height || 0;
 
-  // Skip if not yet visible
   if (W < 50 || H < 30) {
-    requestAnimationFrame(() => requestAnimationFrame(() => renderMonthlyBars()));
+    // Not visible yet — retry after short delay (TV browsers are slower to layout)
+    if(!renderMonthlyBars._retries) renderMonthlyBars._retries = 0;
+    renderMonthlyBars._retries++;
+    if(renderMonthlyBars._retries < 10) {
+      setTimeout(() => renderMonthlyBars(), 200);
+    } else {
+      renderMonthlyBars._retries = 0;
+    }
     return;
   }
+  renderMonthlyBars._retries = 0;
 
   // Data
   let months = [];
@@ -2003,7 +2026,8 @@ function updateS3() {
     const name = row[CONFIG.KPI_COLS.name];
     const color = CONFIG.COLORS[i] || '#6b7280';
     const empData = (state.kpi||[]).find(r=>r[CONFIG.KPI_COLS.name]===name);
-    const photoUrl = empData ? convertDriveUrl(empData[CONFIG.KPI_COLS.photo]||'') : '';
+    const empPhoto = empData ? empData[CONFIG.KPI_COLS.photo]||'' : '';
+    const photoUrl = getEmpPhoto(name, empPhoto);
     return `<div class="lb-item" style="padding:${itemPadding}">
       <div class="lb-rank ${i<3?'r'+(i+1):''}" style="font-size:${nameFontSize}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
       ${photoUrl ? `<img src="${photoUrl}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
@@ -2691,7 +2715,7 @@ const CUBE_ANGLES = [0, -90, -180, -270]; // Y rotation to show each face
 
 function buildSpotlightFaceHTML(item) {
   if (!item) return '';
-  const photoSrc = item.photoUrl ? (item.photoUrl.trim()) : '';
+  const photoSrc = getEmpPhoto(item.name||'', item.photoUrl||'');
   const initial = item.name ? item.name.charAt(0).toUpperCase() : '⭐';
   const autoTag = item.isAuto
     ? `<div class="spotlight-auto-badge"><span>⚡</span><span>${item.autoLabel||'Auto'}</span></div>` : '';
