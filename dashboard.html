@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.1</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2057,6 +2057,7 @@ async function loadAll(){
     loadCalEmpFilter();
     buildCalEmpFilter();
     loadKPIEmpFilter();
+    syncNewEmployeesToFilter();
     buildKPIEmpFilter();
     initKPIRange();
     // Show plan data view if we already have uploaded plans
@@ -2903,8 +2904,38 @@ function updateKPIEmpLabel(){
   if(sel===0||sel===total){label.textContent='👥 All employees';btn?.classList.remove('active');}
   else{label.textContent=`👥 ${sel} of ${total} shown`;btn?.classList.add('active');}
 }
-function saveKPIEmpFilter(){try{localStorage.setItem('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));}catch(e){}}
-function loadKPIEmpFilter(){try{const s=localStorage.getItem('hcp_kpi_emps');if(s)_kpiSelectedEmps=new Set(JSON.parse(s));}catch(e){}}
+function saveKPIEmpFilter(){
+  try{localStorage.setItem('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));}catch(e){}
+  saveSettingToSheets('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));
+}
+async function loadKPIEmpFilter(){
+  // Try Sheets first, fall back to localStorage
+  try {
+    if(_sheetsProxy) {
+      const sheetSettings = await loadSettingsFromSheets();
+      const sheetsVal = sheetSettings['hcp_kpi_emps'];
+      if(sheetsVal) { _kpiSelectedEmps=new Set(JSON.parse(sheetsVal)); return; }
+    }
+  } catch(e) {}
+  try{const s=localStorage.getItem('hcp_kpi_emps');if(s)_kpiSelectedEmps=new Set(JSON.parse(s));}catch(e){}
+}
+
+function syncNewEmployeesToFilter(){
+  // Add any employees from DEPT_MAP who aren't in the saved filter
+  // This handles new hires like Jeff Hohenauer
+  if(!_employees || !_kpiSelectedEmps.size) return;
+  let added=0;
+  _employees.forEach(emp=>{
+    const name=((emp.first_name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
+    const inDeptMap=DEPT_MAP[name]&&DEPT_MAP[name]!=='Dispatch'&&DEPT_MAP[name]!=='Office';
+    if(inDeptMap && !_kpiSelectedEmps.has(emp.id)){
+      _kpiSelectedEmps.add(emp.id);
+      added++;
+      console.log('[KPI Filter] Auto-added new employee:',name);
+    }
+  });
+  if(added) saveKPIEmpFilter();
+}
 function toggleKPIEmpFilter(e){
   e.stopPropagation();
   const dd=$$('kpiEmpFilterDropdown');
@@ -3739,6 +3770,44 @@ async function fetchYTDMonthlyRevenue() {
   } catch(e) {
     console.warn('[YTD Monthly] Background fetch failed:', e.message);
   }
+}
+
+
+// ============================================================
+// SHEETS SETTINGS — replaces localStorage for critical data
+// ============================================================
+async function saveSettingToSheets(key, value) {
+  if(!_sheetsProxy) return;
+  try {
+    await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncSettings', settings:{ [key]: value } })
+    });
+  } catch(e) { console.warn('[Settings] Save failed:', e.message); }
+}
+
+async function loadSettingsFromSheets() {
+  if(!_sheetsProxy) return {};
+  try {
+    const res = await fetch(_sheetsProxy + '?action=loadSettings', { redirect:'follow' });
+    const d = await res.json();
+    if(d.success) return d.settings || {};
+  } catch(e) { console.warn('[Settings] Load failed:', e.message); }
+  return {};
+}
+
+// Save with localStorage fallback
+function saveSetting(key, value) {
+  try { localStorage.setItem(key, typeof value==='object'?JSON.stringify(value):value); } catch(e) {}
+  saveSettingToSheets(key, value); // async, fire-and-forget
+}
+
+// Load — Sheets takes priority over localStorage
+async function loadSetting(key, defaultVal='') {
+  // Try localStorage first for speed
+  let local = null;
+  try { local = localStorage.getItem(key); } catch(e) {}
+  return local !== null ? local : defaultVal;
 }
 
 // ============================================================
@@ -5139,6 +5208,7 @@ function loadHolidays(){
 
 function saveHolidays(){
   try{localStorage.setItem('hcp_holidays',JSON.stringify(_holidays));}catch(e){}
+  saveSettingToSheets('hcp_holidays',JSON.stringify(_holidays));
   saveWallboardSettingsToSheets();
 }
 
