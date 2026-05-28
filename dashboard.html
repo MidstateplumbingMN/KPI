@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1316,7 +1316,7 @@ const GITHUB_PHOTOS = {
   'Eric Stoffel':    'https://midstateplumbingmn.github.io/KPI/images/Eric.JPG',
   'Gannon Blaiser':  'https://midstateplumbingmn.github.io/KPI/images/Gannon.JPG',
   'Gordon Radant':   'https://midstateplumbingmn.github.io/KPI/images/Gordy.jpg',
-  'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg',
+  'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg', // ensure lowercase
   'Jeff Hohenauer':  '', // add Jeff.jpg to GitHub images folder when available
   'Lukas Schlosser': 'https://midstateplumbingmn.github.io/KPI/images/Lukas.JPG',
 };
@@ -1895,17 +1895,24 @@ async function hcpGet(path){
   return res.json();
 }
 async function fetchAll(path,keys){
-  let page=1,all=[];
+  const PAGE_SIZE = 200; // HCP max supported page size
+  let page=1, all=[], total=null;
   while(true){
     const sep=path.includes('?')?'&':'?';
-    const d=await hcpGet(path+sep+'page='+page+'&page_size=100');
+    const d=await hcpGet(path+sep+'page='+page+'&page_size='+PAGE_SIZE);
     let items=Array.isArray(d)?d:null;
     if(!items){for(const k of keys){if(d[k]&&Array.isArray(d[k])){items=d[k];break;}}if(!items)items=d.results||d.data||[];}
     all=[...all,...items];
-    const total=d.total_count||d.total||d.count||null;
-    if(total!==null&&all.length>=total)break;
-    if(items.length<100)break;
-    page++;if(page>15)break;
+    // Get total from response
+    if(total===null) total=d.total_count||d.total_items||d.total||d.count||null;
+    // Stop conditions
+    if(items.length === 0) break;
+    if(total!==null && all.length>=total) break;
+    if(items.length < PAGE_SIZE) break; // last page
+    page++;
+    // Safety: no hard limit — log progress for large pulls
+    if(page%5===0) console.log('[fetchAll]', path.split('?')[0], 'page', page, 'fetched', all.length, 'of', total||'?');
+    if(page > 100) { console.warn('[fetchAll] Hit 100 page limit at', all.length, 'records'); break; }
   }
   return all;
 }
@@ -2914,6 +2921,16 @@ function saveKPIEmpFilter(){
   saveSettingToSheets('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));
 }
 async function loadKPIEmpFilter(){
+  // Version key — increment when DEPT_MAP changes to force filter reset
+  const FILTER_VERSION = 'v3-jeff'; // bump this when adding new employees
+  const storedVersion = localStorage.getItem('hcp_kpi_filter_version');
+  if(storedVersion !== FILTER_VERSION) {
+    // New employee added — clear stale filter so all current employees are included
+    localStorage.removeItem('hcp_kpi_emps');
+    localStorage.setItem('hcp_kpi_filter_version', FILTER_VERSION);
+    console.log('[KPI Filter] Version changed, cleared stale filter');
+    return; // will be rebuilt fresh by buildKPIEmpFilter
+  }
   // Try Sheets first, fall back to localStorage
   try {
     if(_sheetsProxy) {
