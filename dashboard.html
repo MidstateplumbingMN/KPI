@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v19.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.0</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v19.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.0</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1130,6 +1130,18 @@ tr:hover td{background:#fafafa}
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
             <input type="text" id="wb-weather-loc" placeholder="55033 or Hastings,MN"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <!-- CallRail settings -->
+            <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px;margin-top:8px">📞 CallRail Integration</div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">CallRail API Key</div>
+              <input type="text" id="wb-callrail-key" placeholder="ctrk_43c7900e17d5793db876196ed978662aa6858367" value="ctrk_43c7900e17d5793db876196ed978662aa6858367"
+                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px">
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">CallRail Account ID <span style="color:#9ca3af">(9-digit number from app.callrail.com/accounts/XXXXXXXXX/)</span></div>
+              <input type="text" id="wb-callrail-account" placeholder="541526025" value="541526025"
+                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px">
+            </div>
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">WeatherAPI Key <span style="color:#9ca3af">(free at weatherapi.com — pre-filled)</span></div>
             <input type="text" id="wb-weather-key" placeholder="your API key"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
@@ -3506,6 +3518,39 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   // Total plans
   const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
 
+  // Fetch CallRail weekly call data
+  let _callrailSnap = null;
+  try {
+    const crKey     = _wbSettings.callrailKey || 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
+    const crAccount = _wbSettings.callrailAccount || '541526025';
+    if(crKey && crAccount && _workerUrl) {
+      const now  = new Date();
+      const mon  = new Date(now); mon.setDate(now.getDate() - now.getDay() + (now.getDay()===0?-6:1));
+      const sun  = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const fmt  = d => d.toISOString().split('T')[0];
+      const crUrl = `${_workerUrl}/callrail/v3/a/${crAccount}/calls/summary.json?date_range=custom&start_date=${fmt(mon)}&end_date=${fmt(sun)}&fields=total_calls,answered_calls,missed_calls,first_time_callers`;
+      const crRes = await fetch(crUrl);
+      if(crRes.ok) {
+        const cr = await crRes.json();
+        // Also get daily breakdown
+        const crDaily = await fetch(`${_workerUrl}/callrail/v3/a/${crAccount}/calls/summary.json?date_range=custom&start_date=${fmt(mon)}&end_date=${fmt(sun)}&fields=total_calls&interval=day`);
+        let weekly = [];
+        if(crDaily.ok) {
+          const dd = await crDaily.json();
+          weekly = (dd.data||dd.calls||[]).map((d,i) => ({ day:(new Date(mon).getDay()+i)%7, count:d.total_calls||0, label:d.date||'' }));
+        }
+        _callrailSnap = {
+          total:       cr.total_calls||0,
+          answered:    cr.answered_calls||0,
+          missed:      cr.missed_calls||0,
+          new_callers: cr.first_time_callers||0,
+          weekly,
+        };
+        console.log('[CallRail] Week:', _callrailSnap.total, 'calls,', _callrailSnap.new_callers, 'new');
+      }
+    }
+  } catch(e) { console.warn('[CallRail] fetch failed:', e.message); }
+
   // Fetch weather forecast from weatherapi.com (1 day = free tier)
   let _weatherSnap = {};
   try {
@@ -3703,6 +3748,24 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     holidays: (_holidays||[]).filter(h=>h.enabled),
     birthdays: _bdayList||[],
     weather: _weatherSnap,
+
+    // Big Win — most recent paid job over threshold
+    big_win_job: (() => {
+      const threshold = 2000;
+      const bigJobs = _jobs.filter(j => isJobPaid(j) && getJobRevenue(j) >= threshold);
+      if(!bigJobs.length) return null;
+      bigJobs.sort((a,b) => new Date(b.work_timestamps?.completed_at||b.completed_at||0) - new Date(a.work_timestamps?.completed_at||a.completed_at||0));
+      const j = bigJobs[0];
+      const emps = getAssignedList(j);
+      const tech = emps.length ? ((emps[0].first_name||'')+' '+(emps[0].last_name||'')).trim() : '';
+      return { id:j.id, total:Math.round(getJobRevenue(j)), tech, type:j.work_type||j.job_type||'' };
+    })(),
+
+    // CallRail — populated if API key configured (future integration)
+    calls_total: num(_callrailSnap?.total||0),
+    calls_new: num(_callrailSnap?.new_callers||0),
+    calls_answered: num(_callrailSnap?.answered||0),
+    calls_weekly_json: JSON.stringify(_callrailSnap?.weekly||[]),
   };
 
   try{
@@ -5333,6 +5396,8 @@ function loadWallboardSettings(){
   if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
+  if($$('wb-callrail-key'))    $$('wb-callrail-key').value    = _wbSettings.callrailKey||'ctrk_43c7900e17d5793db876196ed978662aa6858367';
+  if($$('wb-callrail-account'))$$('wb-callrail-account').value= _wbSettings.callrailAccount||'541526025';
   if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
   if($$('wb-weather-enabled')) $$('wb-weather-enabled').checked = !!_wbSettings.weatherEnabled;
   if($$('wb-daily-goal'))    $$('wb-daily-goal').value     = _wbSettings.dailyGoal||8219;
