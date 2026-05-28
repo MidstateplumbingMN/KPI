@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.2</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.2</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3329,6 +3329,8 @@ function renderPlanRows(plans){
 // REPORT DATA → GOOGLE SHEETS SYNC
 // ============================================================
 async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, dateTo){
+  // Local helper since num() may not be in scope at call time
+  const _n = v => parseFloat(String(v||'').replace(/[^0-9.-]/g,''))||0;
   const PROXY=_sheetsProxy;
   if(!PROXY){
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (No Sheets proxy configured)`;
@@ -3539,13 +3541,13 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
           per_page:    '250',
           page:        String(crPage),
           company_id:  CR_COMPANY,
-          fields:      'id,start_time,answered,first_time_caller,direction,tracking_phone_number,customer_phone_number,duration'
+          fields:      'id,start_time,answered,first_call,direction,tracking_phone_number,customer_phone_number,duration'
         });
         const crUrl = `https://api.callrail.com/v3/a/${crAccount}/calls.json?${params}`;
         const crRes = await fetch(crUrl, {
           headers: { 'Authorization': `Token token="${crKey}"`, 'Content-Type': 'application/json' }
         });
-        if(!crRes.ok) { console.warn('[CallRail] HTTP', crRes.status, await crRes.text().catch(()=>'')); break; }
+        if(!crRes.ok) { const errTxt=await crRes.text().catch(()=>''); console.warn('[CallRail] HTTP', crRes.status, errTxt); dashLog('warn','CallRail: '+crRes.status+' — '+errTxt.slice(0,120)); break; }
         const cr = await crRes.json();
         const page = cr.calls || [];
         crCalls = [...crCalls, ...page];
@@ -3557,7 +3559,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         const inbound   = crCalls.filter(c => !c.direction || c.direction === 'inbound');
         const total     = inbound.length;
         const answered  = inbound.filter(c => c.answered).length;
-        const newCalls  = inbound.filter(c => c.first_time_caller).length;
+        const newCalls  = inbound.filter(c => c.first_call).length;
         // Daily breakdown by weekday
         const dayCounts = [0,0,0,0,0,0,0];
         inbound.forEach(c => {
@@ -3781,10 +3783,10 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       return { id:j.id, total:Math.round(getJobRevenue(j)), tech, type:j.work_type||j.job_type||'' };
     })(),
 
-    // CallRail — populated if API key configured (future integration)
-    calls_total: num(_callrailSnap?.total||0),
-    calls_new: num(_callrailSnap?.new_callers||0),
-    calls_answered: num(_callrailSnap?.answered||0),
+    // CallRail — populated if API key configured
+    calls_total:      parseInt(_callrailSnap?.total||0)||0,
+    calls_new:        parseInt(_callrailSnap?.new_callers||0)||0,
+    calls_answered:   parseInt(_callrailSnap?.answered||0)||0,
     calls_weekly_json: JSON.stringify(_callrailSnap?.weekly||[]),
   };
 
@@ -3849,7 +3851,7 @@ async function fetchYTDMonthlyRevenue() {
     console.log('[YTD Monthly] Fetching full year jobs for monthly chart...');
 
     // Fetch all paid jobs for the year using the worker
-    const allJobs = await fetchAllPages(`${_workerUrl}/jobs?page_size=200&status[]=paid&work_start_date=${from}&work_end_date=${to}`);
+    const allJobs = await fetchAll(`/jobs?page_size=200&status[]=paid&work_start_date=${from}&work_end_date=${to}`,['jobs','data']);
     if (!allJobs.length) { console.log('[YTD Monthly] No jobs returned'); return; }
 
     // Compute monthly totals
@@ -3874,6 +3876,7 @@ async function fetchYTDMonthlyRevenue() {
     }
   } catch(e) {
     console.warn('[YTD Monthly] Background fetch failed:', e.message);
+    dashLog('warn','YTD Monthly: '+e.message);
   }
 }
 
@@ -3914,6 +3917,34 @@ async function loadSetting(key, defaultVal='') {
   try { local = localStorage.getItem(key); } catch(e) {}
   return local !== null ? local : defaultVal;
 }
+
+
+// ============================================================
+// DASHBOARD MESSAGE LOG — shows errors/warnings/info inline
+// ============================================================
+const _dashLog = [];
+function dashLog(type, msg) {
+  const ts = new Date().toLocaleTimeString();
+  _dashLog.unshift({ type, msg, ts });
+  if(_dashLog.length > 50) _dashLog.pop();
+  const panel=document.getElementById('dashLogPanel');
+  if(panel) panel.style.display='';
+  const cnt=document.getElementById('dashLogCount');
+  if(cnt) cnt.textContent=_dashLog.length;
+  renderDashLog();
+}
+function renderDashLog() {
+  const el = document.getElementById('dashLogBody');
+  if(!el) return;
+  const colors = { error:'#FEE2E2', warn:'#FEF9C3', info:'#EFF6FF', success:'#DCFCE7' };
+  const icons  = { error:'🔴', warn:'🟡', info:'🔵', success:'🟢' };
+  el.innerHTML = _dashLog.slice(0,20).map(e => `
+    <div style="display:flex;gap:8px;padding:6px 10px;background:${colors[e.type]||'#f9f9f9'};border-radius:5px;font-size:11px;align-items:flex-start">
+      <span style="flex-shrink:0">${icons[e.type]||'⚪'} ${e.ts}</span>
+      <span style="color:#1f2937;word-break:break-word">${escHtml(e.msg)}</span>
+    </div>`).join('') || '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No messages yet</div>';
+}
+function clearDashLog() { _dashLog.length=0; renderDashLog(); }
 
 // ============================================================
 // GOAL TRACKER
