@@ -1043,31 +1043,30 @@ html, body {
 
     <!-- SCENE 6: WIN THE DAY -->
     <div class="scene" id="s6">
-
       <!-- Three main metrics + revenue hero -->
-      <div style="flex:1;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:16px;padding:0 40px 16px;min-height:0">
+      <div style="flex:1;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:clamp(8px,1.5vw,20px);padding:0 clamp(12px,3vw,40px) 16px;min-height:0;overflow:hidden">
         <!-- Revenue hero -->
-        <div class="card wtd-hero" id="wtd-hero-card" style="display:flex;flex-direction:column;justify-content:center">
+        <div class="card wtd-hero" id="wtd-hero-card" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;min-height:0">
           <div class="wtd-hero-val" id="wtd-revenue">$0</div>
           <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs</div>
           <div class="wtd-goal-bar" style="margin-top:16px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
           <div style="font-size:11px;color:rgba(255,255,255,.9);margin-top:8px"><span id="wtd-goal-pct">0%</span> of daily goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
-          <!-- Thermometer — large central -->
-          <div id="wtd-thermo" style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:16px;flex:1;min-height:0"></div>
+          <!-- Thermometer — contained height -->
+          <div id="wtd-thermo" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:16px;max-height:min(160px,20vh);overflow:hidden"></div>
           <div id="wtd-gap" style="margin-top:12px;padding:12px 14px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px"></div>
           <div style="text-align:center;margin-top:12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff">⚡ Revenue Today</div>
         </div>
         <!-- Jobs completed today -->
         <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-green" id="wtd-completed" style="font-size:72px">0</div><div class="metric-sub">Paid &amp; closed today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Jobs Completed</div>
+          <div class="metric-value glow-green" id="wtd-completed" style="font-size:clamp(48px,7vw,72px)">0</div><div class="metric-sub">Paid &amp; closed today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Jobs Completed</div>
         </div>
         <!-- Estimates run today -->
         <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:72px">0</div><div class="metric-sub">Scheduled today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Estimates Scheduled</div>
+          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:clamp(48px,7vw,72px)">0</div><div class="metric-sub">Scheduled today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Estimates Scheduled</div>
         </div>
         <!-- Estimates converted today -->
         <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:64px;white-space:nowrap">—</div><div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Converted</div>
+          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:clamp(40px,6vw,64px);white-space:nowrap">—</div><div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Converted</div>
         </div>
       </div>
     </div><!-- end s6 -->
@@ -1105,7 +1104,7 @@ html, body {
         <div class="card" style="padding:32px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(135deg,rgba(14,165,233,.1),rgba(0,212,255,.05));border-top:3px solid var(--blue)">
           <div style="font-size:11px;color:var(--blue);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px">Current Conditions</div>
           <div id="wx-icon" style="line-height:1;margin-bottom:8px">🌤</div>
-          <div id="wx-temp" style="font-family:var(--font-display);font-size:88px;line-height:1;color:var(--blue);text-shadow:0 0 30px rgba(0,212,255,.4)">--°F</div>
+          <div id="wx-temp" style="font-family:var(--font-display);font-size:clamp(56px,8vw,88px);line-height:1;color:var(--blue);text-shadow:0 0 30px rgba(0,212,255,.4)">--°F</div>
           <div id="wx-desc" style="font-size:20px;color:#fff;margin-top:8px;font-weight:600">Loading...</div>
           <div id="wx-feels" style="font-size:14px;color:rgba(255,255,255,.9);margin-top:4px">Feels like --°F</div>
           <!-- High / Low -->
@@ -1237,7 +1236,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.40
+      v1.41
     </div>
   </div>
 </div>
@@ -1635,11 +1634,23 @@ function refreshS3Data() {
   if (_deptRotateTimer) renderConvByDept(kpi, _deptIdx, count);
 }
 
+function isDailyStale() {
+  // Check if the snapshot is from a previous day (reset daily at 7am)
+  const pullDate = state.snap['pull_date'] || state.snap['date_to'] || '';
+  if(!pullDate) return false;
+  const now = new Date();
+  const resetHour = 7; // 7am reset
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), resetHour);
+  const pulled = new Date(pullDate);
+  // If pulled before today's 7am and it's now past 7am, data is stale
+  return pulled < today && now >= today;
+}
+
 function refreshS6Data() {
-  // Only update numbers — don't restart flip timer or thermometer animation
   const snap = state.snap;
-  const revenue   = num(snap['rev_daily']||0);
-  const dailyJobs = num(snap['daily_jobs']||0);
+  const stale = isDailyStale();
+  const revenue   = stale ? 0 : num(snap['rev_daily']||0);
+  const dailyJobs = stale ? 0 : num(snap['daily_jobs']||0);
   const dailyEsts = num(snap['daily_estimates']||0);
   const dailyConv = num(snap['daily_converted']||0);
   const dailyGoal = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
@@ -2222,10 +2233,11 @@ async function updateS6() {
     const snap = state.snap;
 
     // Today-only metrics from dashboard snapshot
-    const revenue     = num(snap['rev_daily']||0);
-    const dailyJobs   = num(snap['daily_jobs']||0);
-    const dailyEsts   = num(snap['daily_estimates']||0);
-    const dailyConv   = num(snap['daily_converted']||0);
+    const _stale      = isDailyStale();
+    const revenue     = _stale ? 0 : num(snap['rev_daily']||0);
+    const dailyJobs   = _stale ? 0 : num(snap['daily_jobs']||0);
+    const dailyEsts   = _stale ? 0 : num(snap['daily_estimates']||0);
+    const dailyConv   = _stale ? 0 : num(snap['daily_converted']||0);
     const convPct     = dailyEsts > 0 ? Math.round(dailyConv/dailyEsts*100) : null;
     const dailyGoal   = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
     const goalPct     = Math.min(100, Math.round(revenue/dailyGoal*100));
