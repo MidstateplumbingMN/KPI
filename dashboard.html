@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.0</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.2</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.2</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3528,25 +3528,45 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       const mon  = new Date(now); mon.setDate(now.getDate() - now.getDay() + (now.getDay()===0?-6:1));
       const sun  = new Date(mon); sun.setDate(mon.getDate() + 6);
       const fmt  = d => d.toISOString().split('T')[0];
-      const crUrl = `${_workerUrl}/callrail/v3/a/${crAccount}/calls/summary.json?date_range=custom&start_date=${fmt(mon)}&end_date=${fmt(sun)}&fields=total_calls,answered_calls,missed_calls,first_time_callers`;
-      const crRes = await fetch(crUrl);
-      if(crRes.ok) {
+      // Call CallRail DIRECTLY from browser (same pattern as callrailtracker.html)
+      // No proxy needed — browser requests from github.io are allowed
+      const CR_COMPANY = '819196701';
+      let crCalls = [], crPage = 1, crTotalPages = 1;
+      do {
+        const params = new URLSearchParams({
+          start_date:  fmt(mon),
+          end_date:    fmt(sun),
+          per_page:    '250',
+          page:        String(crPage),
+          company_id:  CR_COMPANY,
+          fields:      'id,start_time,answered,first_time_caller,direction,tracking_phone_number,customer_phone_number,duration'
+        });
+        const crUrl = `https://api.callrail.com/v3/a/${crAccount}/calls.json?${params}`;
+        const crRes = await fetch(crUrl, {
+          headers: { 'Authorization': `Token token="${crKey}"`, 'Content-Type': 'application/json' }
+        });
+        if(!crRes.ok) { console.warn('[CallRail] HTTP', crRes.status, await crRes.text().catch(()=>'')); break; }
         const cr = await crRes.json();
-        // Also get daily breakdown
-        const crDaily = await fetch(`${_workerUrl}/callrail/v3/a/${crAccount}/calls/summary.json?date_range=custom&start_date=${fmt(mon)}&end_date=${fmt(sun)}&fields=total_calls&interval=day`);
-        let weekly = [];
-        if(crDaily.ok) {
-          const dd = await crDaily.json();
-          weekly = (dd.data||dd.calls||[]).map((d,i) => ({ day:(new Date(mon).getDay()+i)%7, count:d.total_calls||0, label:d.date||'' }));
-        }
-        _callrailSnap = {
-          total:       cr.total_calls||0,
-          answered:    cr.answered_calls||0,
-          missed:      cr.missed_calls||0,
-          new_callers: cr.first_time_callers||0,
-          weekly,
-        };
-        console.log('[CallRail] Week:', _callrailSnap.total, 'calls,', _callrailSnap.new_callers, 'new');
+        const page = cr.calls || [];
+        crCalls = [...crCalls, ...page];
+        crTotalPages = cr.total_pages || 1;
+        crPage++;
+      } while(crPage <= crTotalPages && crPage <= 20);
+
+      if(crCalls.length > 0 || crTotalPages >= 1) {
+        const inbound   = crCalls.filter(c => !c.direction || c.direction === 'inbound');
+        const total     = inbound.length;
+        const answered  = inbound.filter(c => c.answered).length;
+        const newCalls  = inbound.filter(c => c.first_time_caller).length;
+        // Daily breakdown by weekday
+        const dayCounts = [0,0,0,0,0,0,0];
+        inbound.forEach(c => {
+          const day = new Date(c.start_time).getDay();
+          if(day >= 0 && day < 7) dayCounts[day]++;
+        });
+        const weekly = dayCounts.map((count, day) => ({ day, count }));
+        _callrailSnap = { total, answered, missed: total - answered, new_callers: newCalls, weekly };
+        console.log('[CallRail] Week:', total, 'inbound calls,', newCalls, 'new,', answered, 'answered');
       }
     }
   } catch(e) { console.warn('[CallRail] fetch failed:', e.message); }
