@@ -1012,6 +1012,55 @@ html, body {
       </div>
     </div>
 
+    <!-- SCENE 12: SERVICE PLANS -->
+    <div class="scene" id="s12">
+      <div class="scene-title">// Service Plan Leaders</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0">
+        <!-- Left: Podium top 3 -->
+        <div class="card" style="display:flex;flex-direction:column;padding:20px;gap:0">
+          <div style="font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">🏆 Top 3</div>
+          <div id="plans-podium" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px"></div>
+        </div>
+        <!-- Right: Full team list -->
+        <div class="card" style="display:flex;flex-direction:column;padding:20px;gap:0">
+          <div style="font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">📋 Full Team</div>
+          <div id="plans-list" style="flex:1;overflow:hidden"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)">
+            <div style="font-size:11px;color:rgba(255,255,255,.7)">Total Active Plans</div>
+            <div id="plans-total" style="font-family:var(--font-display);font-size:36px;color:#A855F7;font-weight:900">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE 13: CALL VOLUME -->
+    <div class="scene" id="s13">
+      <div class="scene-title">// Call Volume — This Week</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;min-height:0">
+        <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="metric-value glow-blue" id="calls-total">—</div>
+          <div class="metric-sub">Inbound calls</div>
+          <div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700">Total Calls</div>
+        </div>
+        <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="metric-value glow-green" id="calls-new">—</div>
+          <div class="metric-sub">First-time callers</div>
+          <div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700">New Callers</div>
+        </div>
+        <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="metric-value glow-orange" id="calls-answered">—</div>
+          <div class="metric-sub">Answer rate</div>
+          <div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700">Answered %</div>
+        </div>
+      </div>
+      <!-- Weekly trend bar chart -->
+      <div class="card" style="flex-shrink:0;margin-top:0;padding:16px 20px">
+        <div style="font-size:11px;color:rgba(255,255,255,.8);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.1em">Daily Call Volume — This Week</div>
+        <div id="calls-trend" style="display:flex;align-items:flex-end;gap:8px;height:60px"></div>
+        <div id="calls-source" style="font-size:10px;color:rgba(255,255,255,.5);margin-top:8px;text-align:right">Source: CallRail · Updated on pull</div>
+      </div>
+    </div>
+
     <!-- SCENE 4: LIVE PERFORMANCE -->
     <div class="scene" id="s4">
       <div class="scene-title">// Revenue by Employee — Current Period</div>
@@ -1249,7 +1298,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.48
+      v1.49
     </div>
   </div>
 </div>
@@ -1293,7 +1342,9 @@ const CONFIG = {
     s2: 25000,  // Goals (has chart)
     s3: 30000,  // Leaderboard — 30s for two columns
     s4: 20000,  // Live Performance
-    s5: 0,      // Announcements — self-managed (10s per shoutout)
+    s5: 0,      // Announcements — self-managed
+    s12: 25000, // Service Plans leaderboard
+    s13: 20000, // Call Volume
     s6: 20000,  // Win the Day
     s7: 0,      // Spotlight — self-managed (8s per spotlight)
     s8: 0,      // Promotions — self-managed (8s per promo)
@@ -1368,7 +1419,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s5'];
+const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s12','s13','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -2274,6 +2325,163 @@ function renderThermometer(containerId, current, goal) {
     </div>`;
 }
 
+// ============================================================
+// SCENE 12 — SERVICE PLANS LEADERBOARD
+// ============================================================
+function updateS12() {
+  const allKpi = (state.kpi||[]).filter(r => {
+    const name = r[CONFIG.KPI_COLS.name]||'';
+    return name && !name.startsWith('job_') && !KPI_EXCLUDE.has(name);
+  });
+
+  // Sort by plans sold
+  const byPlans = [...allKpi]
+    .map(r => ({ name: r[CONFIG.KPI_COLS.name], plans: num(r[CONFIG.KPI_COLS.plans]||0), photo: r[CONFIG.KPI_COLS.photo]||'' }))
+    .filter(e => e.plans > 0 || KPI_PLANS_ONLY.has(e.name) || DEPT_MAP[e.name])
+    .sort((a,b) => b.plans - a.plans);
+
+  const total = byPlans.reduce((s,e) => s+e.plans, 0);
+  const maxPlans = byPlans[0]?.plans || 1;
+
+  // Podium — top 3
+  const podiumEl = el('plans-podium');
+  if(podiumEl) {
+    const medals = ['🥇','🥈','🥉'];
+    podiumEl.innerHTML = byPlans.slice(0,3).map((e,i) => {
+      const pct = Math.round(e.plans/maxPlans*100);
+      const photo = getEmpPhoto(e.name, e.photo);
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(168,85,247,.08);border-radius:10px;border:1px solid rgba(168,85,247,.2)">
+        <div style="font-size:28px;flex-shrink:0">${medals[i]}</div>
+        ${photo?`<img src="${photo}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
+          <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:4px"><div style="height:100%;width:${pct}%;background:#A855F7;border-radius:2px"></div></div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:#A855F7;flex-shrink:0">${e.plans}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Full team list (all staff)
+  const listEl = el('plans-list');
+  if(listEl) {
+    listEl.innerHTML = byPlans.map((e,i) => {
+      const photo = getEmpPhoto(e.name, e.photo);
+      const dept  = empDept(e.name);
+      const col   = e.plans > 0 ? '#A855F7' : 'rgba(255,255,255,.3)';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:11px;color:rgba(255,255,255,.5);width:18px;text-align:center">${i+1}</div>
+        ${photo?`<img src="${photo}" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:28px;height:28px;border-radius:5px;background:rgba(255,255,255,.08);flex-shrink:0"></div>'}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.6)">${dept}</div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:16px;font-weight:800;color:${col}">${e.plans}</div>
+      </div>`;
+    }).join('') || '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.5)">No plan data — pull a YTD report</div>';
+  }
+
+  const totalEl = el('plans-total');
+  if(totalEl) totalEl.textContent = total;
+}
+
+// ============================================================
+// SCENE 13 — CALL VOLUME (CallRail data via KPI_Dashboard snap)
+// ============================================================
+function updateS13() {
+  const snap = state.snap;
+
+  // CallRail data stored in snapshot
+  const totalCalls   = num(snap['calls_total']||snap['callrail_total']||0);
+  const newCallers   = num(snap['calls_new']||snap['callrail_new']||0);
+  const answered     = num(snap['calls_answered']||0);
+  const answeredPct  = totalCalls > 0 ? Math.round(answered/totalCalls*100) : 0;
+
+  if(el('calls-total'))   el('calls-total').textContent   = totalCalls || '—';
+  if(el('calls-new'))     el('calls-new').textContent     = newCallers  || '—';
+  if(el('calls-answered'))el('calls-answered').textContent= totalCalls > 0 ? answeredPct+'%' : '—';
+
+  // Daily trend bar chart
+  const trendEl = el('calls-trend');
+  if(trendEl) {
+    let weekly = [];
+    try { weekly = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
+    if(weekly.length) {
+      const maxC = Math.max(...weekly.map(d=>d.count||0), 1);
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      trendEl.innerHTML = weekly.map(d => {
+        const pct = Math.round((d.count||0)/maxC*100);
+        const isToday = d.day === new Date().getDay();
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div style="font-size:9px;color:rgba(255,255,255,.7);font-weight:600">${d.count||0}</div>
+          <div style="width:100%;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;flex:1">
+            <div style="height:${Math.max(pct,4)}%;background:${isToday?'var(--blue)':'rgba(56,189,248,.5)'};border-radius:3px;margin-top:auto"></div>
+          </div>
+          <div style="font-size:9px;color:${isToday?'var(--blue)':'rgba(255,255,255,.5)'};font-weight:${isToday?'700':'400'}">${days[d.day]||d.label||''}</div>
+        </div>`;
+      }).join('');
+    } else {
+      trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:12px 0">CallRail data not yet configured</div>';
+    }
+  }
+}
+
+// ============================================================
+// BIG WIN NOTIFICATION — fires when a job over threshold closes
+// ============================================================
+let _lastJobIds = new Set();
+const BIG_WIN_THRESHOLD = 2000; // $2,000+
+
+function checkBigWins() {
+  const snap = state.snap;
+  const bigWinJson = snap['big_win_job'] || '';
+  if(!bigWinJson) return;
+  try {
+    const job = JSON.parse(bigWinJson);
+    if(!job || !job.id) return;
+    if(_lastJobIds.has(job.id)) return; // already notified
+    _lastJobIds.add(job.id);
+    fireBigWinBanner(job);
+  } catch(e) {}
+}
+
+function fireBigWinBanner(job) {
+  const amount = job.total || job.revenue || 0;
+  const tech   = job.tech || job.assigned_to || '';
+  const type   = job.type || '';
+
+  let existing = document.getElementById('big-win-banner');
+  if(existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'big-win-banner';
+  banner.style.cssText = `
+    position:fixed;top:0;left:0;right:0;z-index:500;
+    background:linear-gradient(135deg,#FFD700,#FF6B35,#FFD700);
+    color:#000;font-family:var(--font-display);
+    font-size:clamp(18px,3vw,32px);letter-spacing:.1em;
+    text-align:center;padding:16px 20px;
+    box-shadow:0 0 60px rgba(255,215,0,.6);
+    animation:bigWinPulse 0.5s ease infinite alternate;
+  `;
+
+  const amt = amount >= 1000 ? '$'+(amount/1000).toFixed(1)+'K' : '$'+Math.round(amount);
+  banner.innerHTML = `🏆 BIG WIN! ${amt} JOB CLOSED${tech?' · '+tech.toUpperCase():''}${type?' · '+type:''} 🏆`;
+
+  // Confetti
+  spawnVictoryConfetti();
+
+  document.body.appendChild(banner);
+  setTimeout(() => { banner.style.transition='opacity 1s'; banner.style.opacity='0'; setTimeout(()=>banner.remove(),1000); }, 8000);
+}
+
+// CSS for big win pulse animation
+(function addBigWinStyles(){
+  const style = document.createElement('style');
+  style.textContent = `@keyframes bigWinPulse { from { box-shadow:0 0 40px rgba(255,215,0,.4); } to { box-shadow:0 0 80px rgba(255,215,0,.8); } }`;
+  document.head.appendChild(style);
+})();
+
 async function updateS6() {
   // Debounce — don't re-run if already running (prevents multiple rapid calls)
   if (updateS6._running) return;
@@ -2454,6 +2662,11 @@ function goScene(idx) {
   else if (sceneId==='s11') {
     if (state.holidays && state.holidays.length) { updateS11(); }
     else { nextScene(); }
+  }
+  else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
+  else if (sceneId==='s13') {
+    if (state.snap['calls_total'] || state.snap['calls_weekly_json']) { updateS13(); scheduleNextScene('s13'); }
+    else { nextScene(); } // skip if no CallRail data
   }
 }
 
@@ -3587,6 +3800,7 @@ function checkVictoryMode() {
   const monthPct = num(snap['goal_monthly_pct']||0);
   const annualPct = num(snap['goal_annual_pct']||0);
   if(monthPct >= 100 || annualPct >= 100) triggerVictoryMode();
+  checkBigWins();
 }
 
 // ============================================================
