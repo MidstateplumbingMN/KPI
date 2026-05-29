@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2095,26 +2095,46 @@ async function hcpGet(path){
   if(!res.ok){const txt=await res.text().catch(()=>'');throw new Error('HTTP '+res.status+' on '+path+(txt?' → '+txt.slice(0,200):''));}
   return res.json();
 }
-async function fetchAll(path,keys){
-  const PAGE_SIZE = 200; // HCP max supported page size
-  let page=1, all=[], total=null;
-  while(true){
-    const sep=path.includes('?')?'&':'?';
-    const d=await hcpGet(path+sep+'page='+page+'&page_size='+PAGE_SIZE);
-    let items=Array.isArray(d)?d:null;
-    if(!items){for(const k of keys){if(d[k]&&Array.isArray(d[k])){items=d[k];break;}}if(!items)items=d.results||d.data||[];}
-    all=[...all,...items];
-    // Get total from response
-    if(total===null) total=d.total_count||d.total_items||d.total||d.count||null;
-    // Stop conditions
-    if(items.length === 0) break;
-    if(total!==null && all.length>=total) break;
-    if(items.length < PAGE_SIZE) break; // last page
-    page++;
-    // Safety: no hard limit — log progress for large pulls
-    if(page%5===0) console.log('[fetchAll]', path.split('?')[0], 'page', page, 'fetched', all.length, 'of', total||'?');
-    if(page > 100) { console.warn('[fetchAll] Hit 100 page limit at', all.length, 'records'); break; }
+async function fetchAll(path, keys) {
+  const PAGE_SIZE = 200;
+  const sep = path.includes('?') ? '&' : '?';
+
+  // Page 1 — get data + total count
+  const first = await hcpGet(path + sep + 'page=1&page_size=' + PAGE_SIZE);
+  let items = Array.isArray(first) ? first : null;
+  if (!items) {
+    for (const k of keys) { if (first[k] && Array.isArray(first[k])) { items = first[k]; break; } }
+    if (!items) items = first.results || first.data || [];
   }
+
+  const total = first.total_count || first.total_items || first.total || first.count || items.length;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  if (totalPages <= 1 || items.length >= total) return items;
+
+  console.log('[fetchAll]', path.split('?')[0], '→', total, 'records,', totalPages, 'pages — fetching in parallel');
+
+  // Fire all remaining pages simultaneously
+  const pageNums = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+
+  // Batch parallel requests — 10 at a time to avoid overwhelming the API
+  const BATCH = 10;
+  let all = [...items];
+  for (let b = 0; b < pageNums.length; b += BATCH) {
+    const batch = pageNums.slice(b, b + BATCH);
+    const results = await Promise.all(batch.map(async pg => {
+      const d = await hcpGet(path + sep + 'page=' + pg + '&page_size=' + PAGE_SIZE);
+      let rows = Array.isArray(d) ? d : null;
+      if (!rows) {
+        for (const k of keys) { if (d[k] && Array.isArray(d[k])) { rows = d[k]; break; } }
+        if (!rows) rows = d.results || d.data || [];
+      }
+      return rows;
+    }));
+    results.forEach(rows => { all = [...all, ...rows]; });
+    console.log('[fetchAll]', path.split('?')[0], 'batch', Math.floor(b/BATCH)+1, '— total so far:', all.length, '/', total);
+  }
+
   return all;
 }
 
@@ -2153,6 +2173,7 @@ async function loadAll(){
     // Payment dates fall back to work_timestamps.completed_at which is accurate
     async function fetchPaymentsForJobs(jobList){ return {}; }
 
+    stepLog('📡 Fetching jobs, estimates & employees in parallel...');
     const [jobs,estimates,empRaw,plans]=await Promise.all([
       fetchJobs(),
       fetchEstimates(),
