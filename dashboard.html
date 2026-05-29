@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.3</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -491,6 +491,28 @@ tr:hover td{background:#fafafa}
   </div>
   <div class="err-bar" id="errMsg"></div>
   <div class="status-bar" id="statusBar">Connected. Pick a date range and pull your report.</div>
+
+  <!-- Pull Timer + Error Log -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 24px;background:#f1f5f9;border-top:1px solid #e2e8f0;font-size:11px;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="color:#64748b">Last pull:</span>
+      <span id="pullTimerDisplay" style="font-family:monospace;color:#1e293b;font-weight:600">—</span>
+      <span id="pullTimerLive" style="font-family:monospace;color:#E8640A;font-weight:700;display:none">⏱ <span id="pullTimerSecs">0</span>s</span>
+    </div>
+    <button onclick="document.getElementById('dashLogPanel').style.display=document.getElementById('dashLogPanel').style.display==='none'?'':'none'" 
+      style="font-size:11px;padding:3px 10px;background:#1e293b;color:#e2e8f0;border:none;border-radius:4px;cursor:pointer">
+      📋 Log <span id="dashLogCount" style="background:#E8640A;color:#fff;border-radius:20px;padding:0 5px;margin-left:3px">0</span>
+    </button>
+  </div>
+  <div id="dashLogPanel" style="display:none;margin:0 24px 8px;border:1px solid #e2e8f0;border-radius:7px;overflow:hidden;max-height:200px;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:#1e293b;position:sticky;top:0">
+      <span style="font-size:11px;font-weight:700;color:#e2e8f0">Dashboard Log</span>
+      <button onclick="clearDashLog()" style="font-size:10px;padding:2px 8px;background:rgba(255,255,255,.1);color:#94a3b8;border:none;border-radius:4px;cursor:pointer">Clear</button>
+    </div>
+    <div style="padding:6px;display:flex;flex-direction:column;gap:3px;background:#fff" id="dashLogBody">
+      <div style="color:#9ca3af;font-size:12px;text-align:center;padding:8px">No messages yet</div>
+    </div>
+  </div>
 
   <div id="main" style="display:none">
     <div class="tabs">
@@ -1080,6 +1102,16 @@ tr:hover td{background:#fafafa}
 
     <!-- WALLBOARD SETTINGS -->
     <div class="panel" id="tab-wallboard">
+      <!-- Scene Order Manager -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px">
+        <div style="font-weight:700;color:#374151;margin-bottom:4px;font-size:13px">📺 Companion Scene Order</div>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:12px">Drag to reorder. Toggle to show/hide. Changes push to companion on next sync.</div>
+        <div id="sceneOrderList" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button onclick="saveSceneOrder()" style="padding:7px 14px;background:#1A3A5C;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">💾 Save & Push Order</button>
+          <button onclick="resetSceneOrder()" style="padding:7px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-size:12px;cursor:pointer">↺ Reset Default</button>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
 
         <!-- COLUMN 1: Branding & Theme -->
@@ -1130,6 +1162,14 @@ tr:hover td{background:#fafafa}
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
             <input type="text" id="wb-weather-loc" placeholder="55033 or Hastings,MN"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <!-- RingCentral settings -->
+            <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px;margin-top:8px">📞 RingCentral Integration</div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">RingCentral Credential <span style="color:#9ca3af">— enter a <strong>JWT token</strong> OR your admin login as <strong>username:password</strong> (e.g. bob@midstate.com:MyPass123)</span></div>
+              <input type="password" id="wb-rc-jwt" placeholder="JWT token  OR  your.email@midstate.com:YourPassword"
+                style="width:100%;font-size:11px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;font-family:monospace">
+              <button onclick="testRCConnection()" style="margin-top:6px;padding:5px 12px;background:#0f766e;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer">🔗 Test RC Connection</button>
+            </div>
             <!-- CallRail settings -->
             <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px;margin-top:8px">📞 CallRail Integration</div>
             <div style="margin-bottom:8px">
@@ -1881,7 +1921,7 @@ function showTab(t){
   if(t==='goals') renderGoals();
   if(t==='spotlight'){ loadSpotlights(); populateSlEmpDropdown(); }
   if(t==='announcements'){ loadAnnouncements(); }
-  if(t==='wallboard'){ loadWallboardSettings(); }
+  if(t==='wallboard'){ loadWallboardSettings(); loadSceneOrder(); }
   if(t==='promos'){ loadSpotlights(); }
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
@@ -3454,8 +3494,13 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     };
   });
 
-  // Build attribution payload
-  const attrPayload=jobs.map(j=>{
+  // Build attribution payload — only last 30 days to avoid 3-year data dumps
+  const _thirtyDaysAgo = new Date(); _thirtyDaysAgo.setDate(_thirtyDaysAgo.getDate()-30);
+  const recentJobs = jobs.filter(j => {
+    const d = new Date(j.work_timestamps?.completed_at||j.created_at||j.scheduled_start||'2000-01-01');
+    return d >= _thirtyDaysAgo;
+  });
+  const attrPayload=recentJobs.map(j=>{
     const attr=_jobAttribution[j.id];
     const stored=_attr[j.id]||{};
     return{
@@ -3567,11 +3612,46 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
           if(day >= 0 && day < 7) dayCounts[day]++;
         });
         const weekly = dayCounts.map((count, day) => ({ day, count }));
-        _callrailSnap = { total, answered, missed: total - answered, new_callers: newCalls, weekly };
+        // Monthly totals from start_time
+        const monthCounts = new Array(12).fill(0);
+        // Daily totals for current month line chart (up to 31 days)
+        const curM = new Date().getMonth();
+        const dailyCounts = new Array(31).fill(0);
+        inbound.forEach(c => {
+          const dt = new Date(c.start_time);
+          const m  = dt.getMonth();
+          if(m >= 0 && m < 12) monthCounts[m]++;
+          if(m === curM) {
+            const day = dt.getDate()-1; // 0-indexed
+            if(day >= 0 && day < 31) dailyCounts[day]++;
+          }
+        });
+        _callrailSnap = { total, answered, missed: total - answered, new_callers: newCalls, weekly, monthly: monthCounts, daily: dailyCounts };
         console.log('[CallRail] Week:', total, 'inbound calls,', newCalls, 'new,', answered, 'answered');
+        dashLog('success', `CallRail: ${total} calls, ${newCalls} new, ${answered} answered this week`);
+        // Save to Google Sheets for companion to read
+        if(_sheetsProxy) {
+          fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+            body:JSON.stringify({action:'syncSettings',settings:{
+              callrail_total:    total,
+              callrail_new:      newCalls,
+              callrail_answered: answered,
+              callrail_weekly:   JSON.stringify(weekly),
+              callrail_monthly:  JSON.stringify(monthCounts),
+              callrail_daily:    JSON.stringify(dailyCounts),
+              callrail_updated:  new Date().toISOString()
+            }})
+          }).catch(()=>{});
+        }
       }
     }
   } catch(e) { console.warn('[CallRail] fetch failed:', e.message); }
+
+  // Fetch RingCentral call log
+  const rcJwt = _wbSettings.rcJwt || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
+  if(rcJwt && _workerUrl) {
+    fetchRCCallLog(rcJwt).catch(e => dashLog('warn','RC fetch skipped: '+e.message));
+  }
 
   // Fetch weather forecast from weatherapi.com (1 day = free tier)
   let _weatherSnap = {};
@@ -3784,6 +3864,14 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     })(),
 
     // CallRail — populated if API key configured
+    // RingCentral
+    rc_total:         parseInt(_rcSnap?.total||0)||0,
+    rc_answered:      parseInt(_rcSnap?.answered||0)||0,
+    rc_answer_rate:   parseInt(_rcSnap?.answer_rate||0)||0,
+    rc_leaderboard:   JSON.stringify(_rcSnap?.leaderboard||[]),
+    rc_monthly:       JSON.stringify(_rcSnap?.monthly||[]),
+    rc_daily:         JSON.stringify(_rcSnap?.daily||[]),
+    // CallRail
     calls_total:      parseInt(_callrailSnap?.total||0)||0,
     calls_new:        parseInt(_callrailSnap?.new_callers||0)||0,
     calls_answered:   parseInt(_callrailSnap?.answered||0)||0,
@@ -3945,6 +4033,240 @@ function renderDashLog() {
     </div>`).join('') || '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No messages yet</div>';
 }
 function clearDashLog() { _dashLog.length=0; renderDashLog(); }
+
+
+// ============================================================
+// SCENE ORDER MANAGER
+// ============================================================
+const DEFAULT_SCENE_ORDER = [
+  { id:'s2',  label:'🎯 Goal Progress',        enabled:true },
+  { id:'s3',  label:'🏆 Team Leaderboard',      enabled:true },
+  { id:'s6',  label:'⚡ Win the Day',            enabled:true },
+  { id:'s7',  label:'⭐ Employee Spotlight',     enabled:true },
+  { id:'s8',  label:'🎁 Promotions',             enabled:true },
+  { id:'s9',  label:'🌤 Weather',                enabled:true },
+  { id:'s10', label:'🎂 Birthdays',              enabled:true },
+  { id:'s11', label:'🎉 Holidays',               enabled:true },
+  { id:'s12', label:'📋 Service Plans',          enabled:true },
+  { id:'s13', label:'📞 Call Volume',            enabled:true },
+  { id:'s5',  label:'📣 Announcements',          enabled:true },
+];
+let _sceneOrder = null;
+
+function loadSceneOrder() {
+  try {
+    const saved = localStorage.getItem('wb_scene_order');
+    _sceneOrder = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
+  } catch(e) { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
+  renderSceneOrder();
+}
+
+function renderSceneOrder() {
+  const list = document.getElementById('sceneOrderList');
+  if(!list || !_sceneOrder) return;
+  list.innerHTML = _sceneOrder.map((s,i) => `
+    <div draggable="true" data-idx="${i}" ondragstart="sceneDragStart(event,${i})" ondragover="sceneDragOver(event)" ondrop="sceneDrop(event,${i})"
+      style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${s.enabled?'#f0f9ff':'#f9fafb'};border:1px solid ${s.enabled?'#bae6fd':'#e5e7eb'};border-radius:6px;cursor:grab">
+      <span style="color:#9ca3af;font-size:14px;cursor:grab">☰</span>
+      <span style="flex:1;font-size:12px;font-weight:600;color:${s.enabled?'#1e293b':'#9ca3af'}">${s.label}</span>
+      <span style="font-size:10px;color:#9ca3af">#${i+1}</span>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px">
+        <input type="checkbox" ${s.enabled?'checked':''} onchange="toggleScene(${i},this.checked)" style="cursor:pointer">
+        <span style="color:#6b7280">${s.enabled?'Visible':'Hidden'}</span>
+      </label>
+    </div>`).join('');
+}
+
+let _dragSrc = null;
+function sceneDragStart(e, idx) { _dragSrc = idx; e.dataTransfer.effectAllowed='move'; }
+function sceneDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function sceneDrop(e, idx) {
+  e.preventDefault();
+  if(_dragSrc === null || _dragSrc === idx) return;
+  const arr = [..._sceneOrder];
+  const [moved] = arr.splice(_dragSrc, 1);
+  arr.splice(idx, 0, moved);
+  _sceneOrder = arr;
+  _dragSrc = null;
+  renderSceneOrder();
+}
+function toggleScene(idx, enabled) {
+  if(_sceneOrder[idx]) { _sceneOrder[idx].enabled = enabled; renderSceneOrder(); }
+}
+function resetSceneOrder() {
+  _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
+  renderSceneOrder();
+}
+async function saveSceneOrder() {
+  localStorage.setItem('wb_scene_order', JSON.stringify(_sceneOrder));
+  const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
+  if(_sheetsProxy) {
+    try {
+      await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+        body:JSON.stringify({action:'syncSettings',settings:{wb_scene_order:JSON.stringify(enabledIds)}})
+      });
+      showToast('✅ Scene order saved & pushed to companion','success');
+    } catch(e) { showToast('Save failed: '+e.message,'error'); }
+  } else {
+    showToast('✅ Scene order saved locally','success');
+  }
+}
+
+
+// ============================================================
+// RING CENTRAL INTEGRATION
+// ============================================================
+const RC_CLIENT_ID     = 'ZCFa84nZFa7f8eaH9gLu82';
+const RC_CLIENT_SECRET = 'efYzfoUTJkacmReRTjaQdyeWPvi73Nh5HeJZdejc08q1';
+const RC_SERVER        = 'https://platform.ringcentral.com';
+let _rcAccessToken  = null;
+let _rcTokenExpiry  = 0;
+let _rcSnap         = null; // call log data
+
+async function rcGetToken(credential) {
+  // Supports both JWT token and username:password
+  const creds = btoa(RC_CLIENT_ID + ':' + RC_CLIENT_SECRET);
+  let body;
+  if(credential.includes('@') || credential.includes(':')) {
+    // Password grant — credential is "username:password" or "username:ext:password"
+    const parts = credential.split(':');
+    const pass  = parts.pop();
+    const user  = parts.join(':');
+    body = new URLSearchParams({
+      grant_type: 'password',
+      username:   user,
+      password:   pass,
+    });
+    dashLog('info','RC: using password grant for ' + user);
+  } else {
+    // JWT grant
+    body = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion:  credential,
+    });
+    dashLog('info','RC: using JWT grant');
+  }
+  const res = await fetch(_workerUrl + '/rc/restapi/oauth/token', {
+    method: 'POST',
+    headers: { 'Authorization': 'Basic ' + creds, 'Content-Type': 'application/x-www-form-urlencoded', 'X-RC-Auth': 'Basic ' + creds },
+    body: body.toString(),
+  });
+  const txt = await res.text();
+  if(!res.ok) throw new Error('RC auth failed: HTTP ' + res.status + ' — ' + txt.slice(0,200));
+  const data = JSON.parse(txt);
+  _rcAccessToken = data.access_token;
+  _rcTokenExpiry = Date.now() + (data.expires_in||3600)*1000 - 60000;
+  console.log('[RC] Authenticated, token valid for', Math.round(data.expires_in/60), 'min');
+  dashLog('success','RingCentral authenticated ✅');
+  return _rcAccessToken;
+}
+
+async function rcGet(path, jwt) {
+  if(!_rcAccessToken || Date.now() > _rcTokenExpiry) await rcGetToken(jwt);
+  const res = await fetch(_workerUrl + '/rc' + path, {
+    headers: { 'X-RC-Auth': 'Bearer ' + _rcAccessToken }
+  });
+  if(res.status === 401) {
+    // Token expired — refresh and retry once
+    _rcAccessToken = null;
+    await rcGetToken(jwt);
+    const res2 = await fetch(_workerUrl + '/rc' + path, {
+      headers: { 'X-RC-Auth': 'Bearer ' + _rcAccessToken }
+    });
+    return res2.json();
+  }
+  return res.json();
+}
+
+async function fetchRCCallLog(jwt) {
+  if(!jwt || !_workerUrl) return;
+  try {
+    dashLog('info','Fetching RingCentral call log...');
+    // Company call log — last 30 days
+    const now   = new Date();
+    const from  = new Date(now); from.setDate(from.getDate()-30);
+    const fmt   = d => d.toISOString().split('.')[0] + 'Z';
+
+    let allCalls = [], page = 1;
+    while(true) {
+      const path = `/restapi/v1.0/account/~/call-log?dateFrom=${fmt(from)}&dateTo=${fmt(now)}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
+      const data = await rcGet(path, jwt);
+      const records = data.records || [];
+      allCalls = [...allCalls, ...records];
+      if(!data.navigation?.nextPage) break;
+      page++;
+      if(page > 20) break;
+    }
+    console.log('[RC] Fetched', allCalls.length, 'inbound calls');
+
+    // Process by extension (who answered)
+    const byExt = {};
+    const monthCounts = new Array(12).fill(0);
+    const dailyCounts = new Array(31).fill(0);
+    const curM = now.getMonth();
+
+    allCalls.forEach(call => {
+      const dt  = new Date(call.startTime);
+      const m   = dt.getMonth();
+      const day = dt.getDate()-1;
+      if(m >= 0 && m < 12) monthCounts[m]++;
+      if(m === curM && day >= 0) dailyCounts[day]++;
+
+      // Who answered
+      const legs = call.legs || [];
+      legs.filter(l => l.action === 'Accept' || l.result === 'Accepted').forEach(leg => {
+        const ext  = leg.extension?.extensionNumber || leg.to?.extensionNumber || 'Unknown';
+        const name = leg.extension?.name || leg.to?.name || ext;
+        if(!byExt[name]) byExt[name] = { name, ext, answered:0, missed:0, total:0 };
+        byExt[name].answered++;
+        byExt[name].total++;
+      });
+    });
+
+    // Missed calls
+    allCalls.filter(c => c.result === 'Missed').forEach(call => {
+      const legs = call.legs || [];
+      const dest = legs[legs.length-1];
+      const name = dest?.extension?.name || dest?.to?.name || 'Unknown';
+      if(!byExt[name]) byExt[name] = { name, ext:'', answered:0, missed:0, total:0 };
+      byExt[name].missed++;
+      byExt[name].total++;
+    });
+
+    const leaderboard = Object.values(byExt)
+      .filter(e => e.name !== 'Unknown' && e.total > 0)
+      .sort((a,b) => b.answered - a.answered);
+
+    const totalAnswered = allCalls.filter(c => c.result !== 'Missed').length;
+    const totalMissed   = allCalls.filter(c => c.result === 'Missed').length;
+    const ansRate       = allCalls.length > 0 ? Math.round(totalAnswered/allCalls.length*100) : 0;
+
+    _rcSnap = {
+      total: allCalls.length, answered: totalAnswered, missed: totalMissed,
+      answer_rate: ansRate, leaderboard, monthly: monthCounts, daily: dailyCounts
+    };
+    dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} agents`);
+
+    // Push to Sheets for companion
+    if(_sheetsProxy) {
+      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+        body: JSON.stringify({action:'syncSettings', settings:{
+          rc_total:       _rcSnap.total,
+          rc_answered:    _rcSnap.answered,
+          rc_missed:      _rcSnap.missed,
+          rc_answer_rate: _rcSnap.answer_rate,
+          rc_leaderboard: JSON.stringify(leaderboard),
+          rc_monthly:     JSON.stringify(monthCounts),
+          rc_daily:       JSON.stringify(dailyCounts),
+          rc_updated:     new Date().toISOString(),
+        }})
+      }).catch(()=>{});
+    }
+  } catch(e) {
+    dashLog('error','RC failed: '+e.message);
+    console.warn('[RC] Error:', e.message);
+  }
+}
 
 // ============================================================
 // GOAL TRACKER
@@ -5447,6 +5769,7 @@ function loadWallboardSettings(){
   if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
+  if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||'';
   if($$('wb-callrail-key'))    $$('wb-callrail-key').value    = _wbSettings.callrailKey||'ctrk_43c7900e17d5793db876196ed978662aa6858367';
   if($$('wb-callrail-account'))$$('wb-callrail-account').value= _wbSettings.callrailAccount||'541526025';
   if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
