@@ -1035,29 +1035,78 @@ html, body {
 
     <!-- SCENE 13: CALL VOLUME -->
     <div class="scene" id="s13">
-      <div class="scene-title">// Call Volume — This Week</div>
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;min-height:0">
-        <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-blue" id="calls-total">—</div>
-          <div class="metric-sub">Inbound calls</div>
-          <div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700">Total Calls</div>
+      <div class="scene-title">// Call Volume — CallRail</div>
+
+      <!-- Top: 3 metric cards that rotate Day/Month/Year -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(8px,1.5vw,16px);flex-shrink:0;padding:0 0 12px">
+        <!-- Total Calls -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden">
+          <div id="calls-period-badge" style="position:absolute;top:8px;right:8px;font-size:9px;padding:2px 7px;background:rgba(56,189,248,.2);color:#38BDF8;border-radius:20px;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Day</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Total Calls</div>
+          <div class="metric-value glow-blue" id="calls-total" style="font-size:clamp(40px,7vw,72px)">—</div>
+          <div class="metric-sub" id="calls-total-sub">Inbound calls</div>
+          <!-- Mini period dots -->
+          <div style="display:flex;gap:5px;margin-top:8px" id="calls-period-dots">
+            <div style="width:6px;height:6px;border-radius:50%;background:var(--blue)"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
+          </div>
         </div>
-        <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-green" id="calls-new">—</div>
-          <div class="metric-sub">First-time callers</div>
-          <div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700">New Callers</div>
+        <!-- New Callers -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
+          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">New Callers</div>
+          <div class="metric-value glow-green" id="calls-new" style="font-size:clamp(40px,7vw,72px)">—</div>
+          <div class="metric-sub" id="calls-new-sub">First-time callers</div>
         </div>
-        <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="metric-value glow-orange" id="calls-answered">—</div>
-          <div class="metric-sub">Answer rate</div>
-          <div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700">Answered %</div>
+        <!-- Answer Rate -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
+          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Answer Rate</div>
+          <div class="metric-value glow-orange" id="calls-answered" style="font-size:clamp(40px,7vw,72px)">—</div>
+          <div class="metric-sub" id="calls-answered-sub">Of all calls answered</div>
         </div>
       </div>
-      <!-- Weekly trend bar chart -->
-      <div class="card" style="flex-shrink:0;margin-top:0;padding:16px 20px">
-        <div style="font-size:11px;color:rgba(255,255,255,.8);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.1em">Daily Call Volume — This Week</div>
-        <div id="calls-trend" style="display:flex;align-items:flex-end;gap:8px;height:60px"></div>
-        <div id="calls-source" style="font-size:10px;color:rgba(255,255,255,.5);margin-top:8px;text-align:right">Source: CallRail · Updated on pull</div>
+
+      <!-- Bottom: line chart showing this month's daily call volume -->
+      <div class="card" style="flex:1;min-height:0;padding:14px 18px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em">Daily Volume — This Month</div>
+          <div id="calls-source" style="font-size:10px;color:rgba(255,255,255,.5)">Source: CallRail</div>
+        </div>
+        <div style="flex:1;min-height:0;position:relative">
+          <svg id="calls-line-svg" style="width:100%;height:100%;display:block;overflow:visible"></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE 14: RINGCENTRAL PHONE LEADERBOARD -->
+    <div class="scene" id="s14">
+      <div class="scene-title">// Phone Performance — RingCentral</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1.4fr;gap:16px;min-height:0">
+
+        <!-- Left: summary metrics -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em">Calls Answered</div>
+            <div class="metric-value glow-green" id="rc-answered" style="font-size:clamp(40px,7vw,72px)">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7)" id="rc-answered-sub">This month</div>
+          </div>
+          <div class="card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em">Answer Rate</div>
+            <div class="metric-value glow-blue" id="rc-rate">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7)">of all inbound</div>
+          </div>
+          <div class="card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em">Missed</div>
+            <div class="metric-value" id="rc-missed" style="font-size:clamp(36px,6vw,64px);color:#EF4444">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7)">calls missed</div>
+          </div>
+        </div>
+
+        <!-- Right: leaderboard -->
+        <div class="card" style="display:flex;flex-direction:column;padding:16px;overflow:hidden">
+          <div style="font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;flex-shrink:0">🏆 Calls Answered — Top Agents</div>
+          <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
       </div>
     </div>
 
@@ -1298,7 +1347,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.49
+      v1.53
     </div>
   </div>
 </div>
@@ -1345,6 +1394,7 @@ const CONFIG = {
     s5: 0,      // Announcements — self-managed
     s12: 25000, // Service Plans leaderboard
     s13: 20000, // Call Volume
+    s14: 25000, // RC Phone Leaderboard
     s6: 20000,  // Win the Day
     s7: 0,      // Spotlight — self-managed (8s per spotlight)
     s8: 0,      // Promotions — self-managed (8s per promo)
@@ -1419,7 +1469,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s12','s13','s5'];
+const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s12','s13','s14','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -1449,6 +1499,10 @@ const COMPANION_PHOTOS = {
   'Gordon Radant':   'https://midstateplumbingmn.github.io/KPI/images/Gordy.jpg',
   'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg',
   'Lukas Schlosser': 'https://midstateplumbingmn.github.io/KPI/images/Lukas.JPG',
+  // Add photos when images are uploaded to GitHub
+  'Mark Daniels':    '',
+  'Jeff Hohenauer':  '',
+  'Andy Mitchell':   '',
 };
 function getEmpPhoto(name, kpiPhotoUrl) {
   if(kpiPhotoUrl && kpiPhotoUrl.trim()) return kpiPhotoUrl.trim();
@@ -2334,10 +2388,17 @@ function updateS12() {
     return name && !name.startsWith('job_') && !KPI_EXCLUDE.has(name);
   });
 
-  // Sort by plans sold
-  const byPlans = [...allKpi]
-    .map(r => ({ name: r[CONFIG.KPI_COLS.name], plans: num(r[CONFIG.KPI_COLS.plans]||0), photo: r[CONFIG.KPI_COLS.photo]||'' }))
-    .filter(e => e.plans > 0 || KPI_PLANS_ONLY.has(e.name) || DEPT_MAP[e.name])
+  // Sort by plans sold — include ALL staff, 0-plan people at bottom
+  // Ensure KPI_PLANS_ONLY people are included even if not in KPI data
+  const kpiNames = new Set(allKpi.map(r => r[CONFIG.KPI_COLS.name]));
+  const planRows = [...allKpi]
+    .map(r => ({ name: r[CONFIG.KPI_COLS.name], plans: num(r[CONFIG.KPI_COLS.plans]||0), photo: r[CONFIG.KPI_COLS.photo]||'' }));
+  // Add KPI_PLANS_ONLY members who may not have a KPI row yet
+  KPI_PLANS_ONLY.forEach(name => {
+    if(!kpiNames.has(name)) planRows.push({ name, plans:0, photo:'' });
+  });
+  const byPlans = planRows
+    .filter(e => !KPI_EXCLUDE.has(e.name))
     .sort((a,b) => b.plans - a.plans);
 
   const total = byPlans.reduce((s,e) => s+e.plans, 0);
@@ -2385,46 +2446,283 @@ function updateS12() {
   if(totalEl) totalEl.textContent = total;
 }
 
-// ============================================================
-// SCENE 13 — CALL VOLUME (CallRail data via KPI_Dashboard snap)
-// ============================================================
-function updateS13() {
+// CallRail view toggle
+let _callsView = 'week';
+function setCallsView(view) {
+  _callsView = view;
+  ['week','month'].forEach(v => {
+    const btn = el('calls-btn-'+v);
+    if(btn) { btn.style.background = v===view ? 'var(--blue)' : 'rgba(255,255,255,.1)'; btn.style.color = v===view ? '#fff' : 'rgba(255,255,255,.7)'; }
+  });
+  renderCallsTrend();
+}
+
+function renderCallsTrend() {
+  const trendEl = el('calls-trend');
+  if(!trendEl) return;
   const snap = state.snap;
 
-  // CallRail data stored in snapshot
-  const totalCalls   = num(snap['calls_total']||snap['callrail_total']||0);
-  const newCallers   = num(snap['calls_new']||snap['callrail_new']||0);
-  const answered     = num(snap['calls_answered']||0);
-  const answeredPct  = totalCalls > 0 ? Math.round(answered/totalCalls*100) : 0;
-
-  if(el('calls-total'))   el('calls-total').textContent   = totalCalls || '—';
-  if(el('calls-new'))     el('calls-new').textContent     = newCallers  || '—';
-  if(el('calls-answered'))el('calls-answered').textContent= totalCalls > 0 ? answeredPct+'%' : '—';
-
-  // Daily trend bar chart
-  const trendEl = el('calls-trend');
-  if(trendEl) {
+  if(_callsView === 'week') {
     let weekly = [];
     try { weekly = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
-    if(weekly.length) {
-      const maxC = Math.max(...weekly.map(d=>d.count||0), 1);
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      trendEl.innerHTML = weekly.map(d => {
-        const pct = Math.round((d.count||0)/maxC*100);
-        const isToday = d.day === new Date().getDay();
-        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-          <div style="font-size:9px;color:rgba(255,255,255,.7);font-weight:600">${d.count||0}</div>
-          <div style="width:100%;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;flex:1">
-            <div style="height:${Math.max(pct,4)}%;background:${isToday?'var(--blue)':'rgba(56,189,248,.5)'};border-radius:3px;margin-top:auto"></div>
-          </div>
-          <div style="font-size:9px;color:${isToday?'var(--blue)':'rgba(255,255,255,.5)'};font-weight:${isToday?'700':'400'}">${days[d.day]||d.label||''}</div>
-        </div>`;
-      }).join('');
-    } else {
-      trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:12px 0">CallRail data not yet configured</div>';
+    if(!weekly.length) { trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px">No weekly data yet</div>'; return; }
+    const maxC = Math.max(...weekly.map(d=>d.count||0), 1);
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    trendEl.innerHTML = weekly.map(d => {
+      const pct = Math.round((d.count||0)/maxC*100);
+      const isToday = d.day === new Date().getDay();
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
+        <div style="font-size:9px;color:rgba(255,255,255,.8);font-weight:600">${d.count||0}</div>
+        <div style="width:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end">
+          <div style="width:100%;height:${Math.max(pct,4)}%;background:${isToday?'var(--blue)':'rgba(56,189,248,.5)'};border-radius:3px 3px 0 0;min-height:3px"></div>
+        </div>
+        <div style="font-size:9px;color:${isToday?'var(--blue)':'rgba(255,255,255,.5)'};font-weight:${isToday?'700':'400'}">${days[d.day]||''}</div>
+      </div>`;
+    }).join('');
+  } else {
+    // Monthly — try to load from monthly_calls or compute from weekly data
+    let monthly = [];
+    try { monthly = JSON.parse(snap['calls_monthly_json']||'[]'); } catch(e) {}
+    if(!monthly.length) {
+      trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:12px 0">Pull CallRail data to see monthly view</div>';
+      return;
     }
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const maxC = Math.max(...monthly.map(v=>v||0), 1);
+    const curM = new Date().getMonth();
+    trendEl.innerHTML = monthly.map((count, i) => {
+      const pct = Math.round((count||0)/maxC*100);
+      const isCur = i === curM;
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
+        ${count>0?`<div style="font-size:8px;color:rgba(255,255,255,.8)">${count}</div>`:'<div style="font-size:8px;color:transparent">0</div>'}
+        <div style="width:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end">
+          <div style="width:100%;height:${Math.max(pct,2)}%;background:${isCur?'var(--blue)':'rgba(56,189,248,.4)'};border-radius:3px 3px 0 0;min-height:2px"></div>
+        </div>
+        <div style="font-size:8px;color:${isCur?'var(--blue)':'rgba(255,255,255,.45)'};font-weight:${isCur?'700':'400'}">${MONTHS[i]}</div>
+      </div>`;
+    }).join('');
   }
 }
+
+
+// ============================================================
+// SCENE 14 — RINGCENTRAL PHONE LEADERBOARD
+// ============================================================
+let _rcPeriodTimer = null;
+
+function updateS14() {
+  const snap = state.snap;
+  const rcAnswered = parseInt(snap['rc_answered']||0)||0;
+  const rcMissed   = parseInt(snap['rc_missed']||0)||0;
+  const rcRate     = parseInt(snap['rc_answer_rate']||0)||0;
+  const rcTotal    = parseInt(snap['rc_total']||0)||0;
+
+  let leaderboard = [];
+  try { leaderboard = JSON.parse(snap['rc_leaderboard']||'[]'); } catch(e) {}
+
+  if(el('rc-answered'))  el('rc-answered').textContent  = rcAnswered || '—';
+  if(el('rc-rate'))      el('rc-rate').textContent      = rcRate > 0 ? rcRate+'%' : '—';
+  if(el('rc-missed'))    el('rc-missed').textContent    = rcMissed || '—';
+
+  // Leaderboard
+  const lbEl = el('rc-leaderboard');
+  if(lbEl && leaderboard.length) {
+    const maxAns = leaderboard[0]?.answered || 1;
+    const colors = ['#FFD700','#C0C0C0','#CD7F32','#00D4FF','#00FF88','#A855F7','#F97316','#EF4444'];
+    lbEl.innerHTML = leaderboard.slice(0,8).map((agent, i) => {
+      const pct  = Math.round(agent.answered/maxAns*100);
+      const col  = colors[i] || '#6b7280';
+      const rate = agent.total > 0 ? Math.round(agent.answered/agent.total*100) : 0;
+      const photo = getEmpPhoto(agent.name, '');
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div style="font-size:13px;width:20px;text-align:center;color:${col};font-weight:700">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+        ${photo?`<img src="${photo}" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${agent.name}</div>
+          <div style="height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:3px">
+            <div style="height:100%;width:${pct}%;background:${col};border-radius:2px"></div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;color:${col}">${agent.answered}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">${rate}% ans</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else if(lbEl) {
+    lbEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:20px 0">Connect RingCentral in Dashboard → Wallboard settings</div>';
+  }
+}
+
+// ============================================================
+// SCENE 13 — CALL VOLUME
+// ============================================================
+let _callsPeriodIdx = 0;
+let _callsPeriodTimer = null;
+
+function updateS13() {
+  const snap = state.snap;
+  const totalWeek   = parseInt(snap['calls_total']||0)||0;
+  const newWeek     = parseInt(snap['calls_new']||0)||0;
+  const answWeek    = parseInt(snap['calls_answered']||0)||0;
+  const answPctWeek = totalWeek > 0 ? Math.round(answWeek/totalWeek*100) : 0;
+
+  // Build monthly total from monthly array
+  let monthly = [];
+  try { monthly = JSON.parse(snap['calls_monthly_json']||'[]'); } catch(e) {}
+  const curM = new Date().getMonth();
+  const totalMonth = monthly[curM] || 0;
+  const totalYear  = monthly.reduce((s,v)=>s+(v||0),0);
+
+  // Today's calls from weekly breakdown
+  let weekly = [];
+  try { weekly = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
+  const todayDay = new Date().getDay();
+  const todayEntry = weekly.find(d=>d.day===todayDay);
+  const totalDay = todayEntry?.count || 0;
+
+  const periods = [
+    { label:'Day',   total:totalDay,   newC: Math.round(newWeek/7)||0,  answPct: answPctWeek, sub:'calls today' },
+    { label:'Month', total:totalMonth, newC: Math.round(newWeek*4)||0,  answPct: answPctWeek, sub:'calls this month' },
+    { label:'Year',  total:totalYear,  newC: Math.round(newWeek*52)||0, answPct: answPctWeek, sub:'calls this year' },
+  ];
+
+  // Start rotation
+  if(_callsPeriodTimer) clearInterval(_callsPeriodTimer);
+  _callsPeriodIdx = 0;
+
+  function showPeriod(idx) {
+    const p = periods[idx];
+    if(!p) return;
+    const totalEl   = el('calls-total');
+    const newEl     = el('calls-new');
+    const answEl    = el('calls-answered');
+    const badgeEl   = el('calls-period-badge');
+    const subEl     = el('calls-total-sub');
+    const dotsEl    = el('calls-period-dots');
+
+    if(totalEl) totalEl.textContent = p.total || '—';
+    if(newEl)   newEl.textContent   = p.newC > 0 ? p.newC : '—';
+    if(answEl)  answEl.textContent  = p.answPct > 0 ? p.answPct+'%' : '—';
+    if(subEl)   subEl.textContent   = p.sub;
+    if(badgeEl) badgeEl.textContent = p.label;
+    if(dotsEl) dotsEl.innerHTML = periods.map((_,i) =>
+      `<div style="width:6px;height:6px;border-radius:50%;background:${i===idx?'var(--blue)':'rgba(255,255,255,.2)'}"></div>`
+    ).join('');
+  }
+
+  showPeriod(0);
+  _callsPeriodTimer = setInterval(() => {
+    _callsPeriodIdx = (_callsPeriodIdx + 1) % periods.length;
+    showPeriod(_callsPeriodIdx);
+  }, 7000);
+
+  renderCallsLineChart();
+}
+
+function renderCallsLineChart() {
+  const snap = state.snap;
+  const svg = el('calls-line-svg');
+  if(!svg) return;
+
+  let weekly = [];
+  let monthly = [];
+  let daily = [];
+  try { weekly  = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
+  try { monthly = JSON.parse(snap['calls_monthly_json']||'[]'); } catch(e) {}
+  try { daily   = JSON.parse(snap['calls_daily_json']||'[]');  } catch(e) {}
+  const W = svg.parentElement?.clientWidth  || svg.clientWidth  || 700;
+  const H = svg.parentElement?.clientHeight || svg.clientHeight || 120;
+  if(W < 50 || H < 30) { setTimeout(()=>renderCallsLineChart(weekly, monthly), 200); return; }
+
+  // Build daily points for this month using weekly data to estimate
+  // Use monthly array for true month totals
+  const now = new Date();
+  const curM = now.getMonth();
+  const daysInMonth = new Date(now.getFullYear(), curM+1, 0).getDate();
+  const today = now.getDate();
+
+  // Use weekly day-of-week averages to fill in daily estimate
+  const dayAvg = new Array(7).fill(0);
+  const dayCount = new Array(7).fill(0);
+  weekly.forEach(d => { dayAvg[d.day] = d.count; dayCount[d.day] = 1; });
+
+  // Use actual daily data if available, else fall back to weekly estimate
+  const dailyActual = daily.length > 0 ? daily : [];
+
+  // Build points: actual daily counts or estimate from weekly pattern
+  const pts = [];
+  for(let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(now.getFullYear(), curM, day);
+    const dow  = date.getDay();
+    let count = null;
+    if(day <= today) {
+      if(dailyActual.length >= day) {
+        count = dailyActual[day-1] || 0; // use actual
+      } else {
+        count = dayAvg[dow] || 0; // estimate from weekly
+      }
+    }
+    pts.push({ day, count });
+  }
+
+  const maxVal = Math.max(...pts.filter(p=>p.count!==null).map(p=>p.count), 1);
+  const padL=8, padR=12, padT=20, padB=24;
+  const cW=W-padL-padR, cH=H-padT-padB;
+  const toX = d => padL + ((d-1)/(daysInMonth-1)) * cW;
+  const toY = v => padT + cH - (v/maxVal)*cH;
+
+  // Build SVG
+  const actualPts = pts.filter(p=>p.count!==null);
+  if(!actualPts.length) {
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12">No monthly data yet</text>`;
+    return;
+  }
+
+  // Gradient fill path
+  const linePts = actualPts.map(p => `${toX(p.day).toFixed(1)},${toY(p.count).toFixed(1)}`).join(' ');
+  const fillPts = `${toX(actualPts[0].day).toFixed(1)},${(padT+cH).toFixed(1)} ${linePts} ${toX(actualPts[actualPts.length-1].day).toFixed(1)},${(padT+cH).toFixed(1)}`;
+
+  // Gridlines + y labels
+  let grid = '';
+  for(let i=0;i<=3;i++) {
+    const v = Math.round(maxVal*i/3);
+    const y = toY(v);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`;
+    grid += `<text x="${padL-2}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="rgba(255,255,255,.4)">${v}</text>`;
+  }
+
+  // Day labels (every 5 days)
+  let xLabels = '';
+  for(let day=1; day<=daysInMonth; day+=5) {
+    const x = toX(day);
+    const isTod = day === today;
+    xLabels += `<text x="${x.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="8" fill="${isTod?'#38BDF8':'rgba(255,255,255,.4)'}" font-weight="${isTod?'700':'400'}">${day}</text>`;
+  }
+
+  // Today marker
+  const todayX = toX(today);
+  const todayY = toY(actualPts.find(p=>p.day===today)?.count||0);
+  const todayMarker = `<line x1="${todayX.toFixed(1)}" y1="${padT}" x2="${todayX.toFixed(1)}" y2="${(padT+cH).toFixed(1)}" stroke="rgba(56,189,248,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+    <circle cx="${todayX.toFixed(1)}" cy="${todayY.toFixed(1)}" r="4" fill="#38BDF8" filter="url(#cglow)"/>`;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="callFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.02"/>
+      </linearGradient>
+      <filter id="cglow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    ${grid}
+    <polygon points="${fillPts}" fill="url(#callFill)"/>
+    <polyline points="${linePts}" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${todayMarker}
+    ${xLabels}`;
+}
+
+// ResizeObserver for line chart
+let _callsResizeObs = null;
 
 // ============================================================
 // BIG WIN NOTIFICATION — fires when a job over threshold closes
@@ -2617,6 +2915,7 @@ function goScene(idx) {
   // Stop self-managed timers when leaving those scenes
   if (SCENES[state.currentScene] === 's7') { if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; } }
   if (SCENES[state.currentScene] === 's2') { if (window._gapRotTimer) { clearInterval(window._gapRotTimer); window._gapRotTimer = null; } }
+  if (SCENES[state.currentScene] === 's13') { if (_callsPeriodTimer) { clearInterval(_callsPeriodTimer); _callsPeriodTimer = null; } }
   if (SCENES[state.currentScene] === 's8') { if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; } }
   if (SCENES[state.currentScene] === 's11') { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
   if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
@@ -2666,7 +2965,11 @@ function goScene(idx) {
   else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
   else if (sceneId==='s13') {
     if (state.snap['calls_total'] || state.snap['calls_weekly_json']) { updateS13(); scheduleNextScene('s13'); }
-    else { nextScene(); } // skip if no CallRail data
+    else { nextScene(); }
+  }
+  else if (sceneId==='s14') {
+    if (state.snap['rc_answered'] || state.snap['rc_leaderboard']) { updateS14(); scheduleNextScene('s14'); }
+    else { nextScene(); }
   }
 }
 
@@ -2809,8 +3112,13 @@ async function init() {
   checkVictoryMode();
   updateS6();
 
-  // NOW start rotation — all data is loaded
-  goScene(0);
+  // NOW start rotation — data is loaded
+  // Give the DOM time to paint before S2 tries to measure SVG dimensions
+  setTimeout(() => {
+    goScene(0);
+    // Extra render after first scene is visible
+    setTimeout(() => renderMonthlyBars(), 500);
+  }, 100);
 
   // Auto-refresh — fetch new data silently, never restart scenes
   setInterval(async () => {
@@ -3627,6 +3935,49 @@ function updateS10() {
 // WALLBOARD SETTINGS — load from Sheets
 // ============================================================
 async function loadWallboardData() {
+  try {
+    // Check for custom scene order from dashboard
+    const settingsRows = await fetchCSV('Settings').catch(()=>[]);
+    const sceneOrderRow = settingsRows.find(r => r[0]==='wb_scene_order');
+    if(sceneOrderRow && sceneOrderRow[1]) {
+      try {
+        const order = JSON.parse(sceneOrderRow[1]);
+        if(Array.isArray(order) && order.length > 0) {
+          SCENES.length = 0;
+          order.forEach(id => SCENES.push(id));
+          buildDots();
+          console.log('[Companion] Scene order from dashboard:', SCENES.join(','));
+        }
+      } catch(e) {}
+    }
+    // Also check for CallRail data stored in settings
+    const crTotalRow  = settingsRows.find(r => r[0]==='callrail_total');
+    const crNewRow    = settingsRows.find(r => r[0]==='callrail_new');
+    const crAnsRow    = settingsRows.find(r => r[0]==='callrail_answered');
+    const crWeekRow   = settingsRows.find(r => r[0]==='callrail_weekly');
+    if(crTotalRow) {
+      state.snap['calls_total']        = parseInt(crTotalRow[1])||0;
+      state.snap['calls_new']          = parseInt(crNewRow?.[1])||0;
+      state.snap['calls_answered']     = parseInt(crAnsRow?.[1])||0;
+      state.snap['calls_weekly_json']  = crWeekRow?.[1]||'[]';
+      const crMonthRow = settingsRows.find(r => r[0]==='callrail_monthly');
+      state.snap['calls_monthly_json'] = crMonthRow?.[1]||'[]';
+      const crDailyRow = settingsRows.find(r => r[0]==='callrail_daily');
+      state.snap['calls_daily_json']   = crDailyRow?.[1]||'[]';
+    }
+    // RingCentral data
+    const rcAnsRow  = settingsRows.find(r => r[0]==='rc_answered');
+    if(rcAnsRow) {
+      state.snap['rc_answered']    = parseInt(rcAnsRow[1])||0;
+      state.snap['rc_missed']      = parseInt(settingsRows.find(r=>r[0]==='rc_missed')?.[1])||0;
+      state.snap['rc_answer_rate'] = parseInt(settingsRows.find(r=>r[0]==='rc_answer_rate')?.[1])||0;
+      state.snap['rc_total']       = parseInt(settingsRows.find(r=>r[0]==='rc_total')?.[1])||0;
+      state.snap['rc_leaderboard'] = settingsRows.find(r=>r[0]==='rc_leaderboard')?.[1]||'[]';
+      state.snap['rc_monthly']     = settingsRows.find(r=>r[0]==='rc_monthly')?.[1]||'[]';
+      state.snap['rc_daily']       = settingsRows.find(r=>r[0]==='rc_daily')?.[1]||'[]';
+    }
+  } catch(e) { console.log('[Wallboard] Settings read failed:', e.message); }
+
   try {
     const rows = await fetchCSV('WallboardSettings');
     const settings = {};
