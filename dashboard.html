@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.0</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.4</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.0</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.4</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1836,9 +1836,14 @@ function isReturnVisit(j){
 // Get the "root" job or estimate this job belongs to
 // HCP links return visits via original_estimate_id pointing to the original job's linked estimate
 function getJobRevenue(j){
-  // Return visits: no revenue to report (work was already sold)
   if(isReturnVisit(j)) return 0;
-  return getJobTotal(j);
+  const rawTotal = j.total_amount ?? j.invoice_total ?? 0;
+  const computed = getJobTotal(j);
+  // Log suspicious values to help debug
+  if(computed > 100 && computed < 1000 && parseFloat(rawTotal) > 50000) {
+    console.warn('[Revenue] Possible cents→dollars issue: job', j.job_number, 'raw='+rawTotal, 'computed=$'+computed);
+  }
+  return computed;
 }
 
 function jBadge(j){
@@ -3264,6 +3269,87 @@ function initKPIRange(){
   if(label) label.textContent=`${from} → ${to}`;
 }
 
+
+function auditRevenue() {
+  const {from, to} = getKPIDateRange();
+  const kpiJobs = filterByKPIRange(
+    _jobs, j => j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at
+  ).filter(j => !isJobCanceled(j) && isJobPaid(j) && !isReturnVisit(j));
+
+  let totalRev = 0, attributedRev = 0, unattributed = [], noTech = [];
+
+  kpiJobs.forEach(j => {
+    const rev  = getJobRevenue(j);
+    if(rev <= 0) return;
+    totalRev += rev;
+
+    const attr     = _jobAttribution[j.id];
+    const empList  = getAssignedList(j).filter(e => !INSTALLER_IDS.has(e.id));
+    const hasAttr  = attr && attr.techId && attr.techId !== 'skip';
+    const hasTech  = empList.length > 0;
+
+    if(hasAttr || hasTech) {
+      attributedRev += rev;
+    } else {
+      noTech.push({ job: j.job_number||j.id, rev, cust: getCust(j), date: fmtD(j.work_timestamps?.completed_at||j.created_at||'') });
+    }
+  });
+
+  const gap = totalRev - attributedRev;
+  const msg = [
+    `📊 Revenue Audit (${from} → ${to})`,
+    ``,
+    `Total paid jobs:      ${kpiJobs.length}`,
+    `Total revenue:        ${dollars(totalRev)}`,
+    `Attributed revenue:   ${dollars(attributedRev)}`,
+    `Unattributed gap:     ${dollars(gap)} (${kpiJobs.length > 0 ? Math.round(gap/totalRev*100) : 0}%)`,
+    ``,
+    noTech.length ? `Jobs with NO assigned tech (${noTech.length}):` : `✅ All jobs have an assigned tech`,
+    ...noTech.slice(0,10).map(j => `  Job ${j.job} · ${j.cust} · ${dollars(j.rev)} · ${j.date}`),
+    noTech.length > 10 ? `  ... and ${noTech.length-10} more` : '',
+  ].filter(l => l !== undefined).join('\n');
+
+  // Show in a modal or alert
+  const existing = document.getElementById('rev-audit-modal');
+  if(existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'rev-audit-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:#fff;border-radius:10px;padding:24px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:#1f2937">Revenue Audit</div>
+      <button onclick="document.getElementById('rev-audit-modal').remove()" style="font-size:20px;background:none;border:none;cursor:pointer;color:#6b7280">&times;</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="padding:10px;background:#f0fdf4;border-radius:7px;text-align:center">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase">Total Revenue</div>
+        <div style="font-size:20px;font-weight:700;color:#166534">${dollars(totalRev)}</div>
+        <div style="font-size:10px;color:#6b7280">${kpiJobs.length} paid jobs</div>
+      </div>
+      <div style="padding:10px;background:#eff6ff;border-radius:7px;text-align:center">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase">Attributed</div>
+        <div style="font-size:20px;font-weight:700;color:#1d4ed8">${dollars(attributedRev)}</div>
+        <div style="font-size:10px;color:#6b7280">${dollars(attributedRev) === dollars(totalRev) ? '✅ 100%' : Math.round(attributedRev/totalRev*100)+'%'}</div>
+      </div>
+      <div style="padding:10px;background:${gap>0?'#fef2f2':'#f0fdf4'};border-radius:7px;text-align:center">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase">Gap</div>
+        <div style="font-size:20px;font-weight:700;color:${gap>0?'#dc2626':'#166534'}">${dollars(gap)}</div>
+        <div style="font-size:10px;color:#6b7280">${noTech.length} jobs no tech</div>
+      </div>
+    </div>
+    ${noTech.length ? `
+    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">Jobs with no assigned technician (revenue not attributed):</div>
+    <div style="max-height:250px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px">
+      ${noTech.map(j=>`<div style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;display:flex;justify-content:space-between">
+        <span><strong>Job ${j.job}</strong> · ${escHtml(j.cust)}</span>
+        <span style="color:#dc2626;font-weight:600">${dollars(j.rev)}</span>
+      </div>`).join('')}
+    </div>` : '<div style="padding:12px;background:#f0fdf4;border-radius:6px;color:#166534;font-size:12px;text-align:center">✅ All paid jobs have an assigned technician — no revenue gaps</div>'}
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
 function renderKPI(jobs,estimates,employees,plans){
   // Update range label
   const{from,to}=getKPIDateRange();
@@ -3749,6 +3835,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
   // Fetch CallRail weekly call data
   let _callrailSnap = null;
+  let _allYearJobs  = []; // cached paid jobs — keeps YTD data even if user switches to WTD pull
   try {
     const crKey     = _wbSettings.callrailKey || 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
     const crAccount = _wbSettings.callrailAccount || '541526025';
@@ -4392,13 +4479,7 @@ async function rcGetToken(credential) {
 }
 
 async function rcGet(path, jwt) {
-  // Try Apps Script proxy (most reliable — server-side, no CORS issues)
-  if(_sheetsProxy) {
-    try { return await rcGetViaProxy(path, jwt); } catch(e) {
-      dashLog('warn', 'RC proxy failed, trying direct: ' + e.message);
-    }
-  }
-  // Fallback: direct call
+  // Direct call works — RC supports browser CORS with proper auth
   if(!_rcAccessToken || Date.now() > _rcTokenExpiry) await rcGetToken(jwt);
   const res = await fetch(RC_SERVER + path, {
     headers: { 'Authorization': 'Bearer ' + _rcAccessToken }
@@ -5268,7 +5349,10 @@ const GOALS = {
 
 function getRevenueForPeriod(period){
   const now = new Date();
-  const paidJobs = _jobs.filter(isJobPaid);
+  // For annual/monthly/quarterly: use cached full-year jobs for accuracy
+  // For weekly/daily: use current pull range jobs
+  const useCached = ['year','quarter','month'].includes(period);
+  const paidJobs = (useCached && _allYearJobs.length > 0) ? _allYearJobs : _jobs.filter(isJobPaid);
 
   // For daily/weekly: use ONLY completed_at or paid_at — not scheduled_start
   // scheduled_start is when the job is booked, not when it was paid
@@ -5306,10 +5390,12 @@ function getRevenueForPeriod(period){
       const dLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       return dLocal === todayLocal;
     });
-    console.log(`[Daily Rev] Today=${todayLocal}, matched ${todayJobs.length} jobs`, todayJobs.map(j=>({
+    console.log(`[Daily Rev] Today=${todayLocal}, matched ${todayJobs.length} jobs, total=$${todayJobs.reduce((s,j)=>s+getJobRevenue(j),0).toFixed(2)}`, todayJobs.map(j=>({
       job: j.job_number,
       completed: j.work_timestamps?.completed_at||j.completed_at||'none',
-      rev: getJobRevenue(j)
+      rev: getJobRevenue(j),
+      rawTotal: j.total_amount??j.invoice_total,
+      returnVisit: isReturnVisit(j)
     })));
     return todayJobs.reduce((s,j)=>s+getJobRevenue(j),0);
   }
