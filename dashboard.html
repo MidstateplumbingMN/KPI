@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.7</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.7</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -3809,6 +3809,8 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
             if(day >= 0 && day < 31) dailyCounts[day]++;
           }
         });
+        // Note: CallRail 'answered' = successfully forwarded to RC (not agent answer rate)
+        // Use RingCentral data for actual agent answer/miss rates
         _callrailSnap = { total, answered, missed: total - answered, new_callers: newCalls, weekly, monthly: monthCounts, daily: dailyCounts };
         console.log('[CallRail] Week:', total, 'inbound calls,', newCalls, 'new,', answered, 'answered');
         dashLog('success', `CallRail: ${total} calls, ${newCalls} new, ${answered} answered this week`);
@@ -6131,6 +6133,10 @@ function parseCSVLine(line) {
 
 async function fetchTYCardsFromSheets(){
   if(!_sheetsProxy) return;
+  // Debounce — don't run twice within 5 seconds
+  const now = Date.now();
+  if(fetchTYCardsFromSheets._lastRun && now - fetchTYCardsFromSheets._lastRun < 5000) return;
+  fetchTYCardsFromSheets._lastRun = now;
   // Load statuses from TY_Cards tab via published CSV
   try {
     const SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
