@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.1</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.1</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -864,6 +864,39 @@ tr:hover td{background:#fafafa}
     </div>
 
     <!-- THANK YOU CARDS -->
+
+    <!-- ORDER QUEUE TAB -->
+    <div class="panel" id="tab-orders">
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#374151">📋 Install Order Queue</div>
+        <input type="date" id="oqFrom" style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px" onchange="renderOrderQueue()">
+        <span style="font-size:11px;color:#9ca3af">to</span>
+        <input type="date" id="oqTo"   style="font-size:12px;padding:4px 6px;border:1px solid #d1d5db;border-radius:5px" onchange="renderOrderQueue()">
+        <select id="oqDept" onchange="renderOrderQueue()" style="font-size:12px;padding:4px 8px;border:1px solid #d1d5db;border-radius:5px">
+          <option value="">All Departments</option>
+          <option value="HVAC">HVAC</option>
+          <option value="Plumbing">Plumbing</option>
+          <option value="Install">Install</option>
+        </select>
+        <select id="oqStatus" onchange="renderOrderQueue()" style="font-size:12px;padding:4px 8px;border:1px solid #d1d5db;border-radius:5px">
+          <option value="">All</option>
+          <option value="pending">⬜ Needs Order</option>
+          <option value="ordered">🔵 Ordered</option>
+          <option value="received">🟢 Received</option>
+          <option value="complete">✅ Complete</option>
+        </select>
+        <button onclick="renderOrderQueue()" style="font-size:12px;padding:5px 12px;border:1px solid #1A3A5C;border-radius:5px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:600">↻ Refresh</button>
+        <button onclick="printOrderQueue()" style="font-size:12px;padding:5px 12px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">🖨 Print</button>
+        <button onclick="saveOrderQueueToSheets()" style="font-size:12px;padding:5px 12px;background:#059669;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">💾 Save to Sheets</button>
+      </div>
+
+      <div id="oq-metrics" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
+      <div id="oq-content" style="display:flex;flex-direction:column;gap:12px">
+        <div style="text-align:center;padding:30px;color:#9ca3af">Pull a report to see pending install orders</div>
+      </div>
+    </div>
+
     <div class="panel" id="tab-ty">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
@@ -1392,6 +1425,7 @@ tr:hover td{background:#fafafa}
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Number</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Direction</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Agent</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Ext</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Duration</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Status</th>
               </tr>
@@ -4331,7 +4365,8 @@ async function fetchRCCallLog(jwt) {
     });
 
     const leaderboard = Object.values(byExt)
-      .filter(e => e.name !== 'Unknown' && e.total > 0)
+      .filter(e => e.total > 0)
+      .map(e => ({ ...e, avgDur: e.total > 0 ? Math.round(e.totalDur/e.total) : 0, ansRate: e.total > 0 ? Math.round(e.answered/e.total*100) : 0 }))
       .sort((a,b) => b.answered - a.answered);
 
     const totalAnswered = allCalls.filter(c => c.result !== 'Missed').length;
@@ -4532,37 +4567,62 @@ async function testRingCentral() {
     let allCalls=[], nextUri=null, page=1;
 
     do {
+      // Use view=Detailed to get legs array — shows which agent answered
       const path = nextUri
         ? nextUri.replace('https://platform.ringcentral.com','')
-        : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=${view}`;
+        : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
 
       setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
       const data = await rcGet(path, jwt);
-      if(data.errorCode) throw new Error(data.message || JSON.stringify(data));
+      if(data.errorCode) throw new Error(data.message || JSON.stringify(data).slice(0,200));
       allCalls = [...allCalls, ...(data.records||[])];
-      nextUri  = data.navigation?.nextPage?.uri || null;
+      // RC uses nextPage.uri for pagination
+      nextUri = data.navigation?.nextPage?.uri || null;
       page++;
     } while(nextUri && page <= 50);
 
-    // Normalize to common schema
+    console.log('[RC] Fetched', allCalls.length, 'raw inbound records');
+
+    // Normalize — RC legs array shows the full call journey through the phone system
+    // CallRail forwards to a main number → RC routes to available agent
+    // The last leg with result=Accepted is who actually answered
     _rcCallsRaw = allCalls.map(c => {
-      // Find who answered by inspecting legs array
-      const legs    = c.legs || [];
-      const ansLeg  = legs.find(l => l.result==='Accepted' || l.action==='Accept' || l.result==='Connected');
-      const agentName = ansLeg?.extension?.name || ansLeg?.to?.name || c.to?.name || '';
-      const answered  = c.result !== 'Missed' && c.result !== 'VoiceMail' && (c.duration||0) > 0;
+      const legs = c.legs || [];
+
+      // Find the answering agent — last leg that was accepted/connected
+      const ansLeg = [...legs].reverse().find(l =>
+        l.result === 'Accepted' || l.result === 'Connected' || l.action === 'Accept'
+      );
+      // Fallback: any leg with an extension name
+      const extLeg = legs.find(l => l.extension?.name || l.to?.extensionNumber);
+
+      const agentName = ansLeg?.extension?.name
+        || ansLeg?.to?.name
+        || extLeg?.extension?.name
+        || extLeg?.to?.name
+        || c.to?.name || '';
+      const agentExt  = ansLeg?.extension?.extensionNumber
+        || extLeg?.extension?.extensionNumber
+        || c.to?.extensionNumber || '';
+
+      const answered = c.result !== 'Missed' && c.result !== 'VoiceMail'
+        && c.result !== 'Busy' && (c.duration||0) > 0;
+
       return {
         _source:    'RingCentral',
         _id:        c.id,
         _time:      c.startTime,
         _caller:    c.from?.name || c.from?.phoneNumber || 'Unknown',
         _number:    c.from?.phoneNumber || '',
-        _direction: c.direction || 'Inbound',
+        _direction: (c.direction||'Inbound').toLowerCase(),
         _agent:     agentName,
+        _agentExt:  agentExt,
         _duration:  parseInt(c.duration)||0,
         _answered:  answered,
         _missed:    c.result === 'Missed',
-        _status:    c.result || (answered?'Answered':'Missed'),
+        _voicemail: c.result === 'VoiceMail',
+        _status:    c.result || (answered?'Accepted':'Missed'),
+        _legs:      legs.length,
         _raw:       c,
       };
     });
@@ -4622,6 +4682,7 @@ function filterCallsTable() {
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._number)}</td>
       <td style="padding:7px 12px;font-size:11px;text-transform:capitalize">${c._direction||'—'}</td>
       <td style="padding:7px 12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1e293b">${escHtml(c._agent||'—')}</td>
+      <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._agentExt||'—')}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px">${c._duration>0?fmtDuration(c._duration):'—'}</td>
       <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span></td>
     </tr>`;
@@ -4718,6 +4779,345 @@ function exportCallsCSV() {
 }
 
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+
+// ============================================================
+// ORDER QUEUE — sold estimates with scheduled install jobs
+// ============================================================
+let _orderQueue = {}; // id -> { status, notes, orderedDate, orderedBy }
+
+function loadOrderQueue() {
+  // Set default date range — next 60 days from today
+  const from = new Date();
+  const to   = new Date(); to.setDate(to.getDate()+60);
+  const fmt  = d => d.toISOString().split('T')[0];
+  if($$('oqFrom')&&!$$('oqFrom').value) $$('oqFrom').value = fmt(from);
+  if($$('oqTo')  &&!$$('oqTo').value)   $$('oqTo').value   = fmt(to);
+  // Load saved statuses
+  try { const s=localStorage.getItem('hcp_order_queue'); if(s)_orderQueue=JSON.parse(s); } catch(e){}
+  fetchOrderQueueFromSheets();
+  renderOrderQueue();
+}
+
+function saveOrderQueueLocal() {
+  try { localStorage.setItem('hcp_order_queue',JSON.stringify(_orderQueue)); } catch(e){}
+}
+
+async function fetchOrderQueueFromSheets() {
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({action:'getOrderQueue'})
+    });
+    const data = await res.json();
+    if(data.success && data.orders) {
+      data.orders.forEach(o => {
+        _orderQueue[o.id] = { status:o.status||'pending', notes:o.notes||'', orderedDate:o.ordered_date||'', orderedBy:o.ordered_by||'' };
+      });
+      saveOrderQueueLocal();
+      renderOrderQueue();
+    }
+  } catch(e) { console.warn('[OrderQueue] Sheets load failed:', e.message); }
+}
+
+async function saveOrderQueueToSheets() {
+  if(!_sheetsProxy) { showToast('Connect to Sheets first','error'); return; }
+  const orders = getOrderQueueItems();
+  if(!orders.length) { showToast('No orders to save','warn'); return; }
+  try {
+    const payload = orders.map(item => ({
+      id:           item.id,
+      customer:     item.customer,
+      address:      item.address,
+      equipment:    item.equipLabel,
+      dept:         item.dept,
+      sold_by:      item.soldBy,
+      install_date: item.installDate,
+      estimate_num: item.estNum,
+      job_num:      item.jobNum,
+      value:        item.value,
+      notes:        item.notes,
+      status:       _orderQueue[item.id]?.status || 'pending',
+      ordered_date: _orderQueue[item.id]?.orderedDate || '',
+      ordered_by:   _orderQueue[item.id]?.orderedBy || '',
+    }));
+    const res  = await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      body:JSON.stringify({action:'syncOrderQueue',orders:payload})});
+    const data = await res.json();
+    if(data.success) showToast(`✅ ${payload.length} orders saved to Sheets`,'success');
+    else throw new Error(data.error);
+  } catch(e) { showToast('Save failed: '+e.message,'error'); }
+}
+
+function setOrderStatus(id, status) {
+  if(!_orderQueue[id]) _orderQueue[id]={};
+  _orderQueue[id].status = status;
+  saveOrderQueueLocal();
+  // Push just this record to Sheets
+  if(_sheetsProxy) {
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      body:JSON.stringify({action:'updateOrderStatus',id,status})
+    }).catch(()=>{});
+  }
+  renderOrderQueue();
+}
+
+function getOrderQueueItems() {
+  if(!_estimates.length && !_jobs.length) return [];
+  const fromVal = $$('oqFrom')?.value || '';
+  const toVal   = $$('oqTo')?.value   || '';
+  const deptFil = $$('oqDept')?.value || '';
+  const fromD   = fromVal ? new Date(fromVal+'T00:00:00') : new Date(0);
+  const toD     = toVal   ? new Date(toVal+'T23:59:59')   : new Date(9999,0,1);
+
+  const items = [];
+
+  // Find sold/converted estimates that have a scheduled install job
+  const soldEsts = _estimates.filter(e => isConv(e) || getEstDisplayStatus(e).startsWith('Sold'));
+
+  soldEsts.forEach(est => {
+    // Detect equipment from estimate options
+    const equip = detectEquipFromEstimate(est);
+    if(!equip) return;
+
+    // Find a linked scheduled job (future or recently scheduled)
+    const custId   = getCustId(est);
+    const custName = getCust(est);
+    const linked   = _jobs.filter(j => {
+      const jCust = getCustId(j)||getCust(j);
+      const matchesCust = (custId && getCustId(j)===custId) || getCust(j)===custName;
+      if(!matchesCust) return false;
+      // Must be scheduled (not yet paid/complete) OR recently completed install
+      const status = getNormStatus(j).toLowerCase();
+      return status==='scheduled'||status==='in progress'||status==='unscheduled';
+    });
+
+    // Use the most relevant linked job (or treat estimate itself as the source)
+    const job = linked[0] || null;
+    const installDate = job?.schedule?.scheduled_start || est.created_at || '';
+    const installD    = installDate ? new Date(installDate) : null;
+
+    // Apply date filter
+    if(installD && (installD < fromD || installD > toD)) return;
+
+    const dept = job ? getDept(job) : getDept(est);
+    if(deptFil && dept !== deptFil) return;
+
+    const cust    = est.customer || {};
+    const name    = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(est);
+    const addr    = est.address  ? [est.address.street, est.address.city, est.address.state, est.address.zip].filter(Boolean).join(', ')
+                  : job?.address ? [job.address.street, job.address.city, job.address.state, job.address.zip].filter(Boolean).join(', ')
+                  : '';
+
+    // Equipment from estimate options
+    const equipLabel = getEquipLabelFromEst(est);
+    const soldBy     = getAssigned(est) || getAssigned(job||{}) || '';
+    const notes      = getEstNotes(est).join(' | ').slice(0,400) || est.summary || '';
+    const value      = getEstTotal(est) || (job ? getJobTotal(job) : 0);
+
+    items.push({
+      id:          est.id,
+      estNum:      est.estimate_number || est.id,
+      jobNum:      job?.job_number || '',
+      customer:    name,
+      address:     addr,
+      phone:       cust.mobile_number || cust.home_number || '',
+      equipLabel,
+      equip,
+      dept,
+      soldBy,
+      installDate: installD ? fmtDY(installDate) : 'TBD',
+      installRaw:  installDate,
+      notes,
+      value,
+    });
+  });
+
+  // Sort by install date
+  return items.sort((a,b) => new Date(a.installRaw||9e12) - new Date(b.installRaw||9e12));
+}
+
+function detectEquipFromEstimate(est) {
+  const texts = [];
+  (est.options||[]).forEach(o => { if(o.name) texts.push(o.name); });
+  if(est.summary) texts.push(est.summary);
+  if(est.line_items) est.line_items.forEach(li => { if(li.name) texts.push(li.name); });
+  for(const text of texts) {
+    for(const [name, key] of Object.entries(TY_ITEM_LOOKUP)) {
+      if(text.toLowerCase().includes(name.toLowerCase())) return { key, ...TY_ITEM_SETS[key], matchedItem:name };
+    }
+  }
+  return null;
+}
+
+function getEquipLabelFromEst(est) {
+  const opts = (est.options||[]).filter(o=>o.name).map(o=>o.name);
+  if(opts.length) return opts.slice(0,3).join(', ').slice(0,120);
+  return (est.summary||est.description||'').slice(0,120);
+}
+
+function renderOrderQueue() {
+  const items   = getOrderQueueItems();
+  const statusF = $$('oqStatus')?.value||'';
+  const filtered = statusF ? items.filter(i=>(_orderQueue[i.id]?.status||'pending')===statusF) : items;
+
+  // Metrics
+  const metricsEl = $$('oq-metrics');
+  const counts = {pending:0,ordered:0,received:0,complete:0};
+  items.forEach(i => counts[_orderQueue[i.id]?.status||'pending']++);
+  if(metricsEl) {
+    metricsEl.innerHTML = [
+      ['Total',items.length,'#1f2937'],
+      ['⬜ Needs Order',counts.pending,'#EF4444'],
+      ['🔵 Ordered',counts.ordered,'#3B82F6'],
+      ['🟢 Received',counts.received,'#10B981'],
+      ['✅ Complete',counts.complete,'#6B7280'],
+    ].map(([l,v,c])=>`<div style="padding:8px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:7px">
+      <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div>
+      <div style="font-size:20px;font-weight:700;color:${c}">${v}</div>
+    </div>`).join('');
+  }
+
+  const el = $$('oq-content');
+  if(!el) return;
+
+  if(!filtered.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:#9ca3af">
+      ${items.length===0?'Pull a report with a date range to see pending install orders':'No orders match the selected filter'}
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(item => orderCard(item)).join('');
+}
+
+function orderCard(item) {
+  const st  = _orderQueue[item.id]?.status || 'pending';
+  const oBy = _orderQueue[item.id]?.orderedBy || '';
+  const oDate= _orderQueue[item.id]?.orderedDate || '';
+  const borderColors = {pending:'#E8640A',ordered:'#3B82F6',received:'#10B981',complete:'#D1D5DB'};
+  const bgColors     = {pending:'#FFFBEB',ordered:'#EFF6FF',received:'#F0FDF4',complete:'#F9FAFB'};
+  const statusLabels = {pending:'⬜ Needs Order',ordered:'🔵 Ordered',received:'🟢 Received',complete:'✅ Complete'};
+
+  return `<div class="order-card" data-id="${item.id}" style="border:1.5px solid ${borderColors[st]};border-radius:10px;background:${bgColors[st]};padding:16px;position:relative">
+
+    <!-- Equipment badge -->
+    <div style="position:absolute;top:-1px;right:14px;background:${item.equip?.color||'#1A3A5C'};color:#fff;font-size:9px;font-weight:800;padding:2px 10px;border-radius:0 0 7px 7px;letter-spacing:.05em">
+      ${item.equip?.icon||'🔧'} ${(item.equip?.label||'Equipment').toUpperCase()}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <!-- Left: customer info -->
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#1f2937;margin-bottom:2px">${escHtml(item.customer)}</div>
+        <div style="font-size:12px;color:#374151;margin-bottom:4px">📍 ${escHtml(item.address||'No address')}</div>
+        ${item.phone?`<div style="font-size:12px;color:#6b7280">📞 ${escHtml(item.phone)}</div>`:''}
+      </div>
+      <!-- Right: job info -->
+      <div style="font-size:12px">
+        <div><span style="color:#6b7280;font-weight:600">Sold By:</span> ${escHtml(item.soldBy||'—')}</div>
+        <div><span style="color:#6b7280;font-weight:600">Install Date:</span> <strong style="color:#1A3A5C">${escHtml(item.installDate)}</strong></div>
+        <div><span style="color:#6b7280;font-weight:600">Est #:</span> ${escHtml(item.estNum||'—')} ${item.jobNum?'· Job #'+escHtml(item.jobNum):''}</div>
+        <div><span style="color:#6b7280;font-weight:600">Value:</span> <strong>${dollars(item.value)}</strong></div>
+        <div><span style="color:#6b7280;font-weight:600">Dept:</span> ${escHtml(item.dept||'—')}</div>
+      </div>
+    </div>
+
+    <!-- Equipment detail -->
+    <div style="margin:10px 0;padding:8px 10px;background:rgba(0,0,0,.04);border-radius:6px;font-size:12px">
+      <strong>Equipment:</strong> ${escHtml(item.equipLabel||'—')}
+    </div>
+
+    <!-- Notes from estimate -->
+    ${item.notes?`<div style="margin-bottom:10px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
+      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af">Estimate Notes</strong><br>${escHtml(item.notes)}
+    </div>`:''}
+
+    <!-- Status controls -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      ${['pending','ordered','received','complete'].map(s=>
+        `<button onclick="setOrderStatus('${item.id}','${s}')"
+          style="font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1.5px solid ${s===st?borderColors[s]:'#e5e7eb'};background:${s===st?borderColors[s]:'#fff'};color:${s===st?'#fff':'#374151'};font-weight:${s===st?'700':'400'}">
+          ${statusLabels[s]}
+        </button>`
+      ).join('')}
+      ${oDate?`<span style="font-size:10px;color:#6b7280;margin-left:4px">Ordered ${oDate}${oBy?' by '+oBy:''}</span>`:''}
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// PRINT
+// ============================================================
+function printOrderQueue() {
+  const items   = getOrderQueueItems();
+  const statusF = $$('oqStatus')?.value||'';
+  const filtered = statusF ? items.filter(i=>(_orderQueue[i.id]?.status||'pending')===statusF) : items.filter(i=>(_orderQueue[i.id]?.status||'pending')!=='complete');
+
+  const printWin = window.open('','_blank','width=900,height=700');
+  printWin.document.write(`<!DOCTYPE html><html><head><title>Install Order Queue — Midstate</title>
+  <style>
+    @page { size:letter; margin:.5in; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Arial,sans-serif; font-size:11px; color:#1f2937; }
+    .header { background:#1A3A5C; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .header h1 { font-size:16px; font-weight:700; }
+    .header .sub { font-size:10px; opacity:.7; margin-top:2px; }
+    .cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .card { border:1.5px solid #E8640A; border-radius:8px; padding:12px; page-break-inside:avoid; background:#fff; }
+    .card-header { display:flex; justify-content:space-between; margin-bottom:8px; }
+    .customer { font-size:14px; font-weight:800; color:#1f2937; }
+    .badge { font-size:8px; font-weight:800; padding:2px 8px; border-radius:20px; background:#E8640A; color:#fff; text-transform:uppercase; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; font-size:10px; }
+    .field label { color:#6b7280; font-weight:600; text-transform:uppercase; font-size:9px; letter-spacing:.3px; display:block; }
+    .equip-box { background:#f3f4f6; border-radius:5px; padding:7px 9px; font-size:10px; margin-bottom:8px; }
+    .notes-box { border:1px solid #d1d5db; border-radius:5px; padding:7px 9px; font-size:10px; min-height:36px; margin-bottom:8px; color:#374151; line-height:1.5; }
+    .write-box { border:1px solid #d1d5db; border-radius:5px; padding:6px 9px; min-height:52px; margin-bottom:8px; background:#f9f9f9; }
+    .write-label { font-size:9px; color:#9ca3af; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+    .checkbox-row { display:flex; gap:12px; align-items:center; padding-top:6px; border-top:1px solid #e5e7eb; }
+    .cb-item { display:flex; align-items:center; gap:5px; font-size:10px; font-weight:600; }
+    .cb-box { width:14px; height:14px; border:1.5px solid #374151; border-radius:2px; flex-shrink:0; }
+    .install-date { font-size:13px; font-weight:700; color:#1A3A5C; }
+  </style>
+  </head><body>
+  <div class="header">
+    <div><h1>📋 Install Order Queue</h1><div class="sub">Midstate Plumbing, Heating &amp; Cooling · Printed ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div></div>
+    <div style="text-align:right;font-size:10px;opacity:.7">${filtered.length} orders · ${statusF||'All active'}</div>
+  </div>
+  <div class="cards">
+  ${filtered.map(item=>`
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="customer">${escHtml2(item.customer)}</div>
+          <div style="font-size:10px;color:#6b7280;margin-top:2px">📍 ${escHtml2(item.address||'')}</div>
+        </div>
+        <span class="badge">${item.equip?.icon||'🔧'} ${(item.equip?.label||'Equipment').toUpperCase()}</span>
+      </div>
+      <div class="row">
+        <div class="field"><label>Sold By</label>${escHtml2(item.soldBy||'—')}</div>
+        <div class="field"><label>Install Date</label><span class="install-date">${escHtml2(item.installDate)}</span></div>
+        <div class="field"><label>Estimate #</label>${escHtml2(item.estNum||'—')}</div>
+        <div class="field"><label>Value</label><strong>${dollars(item.value)}</strong></div>
+      </div>
+      <div class="equip-box"><strong>Equipment:</strong> ${escHtml2(item.equipLabel||'—')}</div>
+      ${item.notes?`<div class="notes-box"><strong>Notes:</strong> ${escHtml2(item.notes)}</div>`:''}
+      <div class="write-box"><div class="write-label">Order / Procurement Notes (handwritten)</div></div>
+      <div class="checkbox-row">
+        <div class="cb-item"><div class="cb-box"></div> Parts Ordered</div>
+        <div class="cb-item"><div class="cb-box"></div> Parts Received</div>
+        <div class="cb-item"><div class="cb-box"></div> Ready for Install</div>
+      </div>
+    </div>`).join('')}
+  </div>
+  </body></html>`);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(()=>{ printWin.print(); }, 300);
+}
+
+function escHtml2(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ============================================================
 // GOAL TRACKER
