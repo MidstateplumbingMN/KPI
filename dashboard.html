@@ -418,7 +418,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v20.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.1</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -447,7 +447,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v20.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.1</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -532,6 +532,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="wallboard" onclick="showTab('wallboard')">🎛 Wallboard</button>
       <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
+      <button class="tab" data-tab="calls" onclick="showTab('calls');initCallsTab()">📞 Calls</button>
     </div>
 
     <!-- JOBS -->
@@ -1309,7 +1310,101 @@ tr:hover td{background:#fafafa}
     </div>
 
     <!-- DEBUG -->
-    <div class="panel" id="tab-debug">
+    <!-- CALLS TAB -->
+    <div class="panel" id="tab-calls">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+
+        <!-- CallRail Card -->
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <div style="width:10px;height:10px;border-radius:50%;background:#10B981" id="cr-status-dot"></div>
+            <span style="font-size:14px;font-weight:700;color:#1f2937">📞 CallRail</span>
+            <span style="font-size:10px;color:#6b7280;margin-left:auto" id="cr-status-text">Not tested</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+            <input type="date" id="cr-from" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+            <input type="date" id="cr-to"   style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+            <select id="cr-filter" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+              <option value="all">All Calls</option>
+              <option value="inbound">Inbound Only</option>
+              <option value="outbound">Outbound Only</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="testCallRail()" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
+            <button onclick="saveCallsToSheets('callrail')" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
+            <button onclick="clearCallsResult('cr')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
+          </div>
+          <div id="cr-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
+          <div id="cr-progress" style="margin-top:10px;font-size:11px;color:#6b7280;font-family:monospace"></div>
+          <div id="cr-error" style="display:none;margin-top:8px;padding:8px 10px;background:#FEE2E2;border-radius:5px;font-size:11px;color:#991B1B"></div>
+        </div>
+
+        <!-- RingCentral Card -->
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <div style="width:10px;height:10px;border-radius:50%;background:#6B7280" id="rc-status-dot"></div>
+            <span style="font-size:14px;font-weight:700;color:#1f2937">📱 RingCentral</span>
+            <span style="font-size:10px;color:#6b7280;margin-left:auto" id="rc-status-text">Not tested</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+            <input type="date" id="rc-from" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+            <input type="date" id="rc-to"   style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+            <select id="rc-view" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+              <option value="Detailed">Detailed (with legs)</option>
+              <option value="Simple">Simple</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="testRingCentral()" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
+            <button onclick="saveCallsToSheets('rc')" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
+            <button onclick="clearCallsResult('rc')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
+          </div>
+          <div id="rc-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
+          <div id="rc-progress" style="margin-top:10px;font-size:11px;color:#6b7280;font-family:monospace"></div>
+          <div id="rc-error" style="display:none;margin-top:8px;padding:8px 10px;background:#FEE2E2;border-radius:5px;font-size:11px;color:#991B1B"></div>
+        </div>
+      </div>
+
+      <!-- Combined Results Table -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
+          <span style="font-size:13px;font-weight:700;color:#1f2937">Call Records <span id="calls-count" style="background:#E8640A;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;margin-left:4px">0</span></span>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="calls-search" placeholder="Search name / number..." oninput="filterCallsTable()"
+              style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;width:200px">
+            <select id="calls-source-filter" onchange="filterCallsTable()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
+              <option value="">All Sources</option>
+              <option value="CallRail">CallRail</option>
+              <option value="RingCentral">RingCentral</option>
+            </select>
+            <button onclick="exportCallsCSV()" style="padding:5px 12px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer">⬇ CSV</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead style="position:sticky;top:0;background:#f9fafb;z-index:1">
+              <tr>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;white-space:nowrap">Source</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Date/Time</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Caller</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Number</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Direction</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Agent</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Duration</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Status</th>
+              </tr>
+            </thead>
+            <tbody id="calls-tbody">
+              <tr><td colspan="8" style="padding:32px;text-align:center;color:#9ca3af">Fetch calls to see records here</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- end tab-calls -->
+
+    <!-- DEBUG TAB -->
       <p style="font-size:12px;color:#6b7280;margin-top:0">Raw API responses for field name reference.</p>
       <div class="sec-head">Customer lookup</div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -3629,19 +3724,21 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         _callrailSnap = { total, answered, missed: total - answered, new_callers: newCalls, weekly, monthly: monthCounts, daily: dailyCounts };
         console.log('[CallRail] Week:', total, 'inbound calls,', newCalls, 'new,', answered, 'answered');
         dashLog('success', `CallRail: ${total} calls, ${newCalls} new, ${answered} answered this week`);
-        // Save to Google Sheets for companion to read
+        // Save to dedicated CallRail tab in Sheets
         if(_sheetsProxy) {
           fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
-            body:JSON.stringify({action:'syncSettings',settings:{
-              callrail_total:    total,
-              callrail_new:      newCalls,
-              callrail_answered: answered,
-              callrail_weekly:   JSON.stringify(weekly),
-              callrail_monthly:  JSON.stringify(monthCounts),
-              callrail_daily:    JSON.stringify(dailyCounts),
-              callrail_updated:  new Date().toISOString()
-            }})
-          }).catch(()=>{});
+            body:JSON.stringify({
+              action:       'syncCallRail',
+              total:        total,
+              new_callers:  newCalls,
+              answered:     answered,
+              missed:       total - answered,
+              answer_rate:  answeredPct,
+              weekly_json:  JSON.stringify(weekly),
+              monthly_json: JSON.stringify(monthCounts),
+              daily_json:   JSON.stringify(dailyCounts),
+            })
+          }).catch(e => dashLog('warn','CallRail Sheets sync failed: '+e.message));
         }
       }
     }
@@ -4247,26 +4344,380 @@ async function fetchRCCallLog(jwt) {
     };
     dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} agents`);
 
-    // Push to Sheets for companion
+    // Save to dedicated RingCentral tab in Sheets
     if(_sheetsProxy) {
       fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
-        body: JSON.stringify({action:'syncSettings', settings:{
-          rc_total:       _rcSnap.total,
-          rc_answered:    _rcSnap.answered,
-          rc_missed:      _rcSnap.missed,
-          rc_answer_rate: _rcSnap.answer_rate,
-          rc_leaderboard: JSON.stringify(leaderboard),
-          rc_monthly:     JSON.stringify(monthCounts),
-          rc_daily:       JSON.stringify(dailyCounts),
-          rc_updated:     new Date().toISOString(),
-        }})
-      }).catch(()=>{});
+        body: JSON.stringify({
+          action:      'syncRingCentral',
+          total:       _rcSnap.total,
+          answered:    _rcSnap.answered,
+          missed:      _rcSnap.missed,
+          answer_rate: _rcSnap.answer_rate,
+          leaderboard: JSON.stringify(leaderboard),
+          monthly:     JSON.stringify(monthCounts),
+          daily:       JSON.stringify(dailyCounts),
+        })
+      }).catch(e => dashLog('warn','RC Sheets sync failed: '+e.message));
     }
   } catch(e) {
     dashLog('error','RC failed: '+e.message);
     console.warn('[RC] Error:', e.message);
   }
 }
+
+
+// ============================================================
+// CALLS TAB — test and inspect CallRail + RingCentral data
+// ============================================================
+let _crCallsRaw = [];
+let _rcCallsRaw = [];
+
+function initCallsTab() {
+  // Set default date range — last 30 days
+  const to   = new Date();
+  const from = new Date(); from.setDate(from.getDate()-30);
+  const fmt  = d => d.toISOString().split('T')[0];
+  ['cr-from','cr-to','rc-from','rc-to'].forEach((id,i) => {
+    const el = $$(id);
+    if(el && !el.value) el.value = i%2===0 ? fmt(from) : fmt(to);
+  });
+}
+
+function setCallsStatus(prefix, ok, text) {
+  const dot  = document.getElementById(prefix+'-status-dot');
+  const txt  = document.getElementById(prefix+'-status-text');
+  if(dot) dot.style.background = ok===null ? '#6B7280' : ok ? '#10B981' : '#EF4444';
+  if(txt) txt.textContent = text;
+}
+
+function setCallsProgress(prefix, msg) {
+  const el = document.getElementById(prefix+'-progress');
+  if(el) el.textContent = msg;
+}
+
+function showCallsError(prefix, msg) {
+  const el = document.getElementById(prefix+'-error');
+  if(el) { el.textContent = msg; el.style.display = 'block'; }
+  setCallsStatus(prefix, false, 'Error');
+  dashLog('error', prefix.toUpperCase() + ': ' + msg);
+}
+
+function clearCallsResult(prefix) {
+  document.getElementById(prefix+'-error').style.display='none';
+  document.getElementById(prefix+'-progress').textContent='';
+  document.getElementById(prefix+'-metrics').style.display='none';
+  setCallsStatus(prefix, null, 'Not tested');
+  if(prefix==='cr') _crCallsRaw=[];
+  if(prefix==='rc') _rcCallsRaw=[];
+  renderCallsTable();
+}
+
+function fmtDuration(secs) {
+  const s = parseInt(secs)||0;
+  return Math.floor(s/60)+'m '+(s%60).toString().padStart(2,'0')+'s';
+}
+
+function renderCallMetrics(prefix, calls) {
+  const total    = calls.length;
+  const answered = calls.filter(c => c._answered).length;
+  const missed   = calls.filter(c => !c._answered).length;
+  const withDur  = calls.filter(c => c._duration > 0);
+  const avgDur   = withDur.length ? Math.round(withDur.reduce((s,c)=>s+c._duration,0)/withDur.length) : 0;
+  const ansRate  = total > 0 ? Math.round(answered/total*100) : 0;
+
+  const el = document.getElementById(prefix+'-metrics');
+  if(!el) return;
+  el.style.display='grid';
+  el.innerHTML = [
+    ['Total',total,'#1e293b'],
+    ['Answered',answered,'#10B981'],
+    ['Missed',missed,'#EF4444'],
+    ['Avg Duration',fmtDuration(avgDur),'#3B82F6'],
+    ['Answer Rate',ansRate+'%', ansRate>=80?'#10B981':ansRate>=60?'#F59E0B':'#EF4444'],
+  ].map(([l,v,c])=>`<div style="padding:8px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb">
+    <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div>
+    <div style="font-size:18px;font-weight:700;color:${c}">${v}</div>
+  </div>`).join('');
+}
+
+// ============================================================
+// CALLRAIL FETCH
+// ============================================================
+async function testCallRail() {
+  const from   = $$(  'cr-from')?.value; if(!from){alert('Select date range');return;}
+  const to     = $$('cr-to')?.value   || new Date().toISOString().split('T')[0];
+  const filter = $$('cr-filter')?.value||'all';
+  const CR_KEY = 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
+  const CR_ACC = '541526025';
+  const CR_CO  = '819196701';
+
+  document.getElementById('cr-error').style.display='none';
+  setCallsStatus('cr', null, 'Fetching...');
+  setCallsProgress('cr', '⏳ Connecting to CallRail...');
+
+  try {
+    let allCalls=[], page=1, totalPages=1;
+    do {
+      const params = new URLSearchParams({
+        start_date:  from, end_date: to,
+        per_page: '250', page: String(page),
+        company_id: CR_CO,
+        fields: 'id,start_time,customer_name,customer_phone_number,tracking_phone_number,duration,answered,first_call,direction,call_disposition,source_name,recording',
+      });
+      if(filter==='inbound')  params.set('direction','inbound');
+      if(filter==='outbound') params.set('direction','outbound');
+
+      setCallsProgress('cr', `📡 Page ${page} of ${totalPages} — ${allCalls.length} calls so far...`);
+      const res = await fetch(`https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`, {
+        headers: { 'Authorization': `Token token="${CR_KEY}"` }
+      });
+      if(!res.ok) { const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
+      const d = await res.json();
+      allCalls = [...allCalls, ...(d.calls||[])];
+      totalPages = d.total_pages || 1;
+      page++;
+    } while(page <= totalPages && page <= 50);
+
+    // Normalize to common schema
+    _crCallsRaw = allCalls.map(c => ({
+      _source:    'CallRail',
+      _id:        c.id,
+      _time:      c.start_time,
+      _caller:    c.customer_name || 'Unknown',
+      _number:    c.customer_phone_number || '',
+      _direction: c.direction || 'inbound',
+      _agent:     c.agent?.name || c.agent?.email || '',
+      _duration:  parseInt(c.duration)||0,
+      _answered:  c.answered === true,
+      _missed:    c.answered === false || c.duration === 0,
+      _status:    c.answered ? 'Answered' : 'Missed',
+      _firstCall: c.first_call,
+      _raw:       c,
+    }));
+
+    setCallsStatus('cr', true, `✅ ${_crCallsRaw.length} calls`);
+    setCallsProgress('cr', `✅ ${_crCallsRaw.length} calls loaded · ${from} → ${to}`);
+    renderCallMetrics('cr', _crCallsRaw);
+    renderCallsTable();
+    dashLog('success', `CallRail: ${_crCallsRaw.length} calls fetched`);
+  } catch(e) {
+    showCallsError('cr', e.message);
+    setCallsProgress('cr','');
+  }
+}
+
+// ============================================================
+// RINGCENTRAL FETCH
+// ============================================================
+async function testRingCentral() {
+  const from = $$('rc-from')?.value; if(!from){alert('Select date range');return;}
+  const to   = $$('rc-to')?.value || new Date().toISOString().split('T')[0];
+  const view = $$('rc-view')?.value || 'Detailed';
+
+  if(!_workerUrl) { showCallsError('rc','Worker URL not configured'); return; }
+  // Ensure we have a valid RC token
+  const jwt = _wbSettings.rcJwt || localStorage.getItem('rc_jwt') || '';
+  if(!jwt) { showCallsError('rc','No RC JWT token — check Wallboard settings'); return; }
+
+  document.getElementById('rc-error').style.display='none';
+  setCallsStatus('rc', null, 'Authenticating...');
+  setCallsProgress('rc', '🔑 Getting RC access token...');
+
+  try {
+    await rcGetToken(jwt);
+    setCallsProgress('rc', '✅ Authenticated — fetching call log...');
+
+    const fromISO = new Date(from+'T00:00:00').toISOString();
+    const toISO   = new Date(to+'T23:59:59').toISOString();
+    let allCalls=[], nextUri=null, page=1;
+
+    do {
+      const path = nextUri
+        ? nextUri.replace('https://platform.ringcentral.com','')
+        : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=${view}`;
+
+      setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
+      const data = await rcGet(path, jwt);
+      if(data.errorCode) throw new Error(data.message || JSON.stringify(data));
+      allCalls = [...allCalls, ...(data.records||[])];
+      nextUri  = data.navigation?.nextPage?.uri || null;
+      page++;
+    } while(nextUri && page <= 50);
+
+    // Normalize to common schema
+    _rcCallsRaw = allCalls.map(c => {
+      // Find who answered by inspecting legs array
+      const legs    = c.legs || [];
+      const ansLeg  = legs.find(l => l.result==='Accepted' || l.action==='Accept' || l.result==='Connected');
+      const agentName = ansLeg?.extension?.name || ansLeg?.to?.name || c.to?.name || '';
+      const answered  = c.result !== 'Missed' && c.result !== 'VoiceMail' && (c.duration||0) > 0;
+      return {
+        _source:    'RingCentral',
+        _id:        c.id,
+        _time:      c.startTime,
+        _caller:    c.from?.name || c.from?.phoneNumber || 'Unknown',
+        _number:    c.from?.phoneNumber || '',
+        _direction: c.direction || 'Inbound',
+        _agent:     agentName,
+        _duration:  parseInt(c.duration)||0,
+        _answered:  answered,
+        _missed:    c.result === 'Missed',
+        _status:    c.result || (answered?'Answered':'Missed'),
+        _raw:       c,
+      };
+    });
+
+    setCallsStatus('rc', true, `✅ ${_rcCallsRaw.length} calls`);
+    setCallsProgress('rc', `✅ ${_rcCallsRaw.length} calls loaded · ${from} → ${to}`);
+    renderCallMetrics('rc', _rcCallsRaw);
+    renderCallsTable();
+    dashLog('success', `RingCentral: ${_rcCallsRaw.length} calls fetched`);
+  } catch(e) {
+    showCallsError('rc', e.message);
+    setCallsProgress('rc','');
+  }
+}
+
+// ============================================================
+// TABLE RENDERING
+// ============================================================
+let _callsTableData = [];
+
+function renderCallsTable() {
+  _callsTableData = [..._crCallsRaw, ..._rcCallsRaw]
+    .sort((a,b) => new Date(b._time)-new Date(a._time));
+  filterCallsTable();
+}
+
+function filterCallsTable() {
+  const search = ($$('calls-search')?.value||'').toLowerCase();
+  const src    = $$('calls-source-filter')?.value||'';
+  const rows   = _callsTableData.filter(c => {
+    if(src && c._source !== src) return false;
+    if(search && !c._caller.toLowerCase().includes(search) && !c._number.includes(search) && !(c._agent||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const cnt = document.getElementById('calls-count');
+  if(cnt) cnt.textContent = rows.length;
+
+  const tbody = document.getElementById('calls-tbody');
+  if(!tbody) return;
+  if(!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:#9ca3af">No records match</td></tr>';
+    return;
+  }
+
+  const srcColors = { CallRail:'#10B981', RingCentral:'#3B82F6' };
+  tbody.innerHTML = rows.slice(0,500).map(c => {
+    const dt  = c._time ? new Date(c._time) : null;
+    const ds  = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    const ts  = dt ? dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+    const col = srcColors[c._source]||'#6b7280';
+    const statusCol = c._answered ? '#10B981' : '#EF4444';
+    return `<tr style="border-bottom:1px solid #f3f4f6;transition:background .1s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+      <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${col}22;color:${col};font-weight:600">${c._source}</span></td>
+      <td style="padding:7px 12px;white-space:nowrap"><div style="font-weight:500">${ds}</div><div style="font-size:10px;color:#6b7280">${ts}</div></td>
+      <td style="padding:7px 12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c._caller)}</td>
+      <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._number)}</td>
+      <td style="padding:7px 12px;font-size:11px;text-transform:capitalize">${c._direction||'—'}</td>
+      <td style="padding:7px 12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1e293b">${escHtml(c._agent||'—')}</td>
+      <td style="padding:7px 12px;font-family:monospace;font-size:11px">${c._duration>0?fmtDuration(c._duration):'—'}</td>
+      <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// SAVE TO SHEETS
+// ============================================================
+async function saveCallsToSheets(source) {
+  if(!_sheetsProxy) { showToast('Connect to Sheets first','error'); return; }
+  const calls = source==='callrail' ? _crCallsRaw : _rcCallsRaw;
+  if(!calls.length) { showToast('Fetch calls first','warn'); return; }
+
+  const action = source==='callrail' ? 'syncCallRail' : 'syncRingCentral';
+
+  // Aggregate stats
+  const total    = calls.length;
+  const answered = calls.filter(c=>c._answered).length;
+  const missed   = calls.filter(c=>c._missed).length;
+  const ansRate  = total>0?Math.round(answered/total*100):0;
+  const newCalls = source==='callrail' ? calls.filter(c=>c._firstCall).length : 0;
+
+  // Build monthly/daily/weekly aggregates
+  const monthly = new Array(12).fill(0);
+  const daily   = new Array(31).fill(0);
+  const weekly  = new Array(7).fill(0);
+  const curM    = new Date().getMonth();
+  calls.forEach(c => {
+    if(!c._time) return;
+    const d = new Date(c._time);
+    monthly[d.getMonth()]++;
+    if(d.getMonth()===curM) daily[d.getDate()-1]++;
+    weekly[d.getDay()]++;
+  });
+
+  // Agent leaderboard (for RC)
+  const byAgent = {};
+  calls.forEach(c => {
+    const name = c._agent||'Unknown';
+    if(!byAgent[name]) byAgent[name]={name,answered:0,missed:0,total:0};
+    byAgent[name].total++;
+    if(c._answered) byAgent[name].answered++;
+    if(c._missed)   byAgent[name].missed++;
+  });
+  const leaderboard = Object.values(byAgent).sort((a,b)=>b.answered-a.answered);
+
+  try {
+    const payload = source==='callrail' ? {
+      action, total, new_callers:newCalls, answered, missed, answer_rate:ansRate,
+      weekly_json:  JSON.stringify(weekly.map((count,day)=>({day,count}))),
+      monthly_json: JSON.stringify(monthly),
+      daily_json:   JSON.stringify(daily),
+    } : {
+      action, total, answered, missed, answer_rate:ansRate,
+      leaderboard:  JSON.stringify(leaderboard),
+      monthly:      JSON.stringify(monthly),
+      daily:        JSON.stringify(daily),
+    };
+
+    const res  = await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',body:JSON.stringify(payload)});
+    const data = await res.json();
+    if(data.success) {
+      showToast(`✅ ${calls.length} calls saved to Sheets (${source==='callrail'?'CallRail':'RingCentral'} tab)`,'success');
+      dashLog('success',`${calls.length} calls saved to Sheets`);
+    } else throw new Error(data.error||'Unknown error');
+  } catch(e) {
+    showToast('Save failed: '+e.message,'error');
+    dashLog('error','Calls save failed: '+e.message);
+  }
+}
+
+// ============================================================
+// CSV EXPORT
+// ============================================================
+function exportCallsCSV() {
+  if(!_callsTableData.length) { showToast('No data to export','warn'); return; }
+  const headers = ['Source','Date','Time','Caller','Phone','Direction','Agent','Duration_Sec','Status','First_Call'];
+  const rows = _callsTableData.map(c => {
+    const dt = c._time ? new Date(c._time) : null;
+    return [
+      c._source,
+      dt ? dt.toLocaleDateString('en-US') : '',
+      dt ? dt.toLocaleTimeString('en-US') : '',
+      c._caller, c._number, c._direction, c._agent||'',
+      c._duration, c._status, c._firstCall?'Yes':'No'
+    ].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [headers.join(','),...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'calls-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+}
+
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ============================================================
 // GOAL TRACKER
