@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.8</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.0</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.0</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -4310,32 +4310,75 @@ let _rcAccessToken  = null;
 let _rcTokenExpiry  = 0;
 let _rcSnap         = null; // call log data
 
+
+// RC token via Apps Script proxy (fallback when direct fetch blocked by CORS)
+async function rcGetTokenViaProxy(credential) {
+  if(!_sheetsProxy) throw new Error('No Sheets proxy configured');
+  const res = await fetch(_sheetsProxy, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    redirect: 'follow',
+    body: JSON.stringify({
+      action:       'rcGetToken',
+      clientId:     RC_CLIENT_ID,
+      clientSecret: RC_CLIENT_SECRET,
+      credential:   credential,
+    })
+  });
+  const data = await res.json();
+  if(!data.success) throw new Error(data.error || 'RC auth failed via proxy');
+  _rcAccessToken = data.access_token;
+  _rcTokenExpiry = Date.now() + (data.expires_in||3600)*1000 - 60000;
+  console.log('[RC] Authenticated via Apps Script proxy');
+  dashLog('success','RingCentral authenticated via Apps Script ✅');
+  return _rcAccessToken;
+}
+
+// RC API call via Apps Script proxy
+async function rcGetViaProxy(path, jwt) {
+  if(!_rcAccessToken || Date.now() > _rcTokenExpiry) await rcGetTokenViaProxy(jwt);
+  const res = await fetch(_sheetsProxy, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    redirect: 'follow',
+    body: JSON.stringify({
+      action:      'rcApiGet',
+      path:        path,
+      accessToken: _rcAccessToken,
+    })
+  });
+  const data = await res.json();
+  if(data.rc_status === 401) {
+    _rcAccessToken = null;
+    await rcGetTokenViaProxy(jwt);
+    return rcGetViaProxy(path, jwt);
+  }
+  return data.rc_data || data;
+}
+
 async function rcGetToken(credential) {
-  // Supports both JWT token and username:password
+  // Call RC token endpoint DIRECTLY (no proxy needed — RC supports CORS)
   const creds = btoa(RC_CLIENT_ID + ':' + RC_CLIENT_SECRET);
   let body;
   if(credential.includes('@') || credential.includes(':')) {
-    // Password grant — credential is "username:password" or "username:ext:password"
     const parts = credential.split(':');
     const pass  = parts.pop();
     const user  = parts.join(':');
-    body = new URLSearchParams({
-      grant_type: 'password',
-      username:   user,
-      password:   pass,
-    });
-    dashLog('info','RC: using password grant for ' + user);
+    body = new URLSearchParams({ grant_type:'password', username:user, password:pass });
+    dashLog('info','RC: password grant for ' + user);
   } else {
-    // JWT grant
     body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
       assertion:  credential,
     });
-    dashLog('info','RC: using JWT grant');
+    dashLog('info','RC: JWT grant');
   }
-  const res = await fetch(_workerUrl + '/rc/restapi/oauth/token', {
+  const res = await fetch(RC_SERVER + '/restapi/oauth/token', {
     method: 'POST',
-    headers: { 'Authorization': 'Basic ' + creds, 'Content-Type': 'application/x-www-form-urlencoded', 'X-RC-Auth': 'Basic ' + creds },
+    headers: {
+      'Authorization': 'Basic ' + creds,
+      'Content-Type':  'application/x-www-form-urlencoded',
+    },
     body: body.toString(),
   });
   const txt = await res.text();
@@ -4349,16 +4392,22 @@ async function rcGetToken(credential) {
 }
 
 async function rcGet(path, jwt) {
+  // Try Apps Script proxy (most reliable — server-side, no CORS issues)
+  if(_sheetsProxy) {
+    try { return await rcGetViaProxy(path, jwt); } catch(e) {
+      dashLog('warn', 'RC proxy failed, trying direct: ' + e.message);
+    }
+  }
+  // Fallback: direct call
   if(!_rcAccessToken || Date.now() > _rcTokenExpiry) await rcGetToken(jwt);
-  const res = await fetch(_workerUrl + '/rc' + path, {
-    headers: { 'X-RC-Auth': 'Bearer ' + _rcAccessToken }
+  const res = await fetch(RC_SERVER + path, {
+    headers: { 'Authorization': 'Bearer ' + _rcAccessToken }
   });
   if(res.status === 401) {
-    // Token expired — refresh and retry once
     _rcAccessToken = null;
     await rcGetToken(jwt);
-    const res2 = await fetch(_workerUrl + '/rc' + path, {
-      headers: { 'X-RC-Auth': 'Bearer ' + _rcAccessToken }
+    const res2 = await fetch(RC_SERVER + path, {
+      headers: { 'Authorization': 'Bearer ' + _rcAccessToken }
     });
     return res2.json();
   }
@@ -4655,12 +4704,11 @@ async function testRingCentral() {
 
     do {
       // Use view=Detailed to get legs array — shows which agent answered
-      const path = nextUri
-        ? nextUri.replace('https://platform.ringcentral.com','')
-        : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
+      const path = nextUri || `${RC_SERVER}/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
 
       setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
-      const data = await rcGet(path, jwt);
+      // Use rcGet for first page (handles auth), direct fetch for subsequent pages
+      const data = page === 1 ? await rcGet(path.replace(RC_SERVER,''), jwt) : await rcGet(path.includes(RC_SERVER)?path.replace(RC_SERVER,''):path, jwt);
       if(data.errorCode) throw new Error(data.message || JSON.stringify(data).slice(0,200));
       allCalls = [...allCalls, ...(data.records||[])];
       // RC uses nextPage.uri for pagination
