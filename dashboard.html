@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v21.7</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v21.7</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2141,13 +2141,25 @@ async function fetchAll(path, keys) {
 // ============================================================
 // LOAD
 // ============================================================
+let _pullStepStart = 0;
+function stepLog(msg) {
+  const el = $$('pullStep');
+  if(el) el.textContent = msg;
+  const t = $$('pullStepTime');
+  if(t && _pullStepStart) t.textContent = ((Date.now()-_pullStepStart)/1000).toFixed(1)+'s';
+  dashLog('info', msg);
+  console.log('[Pull]', msg);
+}
+
 async function loadAll(){
   const from=$$('dateFrom').value,to=$$('dateTo').value;
   showErr('');
   if(!from||!to){showErr('Select a date range.');return;}
   $$('loadBtn').textContent='Loading...';$$('loadBtn').disabled=true;
   $$('main').style.display='none';
-  $$('statusBar').textContent='Fetching from Housecall Pro...';
+  _pullStepStart = Date.now();
+  $$('statusBar').innerHTML = `<span id='pullStep'>⏳ Connecting...</span> <span id='pullStepTime' style='color:#9ca3af;font-size:10px'></span>`;
+  stepLog('⏳ Starting pull...');
   try{
     const jSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     // HCP estimates endpoint does NOT support scheduled_start_min/max — use created_at only
