@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.3</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.3</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2182,9 +2182,27 @@ async function loadAll(){
       // Plans are detected from estimate options and job descriptions after load
       return [];
     }
-    // Fetch estimates by created_at — HCP does not support scheduled_start filter on estimates
+    // Estimate fetch strategy:
+    // - Short range (≤ 14 days): fetch estimates updated in last 30 days only (fast)
+    // - Long range (> 14 days / YTD): full fetch with created_at filter
     async function fetchEstimates(){
-      const byCreated=await fetchAll('/estimates'+cQ,['estimates','data','results']);
+      const diffDays = (new Date(to) - new Date(from)) / (1000*60*60*24);
+      if(diffDays <= 14) {
+        // Delta mode: only estimates updated in last 30 days
+        // These are the ones that could have status changes affecting KPIs
+        const now = new Date();
+        const deltaFrom = new Date(now); deltaFrom.setDate(now.getDate()-30);
+        const dFmt = d => d.toISOString().split('T')[0];
+        const deltaQ = `?updated_at_min=${dFmt(deltaFrom)}T00:00:00Z&updated_at_max=${to}T23:59:59Z`;
+        stepLog('📋 Estimates (last 30 days updated)...');
+        console.log('[Estimates] Short pull — fetching recently updated estimates only');
+        const recent = await fetchAll('/estimates'+deltaQ, ['estimates','data','results']);
+        console.log('[Estimates] Delta: ', recent.length, 'estimates fetched');
+        return recent;
+      }
+      // Full pull
+      stepLog('📋 Estimates (full range)...');
+      const byCreated = await fetchAll('/estimates'+cQ, ['estimates','data','results']);
       return byCreated;
     }
     // Fetch jobs by BOTH scheduled_start and created_at date ranges
@@ -2198,7 +2216,8 @@ async function loadAll(){
     // Payment dates fall back to work_timestamps.completed_at which is accurate
     async function fetchPaymentsForJobs(jobList){ return {}; }
 
-    stepLog('📡 Fetching jobs, estimates & employees in parallel...');
+    const pullDays = Math.round((new Date(to)-new Date(from))/(1000*60*60*24));
+  stepLog(`📡 Fetching ${pullDays <= 14 ? 'last '+pullDays+' days (delta mode)' : 'full range '+from+' → '+to}...`);
     const [jobs,estimates,empRaw,plans]=await Promise.all([
       fetchJobs(),
       fetchEstimates(),
@@ -4792,8 +4811,12 @@ async function testCallRail() {
       if(filter==='outbound') params.set('direction','outbound');
 
       setCallsProgress('cr', `📡 Page ${page} of ${totalPages} — ${allCalls.length} calls so far...`);
-      const res = await fetch(`https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`, {
-        headers: { 'Authorization': `Token token="${CR_KEY}"` }
+      // Route through worker proxy to avoid CORS
+      const crUrl = _workerUrl
+        ? `${_workerUrl}/callrail/v3/a/${CR_ACC}/calls.json?${params}`
+        : `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
+      const res = await fetch(crUrl, {
+        headers: { 'Authorization': `Token token="${CR_KEY}"`, 'Content-Type': 'application/json' }
       });
       if(!res.ok) { const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
       const d = await res.json();
@@ -4859,11 +4882,12 @@ async function testRingCentral() {
 
     do {
       // Use view=Detailed to get legs array — shows which agent answered
-      const path = nextUri || `${RC_SERVER}/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
+      // path handled inside loop below
 
       setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
-      // Use rcGet for first page (handles auth), direct fetch for subsequent pages
-      const data = page === 1 ? await rcGet(path.replace(RC_SERVER,''), jwt) : await rcGet(path.includes(RC_SERVER)?path.replace(RC_SERVER,''):path, jwt);
+      // rcGet handles auth + direct RC call
+      const rcPath = nextUri ? nextUri.replace(RC_SERVER,'') : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
+      const data = await rcGet(rcPath, jwt);
       if(data.errorCode) throw new Error(data.message || JSON.stringify(data).slice(0,200));
       allCalls = [...allCalls, ...(data.records||[])];
       // RC uses nextPage.uri for pagination
