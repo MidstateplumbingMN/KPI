@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.7</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.8</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.7</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.8</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1464,6 +1464,15 @@ tr:hover td{background:#fafafa}
     </div><!-- end tab-calls -->
 
     <!-- DEBUG TAB -->
+    <div class="panel" id="tab-debug">
+      <div style="margin-bottom:12px">
+        <button onclick="toggleRawDataSection()" id="rawDataToggleBtn"
+          style="padding:8px 16px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">
+          🔍 Show Raw API Data
+        </button>
+        <span style="font-size:11px;color:#9ca3af;margin-left:8px">Hidden by default — expand to inspect field names</span>
+      </div>
+      <div id="rawDataContent" style="display:none">
       <p style="font-size:12px;color:#6b7280;margin-top:0">Raw API responses for field name reference.</p>
       <div class="sec-head">Customer lookup</div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -1475,9 +1484,10 @@ tr:hover td{background:#fafafa}
       <div class="sec-head">First estimate</div><pre class="debug-pre" id="debugEst">—</pre>
       <div class="sec-head">First employee</div><pre class="debug-pre" id="debugEmp">—</pre>
       <div class="sec-head">First membership</div><pre class="debug-pre" id="debugPlan">—</pre>
-    </div>
-  </div>
-</div>
+      </div><!-- end rawDataContent -->
+    </div><!-- end tab-debug -->
+  </div><!-- end panels -->
+</div><!-- end main -->
 
 <script>
 // ============================================================
@@ -6318,11 +6328,11 @@ async function fetchTYCardsFromSheets(){
     if(lines.length < 2) { console.log('[TY Cards] No rows in sheet yet'); return; }
     let restored = 0;
     lines.slice(1).forEach(line => {
-      const cols = parseCSVLine(line);
-      const jobId  = (cols[0]||'').replace(/^"|"$/g,'').trim();
-      const status = (cols[10]||'').replace(/^"|"$/g,'').trim() || 'pending'; // col K = Status
-      const sentDate = (cols[11]||'').replace(/^"|"$/g,'').trim();
-      const note     = (cols[12]||'').replace(/^"|"$/g,'').trim();
+      const cols    = parseCSVLine(line);
+      const jobId   = (cols[0]||'').replace(/^"|"$/g,'').trim();
+      const status  = (cols[1]||'').replace(/^"|"$/g,'').trim() || 'pending'; // col B = status
+      const sentDate= (cols[2]||'').replace(/^"|"$/g,'').trim();              // col C = sentDate
+      const note    = (cols[3]||'').replace(/^"|"$/g,'').trim();              // col D = note
       if(jobId && jobId !== 'jobId') {
         _tyCards[jobId] = { ..._tyCards[jobId]||{}, status, sentDate, note };
         restored++;
