@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.7</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.7</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -565,6 +565,9 @@ tr:hover td{background:#fafafa}
     </div>
 
     <!-- ESTIMATES -->
+      </div><!-- end rawDataContent -->
+    </div><!-- end tab-debug -->
+
     <div class="panel" id="tab-estimates">
       <div class="metrics" id="estMetrics"></div>
       <div class="sec-head">Conversion</div>
@@ -4491,6 +4494,29 @@ async function rcGet(path, jwt) {
   return res.json();
 }
 
+
+async function testRCConnection() {
+  const jwt = (528('wb-rc-jwt')?.value?.trim()) || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
+  const resultEl = 528('rc-test-result');
+  if(resultEl) { resultEl.textContent = '⏳ Testing...'; resultEl.style.color='#6b7280'; }
+  dashLog('info','Testing RC connection...');
+  try {
+    _rcAccessToken = null; // force fresh token
+    await rcGetToken(jwt);
+    const data = await rcGet('/restapi/v1.0/account/~', jwt);
+    const name = data.name || data.serviceInfo?.brand?.name || 'Connected';
+    if(resultEl) { resultEl.textContent = '✅ ' + name; resultEl.style.color='#059669'; }
+    showToast('✅ RC: ' + name, 'success');
+    dashLog('success','RC test OK: ' + name);
+    _wbSettings.rcJwt = jwt;
+    try { localStorage.setItem('rc_jwt', jwt); } catch(e) {}
+  } catch(e) {
+    if(resultEl) { resultEl.textContent = '❌ ' + e.message.slice(0,80); resultEl.style.color='#dc2626'; }
+    showToast('RC failed: ' + e.message, 'error');
+    dashLog('error','RC test failed: ' + e.message);
+  }
+}
+
 async function fetchRCCallLog(jwt) {
   if(!jwt || !_workerUrl) return;
   try {
@@ -4764,8 +4790,10 @@ async function testRingCentral() {
 
   if(!_workerUrl) { showCallsError('rc','Worker URL not configured'); return; }
   // Ensure we have a valid RC token
-  const jwt = _wbSettings.rcJwt || localStorage.getItem('rc_jwt') || '';
-  if(!jwt) { showCallsError('rc','No RC JWT token — check Wallboard settings'); return; }
+  // Use stored JWT, localStorage cache, or hardcoded default
+  const jwt = _wbSettings.rcJwt
+    || localStorage.getItem('rc_jwt')
+    || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
 
   document.getElementById('rc-error').style.display='none';
   setCallsStatus('rc', null, 'Authenticating...');
@@ -5387,13 +5415,14 @@ function getRevenueForPeriod(period){
       const dLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       return dLocal === todayLocal;
     });
-    console.log(`[Daily Rev] Today=${todayLocal}, matched ${todayJobs.length} jobs, total=$${todayJobs.reduce((s,j)=>s+getJobRevenue(j),0).toFixed(2)}`, todayJobs.map(j=>({
-      job: j.job_number,
-      completed: j.work_timestamps?.completed_at||j.completed_at||'none',
-      rev: getJobRevenue(j),
-      rawTotal: j.total_amount??j.invoice_total,
-      returnVisit: isReturnVisit(j)
-    })));
+    const todayTotal = todayJobs.reduce((s,j)=>s+getJobRevenue(j),0);
+    console.log(`[Daily Rev] Today=${todayLocal}, matched ${todayJobs.length} jobs, total=$${todayTotal.toFixed(2)}`);
+    todayJobs.forEach(j => {
+      const compAt = j.work_timestamps?.completed_at||j.completed_at||'none';
+      const updAt  = j.work_timestamps?.updated_at||j.updated_at||'none';
+      const bal    = parseFloat(j.outstanding_balance)||0;
+      console.log(`  ▸ Job ${j.job_number||j.id} | ${getCust(j)} | status=${getRawStatus(j)} | bal=$${bal} | rev=$${getJobRevenue(j).toFixed(2)} | completed_at=${compAt} | updated_at=${updAt} | returnVisit=${isReturnVisit(j)}`);
+    });
     return todayJobs.reduce((s,j)=>s+getJobRevenue(j),0);
   }
   return 0;
@@ -5443,6 +5472,16 @@ function renderRing(actual, target, color, size=160){
     <text x="${cx}" y="${cy+12}" text-anchor="middle" font-family="Arial" font-size="10" fill="#6b7280">of goal</text>
     ${overachieved?`<text x="${cx}" y="${cy+28}" text-anchor="middle" font-family="Arial" font-size="9" fill="${color}" font-weight="700">EXCEEDED ✓</text>`:''}
   </svg>`;
+}
+
+
+function toggleRawDataSection() {
+  const content = document.getElementById('rawDataContent');
+  const btn     = document.getElementById('rawDataToggleBtn');
+  if(!content || !btn) return;
+  const showing = content.style.display !== 'none';
+  content.style.display = showing ? 'none' : 'block';
+  btn.textContent = showing ? '🔍 Show Raw API Data' : '🔼 Hide Raw API Data';
 }
 
 function renderGoals(){
@@ -6738,6 +6777,7 @@ let _announcements = [];
 // ============================================================
 // WALLBOARD SETTINGS
 // ============================================================
+const RC_JWT_DEFAULT = 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
 let _wbSettings = {};
 let _bdayList = [];
 
@@ -6883,7 +6923,7 @@ function loadWallboardSettings(){
   if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
-  if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
+  if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||RC_JWT_DEFAULT//eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
   if($$('wb-callrail-key'))    $$('wb-callrail-key').value    = _wbSettings.callrailKey||'ctrk_43c7900e17d5793db876196ed978662aa6858367';
   if($$('wb-callrail-account'))$$('wb-callrail-account').value= _wbSettings.callrailAccount||'541526025';
   if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
