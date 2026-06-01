@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.6</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.7</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.6</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.7</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -4565,8 +4565,8 @@ async function rcGet(path, jwt) {
 
 
 async function testRCConnection() {
-  const jwt = (528('wb-rc-jwt')?.value?.trim()) || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
-  const resultEl = 528('rc-test-result');
+  const jwt = ($$('wb-rc-jwt')?.value?.trim()) || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
+  const resultEl = $$('rc-test-result');
   if(resultEl) { resultEl.textContent = '⏳ Testing...'; resultEl.style.color='#6b7280'; }
   dashLog('info','Testing RC connection...');
   try {
@@ -5646,8 +5646,15 @@ function renderGoals(){
     const pctN=Math.round(pct*100);
     const pace=getPaceTarget(key);
     const diff=actual-pace;
-    const diffLabel=Math.abs(diff)<100?'On pace':diff>0?`+${dollars(diff)} ahead`:`${dollars(Math.abs(diff))} behind`;
-    const diffClass=Math.abs(diff)<100?'on-track':diff>0?'ahead':'behind';
+    // Daily: show hit/miss vs fixed target — pace = target for a single day, so diff is meaningless
+    // All periods: never show "behind" when already at or above 100% of target
+    const isAhead=pctN>=100||diff>0;
+    const diffLabel=key==='daily'
+      ?(pctN>=100?`✓ ${pctN}% of goal`:`${dollars(Math.abs(actual-g.target))} short`)
+      :(Math.abs(diff)<100?'On pace':isAhead?`+${dollars(diff)} ahead`:`${dollars(Math.abs(diff))} behind`);
+    const diffClass=key==='daily'
+      ?(pctN>=100?'ahead':'behind')
+      :(Math.abs(diff)<100?'on-track':isAhead?'ahead':'behind');
     const barColor=pctN>=100?'#166534':pctN>=70?g.color:pctN>=40?'#E8640A':'#DC2626';
     return`<div class="goal-period-card ${key}">
       <div class="goal-period-label">${g.label}</div>
@@ -9878,7 +9885,11 @@ function buildCalendarData(jobs, estimates, mode){
       } else {
         // No granular payment data — use collectionDate with total/collected amount
         const revenueToCredit=isPartial?collected:getJobRevenue(j);
-        if(revenueToCredit>0&&(!isSameTech||!isOnSameDate)){
+        // In collection date mode: ONLY write revenue_ref when tech differs (cross-tech attribution)
+        // Never back-credit to a different date in collection mode — that defeats cash flow view
+        // In estimate date mode: also credit when date differs (same tech, different date)
+        const shouldWriteRef=revenueToCredit>0&&(!isSameTech||(mode==='estimate'&&!isOnSameDate));
+        if(shouldWriteRef){
           dates.add(revDate);
           const revCell=getCell(revDate, revEmpId);
           revCell.rev+=revenueToCredit;
