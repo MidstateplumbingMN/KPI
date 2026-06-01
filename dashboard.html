@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.4</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.4</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1193,8 +1193,18 @@ tr:hover td{background:#fafafa}
           </div>
         </div>
 
-        <!-- COLUMN 2: Weather & Gap to Goal -->
+        <!-- COLUMN 2: RingCentral & CallRail & Weather -->
         <div style="display:flex;flex-direction:column;gap:14px">
+          <!-- RingCentral Integration -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px">📱 RingCentral</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:4px">JWT Token <span style="color:#9ca3af">(pre-filled)</span></div>
+            <input type="password" id="wb-rc-jwt" value="eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ"
+              style="width:100%;font-size:10px;padding:5px 7px;border:1px solid #d1d5db;border-radius:5px;font-family:monospace;margin-bottom:6px">
+            <button onclick="testRCConnection()" style="padding:5px 12px;background:#0f766e;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-weight:600">🔗 Test RC Connection</button>
+            <span id="rc-test-result" style="font-size:11px;margin-left:8px;color:#6b7280"></span>
+          </div>
+
           <div class="sec-head" style="margin:0">🌤 Weather &amp; Gap to Goal</div>
 
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
@@ -1202,14 +1212,6 @@ tr:hover td{background:#fafafa}
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
             <input type="text" id="wb-weather-loc" placeholder="55033 or Hastings,MN"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
-            <!-- RingCentral settings -->
-            <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px;margin-top:8px">📞 RingCentral Integration</div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">RingCentral Credential <span style="color:#9ca3af">— enter a <strong>JWT token</strong> OR your admin login as <strong>username:password</strong> (e.g. bob@midstate.com:MyPass123)</span></div>
-              <input type="password" id="wb-rc-jwt" placeholder="JWT token  OR  your.email@midstate.com:YourPassword"
-                style="width:100%;font-size:11px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;font-family:monospace">
-              <button onclick="testRCConnection()" style="margin-top:6px;padding:5px 12px;background:#0f766e;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer">🔗 Test RC Connection</button>
-            </div>
             <!-- CallRail settings -->
             <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px;margin-top:8px">📞 CallRail Integration</div>
             <div style="margin-bottom:8px">
@@ -1837,13 +1839,7 @@ function isReturnVisit(j){
 // HCP links return visits via original_estimate_id pointing to the original job's linked estimate
 function getJobRevenue(j){
   if(isReturnVisit(j)) return 0;
-  const rawTotal = j.total_amount ?? j.invoice_total ?? 0;
-  const computed = getJobTotal(j);
-  // Log suspicious values to help debug
-  if(computed > 100 && computed < 1000 && parseFloat(rawTotal) > 50000) {
-    console.warn('[Revenue] Possible cents→dollars issue: job', j.job_number, 'raw='+rawTotal, 'computed=$'+computed);
-  }
-  return computed;
+  return getJobTotal(j);
 }
 
 function jBadge(j){
@@ -3834,8 +3830,6 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
 
   // Fetch CallRail weekly call data
-  let _callrailSnap = null;
-  let _allYearJobs  = []; // cached paid jobs — keeps YTD data even if user switches to WTD pull
   try {
     const crKey     = _wbSettings.callrailKey || 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
     const crAccount = _wbSettings.callrailAccount || '541526025';
@@ -4395,7 +4389,9 @@ const RC_CLIENT_SECRET = 'efYzfoUTJkacmReRTjaQdyeWPvi73Nh5HeJZdejc08q1';
 const RC_SERVER        = 'https://platform.ringcentral.com';
 let _rcAccessToken  = null;
 let _rcTokenExpiry  = 0;
-let _rcSnap         = null; // call log data
+let _rcSnap         = null;
+let _callrailSnap   = null;  // CallRail weekly data
+let _allYearJobs    = [];    // cached paid jobs for accurate YTD revenue // call log data
 
 
 // RC token via Apps Script proxy (fallback when direct fetch blocked by CORS)
@@ -5090,7 +5086,8 @@ function getOrderQueueItems() {
   const items = [];
 
   // Find sold/converted estimates that have a scheduled install job
-  const soldEsts = _estimates.filter(e => isConv(e) || getEstDisplayStatus(e).startsWith('Sold'));
+  if(!_estimates.length) return [];
+  const soldEsts = _estimates.filter(e => isConv(e) || (getEstDisplayStatus(e)||'').startsWith('Sold'));
 
   soldEsts.forEach(est => {
     // Detect equipment from estimate options
@@ -6886,7 +6883,7 @@ function loadWallboardSettings(){
   if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
-  if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||'';
+  if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
   if($$('wb-callrail-key'))    $$('wb-callrail-key').value    = _wbSettings.callrailKey||'ctrk_43c7900e17d5793db876196ed978662aa6858367';
   if($$('wb-callrail-account'))$$('wb-callrail-account').value= _wbSettings.callrailAccount||'541526025';
   if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
