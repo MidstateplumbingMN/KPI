@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v22.8</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.3</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v22.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.3</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -565,8 +565,6 @@ tr:hover td{background:#fafafa}
     </div>
 
     <!-- ESTIMATES -->
-      </div><!-- end rawDataContent -->
-    </div><!-- end tab-debug -->
 
     <div class="panel" id="tab-estimates">
       <div class="metrics" id="estMetrics"></div>
@@ -583,7 +581,7 @@ tr:hover td{background:#fafafa}
         <thead><tr>
           <th class="sortable" onclick="sortTable('est','estimate_number')">Est #</th>
           <th class="sortable" onclick="sortTable('est','customer')">Customer</th>
-          <th class="sortable" onclick="sortTable('est','assigned')">Assigned to</th>
+          <th class="sortable" onclick="sortByTechThenDate()" title="Sort by technician, then by date">Assigned to ↕</th>
           <th class="sortable" onclick="sortTable('est','status')">Status</th>
           <th class="sortable" onclick="sortTable('est','created_at')">Created</th>
           <th class="sortable r" onclick="sortTable('est','total')">Value</th>
@@ -893,6 +891,8 @@ tr:hover td{background:#fafafa}
           <option value="complete">✅ Complete</option>
         </select>
         <button onclick="renderOrderQueue()" style="font-size:12px;padding:5px 12px;border:1px solid #1A3A5C;border-radius:5px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:600">↻ Refresh</button>
+        <button onclick="setOQRange('today_plus90')" style="font-size:12px;padding:5px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer">Next 90 Days</button>
+        <button onclick="setOQRange('this_month')" style="font-size:12px;padding:5px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer">This Month</button>
         <button onclick="printOrderQueue()" style="font-size:12px;padding:5px 12px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">🖨 Print</button>
         <button onclick="saveOrderQueueToSheets()" style="font-size:12px;padding:5px 12px;background:#059669;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">💾 Save to Sheets</button>
       </div>
@@ -1353,7 +1353,6 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
-    <!-- DEBUG -->
     <!-- CALLS TAB -->
     <div class="panel" id="tab-calls">
 
@@ -1551,7 +1550,7 @@ let _jobSort={col:'scheduled',dir:'desc'};
 let _estSort={col:'created_at',dir:'desc'};
 
 function loadAttr(){
-  try{_attr=JSON.parse(localStorage.getItem('hcp_attr')||'{}');}catch(e){_attr={};}
+  _attr = {}; // Attribution loaded fresh from Sheets on each pull
   // Fetch manually confirmed attributions from Sheets (shared across users)
   fetchConfirmedAttrFromSheets();
 }
@@ -1567,11 +1566,11 @@ async function fetchConfirmedAttrFromSheets(){
       Object.entries(data.attributions).forEach(([jobId,a])=>{
         if(a.confirmed) _attr[jobId]=a;
       });
-      try{localStorage.setItem('hcp_attr',JSON.stringify(_attr));}catch(e){}
+      // Attribution saved to Sheets via syncReportToSheets
     }
   }catch(e){console.warn('[Attr Sheets load]',e.message);}
 }
-function saveAttr(){ try{ localStorage.setItem('hcp_attr',JSON.stringify(_attr)); }catch(e){} }
+function saveAttr(){ /* Attribution saved to Sheets on pull */ }
 
 // ============================================================
 // AUTH
@@ -2335,8 +2334,7 @@ async function loadAll(){
     loadAnnouncements();
     // Load wallboard settings silently (not tab-specific)
     try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
-    try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
-    try{ _holidays=JSON.parse(localStorage.getItem('hcp_holidays')||'[]'); }catch(e){ _holidays=[]; }
+    // Birthdays and holidays loaded from Sheets KPI_Dashboard snap
     if(!_holidays.length) _holidays=JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
@@ -3278,6 +3276,48 @@ function initKPIRange(){
   if(label) label.textContent=`${from} → ${to}`;
 }
 
+
+
+function sortByTechThenDate() {
+  // Sort estimates by assigned tech, then by created date within each tech
+  if(!_estimates.length) return;
+  const sorted = [..._estimates].sort((a,b) => {
+    const techA = getAssigned(a)||'zzz';
+    const techB = getAssigned(b)||'zzz';
+    if(techA < techB) return -1;
+    if(techA > techB) return  1;
+    // Same tech — sort by scheduled/created date
+    const dA = new Date(a.schedule?.scheduled_start||a.created_at||0);
+    const dB = new Date(b.schedule?.scheduled_start||b.created_at||0);
+    return dA - dB;
+  });
+  // Render grouped estimate rows
+  renderEstimateRows(sorted, true);
+}
+
+function renderEstimateRows(estimates, groupByTech=false) {
+  const tbody = document.getElementById('estBody');
+  if(!tbody) return;
+  let lastTech = null;
+  tbody.innerHTML = '';
+  estimates.slice(0,500).forEach(e => {
+    if(groupByTech) {
+      const tech = getAssigned(e)||'Unassigned';
+      if(tech !== lastTech) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="7" style="padding:6px 12px;background:#1A3A5C;color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">${escHtml(tech)}</td>`;
+        tbody.appendChild(tr);
+        lastTech = tech;
+      }
+    }
+    const total = getEstTotal(e);
+    const created = fmtD(e.schedule?.scheduled_start||e.created_at||'');
+    const optCount = e.options?.length > 1 ? ` <span style="font-size:10px;color:#6b7280">(${e.options.length} options)</span>` : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>#${e.estimate_number||e.id||'—'}</td><td>${getCust(e)}</td><td style="color:#6b7280">${getAssigned(e)}</td><td>${eBadge(getEstDisplayStatus(e))}${optCount}</td><td style="color:#6b7280">${created}</td><td class="r" style="font-weight:600">${total?dollars(total):'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
 
 function auditRevenue() {
   const {from, to} = getKPIDateRange();
@@ -5036,21 +5076,35 @@ function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 // ============================================================
 let _orderQueue = {}; // id -> { status, notes, orderedDate, orderedBy }
 
+function setOQRange(range) {
+  const now = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if(range === 'today_plus90') {
+    if($$('oqFrom')) $$('oqFrom').value = fmt(now);
+    const to = new Date(); to.setDate(now.getDate()+90);
+    if($$('oqTo')) $$('oqTo').value = fmt(to);
+  } else if(range === 'this_month') {
+    if($$('oqFrom')) $$('oqFrom').value = fmt(new Date(now.getFullYear(),now.getMonth(),1));
+    if($$('oqTo'))   $$('oqTo').value   = fmt(new Date(now.getFullYear(),now.getMonth()+1,0));
+  }
+  renderOrderQueue();
+}
+
 function loadOrderQueue() {
   // Set default date range — next 60 days from today
+  // Default: today through 90 days out — scheduled installs window
   const from = new Date();
-  const to   = new Date(); to.setDate(to.getDate()+60);
+  const to   = new Date(); to.setDate(to.getDate()+90);
   const fmt  = d => d.toISOString().split('T')[0];
   if($$('oqFrom')&&!$$('oqFrom').value) $$('oqFrom').value = fmt(from);
   if($$('oqTo')  &&!$$('oqTo').value)   $$('oqTo').value   = fmt(to);
-  // Load saved statuses
-  try { const s=localStorage.getItem('hcp_order_queue'); if(s)_orderQueue=JSON.parse(s); } catch(e){}
+  // Order queue statuses load from Sheets only
   fetchOrderQueueFromSheets();
   renderOrderQueue();
 }
 
 function saveOrderQueueLocal() {
-  try { localStorage.setItem('hcp_order_queue',JSON.stringify(_orderQueue)); } catch(e){}
+  // No-op — Sheets is source of truth
 }
 
 async function fetchOrderQueueFromSheets() {
@@ -5114,78 +5168,77 @@ function setOrderStatus(id, status) {
 }
 
 function getOrderQueueItems() {
-  if(!_estimates.length && !_jobs.length) return [];
+  // Same approach as getTYSales — scan _jobs with detectEquipmentSale
+  // Difference: SCHEDULED jobs (upcoming installs needing parts ordered)
+  // vs TY cards which use PAID jobs (completed installs needing a card)
+  if(!_jobs.length) return [];
+
   const fromVal = $$('oqFrom')?.value || '';
   const toVal   = $$('oqTo')?.value   || '';
   const deptFil = $$('oqDept')?.value || '';
-  const fromD   = fromVal ? new Date(fromVal+'T00:00:00') : new Date(0);
-  const toD     = toVal   ? new Date(toVal+'T23:59:59')   : new Date(9999,0,1);
 
-  const items = [];
+  const seenJobs = new Set();
+  const items    = [];
 
-  // Find sold/converted estimates that have a scheduled install job
-  if(!_estimates.length) return [];
-  const soldEsts = _estimates.filter(e => isConv(e) || (getEstDisplayStatus(e)||'').startsWith('Sold'));
+  _jobs.forEach(j => {
+    if(seenJobs.has(j.id)) return;
+    if(isJobCanceled(j))   return;
+    if(isJobPaid(j))       return; // already done — TY card territory
 
-  soldEsts.forEach(est => {
-    // Detect equipment from estimate options
-    const equip = detectEquipFromEstimate(est);
+    // Must be scheduled or in-progress
+    const status = getNormStatus(j).toLowerCase();
+    if(!['scheduled','in progress'].includes(status)) return;
+
+    // Same equipment detection as TY cards
+    const equip = detectEquipmentSale(j);
     if(!equip) return;
 
-    // Find a linked scheduled job (future or recently scheduled)
-    const custId   = getCustId(est);
-    const custName = getCust(est);
-    const linked   = _jobs.filter(j => {
-      const jCust = getCustId(j)||getCust(j);
-      const matchesCust = (custId && getCustId(j)===custId) || getCust(j)===custName;
-      if(!matchesCust) return false;
-      // Must be scheduled (not yet paid/complete) OR recently completed install
-      const status = getNormStatus(j).toLowerCase();
-      return status==='scheduled'||status==='in progress'||status==='unscheduled';
-    });
+    seenJobs.add(j.id);
 
-    // Use the most relevant linked job (or treat estimate itself as the source)
-    const job = linked[0] || null;
-    const installDate = job?.schedule?.scheduled_start || est.created_at || '';
-    const installD    = installDate ? new Date(installDate) : null;
+    // Date filter on scheduled_start
+    const installDate = j.schedule?.scheduled_start || '';
+    const d = fmtKey(installDate) || '';
+    if(fromVal && d && d < fromVal) return;
+    if(toVal   && d && d > toVal)   return;
 
-    // Apply date filter
-    if(installD && (installD < fromD || installD > toD)) return;
-
-    const dept = job ? getDept(job) : getDept(est);
+    // Dept filter
+    const dept = getDept(j);
     if(deptFil && dept !== deptFil) return;
 
-    const cust    = est.customer || {};
-    const name    = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(est);
-    const addr    = est.address  ? [est.address.street, est.address.city, est.address.state, est.address.zip].filter(Boolean).join(', ')
-                  : job?.address ? [job.address.street, job.address.city, job.address.state, job.address.zip].filter(Boolean).join(', ')
-                  : '';
-
-    // Equipment from estimate options
-    const equipLabel = getEquipLabelFromEst(est);
-    const soldBy     = getAssigned(est) || getAssigned(job||{}) || '';
-    const notes      = getEstNotes(est).join(' | ').slice(0,400) || est.summary || '';
-    const value      = getEstTotal(est) || (job ? getJobTotal(job) : 0);
+    const cust      = j.customer || {};
+    const name      = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
+    const addr      = j.address
+      ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ')
+      : '';
+    const phone     = cust.mobile_number || cust.home_number || '';
+    const soldBy    = getAssigned(j) || '';
+    const equipLabel= getEquipmentLabel(j); // same fn TY cards use
+    // All line items (mirrors TY card full detail)
+    const allLineItems = (j.line_items||[]).map(li => li.name||li.description||'').filter(Boolean);
+    const techNotes = j.notes || j.tech_notes || j.technician_notes || '';
+    const notes     = (j.description || j.summary || '').slice(0, 400);
+    const value     = getJobTotal(j);
 
     items.push({
-      id:          est.id,
-      estNum:      est.estimate_number || est.id,
-      jobNum:      job?.job_number || '',
+      id:          j.id,
+      jobNum:      j.job_number || j.id,
+      estNum:      '',
       customer:    name,
       address:     addr,
-      phone:       cust.mobile_number || cust.home_number || '',
+      phone,
       equipLabel,
       equip,
       dept,
       soldBy,
-      installDate: installD ? fmtDY(installDate) : 'TBD',
+      installDate: installDate ? fmtDY(installDate) : 'TBD',
       installRaw:  installDate,
       notes,
+      lineItems:   allLineItems,
+      techNotes,
       value,
     });
   });
 
-  // Sort by install date
   return items.sort((a,b) => new Date(a.installRaw||9e12) - new Date(b.installRaw||9e12));
 }
 
@@ -5235,7 +5288,7 @@ function renderOrderQueue() {
 
   if(!filtered.length) {
     el.innerHTML = `<div style="text-align:center;padding:32px;color:#9ca3af">
-      ${items.length===0?'Pull a report with a date range to see pending install orders':'No orders match the selected filter'}
+      ${items.length===0?(_jobs.length===0?'Pull a report first — use This Year or YTD date range to load all scheduled jobs.':'No scheduled equipment installs found in this date range. Adjust dates or check that jobs are marked Scheduled in HCP.'):'No orders match the selected filter'}
     </div>`;
     return;
   }
@@ -5280,9 +5333,17 @@ function orderCard(item) {
       <strong>Equipment:</strong> ${escHtml(item.equipLabel||'—')}
     </div>
 
-    <!-- Notes from estimate -->
-    ${item.notes?`<div style="margin-bottom:10px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
-      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af">Estimate Notes</strong><br>${escHtml(item.notes)}
+    <!-- Line items -->
+    ${item.lineItems?.length?`<div style="margin-bottom:8px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af;font-weight:700;margin-bottom:4px">Line Items (${item.lineItems.length})</div>
+      ${item.lineItems.map(li=>`<div style="font-size:11px;color:#374151;padding:2px 0;border-bottom:1px solid #f9fafb">• ${escHtml(li)}</div>`).join('')}
+    </div>`:''}
+    <!-- Job notes -->
+    ${item.notes?`<div style="margin-bottom:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
+      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af">Job Notes</strong><br>${escHtml(item.notes)}
+    </div>`:''}
+    ${item.techNotes?`<div style="margin-bottom:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
+      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#3b82f6">Tech Notes</strong><br>${escHtml(item.techNotes)}
     </div>`:''}
 
     <!-- Status controls -->
@@ -5369,6 +5430,7 @@ function printOrderQueue() {
 }
 
 function escHtml2(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 
 // ============================================================
 // GOAL TRACKER
@@ -6295,7 +6357,7 @@ function getEquipmentLabel(j){
 let _tyCards={};
 
 function loadTYCards(){
-  try{const d=localStorage.getItem('hcp_ty_cards');if(d)_tyCards=JSON.parse(d);}catch(e){}
+  // TY card statuses load from Google Sheets only (not localStorage)
   fetchTYCardsFromSheets();
 }
 
@@ -6340,7 +6402,7 @@ async function fetchTYCardsFromSheets(){
     });
     if(restored > 0) {
       console.log('[TY Cards] Restored', restored, 'statuses from Sheets');
-      try { localStorage.setItem('hcp_ty_cards', JSON.stringify(_tyCards)); } catch(e) {}
+      // Statuses stored in Sheets — no localStorage write
       renderTYCards();
     }
   } catch(e) {
@@ -6355,7 +6417,7 @@ async function fetchTYCardsFromSheets(){
 
 async function saveTYCard(jobId,update){
   _tyCards[jobId]={..._tyCards[jobId]||{},...update};
-  try{localStorage.setItem('hcp_ty_cards',JSON.stringify(_tyCards));}catch(e){}
+  // Statuses stored in Sheets — no localStorage write
   // Enrich with job data for Sheets storage
   const job=_jobs.find(j=>j.id===jobId);
   const equip=job?detectEquipmentSale(job):null;
