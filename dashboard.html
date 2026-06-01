@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.7</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.7</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -608,10 +608,13 @@ tr:hover td{background:#fafafa}
             oninput="renderAttr(_jobs,_estimates)">
         </div>
         <select id="attrStatusFilter" style="font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px" onchange="renderAttr(_jobs,_estimates)">
-          <option value="needs_action" selected>⚠ Needs action (unresolved + no estimate)</option>
-          <option value="unresolved">Unresolved estimates</option>
-          <option value="no_estimate">No estimate linked</option>
-          <option value="linked">Auto-attributed (review)</option>
+          <option value="needs_action" selected>⚠ Needs review (flagged by system)</option>
+          <option value="auto">🤖 Auto-attributed (confident)</option>
+          <option value="linked">🔗 HCP direct link</option>
+          <option value="confirmed">✅ Manually confirmed</option>
+          <option value="paid">💰 Paid only</option>
+          <option value="all">All jobs</option>
+        </select>
           <option value="all">All jobs</option>
           <option value="confirmed">Manually confirmed</option>
           <option value="paid">Paid only</option>
@@ -2314,6 +2317,9 @@ async function loadAll(){
       ?`Found ${plans.length} plan(s). First record:\n\n`+JSON.stringify(plans[0],null,2)
       :'No plans found.\n\nOpen browser console (F12 → Console) and look for [Plans] lines.\nThey show which endpoint returned what keys — share those lines and I can add the correct one.';
 
+    // Await confirmed attributions from Sheets before building — fixes race condition
+    // where manual overrides were silently ignored on first pull after connecting
+    await fetchConfirmedAttrFromSheets();
     buildAttribution(jobs,estimates);
     populateFilters(jobs,estimates,plans);
     renderJobs(jobs,estimates);
@@ -2371,239 +2377,356 @@ async function loadAll(){
 // source: 'linked' | 'customer_match' | 'manual' | 'unresolved'
 let _jobAttribution = {}; // jobId -> {techId, techName, dept, source, candidates}
 
-function buildAttribution(jobs,estimates){
-  _jobAttribution={};
+function buildAttribution(jobs, estimates){
+  _jobAttribution = {};
 
-  // Build lookup maps
-  const estById={};
-  const estByCustomer={}; // custId -> [estimates sorted by date asc]
-  estimates.forEach(e=>{
-    estById[e.id]=e; // csr_ record id
-    (e.options||[]).forEach(o=>{ estById[o.id]=e; }); // est_ option ids → parent estimate
-    const cid=getCustId(e);
-    if(cid){if(!estByCustomer[cid])estByCustomer[cid]=[];estByCustomer[cid].push(e);}
+  // ============================================================
+  // ATTRIBUTION ENGINE — v23.9
+  //
+  // Core principle: credit the SELLER (who ran the estimate), not the performer.
+  // When confident → auto-assign and record why.
+  // When any doubt → flag for manual review. Never silently assign to job tech.
+  //
+  // Priority chain (first match wins):
+  //   1. Manual override (_attr) — human decision, always final
+  //   2. HCP direct link (original_estimate_id) — API-level relationship
+  //   3. Scored estimate match (customer ID, dept/tech signals, recency)
+  //      — auto-assign if score is high and clearly the best candidate
+  //      — flag for review if multiple candidates or low confidence
+  //   4. No estimate found after scoring — flag for review
+  //      (do NOT silently assign to job tech — that corrupts KPI data)
+  //
+  // Auto-assign thresholds (score must clear BOTH):
+  //   - Minimum score: 65
+  //   - Must beat 2nd candidate by: 20 points
+  //   These ensure only unambiguous matches are auto-credited.
+  //
+  // Recency scoring: estimates are penalized by age but never hard-excluded.
+  //   A 2-year-old estimate CAN auto-assign if it scores 65+ (requires strong
+  //   tech+dept+approved signals). An old estimate with only dept match will
+  //   score too low to auto-assign and land in the review queue.
+  //
+  // Audit trail: every attribution records:
+  //   - source: how it was determined
+  //   - confidence: 0-100 score
+  //   - recommendation: plain-English explanation
+  //   - candidates: all scored estimates for this job
+  //   - auto: the original automated result (preserved even after manual override)
+  // ============================================================
+
+  const AUTO_SCORE_MIN = 65;
+  const AUTO_SCORE_GAP = 20;
+
+  // ---- Build estimate lookup maps ----
+  // Index by record ID, all option IDs, and customer ID
+  const estById = {};
+  const estByCustomer = {}; // custId -> [estimates, sorted oldest→newest]
+
+  estimates.forEach(e => {
+    estById[e.id] = e;
+    (e.options || []).forEach(o => { estById[o.id] = e; });
+    const cid = getCustId(e);
+    if(cid){
+      if(!estByCustomer[cid]) estByCustomer[cid] = [];
+      estByCustomer[cid].push(e);
+    }
   });
-  Object.values(estByCustomer).forEach(arr=>arr.sort((a,b)=>new Date(a.schedule?.scheduled_start||a.created_at)-new Date(b.schedule?.scheduled_start||b.created_at)));
+  // Sort each customer's estimates oldest → newest so the most recent sorts to end
+  Object.values(estByCustomer).forEach(arr =>
+    arr.sort((a,b) => new Date(a.schedule?.scheduled_start||a.created_at) - new Date(b.schedule?.scheduled_start||b.created_at))
+  );
 
-  // Get selling tech from estimate
-  // Gannon counts as seller for estimates before his installer transition date
+  // ---- Get the selling technician from an estimate ----
+  // Returns the first non-installer assigned to the estimate.
+  // Gannon counts as a seller for estimates before his installer transition date.
   function getSellerFromEst(est){
-    const estDate=est.schedule?.scheduled_start||est.created_at||'';
-    const gannonStillSelling=isGannonSellingTech(estDate);
-    const emps=getAssignedList(est).filter(e=>{
+    const estDate = est.schedule?.scheduled_start || est.created_at || '';
+    const gannonOK = isGannonSellingTech(estDate);
+    const emps = getAssignedList(est).filter(e => {
       if(INSTALLER_IDS.has(e.id)){
-        // Gannon: allow as seller for pre-transition estimates
-        const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-        if(name==='Gannon Blaiser'&&gannonStillSelling) return true;
-        return false;
+        const name = ((e.first_name||'')+' '+(e.last_name||'')).trim();
+        return name === 'Gannon Blaiser' && gannonOK;
       }
       return true;
     });
-    const e=emps.length?emps[0]:null;
-    if(!e)return null;
-    return{id:e.id,name:((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?'};
+    const e = emps[0];
+    if(!e) return null;
+    return { id: e.id, name: ((e.first_name||'')+' '+(e.last_name||'')).trim() || e.name || '?' };
   }
 
-  // Get job's primary non-installer tech ID set
+  // ---- Get non-installer tech IDs from a job ----
   function getJobTechIds(j){
-    return new Set(getAssignedList(j).filter(e=>!INSTALLER_IDS.has(e.id)).map(e=>e.id));
+    return new Set(getAssignedList(j).filter(e => !INSTALLER_IDS.has(e.id)).map(e => e.id));
   }
 
-  // Score how well an estimate matches a job (higher = better match)
+  // ---- Score a single estimate against a job ----
+  // Returns a signals object with a numeric score, or null if it should be excluded.
+  // Does NOT apply a hard age cutoff — old estimates score lower but aren't excluded.
+  // A valid match requires dept match OR tech match (amount alone is not enough).
   function scoreMatch(j, est, jDate, jobTotal, jobTechIds, jobDept){
-    // Use the estimate's actual appointment date (scheduled_start) not when it was created in HCP
-    const estDate=new Date(est.schedule?.scheduled_start||est.created_at||0);
-    // Allow estimates up to 1 day AFTER job date (same-day or slightly later)
-    // HCP sometimes creates the job before the estimate in the same visit
-    const allowedFuture=new Date(jDate.getTime()+24*60*60*1000);
-    if(estDate>allowedFuture) return null;
+    const estDate = new Date(est.schedule?.scheduled_start || est.created_at || 0);
 
-    const seller=getSellerFromEst(est);
+    // Estimate cannot be in the future relative to the job
+    // (1-day grace: HCP sometimes enters estimate after the job on the same visit)
+    if(estDate > new Date(jDate.getTime() + 24*60*60*1000)) return null;
+
+    const seller = getSellerFromEst(est);
     if(!seller) return null;
 
-    const estTotal=getEstTotal(est);
-    const estDept=getDept(est);
-    const daysDiff=Math.max(0,(jDate-estDate)/(1000*60*60*24));
-    // If estimate is same day or very close, treat as same-day regardless of hour order
-    const techMatch=jobTechIds.has(seller.id);
-    const approved=isConv(est);
-    const deptMatch=jobDept&&estDept&&jobDept.toLowerCase()===estDept.toLowerCase();
-    const deptMismatch=jobDept&&estDept&&jobDept.toLowerCase()!==estDept.toLowerCase()&&estDept.toLowerCase()!=='other';
+    const daysDiff   = Math.max(0, (jDate - estDate) / (1000*60*60*24));
+    const estTotal   = getEstTotal(est);
+    const estDept    = getDept(est);
+    const techMatch  = jobTechIds.has(seller.id);
+    const approved   = isConv(est);
+    const deptMatch  = jobDept && estDept && jobDept.toLowerCase() === estDept.toLowerCase();
+    const deptMismatch = jobDept && estDept &&
+                         jobDept.toLowerCase() !== estDept.toLowerCase() &&
+                         estDept.toLowerCase() !== 'other';
 
-    let score=0;
+    // Must have dept match OR tech match — amount proximity alone is not a link
+    if(!deptMatch && !techMatch) return null;
 
-    // Recency
-    if(daysDiff<=1) score+=40;
-    else if(daysDiff<=7) score+=20;
-    else if(daysDiff<=30) score+=10;
-    else if(daysDiff<=180) score+=5;
+    let score = 0;
 
-    // Same tech
-    if(techMatch) score+=30;
+    // Recency — strong bonus for same/nearby day, diminishing returns over time.
+    // No hard cutoff: a 2-year-old approved estimate with same tech+dept can still score high.
+    if(daysDiff <= 1)   score += 50;
+    else if(daysDiff <= 7)   score += 30;
+    else if(daysDiff <= 30)  score += 18;
+    else if(daysDiff <= 90)  score += 10;
+    else if(daysDiff <= 180) score += 5;
+    else if(daysDiff <= 365) score += 2;
+    // >365 days: no recency bonus — must win purely on tech+dept+approved signals
 
-    // Department match/mismatch — key signal
-    if(deptMatch) score+=25;
-    else if(deptMismatch) score-=20;
+    // Same tech as seller
+    if(techMatch)     score += 30;
 
-    // Approved
-    if(approved) score+=25;
+    // Department match / mismatch
+    if(deptMatch)     score += 25;
+    else if(deptMismatch) score -= 25;
 
-    // Amount proximity
-    if(jobTotal>0&&estTotal>0){
-      const diff=Math.abs(jobTotal-estTotal);
-      const pct=diff/Math.max(jobTotal,estTotal);
-      if(pct<0.01) score+=20;
-      else if(pct<0.15) score+=12;
-      else if(pct<0.30) score+=6;
-      else if(pct<0.50) score+=2;
+    // Estimate was approved/sold — strong signal this is the right one
+    if(approved)      score += 20;
+
+    // Amount proximity — secondary tiebreaker
+    if(jobTotal > 0 && estTotal > 0){
+      const pct = Math.abs(jobTotal - estTotal) / Math.max(jobTotal, estTotal);
+      if(pct < 0.05)       score += 15;
+      else if(pct < 0.20)  score += 8;
+      else if(pct < 0.40)  score += 3;
     }
 
-    return score>=20?{score,seller,estDept,deptMatch,techMatch,approved,daysDiff}:null;
+    // Minimum threshold to appear as a candidate at all
+    if(score < 25) return null;
+
+    return { score, seller, estDept, deptMatch, techMatch, approved, daysDiff };
   }
 
-  // Generate recommended reason string based on signals
-  function recommendReason(signals, jobDept){
-    if(!signals) return{text:'No estimate found — assigning to job tech',icon:'⚠️',key:'no_estimate'};
-    const{score,deptMatch,techMatch,approved,daysDiff}=signals;
-    if(daysDiff<=1&&techMatch&&approved)
-      return{text:'Closed in field — same day, same tech, approved',icon:'✅',key:'closed_in_field'};
-    if(daysDiff<=1&&deptMatch&&techMatch)
-      return{text:'Same day, same tech, matching department',icon:'✅',key:'same_day_dept'};
-    if(daysDiff<=1&&deptMatch)
-      return{text:'Same day, matching department',icon:'✅',key:'same_day_dept'};
-    if(techMatch&&deptMatch&&daysDiff>1)
-      return{text:'Customer decided later — last estimate, matching dept & tech',icon:'✅',key:'called_back_later'};
-    if(deptMatch&&daysDiff>1&&approved)
-      return{text:'Approved estimate, matching department (later date)',icon:'✅',key:'called_back_later'};
-    if(deptMatch&&daysDiff>1)
-      return{text:'Most recent estimate, matching department',icon:'🔵',key:'dept_match_later'};
-    if(techMatch&&!deptMatch)
-      return{text:'Same tech — different department (verify this is correct)',icon:'⚠️',key:'tech_only_diff_dept'};
-    if(score>=60)
-      return{text:'Strong match on multiple signals',icon:'✅',key:'multi_signal'};
-    return{text:'Possible match — please verify before confirming',icon:'❓',key:'needs_review'};
+  // ---- Plain-English explanation for why this attribution was chosen ----
+  function recommendReason(signals){
+    if(!signals) return { text: 'No qualifying estimate found — flagged for review', icon: '⚠️', key: 'no_estimate' };
+    const { deptMatch, techMatch, approved, daysDiff } = signals;
+
+    if(daysDiff <= 1 && techMatch && approved)
+      return { text: 'Closed in field — same day, same tech, approved', icon: '✅', key: 'closed_in_field' };
+    if(daysDiff <= 1 && deptMatch && techMatch)
+      return { text: 'Same day, same tech, matching department', icon: '✅', key: 'same_day_dept' };
+    if(daysDiff <= 1 && deptMatch)
+      return { text: 'Same day, matching department', icon: '✅', key: 'same_day_dept' };
+    if(techMatch && deptMatch && approved)
+      return { text: `Customer decided later — estimate approved, same tech & dept (${Math.round(daysDiff)}d)`, icon: '✅', key: 'called_back_later' };
+    if(techMatch && deptMatch)
+      return { text: `Same tech & department (${Math.round(daysDiff)}d between estimate and job)`, icon: '✅', key: 'called_back_later' };
+    if(deptMatch && approved)
+      return { text: `Approved estimate, matching department (${Math.round(daysDiff)}d)`, icon: '✅', key: 'called_back_later' };
+    if(deptMatch)
+      return { text: `Most recent matching estimate, same department (${Math.round(daysDiff)}d)`, icon: '🔵', key: 'dept_match_later' };
+    if(techMatch)
+      return { text: `Same tech — different department, verify this is correct (${Math.round(daysDiff)}d)`, icon: '⚠️', key: 'tech_only_diff_dept' };
+    return { text: 'Possible match — please verify before confirming', icon: '❓', key: 'needs_review' };
   }
 
-  // Attribution rule: Gannon's pre-transition sold estimates under $700
-  // that became paid jobs → credit Gannon as seller
+  // ---- Gannon pre-transition sub-$700 credit ----
   function gannonCreditCheck(j, est){
     if(!est) return false;
-    const jobTotal=getJobTotal(j);
-    if(jobTotal>=700) return false; // only sub-$700 jobs
-    const estDate=est.schedule?.scheduled_start||est.created_at||'';
-    if(!isGannonSellingTech(estDate)) return false; // only pre-transition
-    const gannon=getAssignedList(est).find(e=>{
-      const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-      return name==='Gannon Blaiser';
-    });
-    return !!gannon;
+    if(getJobTotal(j) >= 700) return false;
+    const estDate = est.schedule?.scheduled_start || est.created_at || '';
+    if(!isGannonSellingTech(estDate)) return false;
+    return !!getAssignedList(est).find(e => ((e.first_name||'')+' '+(e.last_name||'')).trim() === 'Gannon Blaiser');
   }
 
-  jobs.forEach(j=>{
-    const jid=j.id;
-    // Use scheduled_start as the job date — this is when the tech actually went out
-    // created_at is when the job was entered in HCP (often before or after the actual visit)
-    const jDate=new Date(j.schedule?.scheduled_start||j.work_timestamps?.completed_at||j.created_at||0);
-    const custId=getCustId(j);
-    const dept=getDept(j);
-    const jobTotal=getJobTotal(j);
-    const jobTechIds=getJobTechIds(j);
-    const allEmps=getAssignedList(j);
-    const sellingEmps=allEmps.filter(e=>!INSTALLER_IDS.has(e.id));
-    const primaryEmp=sellingEmps.length?sellingEmps[0]:allEmps[0];
+  // ---- Main attribution loop ----
+  jobs.forEach(j => {
+    const jid      = j.id;
+    const jDate    = new Date(j.schedule?.scheduled_start || j.work_timestamps?.completed_at || j.created_at || 0);
+    const custId   = getCustId(j);
+    const dept     = getDept(j);
+    const jobTotal = getJobTotal(j);
+    const jobTechIds = getJobTechIds(j);
 
-    // 1. Manual override (localStorage)
+    // ── 1. Manual override — always wins ──────────────────────────────────────
     if(_attr[jid]){
-      _jobAttribution[jid]={techId:_attr[jid].techId,techName:_attr[jid].techName,dept,source:'manual',candidates:[]};
+      _jobAttribution[jid] = {
+        techId:   _attr[jid].techId,
+        techName: _attr[jid].techName,
+        dept,
+        source:      'manual',
+        confidence:  100,
+        recommendation: { text: 'Manually confirmed by user', icon: '✅', key: 'manual' },
+        candidates:  [],
+        // Preserve original auto result if we previously stored it
+        auto: _attr[jid].auto || null,
+        overrideTs: _attr[jid].ts || null,
+      };
       return;
     }
 
-    // 2. Direct link via original_estimate_id
-    const linkedEstId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
-    if(linkedEstId&&estById[linkedEstId]){
-      const linkedEst=estById[linkedEstId];
-      // Special case: Gannon's pre-transition sub-$700 estimates — credit him directly
-      if(isJobPaid(j)&&gannonCreditCheck(j, linkedEst)){
-        const gannonEmp=getAssignedList(linkedEst).find(e=>{
-          const n=((e.first_name||'')+' '+(e.last_name||'')).trim();
-          return n==='Gannon Blaiser';
-        });
-        if(gannonEmp){
-          const n=((gannonEmp.first_name||'')+' '+(gannonEmp.last_name||'')).trim();
-          _jobAttribution[jid]={techId:gannonEmp.id,techName:n,dept,source:'gannon_transition',
-            recommendation:{text:`Gannon sold pre-transition · ${dollars(jobTotal)} under $700 threshold`,icon:'✓',key:'gannon_transition'},candidates:[]};
-          return;
-        }
-      }
-      const seller=getSellerFromEst(linkedEst);
-      if(seller){
-        _jobAttribution[jid]={techId:seller.id,techName:seller.name,dept,source:'linked',candidates:[]};
-        return;
-      }
-    }
+    // ── 2. HCP direct link (original_estimate_id) ─────────────────────────────
+    const linkedEstId = j.original_estimate_id || (j.original_estimate_uuids && j.original_estimate_uuids[0]) || null;
+    if(linkedEstId && estById[linkedEstId]){
+      const linkedEst = estById[linkedEstId];
 
-    // 3. Score all estimates for this customer
-    // Try by customer ID first, then fall back to name match
-    const custEsts=custId&&estByCustomer[custId]
-      ? estByCustomer[custId]
-      : Object.values(estByCustomer).flat().filter(e=>{
-          const eName=getCust(e).toLowerCase();
-          const jName=getCust(j).toLowerCase();
-          return eName&&jName&&eName===jName;
-        });
-    if(custEsts&&custEsts.length){
-
-      // Score every estimate
-      const scored=custEsts.map(est=>{
-        const result=scoreMatch(j,est,jDate,jobTotal,jobTechIds,dept);
-        return result?{est,score:result.score,seller:result.seller,signals:result}:null;
-      }).filter(Boolean).sort((a,b)=>b.score-a.score);
-
-      if(scored.length>0){
-        const best=scored[0];
-
-        // Auto-assign if best score is strong enough AND clearly beats second place
-        const secondScore=scored[1]?.score||0;
-        const confident=best.score>=50&&(best.score-secondScore>=15||scored.length===1);
-
-        if(confident){
-          const srcLabel=best.score>=80?'linked_strong':best.score>=60?'amount_match':'customer_match';
-          const rec=recommendReason(best.signals,dept);
-          _jobAttribution[jid]={
-            techId:best.seller.id,techName:best.seller.name,dept,
-            source:srcLabel,recommendation:rec,
-            candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score,signals:s.signals}))
+      // Gannon pre-transition special case
+      if(isJobPaid(j) && gannonCreditCheck(j, linkedEst)){
+        const ge = getAssignedList(linkedEst).find(e => ((e.first_name||'')+' '+(e.last_name||'')).trim() === 'Gannon Blaiser');
+        if(ge){
+          const n = ((ge.first_name||'')+' '+(ge.last_name||'')).trim();
+          _jobAttribution[jid] = {
+            techId: ge.id, techName: n, dept,
+            source: 'gannon_transition', confidence: 95,
+            recommendation: { text: `Gannon sold pre-transition · ${dollars(jobTotal)} under $700 threshold`, icon: '✓', key: 'gannon_transition' },
+            candidates: [], auto: null,
           };
           return;
         }
+      }
 
-        // Not confident — queue for confirmation
-        const rec=recommendReason(best.signals,dept);
-        _jobAttribution[jid]={
-          techId:best.seller.id,techName:best.seller.name,dept,source:'unresolved',recommendation:rec,
-          candidates:scored.map(s=>({est:s.est,seller:{id:s.seller.id,first_name:s.seller.name,last_name:''},score:s.score,signals:s.signals}))
+      const seller = getSellerFromEst(linkedEst);
+      if(seller){
+        const linkedDaysDiff = Math.max(0, (jDate - new Date(linkedEst.schedule?.scheduled_start || linkedEst.created_at || 0)) / (1000*60*60*24));
+        const linkedDeptMatch = getDept(linkedEst).toLowerCase() === dept.toLowerCase();
+        // Flag for review if the linked estimate is very old (>365d) or wrong dept — still auto-assigns
+        // but surfaces a warning in the Attribution tab so it can be audited
+        const linkedWarning = linkedDaysDiff > 365 || !linkedDeptMatch;
+        _jobAttribution[jid] = {
+          techId:   seller.id,
+          techName: seller.name,
+          dept,
+          source:      linkedWarning ? 'linked_review' : 'linked',
+          confidence:  linkedWarning ? 75 : 98,
+          recommendation: {
+            text: linkedWarning
+              ? `HCP direct link · ${Math.round(linkedDaysDiff)}d old${!linkedDeptMatch?' · dept mismatch':''} — verify correct`
+              : 'HCP direct link — API-provided relationship',
+            icon: linkedWarning ? '⚠️' : '✅',
+            key: linkedWarning ? 'linked_review' : 'linked'
+          },
+          candidates: [],
+          auto: null,
         };
         return;
       }
     }
 
-    // 4. No estimate found — default to primary tech, mark unresolved
-    _jobAttribution[jid]={
-      techId:primaryEmp?.id||null,
-      techName:primaryEmp?((primaryEmp.first_name||'')+' '+(primaryEmp.last_name||'')).trim()||primaryEmp.name:'Unassigned',
-      dept,source:'unresolved',candidates:[]
+    // ── 3. Scored estimate matching (customer ID only — no name fallback) ────
+    // No customer ID = no reliable match possible → flag for review
+    if(!custId){
+      _jobAttribution[jid] = {
+        techId: null, techName: null, dept,
+        source: 'review', confidence: 0,
+        recommendation: { text: 'No HCP customer ID — cannot match to estimate', icon: '⚠️', key: 'no_customer_id' },
+        candidates: [], auto: null,
+      };
+      return;
+    }
+
+    const custEsts = estByCustomer[custId] || [];
+
+    // Score every estimate for this customer
+    const scored = custEsts
+      .map(est => {
+        const result = scoreMatch(j, est, jDate, jobTotal, jobTechIds, dept);
+        return result ? { est, score: result.score, seller: result.seller, signals: result } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score);
+
+    // Build candidate list for Attribution tab (all scored estimates, shown in review)
+    const candidates = scored.map(s => ({
+      est: s.est,
+      seller: { id: s.seller.id, first_name: s.seller.name, last_name: '' },
+      score: s.score,
+      signals: s.signals,
+    }));
+
+    if(scored.length > 0){
+      const best        = scored[0];
+      const secondScore = scored[1]?.score || 0;
+      const confident   = best.score >= AUTO_SCORE_MIN && (best.score - secondScore >= AUTO_SCORE_GAP || scored.length === 1);
+      const rec         = recommendReason(best.signals);
+      const confidence  = Math.min(99, Math.round(best.score * 0.9 + (confident ? 10 : 0)));
+
+      const autoResult = {
+        techId:    best.seller.id,
+        techName:  best.seller.name,
+        dept,
+        source:    confident ? 'auto' : 'review',
+        confidence,
+        recommendation: rec,
+        candidates,
+        auto: null, // will be set after assignment
+      };
+
+      if(confident){
+        autoResult.auto = { ...autoResult, auto: null }; // snapshot of the auto decision
+        _jobAttribution[jid] = autoResult;
+      } else {
+        // Not confident — flag for manual review, still show best candidate
+        autoResult.source = 'review';
+        autoResult.auto   = { ...autoResult, auto: null };
+        _jobAttribution[jid] = autoResult;
+      }
+      return;
+    }
+
+    // ── 4. No estimates found for this customer → flag for review ────────────
+    // Do NOT silently assign to job tech — that corrupts KPI data.
+    // The user said: very rarely will there be a job with no estimate.
+    // Flag it so they can confirm the correct attribution.
+    _jobAttribution[jid] = {
+      techId:    null,
+      techName:  null,
+      dept,
+      source:    'review',
+      confidence: 0,
+      recommendation: { text: 'No estimates found for this customer — please assign manually', icon: '⚠️', key: 'no_estimate' },
+      candidates: [],
+      auto: null,
     };
   });
 
-  // Update attribution tab badge
-  const unresolved=Object.values(_jobAttribution).filter(a=>a.source==='unresolved').length;
-  const attrTab=$$('attrTab');
-  attrTab.innerHTML=unresolved>0?`Attribution <span class="badge-count">${unresolved}</span>`:'Attribution';
+  // Update Attribution tab badge — count only jobs needing human action
+  const needsReview = Object.values(_jobAttribution).filter(a => a.source === 'review' || a.source === 'linked_review').length;
+  const attrTab = $$('attrTab');
+  if(attrTab) attrTab.innerHTML = needsReview > 0
+    ? `Attribution <span class="badge-count">${needsReview}</span>`
+    : 'Attribution';
 }
 
 function confirmAttribution(jobId,techId,techName,reason,notes){
   try{
-    _attr[jobId]={techId,techName,confirmed:true,source:'manual',reason:reason||'',notes:notes||'',ts:Date.now()};
+    // Preserve the original automated attribution in the override record (audit trail)
+    const existingAuto = _jobAttribution[jobId]?.auto || _jobAttribution[jobId] || null;
+    const autoSnapshot = existingAuto && existingAuto.source !== 'manual'
+      ? { techId: existingAuto.techId, techName: existingAuto.techName, source: existingAuto.source,
+          confidence: existingAuto.confidence, recommendation: existingAuto.recommendation }
+      : (_attr[jobId]?.auto || null);
+
+    _attr[jobId]={
+      techId, techName, confirmed:true, source:'manual',
+      reason:reason||'', notes:notes||'', ts:Date.now(),
+      auto: autoSnapshot, // original automated result preserved forever
+    };
     saveAttr();
 
     // Sync to Google Sheets — persist confirmed attribution across users
@@ -2626,7 +2749,9 @@ function confirmAttribution(jobId,techId,techName,reason,notes){
           notes:notes||'',
           total:getJobTotal(job),
           status:getNormStatus(job),
-          dateRange:`${from} → ${to}`
+          dateRange:`${from} → ${to}`,
+          original_auto_tech: autoSnapshot?.techName||'',
+          original_auto_source: autoSnapshot?.source||'',
         })
       }).catch(e=>console.warn('[Attr Sheets]',e.message));
     }
@@ -2675,24 +2800,23 @@ function renderAttr(jobs,estimates){
   const searchQ=($$('attrSearch')?.value||'').toLowerCase().trim();
   const statusF=$$('attrStatusFilter')?.value||'needs_action';
 
-  // Filter jobs based on status selection
-  // Date filter for attribution — use the KPI date range
   const attrFrom=$$('dateFrom')?.value||'';
   const attrTo=$$('dateTo')?.value||'';
   let filtered=jobs.filter(j=>{
     if(isJobCanceled(j)) return false;
-    // Apply date filter so Dec 2025 jobs don't show in 2026 YTD view
     if(attrFrom&&attrTo){
       const jd=j.schedule?.scheduled_start||j.created_at||'';
       if(jd<attrFrom||jd>attrTo) return false;
     }
     const attr=_jobAttribution[j.id];
-    if(statusF==='needs_action') return !attr||attr.source==='unresolved'||attr.source==='no_estimate';
-    if(statusF==='unresolved') return !attr||attr.source==='unresolved';
-    if(statusF==='no_estimate') return attr?.source==='no_estimate';
-    if(statusF==='linked') return attr?.source==='linked'||attr?.source==='linked_strong'||attr?.source==='customer_match'||attr?.source==='amount_match'||attr?.source==='gannon_transition';
-    if(statusF==='confirmed') return attr?.source==='manual'||attr?.confirmed===true;
-    if(statusF==='paid') return isJobPaid(j);
+    // 'needs_action' = jobs the system flagged for human review
+    if(statusF==='needs_action') return !attr || attr.source==='review' || attr.source==='linked_review';
+    if(statusF==='unresolved')   return !attr || attr.source==='review';
+    if(statusF==='no_estimate')  return attr?.recommendation?.key==='no_estimate';
+    if(statusF==='linked')       return attr?.source==='linked'||attr?.source==='linked_review'||attr?.source==='gannon_transition';
+    if(statusF==='confirmed')    return attr?.source==='manual';
+    if(statusF==='auto')         return attr?.source==='auto'||attr?.source==='linked_strong'||attr?.source==='amount_match'||attr?.source==='customer_match';
+    if(statusF==='paid')         return isJobPaid(j);
     return true; // 'all'
   });
 
@@ -2731,12 +2855,27 @@ function renderAttr(jobs,estimates){
     const attr=_jobAttribution[j.id];
     const total=getJobTotal(j);
     const jobNotes=getJobNotes(j);
-    const rec=attr?.recommendation||(attr?.source==='no_estimate'
-      ?{text:'No estimate found — revenue goes to assigned tech',icon:'📋',key:'no_estimate'}
-      :{text:'Please review manually',icon:'❓',key:'needs_review'});
+    const rec=attr?.recommendation||{text:'Please review manually',icon:'❓',key:'needs_review'};
+    const confidence=attr?.confidence??0;
+    const sourceLabel={
+      manual:'✅ Manually confirmed',
+      linked:'🔗 HCP direct link',
+      linked_review:'⚠️ HCP direct link (needs review)',
+      auto:'🤖 Auto-attributed',
+      review:'👁 Needs review',
+      gannon_transition:'✓ Gannon pre-transition',
+    }[attr?.source||'review']||'❓ Unknown';
+    const confidenceColor=confidence>=90?'#166534':confidence>=65?'#185FA5':confidence>=40?'#854F0B':'#991B1B';
+    const confidenceBg=confidence>=90?'#EAF3DE':confidence>=65?'#DBEAFE':confidence>=40?'#FEF3C7':'#FECACA';
+    // Show original auto attribution if this was manually overridden
+    const autoInfo=attr?.auto&&attr?.source==='manual'
+      ?`<div style="font-size:11px;color:#6b7280;margin-top:3px;padding:4px 8px;background:#f9fafb;border-radius:4px;border-left:2px solid #d1d5db">
+          Original auto: ${attr.auto.techName||'—'} (${attr.auto.source||'—'})
+        </div>`
+      :'';
     const card=document.createElement('div');
     card.className='attr-card';
-    const candidates=attr.candidates||[];
+    const candidates=attr?.candidates||[];
     let optionsHtml='';
     if(candidates.length){
       optionsHtml=candidates.map((c,i)=>{
@@ -2840,6 +2979,11 @@ function renderAttr(jobs,estimates){
         <div>
           <div class="attr-job">#${j.job_number||j.id||'—'} · ${getCust(j)}</div>
           <div class="attr-meta">${getDept(j)} · ${fmtDY(j.schedule?.scheduled_start||j.scheduled_start)} · ${jBadge(j)}${isJobPaid(j)?'<span style="margin-left:6px;font-size:11px;background:#EAF3DE;color:#3B6D11;padding:2px 7px;border-radius:99px;font-weight:600">💰 Paid</span>':isJobComplete(j)?'<span style="margin-left:6px;font-size:11px;background:#FAEEDA;color:#854F0B;padding:2px 7px;border-radius:99px;font-weight:600">⚠️ Unpaid</span>':''}</div>
+          <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;background:${confidenceBg};color:${confidenceColor};padding:2px 8px;border-radius:99px;font-weight:600">${sourceLabel}</span>
+            ${confidence>0?`<span style="font-size:11px;color:${confidenceColor};font-weight:600">${confidence}% confidence</span>`:''}
+          </div>
+          ${autoInfo}
         </div>
         <div class="attr-amount">${total?dollars(total):'$0.00'}</div>
       </div>
@@ -3449,42 +3593,41 @@ function renderKPI(jobs,estimates,employees,plans){
   // Revenue attribution from jobs (only paid & complete) — filtered to KPI date range
   kpiJobs.forEach(j=>{
     const allEmps=getAssignedList(j);
-    // Count installs for installers
+
+    // Count jobs for performing techs (who did the work)
     allEmps.forEach(e=>{
       if(!e)return;
       const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
       ensure(e.id,n,e.role);
       if(INSTALLER_IDS.has(e.id)){map[e.id].installs++;}
-      else{map[e.id].jobs++;}
+      else{map[e.id].jobs++;}  // jobs_performed
     });
+
     if(isJobPaid(j)&&!isReturnVisit(j)){
       const attr=_jobAttribution[j.id];
       const rev=getJobRevenue(j);
       if(rev<=0) return;
       const dept=getDept(j);
 
-      let creditId=null, creditName=null;
-      if(attr&&attr.techId&&attr.techId!=='skip'){
-        // Use attributed tech (auto or manually confirmed)
-        creditId=attr.techId;
-        creditName=attr.techName||'Unknown';
-      } else {
-        // No attribution — fall back to first non-installer assigned tech
-        const empList=getAssignedList(j).filter(e=>!INSTALLER_IDS.has(e.id));
-        const fallback=empList.length?empList[0]:getAssignedList(j)[0];
-        if(fallback){
-          creditId=fallback.id;
-          creditName=((fallback.first_name||'')+' '+(fallback.last_name||'')).trim()||'Unknown';
-        }
-      }
+      // ONLY credit revenue if attribution is confirmed or auto-assigned with confidence
+      // If source is 'review' (needs human input), do NOT assign revenue to anyone yet —
+      // crediting the wrong tech corrupts KPI data, which is worse than showing $0
+      const hasConfidentAttribution = attr &&
+        attr.techId &&
+        attr.techId !== 'skip' &&
+        attr.source !== 'review'; // 'review' = flagged, not yet confirmed
 
-      if(creditId){
-        if(!map[creditId]) ensure(creditId,creditName||'Unknown','');
-        map[creditId].revenue+=rev;
+      if(hasConfidentAttribution){
+        const creditId   = attr.techId;
+        const creditName = attr.techName || 'Unknown';
+        if(!map[creditId]) ensure(creditId, creditName, '');
+        map[creditId].revenue += rev;
         if(!map[creditId].depts[dept]) map[creditId].depts[dept]={revenue:0,jobs:0};
-        map[creditId].depts[dept].revenue+=rev;
+        map[creditId].depts[dept].revenue += rev;
         map[creditId].depts[dept].jobs++;
       }
+      // Note: unconfirmed jobs (source='review') appear in the Attribution tab badge
+      // and are excluded from revenue totals until resolved — this is intentional.
     }
   });
   const kpiCountedEsts=new Set();
