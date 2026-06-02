@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.20</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.21</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.20</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.21</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1814,7 +1814,21 @@ function isJobComplete(j){
   // a tech clicks "on my way") which would cause those jobs to pass as complete.
   return s.includes('complete')||s.includes('completed');
 }
-function isJobPaid(j){return isJobComplete(j)&&(parseFloat(j.outstanding_balance)||0)===0;}
+function isJobPaid(j){
+  // Invoice is the authoritative payment record.
+  // If the job has attached invoice payments, use those — sum must cover the full job total.
+  if(j._payments && j._payments.length > 0){
+    const invoiced = j._payments.reduce((s,p) => s + p.amount, 0);
+    const total    = getJobTotal(j);
+    // Fully paid = invoiced amount covers the total (allow $1 rounding tolerance)
+    if(total > 0 && invoiced >= total - 1) return true;
+    // Partial payment — still counts as "has payment" but not fully paid
+    // For revenue purposes a partial payment still shows on the payment date
+    if(invoiced > 0) return true; // show partial payments too
+  }
+  // No invoice data — fall back to status + outstanding_balance
+  return isJobComplete(j) && (parseFloat(j.outstanding_balance)||0) === 0;
+}
 function isJobRefunded(j){const s=getRawStatus(j);return s.includes('refund')||s.includes('void');}
 function isJobCanceled(j){const s=getRawStatus(j);return s.includes('cancel')||s.includes('deleted');}
 function isJobExcluded(j){return isJobRefunded(j)||isJobCanceled(j);}
@@ -2232,9 +2246,40 @@ async function loadAll(){
       return merged;
     }
 
-    // Invoice endpoint disabled — causes 429 rate limiting on larger date ranges
-    // Payment dates fall back to work_timestamps.completed_at which is accurate
-    async function fetchPaymentsForJobs(jobList){ return {}; }
+    // Fetch all PAID invoices YTD in one paginated query.
+    // This is the authoritative payment record — invoice paid_at is when money actually arrived.
+    // We join invoices to jobs by job_id so each job has its real payment dates and amounts.
+    // This replaces completed_at as the payment date signal entirely.
+    stepLog('🧾 Fetching invoices (payment dates)...');
+    let _invoiceMap = {}; // job_id → [{date, amount, invoice_number}]
+    try {
+      const yr    = new Date().getFullYear();
+      const invQ  = `?paid_at_min=${yr}-01-01T00:00:00Z&paid_at_max=${to}T23:59:59Z&status=paid`;
+      const invoices = await fetchAll('/invoices' + invQ, ['invoices','data','results']);
+      console.log('[Invoices] Fetched', invoices.length, 'paid invoices');
+      invoices.forEach(inv => {
+        const jobId = inv.job_id || inv.job?.id;
+        if(!jobId) return;
+        const datePaid = inv.paid_at || inv.date_paid || inv.updated_at;
+        const amount   = parseFloat(inv.total_amount ?? inv.total ?? inv.amount ?? 0);
+        if(!datePaid || amount <= 0) return;
+        if(!_invoiceMap[jobId]) _invoiceMap[jobId] = [];
+        _invoiceMap[jobId].push({
+          date:   datePaid.split('T')[0], // YYYY-MM-DD
+          amount,
+          number: inv.invoice_number || inv.number || ''
+        });
+      });
+      // Attach invoice payments to job objects so all revenue logic can use them
+      const invoiceJobIds = Object.keys(_invoiceMap);
+      console.log('[Invoices] Mapped to', invoiceJobIds.length, 'jobs');
+      jobs.forEach(j => {
+        if(_invoiceMap[j.id]) j._payments = _invoiceMap[j.id];
+      });
+    } catch(e) {
+      console.warn('[Invoices] fetch failed, falling back to completed_at:', e.message);
+      dashLog('warn', 'Invoices: ' + e.message + ' — using completed_at fallback');
+    }
 
     const pullDays = Math.round((new Date(to)-new Date(from))/(1000*60*60*24));
   stepLog(`📡 Fetching ${pullDays <= 14 ? 'last '+pullDays+' days (delta mode)' : 'full range '+from+' → '+to}...`);
@@ -2413,7 +2458,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.20
+  // ATTRIBUTION ENGINE — v23.21
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5666,6 +5711,11 @@ function getRevenueForPeriod(period){
   // No fallbacks to on_my_way_at, updated_at, or created_at —
   // those exist on scheduled/in-progress jobs and produce false revenue dates.
   function getPaymentDate(j){
+    // Payment date — invoice paid_at is the truth.
+    // If the job has _payments (from the invoice fetch), use the most recent payment date.
+    // For multi-payment jobs, getRevenueForPeriod sums ALL payments within the period window
+    // using the sumInvoicesForPeriod helper below — not this single-date function.
+    // This function is only used when we need ONE representative date for filtering.
     const ts = j.work_timestamps?.completed_at || j.completed_at;
     return ts ? new Date(ts) : null;
   }
@@ -5675,66 +5725,71 @@ function getRevenueForPeriod(period){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  // _allYearJobs is the authoritative source for ALL periods.
-  // It is fetched after every pull using scheduled_start (full YTD) PLUS
-  // updated_at (last 60 days) so recently-paid jobs are never missing.
-  // Using _jobs for week/day was wrong — if the pull range is "This Month"
-  // then _jobs only has this-month-scheduled jobs, missing anything paid
-  // this week that was scheduled in a prior month.
+  // Sum invoice payments for a job that fall within a date test function.
+  // For jobs with _payments, we sum each individual payment that passes the test.
+  // For jobs without invoice data, we treat the whole job revenue as landing on completed_at.
+  function sumJobRevForPeriod(j, dateTest){
+    if(isReturnVisit(j)) return 0;
+    if(j._payments && j._payments.length > 0){
+      // Sum only the invoice payments that fall within this period
+      return j._payments
+        .filter(p => { const d = new Date(p.date+'T12:00:00'); return dateTest(d); })
+        .reduce((s, p) => s + p.amount, 0);
+    }
+    // No invoice data — use completed_at and count full job revenue
+    const d = getPaymentDate(j);
+    if(!d || !dateTest(d)) return 0;
+    return getJobRevenue(j);
+  }
+
+  // Source set — all jobs with any payment activity (invoice or completed_at)
   const paidJobs = _allYearJobs.length > 0
     ? _allYearJobs
-    : _jobs.filter(isJobPaid); // fallback only before YTD background fetch completes
+    : _jobs.filter(isJobPaid);
 
   if(period==='year'){
-    return paidJobs.filter(j=>{
-      const d = getPaymentDate(j);
-      return d && d.getFullYear() === now.getFullYear();
-    }).reduce((s,j)=>s+getJobRevenue(j), 0);
+    const yr = now.getFullYear();
+    return paidJobs.reduce((s,j) =>
+      s + sumJobRevForPeriod(j, d => d.getFullYear() === yr), 0);
   }
 
   if(period==='quarter'){
-    const q = Math.floor(now.getMonth()/3);
-    return paidJobs.filter(j=>{
-      const d = getPaymentDate(j);
-      return d && d.getFullYear()===now.getFullYear() && Math.floor(d.getMonth()/3)===q;
-    }).reduce((s,j)=>s+getJobRevenue(j), 0);
+    const yr = now.getFullYear();
+    const q  = Math.floor(now.getMonth()/3);
+    return paidJobs.reduce((s,j) =>
+      s + sumJobRevForPeriod(j, d => d.getFullYear()===yr && Math.floor(d.getMonth()/3)===q), 0);
   }
 
   if(period==='month'){
-    return paidJobs.filter(j=>{
-      const d = getPaymentDate(j);
-      return d && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
-    }).reduce((s,j)=>s+getJobRevenue(j), 0);
+    const yr = now.getFullYear();
+    const mo = now.getMonth();
+    return paidJobs.reduce((s,j) =>
+      s + sumJobRevForPeriod(j, d => d.getFullYear()===yr && d.getMonth()===mo), 0);
   }
 
   if(period==='week'){
-    const dayOfWeek = now.getDay(); // 0=Sun
+    const dayOfWeek  = now.getDay();
     const daysFromMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - daysFromMon);
     startOfWeek.setHours(0, 0, 0, 0);
-    const weekJobs = paidJobs.filter(j=>{
-      const d = getPaymentDate(j);
-      // Must be on or after Monday AND in current year (prevents Dec→Jan bleed)
-      return d && d >= startOfWeek && d.getFullYear() === now.getFullYear();
-    });
-    console.log(`[Weekly Rev] Mon=${toLocalDate(startOfWeek)}, ${weekJobs.length} jobs, $${weekJobs.reduce((s,j)=>s+getJobRevenue(j),0).toFixed(2)}`);
-    return weekJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
+    const weekTotal = paidJobs.reduce((s,j) =>
+      s + sumJobRevForPeriod(j, d => d >= startOfWeek && d.getFullYear()===now.getFullYear()), 0);
+    console.log(`[Weekly Rev] Mon=${toLocalDate(startOfWeek)}, $${weekTotal.toFixed(2)}`);
+    return weekTotal;
   }
 
   if(period==='day'){
     const todayLocal = toLocalDate(now);
-    const todayJobs = paidJobs.filter(j=>{
-      const d = getPaymentDate(j);
-      return d && toLocalDate(d) === todayLocal;
+    let todayTotal = 0;
+    paidJobs.forEach(j => {
+      const contrib = sumJobRevForPeriod(j, d => toLocalDate(d) === todayLocal);
+      if(contrib > 0){
+        console.log(`  ▸ #${j.job_number||j.id} | ${getCust(j)} | $${contrib.toFixed(2)}`);
+        todayTotal += contrib;
+      }
     });
-    const todayTotal = todayJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
-    console.log(`[Daily Rev] today=${todayLocal}, ${todayJobs.length} jobs, $${todayTotal.toFixed(2)}`);
-    todayJobs.forEach(j=>{
-      const compAt = j.work_timestamps?.completed_at||j.completed_at||'none';
-      const bal    = parseFloat(j.outstanding_balance)||0;
-      console.log(`  ▸ #${j.job_number||j.id} | ${getCust(j)} | bal=$${bal} | rev=$${getJobRevenue(j).toFixed(2)} | completed_at=${compAt}`);
-    });
+    console.log(`[Daily Rev] today=${todayLocal}, $${todayTotal.toFixed(2)}`);
     return todayTotal;
   }
 
@@ -10219,17 +10274,42 @@ function renderCalendar(){
     const customer = getCust(j);
     const rev      = isReturnVisit(j) ? 0 : getJobRevenue(j);
 
-    // Revenue — only for paid jobs
-    if(paid && rev > 0 && revDate){
-      const day = getDay(revDate);
-      day.rev    += rev;
-      day.paidJobs++;
-      day.items.push({
-        type:'paid', date:revDate, schedDate,
-        id:j.id, number:j.job_number,
-        customer, dept, tech:techName, total:rev,
-        status:'Paid'
-      });
+    // Payment date — invoice paid_at is truth.
+    // If the job has _payments from the invoice fetch, spread revenue across actual payment dates.
+    // Each invoice payment gets its own entry on its paid date.
+    const completedTs = j.work_timestamps?.completed_at || j.completed_at;
+
+    if(paid && !isReturnVisit(j)){
+      if(j._payments && j._payments.length > 0 && mode === 'collected'){
+        // Each invoice payment lands on its own paid date
+        j._payments.forEach(pmt => {
+          const pmtDate = pmt.date; // YYYY-MM-DD
+          if(!pmtDate || pmt.amount <= 0) return;
+          const day = getDay(pmtDate);
+          day.rev += pmt.amount;
+          day.paidJobs++;
+          day.items.push({
+            type:'paid', date:pmtDate, schedDate,
+            id:j.id, number:j.job_number,
+            customer, dept, tech:techName, total:pmt.amount,
+            invoiceNum: pmt.number,
+            status:'Paid'
+          });
+        });
+      } else {
+        // No invoice data or estimate mode — use revDate as before
+        if(rev > 0 && revDate){
+          const day = getDay(revDate);
+          day.rev += rev;
+          day.paidJobs++;
+          day.items.push({
+            type:'paid', date:revDate, schedDate,
+            id:j.id, number:j.job_number,
+            customer, dept, tech:techName, total:rev,
+            status:'Paid'
+          });
+        }
+      }
     }
 
     // Unpaid complete jobs — show on scheduled date as warning
