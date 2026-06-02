@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.21</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.22</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.21</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.22</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2458,7 +2458,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.21
+  // ATTRIBUTION ENGINE — v23.22
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3958,6 +3958,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       outstanding:parseFloat(j.outstanding_balance)||0,
       scheduled:j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):'',
       completed:j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):'',
+      payment_date:j._payments?.length ? j._payments[j._payments.length-1].date : (j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):''),
       description:j.description||'',
     };
   });
@@ -3966,10 +3967,12 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const estsPayload=estimates.map(e=>({
     estimate_number:e.estimate_number||e.id,
     customer_name:getCust(e),
+    customer_id:getCustId(e)||'',
     customer_phone:e.customer?.mobile_number||e.customer?.home_number||'',
     customer_email:e.customer?.email||'',
     dept:getDept(e),
     tech:getAssigned(e),
+    scheduled_date:e.schedule?.scheduled_start?fmtD(e.schedule.scheduled_start):'',
     status:getEstDisplayStatus(e),
     converted:isConv(e),
     converted_how:getEstDisplayStatus(e).startsWith('Sold')?getEstDisplayStatus(e):'',
@@ -3979,8 +3982,25 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     notes:getEstNotes(e).slice(0,2).join(' | ').slice(0,300),
   }));
 
-  // Build KPI payload
-  const map={};
+  // Build invoices payload — one row per payment, keyed by invoice
+  // This is the source of truth for when money was actually received
+  const invoicesPayload = [];
+  jobs.forEach(j => {
+    if(!j._payments || !j._payments.length) return;
+    const attr = _jobAttribution[j.id];
+    j._payments.forEach(pmt => {
+      invoicesPayload.push({
+        invoice_number: pmt.number || '',
+        job_number:     j.job_number || j.id,
+        customer_name:  getCust(j),
+        dept:           getDept(j),
+        revenue_to:     attr?.techName || getAssigned(j) || '',
+        amount:         pmt.amount,
+        date_paid:      pmt.date,
+        status:         'Paid',
+      });
+    });
+  });
   employees.forEach(emp=>{
     const name=((emp.first_name||emp.name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
     map[emp.id]={name,role:emp.role||'Technician',installer:INSTALLER_NAMES.includes(name),
@@ -4448,6 +4468,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       dateFrom,dateTo,
       jobs:jobsPayload,
       estimates:estsPayload,
+      invoices:invoicesPayload,
       kpi:kpiPayload,
       attribution:attrPayload,
       summary,
