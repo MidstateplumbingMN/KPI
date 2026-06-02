@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.31</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.33</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.31</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.33</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.31</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.33</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2457,7 +2457,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.31
+  // ATTRIBUTION ENGINE — v23.33
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4560,18 +4560,39 @@ async function fetchYTDMonthlyRevenue() {
     if(!allJobs.length){ console.log('[YTD] No jobs returned'); return; }
 
     // Store as the authoritative full-year paid job set
-    // getRevenueForPeriod() uses _allYearJobs when present
     _allYearJobs = allJobs.filter(isJobPaid);
     console.log('[YTD]', allJobs.length, 'total jobs,', _allYearJobs.length, 'paid');
 
-    // Compute monthly totals — completed_at only, same rule as getRevenueForPeriod
+    // Attach invoice payments to these job objects too
+    // _invoiceMap was built from the main pull — attach to this second set of job objects
+    // Without this, sumJobRevForPeriod falls back to completed_at instead of invoice paid_at
+    let paymentsAttached = 0;
+    _allYearJobs.forEach(j => {
+      if(_invoiceMap[j.id]){
+        j._payments = _invoiceMap[j.id];
+        paymentsAttached++;
+      }
+    });
+    console.log('[YTD] Invoice payments attached to', paymentsAttached, 'of', _allYearJobs.length, 'jobs');
+
+    // Compute monthly totals using invoice payment dates when available
     const months = new Array(12).fill(0);
     _allYearJobs.forEach(j => {
-      const ts = j.work_timestamps?.completed_at || j.completed_at;
-      if(!ts) return;
-      const d = new Date(ts);
-      if(isNaN(d) || d.getFullYear() !== yr) return;
-      months[d.getMonth()] += getJobRevenue(j);
+      if(j._payments && j._payments.length > 0){
+        // Use individual payment dates from invoices
+        j._payments.forEach(p => {
+          const d = new Date(p.date + 'T12:00:00');
+          if(isNaN(d) || d.getFullYear() !== yr) return;
+          months[d.getMonth()] += p.amount;
+        });
+      } else {
+        // Fallback to completed_at
+        const ts = j.work_timestamps?.completed_at || j.completed_at;
+        if(!ts) return;
+        const d = new Date(ts);
+        if(isNaN(d) || d.getFullYear() !== yr) return;
+        months[d.getMonth()] += getJobRevenue(j);
+      }
     });
     const monthly = months.map(Math.round);
     console.log('[YTD] Monthly totals:', monthly.filter(v=>v>0).length, 'months with data');
@@ -5085,47 +5106,44 @@ async function testCallRail() {
   setCallsProgress('cr', '⏳ Connecting to CallRail...');
 
   try {
-    let allCalls=[], page=1, totalPages=1;
+    let allCalls = [];
+    let nextPageUrl = null;
+    let pageNum = 1;
+    const maxPages = 50;
+
     do {
-      const params = new URLSearchParams({
-        start_date:  from, end_date: to,
-        per_page: '250', page: String(page),
-        company_id: CR_CO,
-        fields: 'id,start_time,customer_name,customer_phone_number,tracking_phone_number,duration,answered,first_call,direction,call_disposition,source_name,recording',
-      });
-      if(filter==='inbound')  params.set('direction','inbound');
-      if(filter==='outbound') params.set('direction','outbound');
-
-      setCallsProgress('cr', `📡 Page ${page} of ${totalPages} — ${allCalls.length} calls so far...`);
-
-      // CallRail has CORS restrictions — route through Apps Script proxy
-      // The Cloudflare Worker doesn't have a /callrail/ route
-      let res;
-      if(_sheetsProxy){
-        const proxyRes = await fetch(_sheetsProxy, {
-          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-          body: JSON.stringify({
-            action: 'callrailProxy',
-            url: `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`,
-            apiKey: CR_KEY
-          })
-        });
-        const proxyData = await proxyRes.json();
-        if(!proxyData.success) throw new Error(proxyData.error || 'Proxy error');
-        const d = proxyData.data;
-        allCalls = [...allCalls, ...(d.calls||[])];
-        totalPages = d.total_pages || 1;
+      // Use relative pagination for large datasets (recommended by CallRail docs)
+      // On first request build the URL; on subsequent requests use the next_page URL
+      let crUrl;
+      if(nextPageUrl){
+        crUrl = nextPageUrl; // CallRail provides the full next page URL
       } else {
-        // Direct fetch (works when served locally, not from GitHub Pages)
-        const crUrl = `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
-        res = await fetch(crUrl, { headers: { 'Authorization': `Token token="${CR_KEY}"` } });
-        if(!res.ok){ const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
-        const d = await res.json();
-        allCalls = [...allCalls, ...(d.calls||[])];
-        totalPages = d.total_pages || 1;
+        const params = new URLSearchParams({
+          start_date:          from,
+          end_date:            to,
+          per_page:            '250',
+          relative_pagination: 'true',  // recommended for large datasets
+          company_id:          CR_CO,
+          fields:              'id,start_time,customer_name,customer_phone_number,tracking_phone_number,duration,answered,first_call,direction,source_name,agent_email',
+        });
+        if(filter==='inbound')  params.set('direction','inbound');
+        if(filter==='outbound') params.set('direction','outbound');
+        crUrl = `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
       }
-      page++;
-    } while(page <= totalPages && page <= 50);
+
+      setCallsProgress('cr', `📡 Page ${pageNum} — ${allCalls.length} calls so far...`);
+
+      const res = await fetch(crUrl, {
+        headers: { 'Authorization': `Token token="${CR_KEY}"` }
+      });
+      if(!res.ok){ const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
+      const d = await res.json();
+      allCalls = [...allCalls, ...(d.calls||[])];
+
+      // Relative pagination uses has_next_page + next_page URL
+      nextPageUrl = d.has_next_page ? d.next_page : null;
+      pageNum++;
+    } while(nextPageUrl && pageNum <= maxPages);
 
     // Normalize to common schema
     _crCallsRaw = allCalls.map(c => ({
@@ -5135,7 +5153,7 @@ async function testCallRail() {
       _caller:    c.customer_name || 'Unknown',
       _number:    c.customer_phone_number || '',
       _direction: c.direction || 'inbound',
-      _agent:     c.agent?.name || c.agent?.email || '',
+      _agent:     c.agent_email || c.agent?.name || c.agent?.email || '',
       _duration:  parseInt(c.duration)||0,
       _answered:  c.answered === true,
       _missed:    c.answered === false || c.duration === 0,
@@ -5183,18 +5201,28 @@ async function testRingCentral() {
     let allCalls=[], nextUri=null, page=1;
 
     do {
-      // Use view=Detailed to get legs array — shows which agent answered
-      // path handled inside loop below
-
       setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
-      // rcGet handles auth + direct RC call
       const rcPath = nextUri ? nextUri.replace(RC_SERVER,'') : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
       const data = await rcGet(rcPath, jwt);
-      if(data.errorCode) throw new Error(data.message || JSON.stringify(data).slice(0,200));
-      allCalls = [...allCalls, ...(data.records||[])];
-      // RC uses nextPage.uri for pagination
-      nextUri = data.navigation?.nextPage?.uri || null;
+      if(data.errorCode){
+        if(data.errorCode === 'CMN-301' || (data.status===429) || data.message?.includes('rate')){
+          // 429 rate limit — wait 2s and retry once
+          setCallsProgress('rc', `⏳ Rate limit hit — waiting 2s before retry...`);
+          await new Promise(r => setTimeout(r, 2000));
+          const retry = await rcGet(rcPath, jwt);
+          if(retry.errorCode) throw new Error(retry.message || JSON.stringify(retry).slice(0,200));
+          allCalls = [...allCalls, ...(retry.records||[])];
+          nextUri = retry.navigation?.nextPage?.uri || null;
+        } else {
+          throw new Error(data.message || JSON.stringify(data).slice(0,200));
+        }
+      } else {
+        allCalls = [...allCalls, ...(data.records||[])];
+        nextUri = data.navigation?.nextPage?.uri || null;
+      }
       page++;
+      // Throttle — RC allows ~40 req/min, 300ms gap keeps us well under
+      if(nextUri) await new Promise(r => setTimeout(r, 300));
     } while(nextUri && page <= 50);
 
     console.log('[RC] Fetched', allCalls.length, 'raw inbound records');
