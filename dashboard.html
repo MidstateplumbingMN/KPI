@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.28</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.29</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.28</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.29</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2451,7 +2451,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.28
+  // ATTRIBUTION ENGINE — v23.29
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -6735,12 +6735,6 @@ const ORDER_EQUIP_KEYS = new Set([
 ]);
 
 function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
-
-// Flat lookup: exact item name -> category key
-const TY_ITEM_LOOKUP={};
-Object.entries(TY_ITEM_SETS).forEach(([key,cat])=>{
-  cat.items.forEach(name=>{TY_ITEM_LOOKUP[name]=key;});
-});
 
 function detectEquipmentSale(j, requirePaid=true){
   if(requirePaid && !isJobPaid(j)) return null;
