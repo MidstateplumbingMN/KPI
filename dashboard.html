@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.23</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.28</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.23</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.28</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -547,6 +547,9 @@ tr:hover td{background:#fafafa}
         <label>Employee:</label><select id="jobEmpFilter" onchange="applyJobFilter()"><option value="">All</option></select>
         <label>Dept:</label><select id="jobDeptFilter" onchange="applyJobFilter()"><option value="">All</option></select>
         <button class="clear-btn" onclick="clearJobFilters()">Clear</button>
+        <label style="font-size:12px;color:#6b7280;display:flex;align-items:center;gap:4px;margin-left:8px">
+          <input type="checkbox" id="jobShowFuture" onchange="applyJobFilter()"> Show future scheduled
+        </label>
         <span id="jobFilterCount" style="font-size:11px;color:#9ca3af"></span>
       </div>
       <div class="tbl-wrap"><table id="jobsTable">
@@ -1530,7 +1533,7 @@ function isGannonSellingTech(dateStr){
   if(!dateStr) return false;
   return new Date(dateStr) < GANNON_TRANSITION;
 }
-let _jobSort={col:'scheduled',dir:'desc'};
+let _jobSort={col:'status_date',dir:'asc'};
 let _estSort={col:'created_at',dir:'desc'};
 
 function loadAttr(){
@@ -1792,11 +1795,10 @@ function hasCompletedAt(j){return !!(j.work_timestamps?.completed_at||j.complete
 // Normalize HCP's many statuses into your 6
 function getNormStatus(x){
   const s=getRawStatus(x);
+  // outstanding_balance is in cents per HCP spec — 0 cents = fully paid
   const bal=parseFloat(x.outstanding_balance)||0;
   if(s.includes('cancel'))return'Canceled';
   if(s.includes('refund')||s.includes('void'))return'Refunded';
-  // Completed = explicit complete status in the status string ONLY
-  // Do not use completedAt as a fallback — HCP writes timestamps to in-progress jobs
   if(s.includes('complete')||s.includes('completed')){
     if(bal===0)return'Paid';
     return'Unpaid';
@@ -2199,51 +2201,20 @@ async function loadAll(){
     // Estimate fetch strategy:
     // - Short range (≤ 14 days): fetch estimates updated in last 30 days only (fast)
     // - Long range (> 14 days / YTD): full fetch with created_at filter
+    // Estimates — always fetch full range by scheduled_start
+    // HCP spec only supports scheduled_start_min/max, no updated_at filter
     async function fetchEstimates(){
-      const diffDays = (new Date(to) - new Date(from)) / (1000*60*60*24);
-      if(diffDays <= 14) {
-        // Delta mode: only estimates updated in last 30 days
-        // These are the ones that could have status changes affecting KPIs
-        const now = new Date();
-        const deltaFrom = new Date(now); deltaFrom.setDate(now.getDate()-30);
-        const dFmt = d => d.toISOString().split('T')[0];
-        const deltaQ = `?updated_at_min=${dFmt(deltaFrom)}T00:00:00Z&updated_at_max=${to}T23:59:59Z`;
-        stepLog('📋 Estimates (last 30 days updated)...');
-        console.log('[Estimates] Short pull — fetching recently updated estimates only');
-        const recent = await fetchAll('/estimates'+deltaQ, ['estimates','data','results']);
-        console.log('[Estimates] Delta: ', recent.length, 'estimates fetched');
-        return recent;
-      }
-      // Full pull
       stepLog('📋 Estimates (full range)...');
-      const byCreated = await fetchAll('/estimates'+cQ, ['estimates','data','results']);
-      return byCreated;
+      return await fetchAll('/estimates'+cQ, ['estimates','data','results']);
     }
-    // Fetch jobs — two queries merged:
-    // 1. All jobs SCHEDULED in the date range (primary — what's on the calendar)
-    // 2. All jobs UPDATED in the last 60 days (catches jobs paid recently regardless of schedule date)
-    //    e.g. a job scheduled in December, paid today — query 1 misses it, query 2 catches it
-    // The two sets are merged by job_id to deduplicate.
+    // Fetch jobs scheduled in the date range.
+    // HCP API only supports scheduled_start_min/max for filtering jobs —
+    // there is no updated_at filter per the API spec.
+    // Payment-date accuracy is handled by the invoice fetch above.
     async function fetchJobs(){
       const schedJobs = await fetchAll('/jobs'+jSchedQ, ['jobs','data','results']);
-
-      // For the recent-update query, always look back 60 days from today
-      // This ensures jobs paid in the last 2 months are always present in _jobs
-      // regardless of when they were originally scheduled
-      const now = new Date();
-      const recentFrom = new Date(now); recentFrom.setDate(now.getDate() - 60);
-      const fmt = d => d.toISOString().split('T')[0];
-      const recentQ = `?updated_at_min=${fmt(recentFrom)}T00:00:00Z&updated_at_max=${fmt(now)}T23:59:59Z`;
-      const recentJobs = await fetchAll('/jobs'+recentQ, ['jobs','data','results']);
-
-      // Merge — jobs from both queries, deduplicated by id
-      const seen = new Set();
-      const merged = [];
-      [...schedJobs, ...recentJobs].forEach(j => {
-        if(!seen.has(j.id)){ seen.add(j.id); merged.push(j); }
-      });
-      console.log(`[Jobs] scheduled: ${schedJobs.length}, recent-updated: ${recentJobs.length}, merged unique: ${merged.length}`);
-      return merged;
+      console.log(`[Jobs] Fetched ${schedJobs.length} jobs`);
+      return schedJobs;
     }
 
     // Fetch all PAID invoices YTD in one paginated query.
@@ -2254,21 +2225,43 @@ async function loadAll(){
     let _invoiceMap = {}; // job_id → [{date, amount, invoice_number}]
     try {
       const yr    = new Date().getFullYear();
-      const invQ  = `?paid_at_min=${yr}-01-01T00:00:00Z&paid_at_max=${to}T23:59:59Z&status=paid`;
+      const invQ  = `?paid_at_min=${yr}-01-01T00:00:00Z&paid_at_max=${to}T23:59:59Z&status[]=paid`;
       const invoices = await fetchAll('/invoices' + invQ, ['invoices','data','results']);
       console.log('[Invoices] Fetched', invoices.length, 'paid invoices');
       invoices.forEach(inv => {
         const jobId = inv.job_id || inv.job?.id;
         if(!jobId) return;
-        const datePaid = inv.paid_at || inv.date_paid || inv.updated_at;
-        const amount   = parseFloat(inv.total_amount ?? inv.total ?? inv.amount ?? 0);
-        if(!datePaid || amount <= 0) return;
         if(!_invoiceMap[jobId]) _invoiceMap[jobId] = [];
-        _invoiceMap[jobId].push({
-          date:   datePaid.split('T')[0], // YYYY-MM-DD
-          amount,
-          number: inv.invoice_number || inv.number || ''
-        });
+
+        // Use individual payments[] for split/partial payments
+        // Each InvoicePayment has its own paid_at and amount (in cents)
+        // This correctly splits a $12k job with $6k down (5/28) + $6k final (6/1)
+        const payments = inv.payments || [];
+        if(payments.length > 0){
+          payments.forEach(pmt => {
+            if(pmt.status === 'voided' || pmt.status === 'refunded') return;
+            const pmtDate = pmt.paid_at ? pmt.paid_at.split('T')[0] : null;
+            const pmtAmt  = (parseFloat(pmt.amount) || 0) / 100; // cents → dollars
+            if(!pmtDate || pmtAmt <= 0) return;
+            _invoiceMap[jobId].push({
+              date:   pmtDate,
+              amount: pmtAmt,
+              number: inv.invoice_number || '',
+              method: pmt.payment_method || ''
+            });
+          });
+        } else {
+          // No payments array — use invoice-level paid_at and amount
+          const datePaid = inv.paid_at ? inv.paid_at.split('T')[0] : null;
+          const amount   = (parseFloat(inv.total_amount ?? inv.amount ?? 0)) / 100;
+          if(!datePaid || amount <= 0) return;
+          _invoiceMap[jobId].push({
+            date:   datePaid,
+            amount,
+            number: inv.invoice_number || '',
+            method: ''
+          });
+        }
       });
       // Attach invoice payments to job objects so all revenue logic can use them
       const invoiceJobIds = Object.keys(_invoiceMap);
@@ -2458,7 +2451,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.23
+  // ATTRIBUTION ENGINE — v23.28
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3206,11 +3199,18 @@ function populateFilters(jobs,estimates,plans){
 
 function getJobFiltered(){
   const sf=$$('jobStatusFilter').value,ef=$$('jobEmpFilter').value,df=$$('jobDeptFilter').value;
+  const showFuture=$$('jobShowFuture')?.checked||false;
+  const todayStr=new Date().toISOString().split('T')[0];
   return _jobs.filter(j=>{
     if(sf&&getNormStatus(j)!==sf)return false;
     if(ef&&getAssigned(j)!==ef)return false;
     if(df&&getDept(j)!==df)return false;
-    // Apply employee visibility filter
+    // Hide future scheduled jobs unless checkbox is on or status filter explicitly set to Scheduled
+    if(!showFuture&&!sf){
+      const sched=j.schedule?.scheduled_start||'';
+      const norm=getNormStatus(j);
+      if((norm==='Scheduled'||norm==='Incomplete')&&sched&&sched.split('T')[0]>todayStr) return false;
+    }
     const empList=getAssignedList(j);
     if(_selectedEmps.size>0&&empList.length&&!empList.some(e=>_selectedEmps.has(e.id)))return false;
     return true;
@@ -3244,8 +3244,20 @@ function sortTable(which,col){
   if(which==='jobs')applyJobFilter();else applyEstFilter();
 }
 function sortItems(items,col,dir){
+  // Status order for compound status+date sort
+  const STATUS_ORDER={'Paid':0,'Unpaid':1,'Scheduled':2,'Incomplete':3,'Canceled':4};
   return[...items].sort((a,b)=>{
     let av,bv;
+    if(col==='status_date'){
+      // Primary: status (Paid first, Canceled last), Secondary: date desc
+      const as=STATUS_ORDER[getNormStatus(a)]??2;
+      const bs=STATUS_ORDER[getNormStatus(b)]??2;
+      if(as!==bs) return as-bs;
+      // Within same status: most recent first
+      const ad=a.schedule?.scheduled_start||a.created_at||'';
+      const bd=b.schedule?.scheduled_start||b.created_at||'';
+      return bd>ad?1:bd<ad?-1:0;
+    }
     if(col==='customer'){av=getCust(a).toLowerCase();bv=getCust(b).toLowerCase();}
     else if(col==='assigned'){av=getAssigned(a).toLowerCase();bv=getAssigned(b).toLowerCase();}
     else if(col==='total'){av=getJobTotal(a);bv=getJobTotal(b);}
@@ -3263,12 +3275,23 @@ function sortItems(items,col,dir){
 // RENDER JOBS
 // ============================================================
 function renderJobs(jobs,estimates){
-  const paid=jobs.filter(isJobPaid);
-  const rev=paid.reduce((s,j)=>s+getJobTotal(j),0);
-  const avg=paid.length?rev/paid.length:0;
+  const todayStr = new Date().toISOString().split('T')[0];
+  // Revenue: sum actual invoice payments through today
+  let rev = 0;
+  let paidCount = 0;
+  jobs.forEach(j => {
+    if(!isJobPaid(j)) return;
+    if(j._payments?.length){
+      j._payments.forEach(p => { if(p.date <= todayStr) rev += p.amount; });
+    } else {
+      rev += getJobRevenue(j);
+    }
+    paidCount++;
+  });
+  const avg=paidCount?rev/paidCount:0;
   const open=jobs.filter(j=>{const n=getNormStatus(j);return n==='Scheduled'||n==='Incomplete';});
   $$('jobMetrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Revenue (paid)</div><div class="metric-value">${dollars(rev)}</div><div class="metric-sub">${paid.length} paid & complete</div></div>
+    <div class="metric"><div class="metric-label">Revenue (paid)</div><div class="metric-value">${dollars(rev)}</div><div class="metric-sub">${paidCount} paid & complete</div></div>
     <div class="metric"><div class="metric-label">Total jobs</div><div class="metric-value">${jobs.length}</div></div>
     <div class="metric"><div class="metric-label">Avg job value</div><div class="metric-value">${dollars(avg)}</div></div>
     <div class="metric"><div class="metric-label">Open/scheduled</div><div class="metric-value">${open.length}</div></div>`;
@@ -4524,7 +4547,8 @@ async function fetchYTDMonthlyRevenue() {
     stepLog('📊 Fetching full-year paid jobs for revenue calculations...');
     console.log('[YTD] Fetching all jobs scheduled Jan 1 → today for revenue accuracy...');
 
-    // Fetch by scheduled_start for the full year — this is the primary YTD dataset
+    // Fetch by scheduled_start for the full year — the only date filter HCP supports
+    // Payment accuracy comes from the invoice data already attached to jobs via j._payments
     const schedQ = `?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     const allJobs = await fetchAll('/jobs' + schedQ, ['jobs','data','results']);
 
@@ -5372,14 +5396,12 @@ function setOQRange(range) {
 }
 
 function loadOrderQueue() {
-  // Set default date range — next 60 days from today
-  // Default: today through 90 days out — scheduled installs window
-  const from = new Date();
-  const to   = new Date(); to.setDate(to.getDate()+90);
-  const fmt  = d => d.toISOString().split('T')[0];
-  if($$('oqFrom')&&!$$('oqFrom').value) $$('oqFrom').value = fmt(from);
+  // Default: today through 60 days out — upcoming installs needing equipment ordered
+  const now = new Date();
+  const to  = new Date(); to.setDate(now.getDate()+60);
+  const fmt = d => d.toISOString().split('T')[0];
+  if($$('oqFrom')&&!$$('oqFrom').value) $$('oqFrom').value = fmt(now);
   if($$('oqTo')  &&!$$('oqTo').value)   $$('oqTo').value   = fmt(to);
-  // Order queue statuses load from Sheets only
   fetchOrderQueueFromSheets();
   renderOrderQueue();
 }
@@ -5449,9 +5471,6 @@ function setOrderStatus(id, status) {
 }
 
 function getOrderQueueItems() {
-  // Same approach as getTYSales — scan _jobs with detectEquipmentSale
-  // Difference: SCHEDULED jobs (upcoming installs needing parts ordered)
-  // vs TY cards which use PAID jobs (completed installs needing a card)
   if(!_jobs.length) return [];
 
   const fromVal = $$('oqFrom')?.value || '';
@@ -5461,28 +5480,46 @@ function getOrderQueueItems() {
   const seenJobs = new Set();
   const items    = [];
 
+  // Build estimate lookup for fast access
+  const estById = {};
+  _estimates.forEach(e => {
+    estById[e.id] = e;
+    (e.options||[]).forEach(o => { estById[o.id] = e; });
+  });
+
   _jobs.forEach(j => {
     if(seenJobs.has(j.id)) return;
-    if(isJobCanceled(j))   return;
-    if(isJobPaid(j))       return; // already done — TY card territory
+    if(isJobCanceled(j)) return;
 
-    // Must be scheduled or in-progress
-    const status = getNormStatus(j).toLowerCase();
-    if(!['scheduled','in progress'].includes(status)) return;
+    // TRIGGER: job must have originated from an estimate (converted sale)
+    const linkedId = j.original_estimate_id
+      || (j.original_estimate_uuids && j.original_estimate_uuids[0])
+      || null;
+    if(!linkedId) return; // no estimate link — not a sold install
 
-    // Same equipment detection as TY cards
-    const equip = detectEquipmentSale(j);
+    // Find the linked estimate
+    const linkedEst = estById[linkedId] || null;
+
+    // Detect equipment — check job line items AND estimate option names
+    // requirePaid=false: payment not required, just needs to be a scheduled install
+    const equip = detectEquipmentSale(j, false);
     if(!equip) return;
+
+    // Order queue only cares about the four types that need parts ordered
+    if(!isOrderEquip(equip.key)) return;
 
     seenJobs.add(j.id);
 
-    // Date filter on scheduled_start
+    // Status — all non-canceled statuses qualify
+    const norm = getNormStatus(j);
+    const isComplete = norm === 'Paid' || norm === 'Unpaid';
+
+    // Date filter — uses install (scheduled_start) date
     const installDate = j.schedule?.scheduled_start || '';
     const d = fmtKey(installDate) || '';
     if(fromVal && d && d < fromVal) return;
     if(toVal   && d && d > toVal)   return;
 
-    // Dept filter
     const dept = getDept(j);
     if(deptFil && dept !== deptFil) return;
 
@@ -5492,18 +5529,30 @@ function getOrderQueueItems() {
       ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ')
       : '';
     const phone     = cust.mobile_number || cust.home_number || '';
-    const soldBy    = getAssigned(j) || '';
-    const equipLabel= getEquipmentLabel(j); // same fn TY cards use
-    // All line items (mirrors TY card full detail)
+    const soldBy    = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
+
+    // Line items from job
     const allLineItems = (j.line_items||[]).map(li => li.name||li.description||'').filter(Boolean);
-    const techNotes = j.notes || j.tech_notes || j.technician_notes || '';
-    const notes     = (j.description || j.summary || '').slice(0, 400);
-    const value     = getJobTotal(j);
+
+    // Notes: estimate notes are the key ones — this is where the selling tech
+    // wrote down what the customer wants, special instructions, site conditions
+    const estNotes  = linkedEst ? getEstNotes(linkedEst).join('\n') : '';
+    const jobNotes  = getJobNotes(j).join('\n');
+
+    // Equipment label: prefer estimate option name (most specific) then job line item
+    const equipLabel = getEquipmentLabel(j)
+      || (linkedEst ? getEquipLabelFromEst(linkedEst) : '')
+      || equip.label;
+
+    // Get option-level line items from linked estimate for full detail
+    const estLineItems = linkedEst
+      ? (linkedEst.options||[]).flatMap(o => (o.line_items||[]).map(li => li.name||'').filter(Boolean))
+      : [];
 
     items.push({
       id:          j.id,
       jobNum:      j.job_number || j.id,
-      estNum:      '',
+      estNum:      linkedEst?.estimate_number || '',
       customer:    name,
       address:     addr,
       phone,
@@ -5513,14 +5562,19 @@ function getOrderQueueItems() {
       soldBy,
       installDate: installDate ? fmtDY(installDate) : 'TBD',
       installRaw:  installDate,
-      notes,
-      lineItems:   allLineItems,
-      techNotes,
-      value,
+      jobNotes,
+      estNotes,
+      lineItems:   [...new Set([...allLineItems, ...estLineItems])], // merged, deduped
+      value:       getJobTotal(j),
+      isComplete,
     });
   });
 
-  return items.sort((a,b) => new Date(a.installRaw||9e12) - new Date(b.installRaw||9e12));
+  return items.sort((a,b) => {
+    // Active first (upcoming installs by date), archived at bottom
+    if(a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1;
+    return new Date(a.installRaw||9e12) - new Date(b.installRaw||9e12);
+  });
 }
 
 function detectEquipFromEstimate(est) {
@@ -5543,17 +5597,22 @@ function getEquipLabelFromEst(est) {
 }
 
 function renderOrderQueue() {
-  const items   = getOrderQueueItems();
-  const statusF = $$('oqStatus')?.value||'';
-  const filtered = statusF ? items.filter(i=>(_orderQueue[i.id]?.status||'pending')===statusF) : items;
+  const allItems = getOrderQueueItems();
+  const active   = allItems.filter(i => !i.isComplete);
+  const archived = allItems.filter(i =>  i.isComplete);
+  const statusF  = $$('oqStatus')?.value||'';
+
+  const filtered = statusF
+    ? active.filter(i=>(_orderQueue[i.id]?.status||'pending')===statusF)
+    : active;
 
   // Metrics
   const metricsEl = $$('oq-metrics');
   const counts = {pending:0,ordered:0,received:0,complete:0};
-  items.forEach(i => counts[_orderQueue[i.id]?.status||'pending']++);
-  if(metricsEl) {
-    metricsEl.innerHTML = [
-      ['Total',items.length,'#1f2937'],
+  active.forEach(i => counts[_orderQueue[i.id]?.status||'pending']++);
+  if(metricsEl){
+    metricsEl.innerHTML=[
+      ['Total Active',active.length,'#1f2937'],
       ['⬜ Needs Order',counts.pending,'#EF4444'],
       ['🔵 Ordered',counts.ordered,'#3B82F6'],
       ['🟢 Received',counts.received,'#10B981'],
@@ -5564,71 +5623,88 @@ function renderOrderQueue() {
     </div>`).join('');
   }
 
-  const el = $$('oq-content');
+  const el=$$('oq-content');
   if(!el) return;
 
-  if(!filtered.length) {
-    el.innerHTML = `<div style="text-align:center;padding:32px;color:#9ca3af">
-      ${items.length===0?(_jobs.length===0?'Pull a report first — use This Year or YTD date range to load all scheduled jobs.':'No scheduled equipment installs found in this date range. Adjust dates or check that jobs are marked Scheduled in HCP.'):'No orders match the selected filter'}
+  let html = '';
+
+  if(!filtered.length && !archived.length){
+    html=`<div style="text-align:center;padding:32px;color:#9ca3af">
+      ${allItems.length===0
+        ?(_jobs.length===0?'Pull a report first — use This Year or YTD date range.':'No scheduled equipment installs found. Make sure HVAC jobs have AC, Furnace, Boiler, or Tankless Water Heater line items in HCP.')
+        :'No orders match the selected filter'}
     </div>`;
+    el.innerHTML=html;
     return;
   }
 
-  el.innerHTML = filtered.map(item => orderCard(item)).join('');
+  // Active orders
+  if(filtered.length){
+    html += filtered.map(item=>orderCard(item)).join('');
+  } else {
+    html += `<div style="text-align:center;padding:16px;color:#9ca3af">No active orders match filter</div>`;
+  }
+
+  // Archived (completed/paid) — collapsible
+  if(archived.length){
+    html += `<details style="margin-top:20px">
+      <summary style="font-size:13px;font-weight:700;color:#6b7280;cursor:pointer;padding:10px 14px;background:#F9FAFB;border:1px solid #e5e7eb;border-radius:8px;list-style:none">
+        📦 Completed &amp; Archived (${archived.length} installs) — click to expand
+      </summary>
+      <div style="margin-top:8px;opacity:.8">${archived.map(item=>orderCard(item,true)).join('')}</div>
+    </details>`;
+  }
+
+  el.innerHTML=html;
 }
 
-function orderCard(item) {
+function orderCard(item, isArchived=false) {
   const st  = _orderQueue[item.id]?.status || 'pending';
   const oBy = _orderQueue[item.id]?.orderedBy || '';
   const oDate= _orderQueue[item.id]?.orderedDate || '';
   const borderColors = {pending:'#E8640A',ordered:'#3B82F6',received:'#10B981',complete:'#D1D5DB'};
   const bgColors     = {pending:'#FFFBEB',ordered:'#EFF6FF',received:'#F0FDF4',complete:'#F9FAFB'};
   const statusLabels = {pending:'⬜ Needs Order',ordered:'🔵 Ordered',received:'🟢 Received',complete:'✅ Complete'};
+  const bc = isArchived ? '#D1D5DB' : (borderColors[st]||'#E8640A');
+  const bg = isArchived ? '#F9FAFB' : (bgColors[st]||'#FFFBEB');
 
-  return `<div class="order-card" data-id="${item.id}" style="border:1.5px solid ${borderColors[st]};border-radius:10px;background:${bgColors[st]};padding:16px;position:relative">
-
-    <!-- Equipment badge -->
+  return `<div class="order-card" data-id="${item.id}" style="border:1.5px solid ${bc};border-radius:10px;background:${bg};padding:16px;margin-bottom:10px;position:relative">
     <div style="position:absolute;top:-1px;right:14px;background:${item.equip?.color||'#1A3A5C'};color:#fff;font-size:9px;font-weight:800;padding:2px 10px;border-radius:0 0 7px 7px;letter-spacing:.05em">
       ${item.equip?.icon||'🔧'} ${(item.equip?.label||'Equipment').toUpperCase()}
     </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <!-- Left: customer info -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px">
       <div>
         <div style="font-size:16px;font-weight:800;color:#1f2937;margin-bottom:2px">${escHtml(item.customer)}</div>
-        <div style="font-size:12px;color:#374151;margin-bottom:4px">📍 ${escHtml(item.address||'No address')}</div>
+        <div style="font-size:12px;color:#374151">📍 ${escHtml(item.address||'No address')}</div>
         ${item.phone?`<div style="font-size:12px;color:#6b7280">📞 ${escHtml(item.phone)}</div>`:''}
       </div>
-      <!-- Right: job info -->
       <div style="font-size:12px">
         <div><span style="color:#6b7280;font-weight:600">Sold By:</span> ${escHtml(item.soldBy||'—')}</div>
         <div><span style="color:#6b7280;font-weight:600">Install Date:</span> <strong style="color:#1A3A5C">${escHtml(item.installDate)}</strong></div>
-        <div><span style="color:#6b7280;font-weight:600">Est #:</span> ${escHtml(item.estNum||'—')} ${item.jobNum?'· Job #'+escHtml(item.jobNum):''}</div>
+        <div><span style="color:#6b7280;font-weight:600">Job #:</span> ${escHtml(item.jobNum||'—')}${item.estNum?' · Est #'+escHtml(item.estNum):''}</div>
         <div><span style="color:#6b7280;font-weight:600">Value:</span> <strong>${dollars(item.value)}</strong></div>
-        <div><span style="color:#6b7280;font-weight:600">Dept:</span> ${escHtml(item.dept||'—')}</div>
       </div>
     </div>
 
-    <!-- Equipment detail -->
-    <div style="margin:10px 0;padding:8px 10px;background:rgba(0,0,0,.04);border-radius:6px;font-size:12px">
+    <!-- Equipment / line items -->
+    <div style="margin-bottom:8px;padding:8px 10px;background:rgba(0,0,0,.04);border-radius:6px;font-size:12px">
       <strong>Equipment:</strong> ${escHtml(item.equipLabel||'—')}
     </div>
-
-    <!-- Line items -->
     ${item.lineItems?.length?`<div style="margin-bottom:8px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af;font-weight:700;margin-bottom:4px">Line Items (${item.lineItems.length})</div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af;font-weight:700;margin-bottom:4px">All Line Items</div>
       ${item.lineItems.map(li=>`<div style="font-size:11px;color:#374151;padding:2px 0;border-bottom:1px solid #f9fafb">• ${escHtml(li)}</div>`).join('')}
     </div>`:''}
-    <!-- Job notes -->
-    ${item.notes?`<div style="margin-bottom:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
-      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af">Job Notes</strong><br>${escHtml(item.notes)}
+
+    <!-- Estimate notes (tech's notes from the original estimate) -->
+    ${item.estNotes?`<div style="margin-bottom:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
+      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#92400E;display:block;margin-bottom:3px">📋 Estimate Notes</strong>${escHtml(item.estNotes)}
     </div>`:''}
-    ${item.techNotes?`<div style="margin-bottom:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
-      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#3b82f6">Tech Notes</strong><br>${escHtml(item.techNotes)}
+    ${item.jobNotes?`<div style="margin-bottom:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;color:#374151;line-height:1.5">
+      <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#1d4ed8;display:block;margin-bottom:3px">🔧 Job Notes</strong>${escHtml(item.jobNotes)}
     </div>`:''}
 
-    <!-- Status controls -->
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+    <!-- Status controls (hide for archived) -->
+    ${!isArchived?`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       ${['pending','ordered','received','complete'].map(s=>
         `<button onclick="setOrderStatus('${item.id}','${s}')"
           style="font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1.5px solid ${s===st?borderColors[s]:'#e5e7eb'};background:${s===st?borderColors[s]:'#fff'};color:${s===st?'#fff':'#374151'};font-weight:${s===st?'700':'400'}">
@@ -5636,7 +5712,8 @@ function orderCard(item) {
         </button>`
       ).join('')}
       ${oDate?`<span style="font-size:10px;color:#6b7280;margin-left:4px">Ordered ${oDate}${oBy?' by '+oBy:''}</span>`:''}
-    </div>
+    </div>`
+    :`<div style="font-size:11px;color:#6b7280;font-weight:600">📦 Work complete — archived</div>`}
   </div>`;
 }
 
@@ -6570,10 +6647,22 @@ function refreshAll(){
 
 // ============================================================
 // THANK YOU CARDS — Exact pricebook item matching
-// New systems only — paid jobs — one card per job
-// Upgrades included (they accompany installs for better systems)
-// NOT included: repairs, tune-ups, accessories, existing-unit swaps
 // ============================================================
+// EQUIPMENT ITEM SETS — pricebook line items that trigger
+// thank you cards (paid) and order queue (scheduled)
+// ============================================================
+
+// Add tankless water heater as a proper key so it appears in the order queue lookup
+// (previously handled as a special case in detectEquipmentSale only)
+const TANKLESS_ITEMS = new Set([
+  'Tankless Water Heater',
+  'Tankless Water Heater Install',
+  'Navien NPE-180S2 Tankless Water Heater',
+  'Navien NPE-210S2 Tankless Water Heater',
+  'Navien NPE-240S2 Tankless Water Heater',
+  'Rinnai RU Model Series Tankless Water Heater',
+  'Rinnai RL Model Series Tankless Water Heater',
+]);
 const TY_ITEM_SETS={
   furnace:{label:'Furnace',color:'#DC2626',icon:'🔥',items:new Set([
     'AR9S80 (80% SINGLE STAGE) 60K','AR9S80 (80% SINGLE STAGE) 80K','AR9S80 (80% SINGLE STAGE) 100K','AR9S80 (80% SINGLE STAGE) 120K',
@@ -6623,6 +6712,7 @@ const TY_ITEM_SETS={
     'Modine HD/HDS 30 for 1 to 1.5 Car Garage','HD/HDS 45 (For 2 to 2.5 Car Garages)',
     'HD/HDS 60','Modine HD/HDS 75',
   ])},
+  water_heater:{label:'Tankless Water Heater',color:'#0369A1',icon:'💧',items:TANKLESS_ITEMS},
 };
 
 // Flat lookup: exact item name -> category key
@@ -6631,22 +6721,44 @@ Object.entries(TY_ITEM_SETS).forEach(([key,cat])=>{
   cat.items.forEach(name=>{TY_ITEM_LOOKUP[name]=key;});
 });
 
-function detectEquipmentSale(j){
-  if(!isJobPaid(j)) return null; // paid jobs only
+// Equipment categories that require parts ordered before install day
+// Used by Order Queue — Eric and Bob track these
+// All categories except garage_heater need equipment ordered from supplier
+const ORDER_EQUIP_KEYS = new Set([
+  'ac',           // Air conditioner unit
+  'furnace',      // Furnace / air handler
+  'boiler',       // Boiler
+  'water_heater', // Tankless water heater
+  'heat_pump',    // Heat pump
+  'mini_split',   // Mini split system
+  'package',      // Full system packages (contain furnace + AC)
+]);
 
-  // Collect all text to check: job description + all estimate option names
+function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
+
+// Flat lookup: exact item name -> category key
+const TY_ITEM_LOOKUP={};
+Object.entries(TY_ITEM_SETS).forEach(([key,cat])=>{
+  cat.items.forEach(name=>{TY_ITEM_LOOKUP[name]=key;});
+});
+
+function detectEquipmentSale(j, requirePaid=true){
+  if(requirePaid && !isJobPaid(j)) return null;
+
+  // Collect all text to check: job description + line items + linked estimate options
   const texts=[];
   if(j.description) texts.push(j.description.trim());
   if(j.summary) texts.push(j.summary.trim());
+  // Line items from the job itself
+  (j.line_items||[]).forEach(li=>{ if(li.name) texts.push(li.name.trim()); });
 
   // Customer estimates — option names contain exact pricebook item names
-  // Note: installers (Gannon, Andy) may collect payment — still counts as one sale
   const custId=getCustId(j), custName=getCust(j);
   const custEsts=_estimates.filter(e=>
     (custId&&getCustId(e)===custId)||getCust(e)===custName
   );
   const linkedId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
-  if(linkedId){const le=_estimates.find(e=>e.id===linkedId);if(le&&!custEsts.find(e=>e.id===le.id))custEsts.push(le);}
+  if(linkedId){const le=_estimates.find(e=>e.id===linkedId||(e.options||[]).some(o=>o.id===linkedId));if(le&&!custEsts.find(e=>e.id===le.id))custEsts.push(le);}
 
   custEsts.forEach(est=>{
     (est.options||[]).forEach(o=>{if(o.name)texts.push(o.name.trim());});
@@ -6654,19 +6766,18 @@ function detectEquipmentSale(j){
 
   // Match against exact pricebook names
   for(const text of texts){
-    // Special case: Tankless Water Heater only qualifies if job revenue >= $3,000
-    if(text==='Tankless Water Heater'||text.toLowerCase().includes('tankless water heater')){
-      if(getJobRevenue(j)>=3000) return{key:'water_heater',label:'Tankless Water Heater',color:'#0369A1',icon:'💧',matchedItem:'Tankless Water Heater'};
-      continue; // under $3000 — skip
-    }
     // Exact match
     if(TY_ITEM_LOOKUP[text]){
       const key=TY_ITEM_LOOKUP[text];
+      // Tankless water heater: only qualifies for TY card if job >= $3,000
+      // (prevents small repair calls with "tankless" in notes from matching)
+      if(key==='water_heater'&&(getJobRevenue(j)||getJobTotal(j))<3000) continue;
       return{key,...TY_ITEM_SETS[key],matchedItem:text};
     }
-    // Fuzzy: check if text contains a pricebook item name (handles minor spacing)
+    // Fuzzy match — handles minor spacing/case differences
     for(const[name,key] of Object.entries(TY_ITEM_LOOKUP)){
       if(text.toLowerCase().includes(name.toLowerCase())){
+        if(key==='water_heater'&&(getJobRevenue(j)||getJobTotal(j))<3000) continue;
         return{key,...TY_ITEM_SETS[key],matchedItem:name};
       }
     }
@@ -6811,114 +6922,94 @@ function renderTYCards(){
   const el=$$('tyContent');
   if(!el) return;
   const sales=getTYSales();
-  const byStatus=(s)=>sales.filter(j=>(_tyCards[j.id]?.status||'pending')===s);
-  const pending=byStatus('pending');
-  const sent=byStatus('sent');
-  const skipped=byStatus('skip');
+  const pending=sales.filter(j=>!_tyCards[j.id]||_tyCards[j.id].status==='pending');
+  const sent=sales.filter(j=>_tyCards[j.id]?.status==='sent');
+  const skipped=sales.filter(j=>_tyCards[j.id]?.status==='skip');
 
-  // Update badge
+  // Badge
   const badge=document.querySelector('.tab[data-tab="ty"] .badge-count');
   if(badge){badge.textContent=pending.length;badge.style.display=pending.length?'':'none';}
 
   const metrics=`<div class="metrics" style="margin-bottom:16px">
-    <div class="metric"><div class="metric-label">System sales</div><div class="metric-value">${sales.length}</div><div class="metric-sub">In date range</div></div>
-    <div class="metric"><div class="metric-label">Cards pending</div><div class="metric-value" style="color:#DC2626">${pending.length}</div><div class="metric-sub">Need to send</div></div>
-    <div class="metric"><div class="metric-label">Cards sent</div><div class="metric-value" style="color:#059669">${sent.length}</div><div class="metric-sub">Done</div></div>
-    <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(sales.reduce((s,j)=>s+getJobRevenue(j),0))}</div><div class="metric-sub">Paid installs</div></div>
+    <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.length}</div><div class="metric-sub">In date range</div></div>
+    <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending.length}</div></div>
+    <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent.length}</div></div>
+    <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(sales.reduce((s,j)=>s+getJobRevenue(j),0))}</div></div>
   </div>`;
 
   if(!sales.length){
-    const debug=_jobs.length?getTYDebugInfo():{matched:0,total:0};
-    el.innerHTML=metrics+`<div style="text-align:center;padding:30px 20px;color:#9ca3af;max-width:500px;margin:0 auto">
-      <div style="font-size:15px;margin-bottom:8px">No equipment sales found</div>
-      <div style="font-size:12px;line-height:1.7">
-        ${_jobs.length===0
-          ?'Pull a report first — use <strong>This Year</strong> or <strong>This quarter</strong> date range.'
-          :`Searched <strong>${debug.total} paid jobs</strong> in date range — no furnace, AC, boiler, heat pump, or mini split matches found.<br><br>
-           Check the <strong>Raw Data tab → customer search</strong> on a job you expect to see here. The equipment name must appear in the job description or estimate options.<br><br>
-           <button onclick="getTYDebugInfo();alert('Check browser console (F12) for debug details')"
-             style="font-size:11px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer">
-             🔍 Debug — log matches to console
-           </button>`}
-      </div>
+    el.innerHTML=metrics+`<div style="text-align:center;padding:30px;color:#9ca3af">
+      ${_jobs.length===0?'Pull a report first.':'No equipment installs found in this date range.'}
     </div>`;
     return;
   }
 
-  function section(jobs,title,color){
-    if(!jobs.length) return '';
-    return `<div style="margin-bottom:20px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${color};margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid ${color}">${title} (${jobs.length})</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px">
-        ${jobs.map(j=>tyCard(j)).join('')}
+  function tyRow(j, showHistory=false){
+    const card=_tyCards[j.id]||{};
+    const status=card.status||'pending';
+    const equip=detectEquipmentSale(j);
+    const equipLabel=getEquipmentLabel(j);
+    const cust=j.customer||{};
+    const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
+    const addr=j.address?[j.address.street,j.address.city,j.address.state].filter(Boolean).join(', '):'';
+    const phone=cust.mobile_number||cust.home_number||'';
+    const installDate=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+    const techName=getAssigned(j);
+    const jobRev=getJobRevenue(j);
+    const borderColor=status==='sent'?'#059669':status==='skip'?'#d1d5db':'#E8640A';
+    const bgColor=status==='sent'?'#F0FDF4':status==='skip'?'#F9FAFB':'#FFFBEB';
+    return `<div style="border:1.5px solid ${borderColor};border-radius:10px;padding:14px;background:${bgColor};margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#1f2937">${escHtml(name)}</div>
+          <div style="font-size:12px;color:#6b7280">📍 ${escHtml(addr)} ${phone?'· 📞'+escHtml(phone):''}</div>
+          <div style="font-size:12px;color:#374151;margin-top:3px">
+            <span style="background:${equip?.color||'#1A3A5C'};color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">${equip?.icon||''} ${equip?.label||'Equipment'}</span>
+            ${escHtml(equipLabel)} · ${installDate} · ${escHtml(techName)} · ${dollars(jobRev)}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          ${status==='sent'
+            ?`<span style="font-size:12px;font-weight:700;color:#059669">✅ Sent ${card.sentDate?'on '+card.sentDate:''}</span>
+               <button onclick="saveTYCard('${j.id}',{status:'pending'})" style="font-size:11px;padding:3px 8px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer;color:#6b7280">Undo</button>`
+            :`<button onclick="markTYSent('${j.id}')" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:5px;background:#059669;color:#fff;cursor:pointer">✅ Mark Sent</button>
+              <button onclick="saveTYCard('${j.id}',{status:'skip'})" style="font-size:11px;padding:5px 10px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;color:#6b7280">Skip</button>`}
+        </div>
       </div>
+      ${card.note?`<div style="margin-top:6px;font-size:11px;color:#6b7280;font-style:italic">${escHtml(card.note)}</div>`:''}
     </div>`;
   }
 
-  el.innerHTML=metrics
-    +section(pending,'📬 Needs a card','#DC2626')
-    +section(sent,'✅ Card sent','#059669')
-    +section(skipped,'⏭ Skipped','#9ca3af');
+  let html = metrics;
+
+  // NEEDS CARD section
+  if(pending.length){
+    html += `<div style="font-size:13px;font-weight:800;color:#DC2626;margin-bottom:8px;padding:6px 10px;background:#FEF2F2;border-radius:6px">⚠ Needs Thank You Card (${pending.length})</div>`;
+    html += pending.map(j=>tyRow(j)).join('');
+  }
+
+  // SENT / HISTORY section (collapsible)
+  if(sent.length||skipped.length){
+    html += `<details style="margin-top:16px">
+      <summary style="font-size:13px;font-weight:700;color:#059669;cursor:pointer;padding:8px 10px;background:#F0FDF4;border-radius:6px;list-style:none">
+        ✅ Cards Sent &amp; History (${sent.length} sent${skipped.length?', '+skipped.length+' skipped':''}) — click to expand
+      </summary>
+      <div style="margin-top:8px">${[...sent,...skipped].map(j=>tyRow(j,true)).join('')}</div>
+    </details>`;
+  }
+
+  el.innerHTML=html;
 }
 
-function tyCard(j){
-  const equip=detectEquipmentSale(j);
-  if(!equip) return '';
-  const card=_tyCards[j.id]||{};
-  const status=card.status||'pending';
-  const cust=j.customer||{};
-  const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
-  const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
-  const phone=cust.mobile_number||cust.home_number||'';
-  const date=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
-  const equipLabel=getEquipmentLabel(j);
-  const bgColors={pending:'#FFFBEB',sent:'#F0FDF4',skip:'#F9FAFB'};
-  const borderColors={pending:'#F59E0B',sent:'#16A34A',skip:'#E5E7EB'};
-
-  return `<div style="border:1.5px solid ${borderColors[status]};border-radius:10px;padding:14px;background:${bgColors[status]};position:relative">
-    <div style="position:absolute;top:-1px;right:12px;background:${equip.color};color:#fff;font-size:9px;font-weight:800;padding:2px 9px;border-radius:0 0 6px 6px;letter-spacing:.04em">${equip.icon} ${equip.label.toUpperCase()}</div>
-
-    <!-- Customer name — the important part -->
-    <div style="font-size:16px;font-weight:800;color:#111827;margin-bottom:2px;margin-right:90px">${name}</div>
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:8px">Completed ${date}</div>
-
-    <!-- Mailing address — the critical info -->
-    <div style="background:#fff;border:1px solid #E5E7EB;border-radius:7px;padding:9px 11px;margin-bottom:9px">
-      <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📮 Mailing address</div>
-      ${addr
-        ?`<div style="font-size:13px;font-weight:500;color:#111827;line-height:1.6">${addr}</div>`
-        :`<div style="font-size:12px;color:#EF4444;font-weight:700">⚠ No address on file — check HCP</div>`}
-      ${phone?`<div style="font-size:11px;color:#6b7280;margin-top:3px">📞 ${phone}</div>`:''}
-    </div>
-
-    <!-- System detail -->
-    ${equipLabel?`<div style="font-size:10px;color:#6b7280;background:#fff;padding:4px 7px;border-radius:4px;margin-bottom:9px;border:1px solid #E5E7EB;font-style:italic">${equipLabel}${equipLabel.length===70?'…':''}</div>`:''}
-
-    <!-- Note field -->
-    <input type="text" placeholder="Note..." value="${(card.note||'').replace(/"/g,'&quot;')}"
-      onchange="saveTYCard('${j.id}',{note:this.value})"
-      style="width:100%;font-size:11px;padding:5px 8px;border:1px solid #D1D5DB;border-radius:5px;margin-bottom:8px;background:#fff;box-sizing:border-box">
-
-    <!-- Actions -->
-    <div style="display:flex;gap:6px">
-      <button onclick="saveTYCard('${j.id}',{status:'sent',sentDate:'${new Date().toISOString().split('T')[0]}'})"
-        style="flex:1;font-size:11px;padding:6px;border-radius:5px;font-weight:700;cursor:pointer;border:none;background:${status==='sent'?'#166534':'#059669'};color:#fff">
-        ${status==='sent'?'✅ Sent!':'📬 Mark sent'}
-      </button>
-      <button onclick="saveTYCard('${j.id}',{status:'skip'})"
-        style="font-size:11px;padding:6px 10px;border-radius:5px;cursor:pointer;border:1px solid #D1D5DB;background:#fff;color:#6b7280">Skip</button>
-      ${status!=='pending'?`<button onclick="saveTYCard('${j.id}',{status:'pending',sentDate:''})"
-        style="font-size:11px;padding:6px 10px;border-radius:5px;cursor:pointer;border:1px solid #D1D5DB;background:#fff;color:#6b7280">↩</button>`:''}
-    </div>
-    ${card.sentDate?`<div style="font-size:10px;color:#059669;text-align:center;margin-top:5px">✓ Sent ${card.sentDate}</div>`:''}
-  </div>`;
+function markTYSent(jobId){
+  const today=new Date().toISOString().split('T')[0];
+  saveTYCard(jobId,{status:'sent',sentDate:today});
 }
+
 
 function printTYCards(filter='pending'){
   const allSales=getTYSales();
   if(!allSales.length){alert('No equipment sales to print.');return;}
-
-  // Filter by status
   const sales=filter==='all'?allSales:allSales.filter(j=>{
     const status=_tyCards[j.id]?.status||'pending';
     return status===filter;
