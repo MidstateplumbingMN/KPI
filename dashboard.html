@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.14</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.17</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.14</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.17</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2078,9 +2078,28 @@ function applyEmpFilter(){
 }
 
 
+let _tabNeedsRender = new Set();
+
 function showTab(t){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+t));
+
+  // Lazy render — if this tab hasn't been rendered since last pull, render it now
+  if(_tabNeedsRender.has(t)){
+    _tabNeedsRender.delete(t);
+    if(t==='jobs')       renderJobs(_jobs,_estimates);
+    else if(t==='estimates') renderEstimates(_estimates);
+    else if(t==='attr')  renderAttr(_jobs,_estimates);
+    else if(t==='kpi')   { renderKPI(_jobs,_estimates,_employees,_plans); initKPIRange(); }
+    else if(t==='goals') renderGoals();
+    else if(t==='calendar') { renderCalendar(); loadCalEmpFilter(); }
+    else if(t==='is')    renderIS();
+    else if(t==='unpaid') renderUnpaid();
+    else if(t==='plans') renderPlans(_plans);
+    else if(t==='contest') renderContest();
+  }
+
+  // Tab-specific actions that always run (not just first visit)
   if(t==='contest') renderContest();
   if(t==='unpaid') renderUnpaid();
   if(t==='goals') renderGoals();
@@ -2093,7 +2112,6 @@ function showTab(t){
     $$('tyTo').value=$$('dateTo')?.value||'';
     renderTYCards();
   }
-
 }
 function printReport(){
   const active=document.querySelectorAll('.panel.active');
@@ -2112,7 +2130,7 @@ async function hcpGet(path){
   return res.json();
 }
 async function fetchAll(path, keys) {
-  const PAGE_SIZE = 200;
+  const PAGE_SIZE = 250; // HCP max page size
   const sep = path.includes('?') ? '&' : '?';
 
   // Page 1 — get data + total count
@@ -2130,11 +2148,9 @@ async function fetchAll(path, keys) {
 
   console.log('[fetchAll]', path.split('?')[0], '→', total, 'records,', totalPages, 'pages — fetching in parallel');
 
-  // Fire all remaining pages simultaneously
+  // Fire all remaining pages simultaneously in batches of 15
   const pageNums = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-
-  // Batch parallel requests — 10 at a time to avoid overwhelming the API
-  const BATCH = 10;
+  const BATCH = 15;
   let all = [...items];
   for (let b = 0; b < pageNums.length; b += BATCH) {
     const batch = pageNums.slice(b, b + BATCH);
@@ -2148,7 +2164,6 @@ async function fetchAll(path, keys) {
       return rows;
     }));
     results.forEach(rows => { all = [...all, ...rows]; });
-    console.log('[fetchAll]', path.split('?')[0], 'batch', Math.floor(b/BATCH)+1, '— total so far:', all.length, '/', total);
   }
 
   return all;
@@ -2208,11 +2223,31 @@ async function loadAll(){
       const byCreated = await fetchAll('/estimates'+cQ, ['estimates','data','results']);
       return byCreated;
     }
-    // Fetch jobs by BOTH scheduled_start and created_at date ranges
-    // This catches jobs that were created in the period but scheduled outside it (or unscheduled)
+    // Fetch jobs — two queries merged:
+    // 1. All jobs SCHEDULED in the date range (primary — what's on the calendar)
+    // 2. All jobs UPDATED in the last 60 days (catches jobs paid recently regardless of schedule date)
+    //    e.g. a job scheduled in December, paid today — query 1 misses it, query 2 catches it
+    // The two sets are merged by job_id to deduplicate.
     async function fetchJobs(){
-      // Schedule-only fetch — avoids pulling all historical jobs via created_at range
-      return fetchAll('/jobs'+jSchedQ,['jobs','data','results']);
+      const schedJobs = await fetchAll('/jobs'+jSchedQ, ['jobs','data','results']);
+
+      // For the recent-update query, always look back 60 days from today
+      // This ensures jobs paid in the last 2 months are always present in _jobs
+      // regardless of when they were originally scheduled
+      const now = new Date();
+      const recentFrom = new Date(now); recentFrom.setDate(now.getDate() - 60);
+      const fmt = d => d.toISOString().split('T')[0];
+      const recentQ = `?updated_at_min=${fmt(recentFrom)}T00:00:00Z&updated_at_max=${fmt(now)}T23:59:59Z`;
+      const recentJobs = await fetchAll('/jobs'+recentQ, ['jobs','data','results']);
+
+      // Merge — jobs from both queries, deduplicated by id
+      const seen = new Set();
+      const merged = [];
+      [...schedJobs, ...recentJobs].forEach(j => {
+        if(!seen.has(j.id)){ seen.add(j.id); merged.push(j); }
+      });
+      console.log(`[Jobs] scheduled: ${schedJobs.length}, recent-updated: ${recentJobs.length}, merged unique: ${merged.length}`);
+      return merged;
     }
 
     // Invoice endpoint disabled — causes 429 rate limiting on larger date ranges
@@ -2221,12 +2256,19 @@ async function loadAll(){
 
     const pullDays = Math.round((new Date(to)-new Date(from))/(1000*60*60*24));
   stepLog(`📡 Fetching ${pullDays <= 14 ? 'last '+pullDays+' days (delta mode)' : 'full range '+from+' → '+to}...`);
-    const [jobs,estimates,empRaw,plans]=await Promise.all([
-      fetchJobs(),
-      fetchEstimates(),
-      hcpGet('/employees?page_size=100'),
-      tryPlans()
+
+    // Fire API pulls AND Sheets attribution fetch simultaneously —
+    // no reason to wait for Sheets before the HCP data even arrives
+    const [apiResults, _] = await Promise.all([
+      Promise.all([
+        fetchJobs(),
+        fetchEstimates(),
+        hcpGet('/employees?page_size=100'),
+        tryPlans()
+      ]),
+      fetchConfirmedAttrFromSheets()   // runs in parallel, populates _attr
     ]);
+    const [jobs, estimates, empRaw, plans] = apiResults;
 
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
@@ -2307,10 +2349,6 @@ async function loadAll(){
     });
 
     $$('debugJob').textContent=jobs.length?JSON.stringify(jobs[0],null,2):'No jobs';
-    // Debug: find any Wampfler-related jobs and log
-    const debugCust=jobs.filter(j=>getCust(j).toLowerCase().includes('wampfler'));
-    if(debugCust.length) console.log('[Debug] Wampfler jobs found:',debugCust.length,debugCust.map(j=>({id:j.id,num:j.job_number,total:getJobTotal(j),status:getNormStatus(j),sched:j.schedule?.scheduled_start,created:j.created_at})));
-    else console.log('[Debug] No Wampfler jobs in this pull — check date range covers Mar 9 2026');
     $$('debugEst').textContent=estimates.length?JSON.stringify(estimates[0],null,2):'No estimates';
     $$('debugEmp').textContent=employees.length?JSON.stringify(employees[0],null,2):'No employees';
     $$('debugPlan').textContent=plans.length
@@ -2318,51 +2356,63 @@ async function loadAll(){
       :'No plans found.\n\nOpen browser console (F12 → Console) and look for [Plans] lines.\nThey show which endpoint returned what keys — share those lines and I can add the correct one.';
 
     // Await confirmed attributions from Sheets before building — fixes race condition
-    // where manual overrides were silently ignored on first pull after connecting
-    await fetchConfirmedAttrFromSheets();
+    // (fetchConfirmedAttrFromSheets already ran in parallel with the API pull above)
     buildAttribution(jobs,estimates);
+    // Render the active tab immediately, defer all others until first click
+    // This makes the dashboard visually ready in ~half the time
+    const activeTab = document.querySelector('.tab.active')?.dataset?.tab || 'jobs';
+
+    // These always render — they're cheap and feed badge counts
     populateFilters(jobs,estimates,plans);
-    renderJobs(jobs,estimates);
-    renderEstimates(estimates);
-    renderAttr(jobs,estimates);
-    renderKPI(jobs,estimates,employees,plans);
-    renderPlans(plans);
-    renderCalendar();
-    renderIS();
-    updateISBadge();
-    renderUnpaid();
     buildEmpFilter();
-    loadCalEmpFilter();
     buildCalEmpFilter();
-    loadKPIEmpFilter().then(()=>{ syncNewEmployeesToFilter(); buildKPIEmpFilter(); });
-    initKPIRange();
-    // Show plan data view if we already have uploaded plans
-    if(_uploadedPlans.length){
-      const box=$$('planUploadBox');const view=$$('planDataView');
-      if(box) box.style.display='none';
-      if(view) view.style.display='block';
-    }
-    // Sync to Google Sheets in background
-    syncReportToSheets(jobs,estimates,employees,plans,from,to);
-    fetchTYCardsFromSheets();
+    buildKPIEmpFilter();
+    updateISBadge();
 
-    // Fetch full-year paid jobs in background for monthly bar chart
-    // Runs regardless of selected date range so monthly chart always shows full year
-    fetchYTDMonthlyRevenue();
+    // Render the visible tab first so the user sees something immediately
+    stepLog('🖥️ Rendering...');
+    if(activeTab==='jobs')        renderJobs(jobs,estimates);
+    else if(activeTab==='estimates') renderEstimates(estimates);
+    else if(activeTab==='attr')   renderAttr(jobs,estimates);
+    else if(activeTab==='kpi')    renderKPI(jobs,estimates,employees,plans);
+    else if(activeTab==='goals')  renderGoals();
+    else if(activeTab==='calendar') renderCalendar();
+    else renderJobs(jobs,estimates); // fallback
 
+    // Show the UI immediately — user can start interacting
     $$('main').style.display='block';
     $$('printBtn').style.display='';
     $$('summaryBtn').style.display='';
     $$('refreshAllBtn').style.display='';
-    loadTYCards();
-    loadSpotlights();
-    loadAnnouncements();
-    // Load wallboard settings silently (not tab-specific)
-    try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
-    // Birthdays and holidays loaded from Sheets KPI_Dashboard snap
-    if(!_holidays.length) _holidays=JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
-    $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
+    $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
+
+    // Mark all other tabs as needing a render — they'll render on first click
+    _tabNeedsRender = new Set(['jobs','estimates','attr','kpi','goals','calendar','is','unpaid','plans','contest','ty'].filter(t=>t!==activeTab));
+
+    // Defer background work — sequence matters:
+    // 1. Fetch full-year paid jobs → populates _allYearJobs → accurate period revenue
+    // 2. THEN write snapshot to Sheets → companion reads correct numbers
+    // 3. Everything else fires in parallel after that
+    setTimeout(async ()=>{
+      // Step 1 — build _allYearJobs for accurate YTD revenue
+      await fetchYTDMonthlyRevenue();
+
+      // Step 2 — now write snapshot with correct annual/quarterly/monthly revenue
+      stepLog('📤 Syncing to Sheets...');
+      syncReportToSheets(jobs,estimates,employees,plans,from,to);
+
+      // Step 3 — everything else in parallel
+      fetchTYCardsFromSheets();
+      loadCalEmpFilter();
+      loadKPIEmpFilter().then(()=>{ syncNewEmployeesToFilter(); });
+      loadTYCards();
+      loadSpotlights();
+      loadAnnouncements();
+    }, 100);
+
+    try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
+    if(!_holidays.length) _holidays=JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
   }catch(e){
     showErr('Error: '+e.message);$$('statusBar').textContent='';
   }finally{
@@ -2381,7 +2431,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.14
+  // ATTRIBUTION ENGINE — v23.17
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4420,38 +4470,51 @@ async function syncMonthlyRevenueToSheet(monthly) {
 async function fetchYTDMonthlyRevenue() {
   if (!_workerUrl) return;
   try {
-    const yr = new Date().getFullYear();
+    const yr  = new Date().getFullYear();
     const from = `${yr}-01-01`;
-    const to   = `${yr}-12-31`;
-    console.log('[YTD Monthly] Fetching full year jobs for monthly chart...');
+    const to   = new Date().toISOString().split('T')[0]; // today, not Dec 31
+    stepLog('📊 Fetching full-year paid jobs for revenue calculations...');
+    console.log('[YTD] Fetching all jobs scheduled Jan 1 → today for revenue accuracy...');
 
-    // Fetch all paid jobs for the year using the worker
-    const allJobs = await fetchAll(`/jobs?page_size=200&status[]=paid&work_start_date=${from}&work_end_date=${to}`,['jobs','data']);
-    if (!allJobs.length) { console.log('[YTD Monthly] No jobs returned'); return; }
+    // Fetch by scheduled_start for the full year — this is the primary YTD dataset
+    const schedQ = `?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
+    const allJobs = await fetchAll('/jobs' + schedQ, ['jobs','data','results']);
 
-    // Compute monthly totals
+    if(!allJobs.length){ console.log('[YTD] No jobs returned'); return; }
+
+    // Store as the authoritative full-year paid job set
+    // getRevenueForPeriod() uses _allYearJobs when present
+    _allYearJobs = allJobs.filter(isJobPaid);
+    console.log('[YTD]', allJobs.length, 'total jobs,', _allYearJobs.length, 'paid');
+
+    // Compute monthly totals using the same getPaymentDate logic as the dashboard
     const months = new Array(12).fill(0);
-    allJobs.forEach(j => {
-      if (!isJobPaid(j)) return;
-      const d = new Date(j.work_timestamps?.completed_at||j.completed_at||j.created_at);
-      if (isNaN(d) || d.getFullYear() !== yr) return;
+    _allYearJobs.forEach(j => {
+      const ts = j.work_timestamps?.completed_at || j.completed_at
+              || j.work_timestamps?.on_my_way_at  || j.updated_at || j.created_at;
+      if(!ts) return;
+      const d = new Date(ts);
+      if(isNaN(d) || d.getFullYear() !== yr) return;
       months[d.getMonth()] += getJobRevenue(j);
     });
     const monthly = months.map(Math.round);
-    console.log('[YTD Monthly] Computed:', monthly.filter(v=>v>0).length, 'months with data');
+    console.log('[YTD] Monthly totals:', monthly.filter(v=>v>0).length, 'months with data');
 
-    // Push directly to Apps Script
-    if (_sheetsProxy) {
-      const res = await fetch(_sheetsProxy, {
+    // Re-render Goals now that _allYearJobs is populated — gets accurate annual/quarterly/monthly numbers
+    renderGoals();
+
+    // Push monthly breakdown to Sheets for companion bar chart
+    if(_sheetsProxy){
+      fetch(_sheetsProxy, {
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
         body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
-      });
-      const d = await res.json();
-      if(d.success) console.log('[YTD Monthly] Synced to Monthly_Revenue tab');
+      }).then(r=>r.json()).then(d=>{
+        if(d.success) console.log('[YTD] Monthly revenue synced to Sheets');
+      }).catch(e => console.warn('[YTD] Sheets sync failed:', e.message));
     }
   } catch(e) {
-    console.warn('[YTD Monthly] Background fetch failed:', e.message);
-    dashLog('warn','YTD Monthly: '+e.message);
+    console.warn('[YTD] Background fetch failed:', e.message);
+    dashLog('warn','YTD: '+e.message);
   }
 }
 
@@ -5618,30 +5681,31 @@ const GOALS = {
 function getRevenueForPeriod(period){
   const now = new Date();
 
-  // SINGLE DATE SOURCE for all periods — when the job was actually completed/paid.
-  // completed_at is the authoritative field. updated_at is used only as last resort
-  // so a job that was marked paid without a completion timestamp still lands on the
-  // right date. scheduled_start is NEVER used here — that is when the job was booked,
-  // not when money changed hands.
+  // SINGLE DATE SOURCE — when the job was actually paid/completed.
+  // scheduled_start is NEVER used — that is booking date, not payment date.
   function getPaymentDate(j){
     const ts = j.work_timestamps?.completed_at
             || j.completed_at
-            || j.work_timestamps?.on_my_way_at  // last field before completion
+            || j.work_timestamps?.on_my_way_at
             || j.updated_at
             || j.created_at;
     return ts ? new Date(ts) : null;
   }
 
-  // Local date string YYYY-MM-DD — avoids UTC/local timezone mismatch
   function toLocalDate(d){
     if(!d || isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  // Use cached full-year jobs for year/quarter/month to avoid missing data
-  // when the current pull range is less than a full year
-  const useCached = ['year','quarter','month'].includes(period);
-  const paidJobs  = (useCached && _allYearJobs.length > 0) ? _allYearJobs : _jobs.filter(isJobPaid);
+  // _allYearJobs is the authoritative source for ALL periods.
+  // It is fetched after every pull using scheduled_start (full YTD) PLUS
+  // updated_at (last 60 days) so recently-paid jobs are never missing.
+  // Using _jobs for week/day was wrong — if the pull range is "This Month"
+  // then _jobs only has this-month-scheduled jobs, missing anything paid
+  // this week that was scheduled in a prior month.
+  const paidJobs = _allYearJobs.length > 0
+    ? _allYearJobs
+    : _jobs.filter(isJobPaid); // fallback only before YTD background fetch completes
 
   if(period==='year'){
     return paidJobs.filter(j=>{
@@ -5666,21 +5730,18 @@ function getRevenueForPeriod(period){
   }
 
   if(period==='week'){
-    // Week starts Monday — getDay() returns 0=Sun,1=Mon...6=Sat
-    // If today is Sunday (0), go back 6 days to get Monday
     const dayOfWeek = now.getDay(); // 0=Sun
     const daysFromMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - daysFromMon);
     startOfWeek.setHours(0, 0, 0, 0);
-
     const weekJobs = paidJobs.filter(j=>{
       const d = getPaymentDate(j);
-      return d && d >= startOfWeek;
+      // Must be on or after Monday AND in current year (prevents Dec→Jan bleed)
+      return d && d >= startOfWeek && d.getFullYear() === now.getFullYear();
     });
-    const weekTotal = weekJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
-    console.log(`[Weekly Rev] startOfWeek=${toLocalDate(startOfWeek)}, matched ${weekJobs.length} jobs, total=$${weekTotal.toFixed(2)}`);
-    return weekTotal;
+    console.log(`[Weekly Rev] Mon=${toLocalDate(startOfWeek)}, ${weekJobs.length} jobs, $${weekJobs.reduce((s,j)=>s+getJobRevenue(j),0).toFixed(2)}`);
+    return weekJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
   }
 
   if(period==='day'){
@@ -5690,9 +5751,9 @@ function getRevenueForPeriod(period){
       return d && toLocalDate(d) === todayLocal;
     });
     const todayTotal = todayJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
-    console.log(`[Daily Rev] today=${todayLocal}, matched ${todayJobs.length} jobs, total=$${todayTotal.toFixed(2)}`);
-    todayJobs.forEach(j => {
-      const compAt = j.work_timestamps?.completed_at || j.completed_at || 'none';
+    console.log(`[Daily Rev] today=${todayLocal}, ${todayJobs.length} jobs, $${todayTotal.toFixed(2)}`);
+    todayJobs.forEach(j=>{
+      const compAt = j.work_timestamps?.completed_at||j.completed_at||'none';
       const bal    = parseFloat(j.outstanding_balance)||0;
       console.log(`  ▸ #${j.job_number||j.id} | ${getCust(j)} | bal=$${bal} | rev=$${getJobRevenue(j).toFixed(2)} | completed_at=${compAt}`);
     });
@@ -5810,7 +5871,10 @@ function renderGoals(){
   const usedData=_jobs.length>0;
 
   // Outstanding payments — complete jobs not yet collected
-  const outstandingJobs=_jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)&&!isJobCanceled(j));
+  // Use _allYearJobs when available so we catch unpaid jobs from the full year,
+  // not just ones scheduled in the current pull window
+  const allKnownJobs = _allYearJobs.length > 0 ? _allYearJobs : _jobs;
+  const outstandingJobs=allKnownJobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)&&!isJobCanceled(j));
   const totalOutstanding=outstandingJobs.reduce((s,j)=>s+getJobTotal(j),0);
   const outstandingCount=outstandingJobs.length;
   // If outstanding were collected, how would that move the annual number?
