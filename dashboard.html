@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.14</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.14</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2381,7 +2381,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.9
+  // ATTRIBUTION ENGINE — v23.14
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -2389,12 +2389,13 @@ function buildAttribution(jobs, estimates){
   //
   // Priority chain (first match wins):
   //   1. Manual override (_attr) — human decision, always final
-  //   2. HCP direct link (original_estimate_id) — API-level relationship
-  //   3. Scored estimate match (customer ID, dept/tech signals, recency)
-  //      — auto-assign if score is high and clearly the best candidate
-  //      — flag for review if multiple candidates or low confidence
-  //   4. No estimate found after scoring — flag for review
-  //      (do NOT silently assign to job tech — that corrupts KPI data)
+  //   2. HCP direct link (original_estimate_id) — API-level relationship,
+  //      no age limit (equipment sold months before install is still correctly linked)
+  //   3. Scored estimate match — customer ID, dept/tech signals, recency
+  //      HARD RULE: estimate must be within 90 days of the job date
+  //      auto-assign if score >= 65 and clearly the best candidate
+  //      flag for review if multiple candidates or low confidence
+  //   4. No estimate found within 90 days → flag for manual review
   //
   // Auto-assign thresholds (score must clear BOTH):
   //   - Minimum score: 65
@@ -2461,8 +2462,8 @@ function buildAttribution(jobs, estimates){
 
   // ---- Score a single estimate against a job ----
   // Returns a signals object with a numeric score, or null if it should be excluded.
-  // Does NOT apply a hard age cutoff — old estimates score lower but aren't excluded.
-  // A valid match requires dept match OR tech match (amount alone is not enough).
+  // HARD RULE: estimates more than 90 days before the job date are excluded entirely.
+  // A valid match also requires dept match OR tech match (amount alone is not enough).
   function scoreMatch(j, est, jDate, jobTotal, jobTechIds, jobDept){
     const estDate = new Date(est.schedule?.scheduled_start || est.created_at || 0);
 
@@ -2473,7 +2474,15 @@ function buildAttribution(jobs, estimates){
     const seller = getSellerFromEst(est);
     if(!seller) return null;
 
-    const daysDiff   = Math.max(0, (jDate - estDate) / (1000*60*60*24));
+    const daysDiff = Math.max(0, (jDate - estDate) / (1000*60*60*24));
+
+    // HARD CUTOFF: estimate must be within 90 days of the job date.
+    // A job completed 6/1 will not match an estimate from before 3/3.
+    // Equipment installs (furnace, AC) that were estimated and sold months
+    // apart are still linked via HCP's original_estimate_id and handled in
+    // step 2 above — this cutoff only applies to the fuzzy scoring path.
+    if(daysDiff > 90) return null;
+
     const estTotal   = getEstTotal(est);
     const estDept    = getDept(est);
     const techMatch  = jobTechIds.has(seller.id);
@@ -2488,15 +2497,11 @@ function buildAttribution(jobs, estimates){
 
     let score = 0;
 
-    // Recency — strong bonus for same/nearby day, diminishing returns over time.
-    // No hard cutoff: a 2-year-old approved estimate with same tech+dept can still score high.
+    // Recency — strong bonus for same/nearby day, diminishing returns over time
     if(daysDiff <= 1)   score += 50;
     else if(daysDiff <= 7)   score += 30;
     else if(daysDiff <= 30)  score += 18;
     else if(daysDiff <= 90)  score += 10;
-    else if(daysDiff <= 180) score += 5;
-    else if(daysDiff <= 365) score += 2;
-    // >365 days: no recency bonus — must win purely on tech+dept+approved signals
 
     // Same tech as seller
     if(techMatch)     score += 30;
@@ -2778,7 +2783,22 @@ function skipAttribution(jobId){
 // ============================================================
 // RENDER ATTRIBUTION PANEL
 // ============================================================
-function getJobNotes(j){return(j.notes||[]).map(n=>n.content||'').filter(Boolean);}
+function getJobNotes(j){
+  const out=[];
+  // Description / summary fields
+  if(j.description&&j.description.trim()) out.push(j.description.trim());
+  if(j.summary&&j.summary.trim()&&j.summary.trim()!==j.description?.trim()) out.push(j.summary.trim());
+  // Notes array (tech notes, office notes, all note objects)
+  (j.notes||[]).forEach(n=>{const c=(n.content||n.text||n.body||'').trim();if(c&&!out.includes(c))out.push(c);});
+  // Tech / internal notes
+  if(j.tech_notes&&j.tech_notes.trim()&&!out.includes(j.tech_notes.trim())) out.push(j.tech_notes.trim());
+  if(j.technician_notes&&j.technician_notes.trim()&&!out.includes(j.technician_notes.trim())) out.push(j.technician_notes.trim());
+  if(j.private_note&&j.private_note.trim()&&!out.includes(j.private_note.trim())) out.push(j.private_note.trim());
+  if(j.internal_note&&j.internal_note.trim()&&!out.includes(j.internal_note.trim())) out.push(j.internal_note.trim());
+  // Line items can carry meaningful notes too
+  (j.line_items||[]).forEach(li=>{const n=(li.notes||li.description||'').trim();if(n&&!out.includes(n))out.push(n);});
+  return out.filter(Boolean);
+}
 function getEstNotes(e){
   const n=(e.notes||[]).map(n=>n.content||'').filter(Boolean);
   const opt=(e.options||[]).flatMap(o=>(o.notes||[]).map(n=>n.content||'')).filter(Boolean);
@@ -2877,48 +2897,78 @@ function renderAttr(jobs,estimates){
     card.className='attr-card';
     const candidates=attr?.candidates||[];
     let optionsHtml='';
-    if(candidates.length){
-      optionsHtml=candidates.map((c,i)=>{
-        const sName=c.seller?((c.seller.first_name||'')+' '+(c.seller.last_name||'')).trim():getAssigned(c.est);
-        const estDate=fmtDY(c.est.schedule?.scheduled_start||c.est.created_at);
-        const estVal=getEstTotal(c.est);
-        const estStatus=getEstDisplayStatus(c.est);
-        const estDept=getDept(c.est);
-        const estNotes=getEstNotes(c.est);
-        const daysDiff=c.signals?.daysDiff!=null?c.signals.daysDiff:
-          Math.round((new Date(j.created_at||j.schedule?.scheduled_start||0)-new Date(c.est.created_at||0))/(1000*60*60*24));
-        const timeLabel=daysDiff<=1?'same day':daysDiff<=7?`${daysDiff}d later`:`${Math.round(daysDiff/30)||1}mo later`;
-        const scoreLabel=c.score>=80?'Strong':c.score>=60?'Good':c.score>=40?'Possible':'Weak';
-        const scoreColor=c.score>=80?'#166534':c.score>=60?'#185FA5':c.score>=40?'#854F0B':'#9ca3af';
-        const dm=c.signals?.deptMatch;
-        const deptChip=dm===true?'<span style="font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 5px;border-radius:3px">dept ✓</span>':
-          dm===false?'<span style="font-size:10px;background:#FECACA;color:#991B1B;padding:1px 5px;border-radius:3px">dept ✗</span>':'';
-        const notesHtml=estNotes.length?`<div class="notes-box"><div class="notes-label">Est notes</div>${estNotes.slice(0,2).map(n=>`<div>${n.slice(0,130)}${n.length>130?'…':''}</div>`).join('')}</div>`:'';
-        return`<label class="attr-option">
-          <input type="radio" name="attr_${j.id}" value="${c.seller?.id||''}" data-name="${sName}" ${i===0?'checked':''}>
-          <div style="flex:1">
-            <div class="attr-option-name">${sName} ${deptChip}</div>
-            <div class="attr-option-detail">Est #${c.est.estimate_number||'—'} · ${estDept} · ${estDate} (${timeLabel}) · ${estVal?dollars(estVal):'—'} · ${estStatus}</div>
-            ${notesHtml}
-          </div>
-          <span style="font-size:10px;font-weight:600;color:${scoreColor};white-space:nowrap">${scoreLabel} (${c.score})</span>
-        </label>`;
-      }).join('');
-    } else {
-      const techs=getAssignedList(j).filter(e=>!INSTALLER_IDS.has(e.id));
-      if(techs.length){
-        optionsHtml=techs.map((e,i)=>{
-          const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name;
-          return`<label class="attr-option">
-            <input type="radio" name="attr_${j.id}" value="${e.id}" data-name="${n}" ${i===0?'checked':''}>
-            <div class="attr-option-name">${n}</div>
-            <div class="attr-option-detail">Assigned tech — no matching estimate found</div>
-          </label>`;
-        }).join('');
-      } else {
-        optionsHtml='<div style="font-size:12px;color:#9ca3af;padding:8px">No non-installer techs on this job.</div>';
-      }
+
+    // Build the tech selector — one decision: who gets credit for THIS job?
+    // Show all non-installer employees as the selection, pre-selected to best candidate.
+    const bestSeller = candidates[0]?.seller || null;
+    const bestSellerId = bestSeller ? (bestSeller.id || '') : '';
+    const allTechs = _employees.filter(e => !INSTALLER_IDS.has(e.id) && !KPI_EXCLUDE.has(((e.first_name||'')+' '+(e.last_name||'')).trim()));
+
+    // If the best match seller isn't in _employees (e.g. historical), still include them
+    const techsForSelect = [...allTechs];
+    if(bestSellerId && !techsForSelect.find(e => e.id === bestSellerId)){
+      const phantom = { id: bestSellerId, first_name: bestSeller.first_name||bestSeller.name||'', last_name: bestSeller.last_name||'' };
+      techsForSelect.unshift(phantom);
     }
+
+    const techRadios = techsForSelect.map(e => {
+      const n = ((e.first_name||'')+' '+(e.last_name||'')).trim() || e.name || '?';
+      const isSelected = e.id === bestSellerId;
+      return `<label class="attr-option" style="${isSelected?'background:#EAF3DE;border-color:#86efac':''}">
+        <input type="radio" name="attr_${j.id}" value="${e.id}" data-name="${n}" ${isSelected?'checked':''}>
+        <div style="flex:1">
+          <div class="attr-option-name">${escHtml(n)}</div>
+        </div>
+        ${isSelected?'<span style="font-size:10px;color:#166534;font-weight:600">Best match</span>':''}
+      </label>`;
+    }).join('');
+
+    optionsHtml = techRadios ||
+      '<div style="font-size:12px;color:#9ca3af;padding:8px">No technicians found — use the override selector below.</div>';
+
+    // Show top candidate estimate(s) as read-only context — not a selection
+    const estContextHtml = candidates.length ? `
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">
+          Matching estimate${candidates.length > 1 ? `s found (${candidates.length})` : ''}
+        </div>
+        ${candidates.slice(0, 3).map((c, i) => {
+          const sName = c.seller ? ((c.seller.first_name||'')+' '+(c.seller.last_name||'')).trim() : '—';
+          const estDate = fmtDY(c.est.schedule?.scheduled_start || c.est.created_at);
+          const estVal = getEstTotal(c.est);
+          const estStatus = getEstDisplayStatus(c.est);
+          const estDept = getDept(c.est);
+          const estNotes = getEstNotes(c.est);
+          const daysDiff = c.signals?.daysDiff != null ? c.signals.daysDiff :
+            Math.round((new Date(j.schedule?.scheduled_start||j.created_at||0) - new Date(c.est.created_at||0)) / (1000*60*60*24));
+          const timeLabel = daysDiff <= 1 ? 'same day' : daysDiff <= 7 ? `${daysDiff}d before job` : `${Math.round(daysDiff)} days before job`;
+          const scoreLabel = c.score >= 80 ? 'Strong match' : c.score >= 60 ? 'Good match' : c.score >= 40 ? 'Possible match' : 'Weak match';
+          const scoreColor = c.score >= 80 ? '#166534' : c.score >= 60 ? '#185FA5' : c.score >= 40 ? '#854F0B' : '#9ca3af';
+          const dm = c.signals?.deptMatch;
+          const deptChip = dm === true
+            ? '<span style="font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 5px;border-radius:3px">dept ✓</span>'
+            : dm === false
+            ? '<span style="font-size:10px;background:#FECACA;color:#991B1B;padding:1px 5px;border-radius:3px">dept ✗</span>' : '';
+          const tmChip = c.signals?.techMatch
+            ? '<span style="font-size:10px;background:#DBEAFE;color:#1d4ed8;padding:1px 5px;border-radius:3px">tech ✓</span>' : '';
+          const estNotesHtml = estNotes.length
+            ? `<div class="notes-box" style="margin-top:4px"><div class="notes-label">Est notes</div>${estNotes.slice(0,2).map(n=>`<div>${escHtml(n.slice(0,160))}${n.length>160?'…':''}</div>`).join('')}</div>` : '';
+          return `<div style="padding:8px 10px;border:1px solid ${i===0?'#86efac':'#e5e7eb'};border-radius:6px;margin-bottom:5px;background:${i===0?'#f0fdf4':'#f9fafb'}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:600;color:#111827">
+                  Est #${c.est.estimate_number||'—'} · ${escHtml(sName)} ${deptChip} ${tmChip}
+                  ${i===0?'<span style="font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;margin-left:4px">Top match</span>':''}
+                </div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px">${estDept} · ${estDate} · ${timeLabel} · ${estVal?dollars(estVal):'—'} · ${estStatus}</div>
+                ${estNotesHtml}
+              </div>
+              <span style="font-size:10px;font-weight:600;color:${scoreColor};white-space:nowrap">${scoreLabel}</span>
+            </div>
+          </div>`;
+        }).join('')}
+        ${candidates.length > 3 ? `<div style="font-size:11px;color:#9ca3af;padding:2px 4px">+ ${candidates.length - 3} more estimate${candidates.length-3>1?'s':''} considered</div>` : ''}
+      </div>` : '';
     const reasonOpts=REASON_OPTIONS.map(r=>`<option value="${r.key}" ${r.key===rec.key?'selected':''}>${r.label}</option>`).join('');
 
     // Customer info
@@ -2934,7 +2984,7 @@ function renderAttr(jobs,estimates){
       ${cust.notes?`<div style="color:#6b7280;margin-top:4px;font-style:italic">${cust.notes.slice(0,120)}</div>`:''}
     </div>`;
 
-    const jobNotesHtml=jobNotes.length?`<div class="notes-box" style="margin-bottom:10px"><div class="notes-label">Job notes</div>${jobNotes.slice(0,3).map(n=>`<div>${n.slice(0,180)}${n.length>180?'…':''}</div>`).join('')}</div>`:'';
+    const jobNotesHtml=jobNotes.length?`<div class="notes-box" style="margin-bottom:10px"><div class="notes-label">Job notes (${jobNotes.length})</div>${jobNotes.map(n=>`<div style="margin-bottom:3px">${escHtml(n)}</div>`).join('')}</div>`:'';
 
     // Customer history — past jobs and estimates for context
     const custId=getCustId(j);
@@ -2967,13 +3017,6 @@ function renderAttr(jobs,estimates){
           </div>`).join('')}
       </div>`:'';
 
-    // Build all-employees selector for manual override
-    const allTechs=_employees.filter(e=>!INSTALLER_IDS.has(e.id));
-    const manualOpts=[
-      {id:'midstate',name:'Midstate (company — no individual tech)'},
-      ...allTechs.map(e=>({id:e.id,name:((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?'}))
-    ].map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}</option>`).join('');
-
     card.innerHTML=`
       <div class="attr-header">
         <div>
@@ -2989,19 +3032,10 @@ function renderAttr(jobs,estimates){
       </div>
       ${custInfoHtml}
       ${historyHtml}
+      ${estContextHtml}
       ${jobNotesHtml}
-      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Who ran the estimate &amp; gets revenue credit?</div>
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Who gets revenue credit for this job?</div>
       <div class="attr-candidates">${optionsHtml}</div>
-      <div style="margin-top:8px;padding:8px 10px;background:#f0f9ff;border:1px solid #BAE6FD;border-radius:6px;font-size:12px">
-        <div style="font-weight:600;color:#0369A1;margin-bottom:4px">Override — assign to any employee:</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select id="manualEmpSel_${j.id}" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-            <option value="">— select to override —</option>
-            ${manualOpts}
-          </select>
-          <button class="is-btn primary" style="white-space:nowrap;font-size:11px" onclick="applyManualOverride('${j.id}')">Assign</button>
-        </div>
-      </div>
       <div class="reason-box">
         <div class="reason-label">Why is this being attributed this way?</div>
         <div class="reason-rec"><span class="rec-icon">${rec.icon}</span><span>Recommended: ${rec.text}</span></div>
@@ -3016,49 +3050,19 @@ function renderAttr(jobs,estimates){
   });
   renderPatternStats();
 }
-function applyManualOverride(jobId){
-  const sel=document.querySelector(`#manualEmpSel_${jobId}`);
-  if(!sel||!sel.value)return;
-  const techId=sel.value;
-  const techName=sel.options[sel.selectedIndex]?.getAttribute('data-name')||sel.options[sel.selectedIndex]?.text||'Unknown';
-  // Check the radio that matches, or store directly
-  const radios=document.querySelectorAll(`input[name="attr_${jobId}"]`);
-  let matched=false;
-  radios.forEach(r=>{if(r.value===techId){r.checked=true;matched=true;}});
-  if(!matched){
-    // Tech not in candidate list — set reason to manual and confirm directly
-    const reasonEl=document.querySelector(`#reason_${jobId}`);
-    const notesEl=document.querySelector(`#notes_${jobId}`);
-    if(reasonEl) reasonEl.value='other';
-    confirmAttribution(jobId,techId,techName,'other',notesEl?.value||'Manual override via employee selector');
-  }
-}
 function confirmFromCard(jobId){
-  // First check if there's a radio button selection
-  let selected=document.querySelector(`input[name="attr_${jobId}"]:checked`);
-  let techId, techName;
-
-  if(selected){
-    techId=selected.value;
-    techName=selected.getAttribute('data-name')||'Unknown';
-  } else {
-    // Fall back to override dropdown if no radio buttons (e.g. installer-only job)
-    const overrideSel=document.querySelector(`#manualEmpSel_${jobId}`);
-    if(overrideSel&&overrideSel.value){
-      techId=overrideSel.value;
-      techName=overrideSel.options[overrideSel.selectedIndex]?.text||'Unknown';
-    } else {
-      alert('Please select a tech to credit, or choose an override from the dropdown.');
-      return;
-    }
+  const selected=document.querySelector(`input[name="attr_${jobId}"]:checked`);
+  if(!selected){
+    alert('Please select a technician to credit.');
+    return;
   }
-
-  const reasonEl=document.querySelector(`#reason_${jobId}`);
-  const notesEl=document.querySelector(`#notes_${jobId}`);
-  const reason=reasonEl?reasonEl.value:'';
-  const notes=notesEl?notesEl.value:'';
-  confirmAttribution(jobId,techId,techName,reason,notes);
+  const techId   = selected.value;
+  const techName = selected.getAttribute('data-name') || 'Unknown';
+  const reasonEl = document.querySelector(`#reason_${jobId}`);
+  const notesEl  = document.querySelector(`#notes_${jobId}`);
+  confirmAttribution(jobId, techId, techName, reasonEl?.value||'', notesEl?.value||'');
 }
+
 
 // ============================================================
 // PATTERN STATS
@@ -5613,57 +5617,88 @@ const GOALS = {
 
 function getRevenueForPeriod(period){
   const now = new Date();
-  // For annual/monthly/quarterly: use cached full-year jobs for accuracy
-  // For weekly/daily: use current pull range jobs
-  const useCached = ['year','quarter','month'].includes(period);
-  const paidJobs = (useCached && _allYearJobs.length > 0) ? _allYearJobs : _jobs.filter(isJobPaid);
 
-  // For daily/weekly: use ONLY completed_at or paid_at — not scheduled_start
-  // scheduled_start is when the job is booked, not when it was paid
-  function jobDate(j, strictPayment=false){
-    const completed = j.work_timestamps?.completed_at || j.completed_at;
-    const scheduled = j.schedule?.scheduled_start;
-    const created   = j.created_at;
-    if(strictPayment){
-      // For daily calc: only use completion date, not scheduled
-      return new Date(completed || created);
-    }
-    return new Date(completed || scheduled || created);
+  // SINGLE DATE SOURCE for all periods — when the job was actually completed/paid.
+  // completed_at is the authoritative field. updated_at is used only as last resort
+  // so a job that was marked paid without a completion timestamp still lands on the
+  // right date. scheduled_start is NEVER used here — that is when the job was booked,
+  // not when money changed hands.
+  function getPaymentDate(j){
+    const ts = j.work_timestamps?.completed_at
+            || j.completed_at
+            || j.work_timestamps?.on_my_way_at  // last field before completion
+            || j.updated_at
+            || j.created_at;
+    return ts ? new Date(ts) : null;
   }
+
+  // Local date string YYYY-MM-DD — avoids UTC/local timezone mismatch
+  function toLocalDate(d){
+    if(!d || isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  // Use cached full-year jobs for year/quarter/month to avoid missing data
+  // when the current pull range is less than a full year
+  const useCached = ['year','quarter','month'].includes(period);
+  const paidJobs  = (useCached && _allYearJobs.length > 0) ? _allYearJobs : _jobs.filter(isJobPaid);
 
   if(period==='year'){
-    return paidJobs.filter(j=>jobDate(j).getFullYear()===now.getFullYear()).reduce((s,j)=>s+getJobRevenue(j),0);
+    return paidJobs.filter(j=>{
+      const d = getPaymentDate(j);
+      return d && d.getFullYear() === now.getFullYear();
+    }).reduce((s,j)=>s+getJobRevenue(j), 0);
   }
+
   if(period==='quarter'){
-    const q=Math.floor(now.getMonth()/3);
-    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&Math.floor(d.getMonth()/3)===q; }).reduce((s,j)=>s+getJobRevenue(j),0);
+    const q = Math.floor(now.getMonth()/3);
+    return paidJobs.filter(j=>{
+      const d = getPaymentDate(j);
+      return d && d.getFullYear()===now.getFullYear() && Math.floor(d.getMonth()/3)===q;
+    }).reduce((s,j)=>s+getJobRevenue(j), 0);
   }
+
   if(period==='month'){
-    return paidJobs.filter(j=>{ const d=jobDate(j); return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth(); }).reduce((s,j)=>s+getJobRevenue(j),0);
+    return paidJobs.filter(j=>{
+      const d = getPaymentDate(j);
+      return d && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+    }).reduce((s,j)=>s+getJobRevenue(j), 0);
   }
+
   if(period==='week'){
-    const startOfWeek=new Date(now); startOfWeek.setDate(now.getDate()-now.getDay()); startOfWeek.setHours(0,0,0,0);
-    return paidJobs.filter(j=>jobDate(j)>=startOfWeek).reduce((s,j)=>s+getJobRevenue(j),0);
+    // Week starts Monday — getDay() returns 0=Sun,1=Mon...6=Sat
+    // If today is Sunday (0), go back 6 days to get Monday
+    const dayOfWeek = now.getDay(); // 0=Sun
+    const daysFromMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - daysFromMon);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const weekJobs = paidJobs.filter(j=>{
+      const d = getPaymentDate(j);
+      return d && d >= startOfWeek;
+    });
+    const weekTotal = weekJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
+    console.log(`[Weekly Rev] startOfWeek=${toLocalDate(startOfWeek)}, matched ${weekJobs.length} jobs, total=$${weekTotal.toFixed(2)}`);
+    return weekTotal;
   }
+
   if(period==='day'){
-    // Use local date comparison, strict payment date only (no scheduled_start bleed)
-    const todayLocal = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const todayLocal = toLocalDate(now);
     const todayJobs = paidJobs.filter(j=>{
-      const d = jobDate(j, true); // strict — completed_at only
-      if(isNaN(d.getTime())) return false;
-      const dLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      return dLocal === todayLocal;
+      const d = getPaymentDate(j);
+      return d && toLocalDate(d) === todayLocal;
     });
-    const todayTotal = todayJobs.reduce((s,j)=>s+getJobRevenue(j),0);
-    console.log(`[Daily Rev] Today=${todayLocal}, matched ${todayJobs.length} jobs, total=$${todayTotal.toFixed(2)}`);
+    const todayTotal = todayJobs.reduce((s,j)=>s+getJobRevenue(j), 0);
+    console.log(`[Daily Rev] today=${todayLocal}, matched ${todayJobs.length} jobs, total=$${todayTotal.toFixed(2)}`);
     todayJobs.forEach(j => {
-      const compAt = j.work_timestamps?.completed_at||j.completed_at||'none';
-      const updAt  = j.work_timestamps?.updated_at||j.updated_at||'none';
+      const compAt = j.work_timestamps?.completed_at || j.completed_at || 'none';
       const bal    = parseFloat(j.outstanding_balance)||0;
-      console.log(`  ▸ Job ${j.job_number||j.id} | ${getCust(j)} | status=${getRawStatus(j)} | bal=$${bal} | rev=$${getJobRevenue(j).toFixed(2)} | completed_at=${compAt} | updated_at=${updAt} | returnVisit=${isReturnVisit(j)}`);
+      console.log(`  ▸ #${j.job_number||j.id} | ${getCust(j)} | bal=$${bal} | rev=$${getJobRevenue(j).toFixed(2)} | completed_at=${compAt}`);
     });
-    return todayJobs.reduce((s,j)=>s+getJobRevenue(j),0);
+    return todayTotal;
   }
+
   return 0;
 }
 
@@ -9952,38 +9987,34 @@ function buildCalendarData(jobs, estimates, mode){
       const isReturn=isReturnVisit(j);
       const jobRevenue=isReturn?0:total;
 
-      // Job count cell — WORK tech's column on work date
+      // Job count cell — ALWAYS on the work date (schedDate), under the performing tech
+      // Revenue is written separately below, on the payment date
       const schedCell=getCell(schedDate, workEmpId);
-
-      if(isOnSameDate && isSameTech){
-        // Same tech, same date — everything in one cell
-        if(paid) schedCell.rev+=jobRevenue;
-        else if(isPartial) { schedCell.rev+=collected; schedCell.unpaid+=outstanding; }
-        else if(complete) schedCell.unpaid+=total;
-        else schedCell.pending+=total>0?total:0;
-      } else {
-        // Different tech OR different date — only show status, not revenue (revenue goes to seller)
-        if(complete&&!paid) schedCell.unpaid+=total;
-        else if(!complete&&total>0) schedCell.pending+=total;
-      }
-
       schedCell.jobCount++;
+
+      // Unpaid / pending amounts shown on work date for visibility
+      if(!paid&&complete&&!isReturn) schedCell.unpaid+=total;
+      else if(!complete&&total>0&&!isReturn) schedCell.pending+=total>0?total:0;
+
       schedCell.items.push({
         type:'job',date:schedDate,schedDate,revDate,collectionDate,
         id:j.id,number:j.job_number,
         customer:jFullName,custAddr:jAddr,custPhone:jPhone,
         allTechs:jAllTechs,description:j.description||j.summary||'',
-        status:jobStatus,total:isOnSameDate&&isSameTech?jobRevenue:0,
+        status:jobStatus,
+        // Revenue shown in job cell ONLY when it's also being paid same day same tech
+        // Otherwise revenue appears in its own revenue_ref cell on the payment date
+        total: (paid&&isSameTech&&collectionDate===schedDate&&!isReturn) ? jobRevenue : 0,
         collected,outstanding,isPartial,
         paid,complete,
         unpaid:complete&&!paid&&!isReturn,
         pending:!complete&&total>0&&!isReturn,
         dept:getDept(j),notes:getJobNotes(j),emp:workEmpName,
-        revenueElsewhere:!isSameTech||(!isOnSameDate&&paid&&!isReturn),
+        revenueElsewhere: paid&&!isReturn&&!(isSameTech&&collectionDate===schedDate),
         revenueDate:revDate,revEmpName,
         revNote:isReturn?'Return visit / no charge':
           !isSameTech?`Revenue → ${revEmpName} on ${revDate}`:
-          (!isOnSameDate&&paid?`Revenue on est. date ${revDate}`:''),
+          (collectionDate!==schedDate?`Revenue collected ${revDate}`:''),
         isReturn,source:attr?.source,reason:_attr[j.id]?.reason
       });
 
@@ -10003,7 +10034,11 @@ function buildCalendarData(jobs, estimates, mode){
       });
     }
 
-    // ---- Write REVENUE to SELLER column — per payment date if available ----
+    // ---- Write REVENUE — always on the actual payment date (collectionDate) ----
+    // This is entirely separate from the job count above.
+    // The job appears under the performing tech on the work date.
+    // The revenue appears under the selling tech on the payment date.
+    // When seller === performer and payment date === work date, they coincide in one cell.
     if(!isReturnVisit(j)&&(paid||isPartial)){
       if(hasRealPayments&&mode==='collected'){
         // Write each actual payment to its real date
@@ -10026,13 +10061,13 @@ function buildCalendarData(jobs, estimates, mode){
           });
         });
       } else {
-        // No granular payment data — use collectionDate with total/collected amount
+        // No granular payment data — write revenue to collectionDate (completed_at fallback)
+        // Always write a revenue_ref on the payment date under the selling tech.
+        // If seller === performer AND payment date === work date, the job cell already
+        // shows the revenue inline — skip the ref to avoid double-counting.
         const revenueToCredit=isPartial?collected:getJobRevenue(j);
-        // In collection date mode: ONLY write revenue_ref when tech differs (cross-tech attribution)
-        // Never back-credit to a different date in collection mode — that defeats cash flow view
-        // In estimate date mode: also credit when date differs (same tech, different date)
-        const shouldWriteRef=revenueToCredit>0&&(!isSameTech||(mode==='estimate'&&!isOnSameDate));
-        if(shouldWriteRef){
+        const alreadyInJobCell=(isSameTech&&collectionDate===schedDate);
+        if(revenueToCredit>0&&!alreadyInJobCell){
           dates.add(revDate);
           const revCell=getCell(revDate, revEmpId);
           revCell.rev+=revenueToCredit;
@@ -10043,8 +10078,8 @@ function buildCalendarData(jobs, estimates, mode){
             status:jobStatus,total:revenueToCredit,paid,dept:getDept(j),
             emp:revEmpName,workEmp:workEmpName,
             note:!isSameTech
-              ?`Completed by ${workEmpName} on ${schedDate} · Revenue credited to ${revEmpName}`
-              :`Job completed ${schedDate} · Revenue credited here`
+              ?`Completed by ${workEmpName} on ${schedDate} · Revenue collected ${revDate}`
+              :`Job worked ${schedDate} · Revenue collected ${revDate}`
           });
         }
       }
