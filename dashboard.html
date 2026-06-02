@@ -420,7 +420,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.19</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.20</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.19</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.20</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -696,48 +696,29 @@ tr:hover td{background:#fafafa}
       </div>
       <!-- Controls -->
       <div class="cal-controls">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <label style="font-size:12px;color:#6b7280">View:</label>
-          <select id="calRevenueMode" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
-            <option value="estimate">Revenue on estimate date (who sold it)</option>
-            <option value="collected" selected>Revenue on collection date (cash flow)</option>
-          </select>
-          <label style="font-size:12px;color:#6b7280;margin-left:8px">Sort techs by:</label>
-          <select id="calEmpSort" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px">
-            <option value="name">Name A–Z</option>
-            <option value="dept">Department</option>
-            <option value="revenue">Revenue (high–low)</option>
-          </select>
-          <label style="font-size:12px;color:#6b7280;margin-left:8px">Employees:</label>
-          <!-- Calendar-specific multi-select dropdown -->
-          <div class="emp-filter-wrap" id="calEmpFilterWrap">
-            <div class="emp-filter-btn" onclick="toggleCalEmpFilter(event)" id="calEmpFilterBtn">
-              <span id="calEmpFilterLabel">👥 All employees</span>
-              <span style="font-size:10px;margin-left:4px">▾</span>
-            </div>
-            <div class="emp-filter-dropdown" id="calEmpFilterDropdown" style="display:none">
-              <div class="emp-filter-header">
-                <span style="font-size:12px;font-weight:600;color:#374151">Show on calendar</span>
-                <div style="display:flex;gap:6px">
-                  <button class="emp-filter-action" onclick="calEmpSelectAll()">All</button>
-                  <button class="emp-filter-action" onclick="calEmpSelectNone()">None</button>
-                  <button class="emp-filter-action" onclick="calEmpSelectTechs()">Techs</button>
-                </div>
-              </div>
-              <div id="calEmpCheckboxList"></div>
-            </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between">
+          <!-- Month navigation -->
+          <div style="display:flex;align-items:center;gap:10px">
+            <button onclick="calNavMonth(-1)" style="width:32px;height:32px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">‹</button>
+            <div id="calMonthLabel" style="font-size:16px;font-weight:700;color:#1A3A5C;min-width:160px;text-align:center">—</div>
+            <button onclick="calNavMonth(1)" style="width:32px;height:32px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">›</button>
+            <button onclick="calGoToday()" style="font-size:11px;padding:4px 10px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-weight:600;color:#374151">Today</button>
+          </div>
+          <!-- View + print -->
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:#6b7280">View:</label>
+            <select id="calRevenueMode" onchange="renderCalendar()" style="font-size:12px;padding:4px 8px;border:1px solid #d1d5db;border-radius:5px">
+              <option value="collected" selected>Cash collected (payment date)</option>
+              <option value="estimate">Sold date (estimate date)</option>
+            </select>
+            <button onclick="printCalendar()" style="white-space:nowrap;font-size:12px;padding:5px 14px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-weight:600;color:#374151">🖨 Print</button>
           </div>
         </div>
-        <button onclick="printCalendar()" style="white-space:nowrap;font-size:12px;padding:5px 14px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;color:#374151">🖨 Print Calendar</button>
-        </div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:6px">
-          💡 <strong>Collection date mode (default):</strong> Revenue shows on the date cash was received. Partial payments show amount collected. Switch to <em>Revenue on estimate date</em> to see who sold it and when. Click any cell for details.
-        </div>
       </div>
-      <!-- Calendar table -->
-      <div class="cal-wrap" id="calWrap">
+      <!-- Calendar grid -->
+      <div id="calWrap" style="padding:0 4px 16px">
         <div style="text-align:center;padding:2rem;color:#9ca3af;font-size:13px">Pull a report to load the calendar.</div>
+      </div>
       </div>
       <!-- Detail popup -->
       <div class="cal-popup-overlay" id="calOverlay" onclick="closeCalPopup()" style="display:none"></div>
@@ -2432,7 +2413,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.19
+  // ATTRIBUTION ENGINE — v23.20
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -10152,157 +10133,278 @@ function buildCalendarData(jobs, estimates, mode){
   return {dates, employees, cells};
 }
 
+// ── Calendar month state ───────────────────────────────────────
+let _calYear  = new Date().getFullYear();
+let _calMonth = new Date().getMonth(); // 0-indexed
+
+function calNavMonth(dir){
+  _calMonth += dir;
+  if(_calMonth > 11){ _calMonth = 0; _calYear++; }
+  if(_calMonth < 0) { _calMonth = 11; _calYear--; }
+  renderCalendar();
+}
+function calGoToday(){
+  const now = new Date();
+  _calYear  = now.getFullYear();
+  _calMonth = now.getMonth();
+  renderCalendar();
+}
+
 function renderCalendar(){
-  if(!_jobs.length&&!_estimates.length) return;
-  const mode=$$('calRevenueMode')?.value||'estimate';
-  const {dates, employees, cells}=buildCalendarData(_jobs,_estimates,mode);
+  if(!_jobs.length && !_estimates.length) return;
 
-  // filteredEmps already respects _selectedEmps via buildCalendarData's isEmpVisible filter
-  // Remove the old single-select calEmpFilter - the global checkbox filter handles this now
-  const calEmpSel=$$('calEmpFilter');
-  if(calEmpSel) calEmpSel.style.display='none'; // hide redundant dropdown
+  const mode = $$('calRevenueMode')?.value || 'collected';
 
-  let filteredEmps=employees; // already filtered by isEmpVisible in buildCalendarData
+  // Update month label
+  const monthLabel = new Date(_calYear, _calMonth, 1)
+    .toLocaleDateString('en-US', {month:'long', year:'numeric'});
+  const ml = $$('calMonthLabel');
+  if(ml) ml.textContent = monthLabel;
 
-  // Revenue sort: re-sort after cells are known
-  if(($$('calEmpSort')?.value||'name')==='revenue'){
-    filteredEmps=[...employees].sort((a,b)=>{
-      const aRev=sortedDates.reduce((s,d)=>s+(cells[`${d}|${a.id}`]?.rev||0),0);
-      const bRev=sortedDates.reduce((s,d)=>s+(cells[`${d}|${b.id}`]?.rev||0),0);
-      return bRev-aRev;
-    });
+  // Build revenue map: date string → { rev, jobs, unpaid, items[] }
+  // Only counts paid jobs — revenue by payment date (completed_at)
+  const dayMap = {}; // 'YYYY-MM-DD' → { rev, paidJobs, unpaidJobs, pendingJobs, items }
+
+  function toLD(d){ // local date string
+    if(!d) return null;
+    const dt = d instanceof Date ? d : new Date(d);
+    if(isNaN(dt)) return null;
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
   }
 
-  // Generate ALL dates in the selected range (no gaps)
-  const fromDate=$$('dateFrom').value;
-  const toDate=$$('dateTo').value;
-  const sortedDates=[];
-  if(fromDate&&toDate){
-    const cur=new Date(fromDate+'T12:00:00');
-    const end=new Date(toDate+'T12:00:00');
-    while(cur<=end){
-      sortedDates.push(cur.toISOString().split('T')[0]);
-      cur.setDate(cur.getDate()+1);
-    }
-  } else {
-    // Fallback to dates from data only
-    sortedDates.push(...[...dates].filter(d=>d&&d!=='1970-01-01').sort());
-  }
-  if(!sortedDates.length){
-    $$('calWrap').innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af">No data for this range.</div>';
-    return;
+  function getDay(ds){
+    if(!dayMap[ds]) dayMap[ds] = {rev:0, paidJobs:0, unpaidJobs:0, pendingJobs:0, items:[]};
+    return dayMap[ds];
   }
 
-  // Compute daily average revenue per emp for color thresholding
-  const allRevs=filteredEmps.flatMap(emp=>sortedDates.map(d=>(cells[`${d}|${emp.id}`]?.rev||0))).filter(v=>v>0);
-  const avgRev=allRevs.length?allRevs.reduce((a,b)=>a+b,0)/allRevs.length:0;
-  const highThreshold=Math.max(avgRev*1.5, 500);
+  // Build estimate lookup for estimate-date mode
+  const estById = {};
+  _estimates.forEach(e=>{
+    estById[e.id] = e;
+    (e.options||[]).forEach(o=>{ estById[o.id] = e; });
+  });
 
-  const today=new Date().toISOString().split('T')[0];
+  _jobs.forEach(j => {
+    if(isJobCanceled(j) || isJobRefunded(j)) return;
 
-  // Build table
-  const showDeptInHeader=($$('calEmpSort')?.value||'name')==='dept';
+    const total     = getJobTotal(j);
+    const paid      = isJobPaid(j);
+    const complete  = isJobComplete(j);
+    const schedDate = toLD(j.schedule?.scheduled_start);
 
-  // Build dept label cache for headers
-  let html=`<table class="cal-table">
-  <thead><tr>
-    <th class="date-col">Date</th>
-    ${filteredEmps.map(e=>{
-      const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
-      // Use _deptLabel set during sort, or role as fallback
-      const labelText=e._deptLabel||e.role||'';
-      const deptLabel=showDeptInHeader&&labelText
-        ?`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${labelText}</div>`
-        :`<div style="font-size:9px;opacity:.7;font-weight:400;margin-top:2px">${e.role||'field tech'}</div>`;
-      return`<th>${name}${deptLabel}</th>`;
-    }).join('')}
-  </tr></thead><tbody>`;
+    // Payment date — completed_at only, no fallbacks
+    const completedTs = j.work_timestamps?.completed_at || j.completed_at;
+    const payDate = completedTs ? toLD(new Date(completedTs)) : null;
 
-  // Column totals
-  const colTotals={};filteredEmps.forEach(e=>{colTotals[e.id]={rev:0,jobs:0,ests:0,unpaid:0,pending:0};});
-
-  sortedDates.forEach(d=>{
-    const dt=new Date(d+'T12:00:00');
-    const dow=dt.getDay();
-    const isWeekend=dow===0||dow===6;
-    const isToday=d===today;
-    const dayLabel=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-    const rowClass=isToday?'today':isWeekend?'weekend':'';
-    let row=`<tr class="${rowClass}"><td class="date-cell">${dayLabel}</td>`;
-
-    filteredEmps.forEach(emp=>{
-      const c=cells[`${d}|${emp.id}`];
-      if(!c||(!c.rev&&!c.jobCount&&!c.estCount&&!c.unpaid&&!c.pending)){
-        row+=`<td class="cal-cell empty"></td>`;return;
+    // Decide which date to show revenue on
+    let revDate = null;
+    if(mode === 'estimate'){
+      const linkedEstId = j.original_estimate_id || (j.original_estimate_uuids&&j.original_estimate_uuids[0]) || null;
+      const linkedEst   = linkedEstId ? estById[linkedEstId] : null;
+      if(linkedEst){
+        revDate = toLD(linkedEst.schedule?.scheduled_start || linkedEst.created_at);
+      } else {
+        const attr = _jobAttribution[j.id];
+        const candEst = attr?.candidates?.[0]?.est;
+        revDate = candEst ? toLD(candEst.schedule?.scheduled_start || candEst.created_at) : payDate;
       }
-      colTotals[emp.id].rev+=c.rev;
-      colTotals[emp.id].jobs+=c.jobCount;
-      colTotals[emp.id].ests+=c.estCount;
-      if(c.unpaid>0) colTotals[emp.id].unpaid=(colTotals[emp.id].unpaid||0)+c.unpaid;
-      if(c.pending>0) colTotals[emp.id].pending=(colTotals[emp.id].pending||0)+c.pending;
+    } else {
+      // Collection mode — always use actual payment date
+      revDate = payDate;
+    }
 
-      // Split jobs: revenue here vs revenue credited to estimate date
-      const elsewhereJobs=c.items.filter(i=>i.type==='job'&&i.revenueElsewhere).length;
-      const revenueJobs=c.items.filter(i=>i.type==='job'&&!i.revenueElsewhere).length;
+    const attr     = _jobAttribution[j.id];
+    const techName = attr?.techName || getAssigned(j) || '—';
+    const dept     = getDept(j);
+    const customer = getCust(j);
+    const rev      = isReturnVisit(j) ? 0 : getJobRevenue(j);
 
-      // Determine cell class
-      let cellClass='cal-cell ';
-      if(c.rev>0&&c.unpaid>0) cellClass+='mixed';
-      else if(c.rev>=highThreshold) cellClass+='paid-high';
-      else if(c.rev>0) cellClass+='paid-low';
-      else if(c.unpaid>0) cellClass+='unpaid';
-      else if(c.pending>0||revenueJobs>0) cellClass+='in-progress';
-      else if(elsewhereJobs>0) cellClass+='est-only';
-      else if(c.estCount>0) cellClass+='est-only';
+    // Revenue — only for paid jobs
+    if(paid && rev > 0 && revDate){
+      const day = getDay(revDate);
+      day.rev    += rev;
+      day.paidJobs++;
+      day.items.push({
+        type:'paid', date:revDate, schedDate,
+        id:j.id, number:j.job_number,
+        customer, dept, tech:techName, total:rev,
+        status:'Paid'
+      });
+    }
 
-      // Revenue line
-      // Revenue collected (credited to this estimate date)
-      const revDisplay=c.rev>0?`<div class="cal-rev">${dollars(c.rev)}</div>`:'';
-      // Job complete but payment not yet collected
-      const unpaidDisplay=c.unpaid>0?`<div style="font-size:11px;font-weight:600;color:#92400E;background:#FEF3C7;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">⚠ ${dollars(c.unpaid)} unpaid</div>`:'';
-      // Job scheduled/in progress, not yet complete
-      const pendingDisplay=c.pending>0?`<div style="font-size:11px;font-weight:600;color:#1d4ed8;background:#DBEAFE;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">🕐 ${dollars(c.pending)} in progress</div>`:'';
-      // Revenue refs = jobs paid on another date, credited back here (retroactive)
-      const refCount=c.items.filter(i=>i.type==='revenue_ref').length;
-      const retroDisplay=refCount>0?`<div style="font-size:10px;font-weight:600;color:#059669;background:#ECFDF5;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">↩ ${refCount} job${refCount>1?'s':''} collected later</div>`:'';
-      // Unattributed jobs — jobs in this cell with no confirmed attribution
-      const unattribItems=c.items.filter(i=>i.type==='job'&&(!_jobAttribution[i.id]||_jobAttribution[i.id]?.source==='unresolved'||_jobAttribution[i.id]?.source==='no_estimate'));
-      const unattribDisplay=unattribItems.length>0
-        ?`<div style="font-size:10px;font-weight:600;color:#7C3AED;background:#F5F3FF;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:1px">❓ ${unattribItems.length} unconfirmed</div>`
-        :'';
-      // Plain English counts
-      const jobWord=c.jobCount===1?'1 Job':`${c.jobCount} Jobs`;
-      const estWord=c.estCount===1?'1 Estimate':`${c.estCount} Estimates`;
-      const meta=[];
-      if(c.jobCount>0) meta.push(`<span>🔧 ${jobWord}</span>`);
-      if(c.estCount>0) meta.push(`<span>📋 ${estWord}</span>`);
+    // Unpaid complete jobs — show on scheduled date as warning
+    if(complete && !paid && schedDate){
+      const day = getDay(schedDate);
+      day.unpaidJobs++;
+      day.items.push({
+        type:'unpaid', date:schedDate,
+        id:j.id, number:j.job_number,
+        customer, dept, tech:techName, total,
+        status:'Unpaid'
+      });
+    }
 
-      row+=`<td class="${cellClass}" onclick="openCalPopup('${d}','${emp.id}','${((emp.first_name||'')+' '+(emp.last_name||'')).trim()}')">
-        ${revDisplay}${unpaidDisplay}${pendingDisplay}${retroDisplay}${unattribDisplay}
-        <div class="cal-meta">${meta.join(' ')}</div>
-      </td>`;
-    });
-    row+='</tr>';
-    html+=row;
+    // Scheduled/in-progress — show on scheduled date
+    if(!complete && !paid && schedDate && total > 0){
+      const day = getDay(schedDate);
+      day.pendingJobs++;
+      day.items.push({
+        type:'scheduled', date:schedDate,
+        id:j.id, number:j.job_number,
+        customer, dept, tech:techName, total,
+        status:'Scheduled'
+      });
+    }
   });
 
-  // Totals row
-  // Init unpaid in colTotals
-  filteredEmps.forEach(emp=>{if(!colTotals[emp.id].unpaid)colTotals[emp.id].unpaid=0;});
-  html+=`<tr class="cal-totals"><td class="date-cell">Totals</td>`;
-  filteredEmps.forEach(emp=>{
-    const t=colTotals[emp.id];
-    const unpaidNote=t.unpaid>0?`<div style="font-size:10px;color:#92400E;margin-top:2px">⚠ ${dollars(t.unpaid)} due</div>`:'';
-    const pendingNote=t.pending>0?`<div style="font-size:10px;color:#1d4ed8;margin-top:2px">🕐 ${dollars(t.pending)} pending</div>`:'';
-    html+=`<td class="cal-cell" style="background:#f9fafb">
-      <div style="font-size:13px;font-weight:700;color:#1A3A5C">${t.rev?dollars(t.rev):'—'}</div>
-      ${unpaidNote}${pendingNote}
-      <div style="font-size:10px;color:#6b7280;margin-top:2px">${t.jobs} Job${t.jobs!==1?'s':''} · ${t.ests} Est${t.ests!==1?'s':''}</div>
-    </td>`;
-  });
-  html+=`</tr></tbody></table>`;
+  // ── Build month grid ──────────────────────────────────────────
+  const today  = toLD(new Date());
+  const yr     = _calYear;
+  const mo     = _calMonth;
+  const first  = new Date(yr, mo, 1);
+  const last   = new Date(yr, mo+1, 0);
+  const startDow = first.getDay(); // 0=Sun
+  const daysInMonth = last.getDate();
 
-  $$('calWrap').innerHTML=html;
+  // Month totals
+  let monthRev = 0;
+  let monthPaid = 0;
+
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let html = `<style>
+  .cal-grid-wrap { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .cal-month-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:#e5e7eb; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+  .cal-dow-header { background:#1A3A5C; color:#fff; text-align:center; font-size:11px; font-weight:700; padding:8px 4px; letter-spacing:.06em; text-transform:uppercase; }
+  .cal-day { background:#fff; min-height:90px; padding:6px 7px; position:relative; cursor:default; transition:background .12s; }
+  .cal-day:hover { background:#f0f7ff; }
+  .cal-day.today { background:#EFF6FF; outline:2px solid #3B82F6; outline-offset:-2px; }
+  .cal-day.other-month { background:#f9fafb; }
+  .cal-day.weekend { background:#fafafa; }
+  .cal-day.weekend.today { background:#EFF6FF; }
+  .cal-day-num { font-size:13px; font-weight:700; color:#374151; margin-bottom:4px; }
+  .cal-day.today .cal-day-num { color:#2563EB; }
+  .cal-day.other-month .cal-day-num { color:#d1d5db; }
+  .cal-day-rev { font-size:15px; font-weight:800; color:#166534; margin:2px 0; }
+  .cal-day-jobs { font-size:10px; color:#6b7280; margin-top:2px; }
+  .cal-day-unpaid { font-size:10px; font-weight:600; color:#92400E; background:#FEF3C7; border-radius:3px; padding:1px 4px; display:inline-block; margin-top:2px; }
+  .cal-day-pending { font-size:10px; font-weight:600; color:#1d4ed8; background:#DBEAFE; border-radius:3px; padding:1px 4px; display:inline-block; margin-top:2px; }
+  .cal-day-dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:3px; vertical-align:middle; }
+  .cal-month-summary { display:flex; gap:16px; align-items:center; padding:10px 4px 6px; flex-wrap:wrap; }
+  .cal-sum-chip { font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px; }
+  </style>
+  <div class="cal-grid-wrap">
+  <div class="cal-month-summary">
+    <span style="font-size:13px;color:#6b7280">Paid revenue collected in ${monthLabel}:</span>
+    <span id="calMonthTotal" class="cal-sum-chip" style="background:#EAF3DE;color:#166534">calculating…</span>
+    <span style="font-size:11px;color:#9ca3af">Click any day for details</span>
+  </div>
+  <div class="cal-month-grid">`;
+
+  // Day-of-week headers
+  DOW.forEach(d => { html += `<div class="cal-dow-header">${d}</div>`; });
+
+  // Leading empty cells
+  for(let i = 0; i < startDow; i++){
+    html += `<div class="cal-day other-month"></div>`;
+  }
+
+  // Day cells
+  for(let day = 1; day <= daysInMonth; day++){
+    const ds    = `${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dt    = new Date(yr, mo, day);
+    const dow   = dt.getDay();
+    const isWkd = dow === 0 || dow === 6;
+    const isTdy = ds === today;
+    const data  = dayMap[ds];
+
+    const rev      = data?.rev || 0;
+    const paid     = data?.paidJobs || 0;
+    const unpaid   = data?.unpaidJobs || 0;
+    const pending  = data?.pendingJobs || 0;
+
+    if(rev > 0){ monthRev += rev; monthPaid += paid; }
+
+    let cls = 'cal-day';
+    if(isTdy)  cls += ' today';
+    if(isWkd)  cls += ' weekend';
+
+    const revHtml     = rev > 0     ? `<div class="cal-day-rev">${dollars(rev)}</div>` : '';
+    const jobsHtml    = paid > 0    ? `<div class="cal-day-jobs">💰 ${paid} paid job${paid!==1?'s':''}</div>` : '';
+    const unpaidHtml  = unpaid > 0  ? `<div class="cal-day-unpaid">⚠ ${unpaid} unpaid</div>` : '';
+    const pendHtml    = pending > 0 ? `<div class="cal-day-pending">📅 ${pending} sched</div>` : '';
+
+    const onclick = data ? `onclick="openCalDayPopup('${ds}')"` : '';
+    if(data) html += `<div class="${cls}" ${onclick} style="cursor:pointer">${'<div class="cal-day-num">'+day+'</div>'}${revHtml}${jobsHtml}${unpaidHtml}${pendHtml}</div>`;
+    else     html += `<div class="${cls}"><div class="cal-day-num">${day}</div></div>`;
+  }
+
+  // Trailing empty cells to complete the grid
+  const totalCells = startDow + daysInMonth;
+  const trailingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for(let i = 0; i < trailingCells; i++){
+    html += `<div class="cal-day other-month"></div>`;
+  }
+
+  html += `</div></div>`;
+  $$('calWrap').innerHTML = html;
+
+  // Update month total chip
+  const chip = $$('calMonthTotal');
+  if(chip) chip.textContent = monthRev > 0
+    ? `${dollars(monthRev)} — ${monthPaid} paid job${monthPaid!==1?'s':''}`
+    : 'No paid revenue this month';
+
+  // Store for popup
+  _calDayMap  = dayMap;
+  _calMonthYM = `${yr}-${String(mo+1).padStart(2,'0')}`;
+}
+
+// Day popup — shows all jobs for a clicked date
+let _calDayMap = {};
+let _calMonthYM = '';
+
+function openCalDayPopup(ds){
+  const data = _calDayMap[ds];
+  if(!data) return;
+  const dt = new Date(ds+'T12:00:00');
+  const label = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  const rows = data.items.map(item => {
+    const statusColor = item.type==='paid'?'#166534':item.type==='unpaid'?'#92400E':'#1d4ed8';
+    const statusBg    = item.type==='paid'?'#EAF3DE':item.type==='unpaid'?'#FEF3C7':'#DBEAFE';
+    const statusLabel = item.type==='paid'?'Paid':item.type==='unpaid'?'Unpaid':'Scheduled';
+    return `<div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:7px;margin-bottom:6px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#111">${escHtml(item.customer)}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">${escHtml(item.dept)} · ${escHtml(item.tech)}</div>
+          <div style="font-size:10px;color:#9ca3af">#${item.number||item.id}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:15px;font-weight:800;color:${statusColor}">${dollars(item.total)}</div>
+          <span style="font-size:10px;font-weight:600;background:${statusBg};color:${statusColor};padding:1px 7px;border-radius:99px">${statusLabel}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalRev = data.items.filter(i=>i.type==='paid').reduce((s,i)=>s+i.total,0);
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="padding:16px 18px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#1A3A5C">${label}</div>
+        ${totalRev>0?`<div style="font-size:13px;font-weight:700;color:#166534;margin-top:2px">${dollars(totalRev)} collected</div>`:''}
+      </div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="width:30px;height:30px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:14px 16px">${rows||'<div style="color:#9ca3af;text-align:center;padding:16px">No activity this day</div>'}</div>
+  </div>`;
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 // Store calendar data for popup
