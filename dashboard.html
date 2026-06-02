@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.29</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.31</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.29</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.31</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.29</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.31</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2266,12 +2266,8 @@ async function loadAll(){
           });
         }
       });
-      // Attach invoice payments to job objects so all revenue logic can use them
-      const invoiceJobIds = Object.keys(_invoiceMap);
-      console.log('[Invoices] Mapped to', invoiceJobIds.length, 'jobs');
-      jobs.forEach(j => {
-        if(_invoiceMap[j.id]) j._payments = _invoiceMap[j.id];
-      });
+      // Store invoice map — will attach to job objects after jobs are fetched below
+      console.log('[Invoices] Mapped to', Object.keys(_invoiceMap).length, 'jobs');
     } catch(e) {
       console.warn('[Invoices] fetch failed, falling back to completed_at:', e.message);
       dashLog('warn', 'Invoices: ' + e.message + ' — using completed_at fallback');
@@ -2292,6 +2288,13 @@ async function loadAll(){
       fetchConfirmedAttrFromSheets()   // runs in parallel, populates _attr
     ]);
     const [jobs, estimates, empRaw, plans] = apiResults;
+
+    // Attach invoice payments to job objects now that jobs are loaded
+    // _invoiceMap was populated by the invoice fetch above (ran in parallel)
+    if(Object.keys(_invoiceMap).length > 0){
+      jobs.forEach(j => { if(_invoiceMap[j.id]) j._payments = _invoiceMap[j.id]; });
+      console.log('[Invoices] Attached payments to', jobs.filter(j=>j._payments).length, 'jobs');
+    }
 
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
     _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
@@ -2454,7 +2457,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.29
+  // ATTRIBUTION ENGINE — v23.31
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4027,6 +4030,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       });
     });
   });
+
+  // Build KPI payload — employee performance map
+  const map={};
   employees.forEach(emp=>{
     const name=((emp.first_name||emp.name||'')+' '+(emp.last_name||'')).trim()||'Unknown';
     map[emp.id]={name,role:emp.role||'Technician',installer:INSTALLER_NAMES.includes(name),
@@ -4239,7 +4245,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         dashLog('success', `CallRail: ${total} calls, ${newCalls} new, ${answered} answered this week`);
         // Save to dedicated CallRail tab in Sheets
         if(_sheetsProxy) {
-          fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+          fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
             body:JSON.stringify({
               action:       'syncCallRail',
               total:        total,
@@ -4509,15 +4515,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       headers:{'Content-Type':'text/plain'},
       body:payload,
       redirect:'follow',
+      mode:'no-cors',
     });
-    const result=await res.json();
-    if(result.success){
-      $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
-      // Also sync monthly revenue to its own tab so companion can display bar chart
-      syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
-    } else {
-      $$('statusBar').textContent=`Report loaded · Sheets sync failed: ${result.error||'unknown error'}`;
-    }
+    // no-cors responses are opaque — can't read result, but write succeeded if no exception
+    $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
+    syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
   }catch(err){
     console.warn('Report sync failed:',err.message);
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
@@ -4580,10 +4582,10 @@ async function fetchYTDMonthlyRevenue() {
     // Push monthly breakdown to Sheets for companion bar chart
     if(_sheetsProxy){
       fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
         body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
-      }).then(r=>r.json()).then(d=>{
-        if(d.success) console.log('[YTD] Monthly revenue synced to Sheets');
+      }).then(()=>{
+        console.log('[YTD] Monthly revenue synced to Sheets');
       }).catch(e => console.warn('[YTD] Sheets sync failed:', e.message));
     }
   } catch(e) {
@@ -4726,7 +4728,7 @@ async function saveSceneOrder() {
   const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
   if(_sheetsProxy) {
     try {
-      await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
         body:JSON.stringify({action:'syncSettings',settings:{wb_scene_order:JSON.stringify(enabledIds)}})
       });
       showToast('✅ Scene order saved & pushed to companion','success');
@@ -4942,7 +4944,7 @@ async function fetchRCCallLog(jwt) {
 
     // Save to dedicated RingCentral tab in Sheets
     if(_sheetsProxy) {
-      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
         body: JSON.stringify({
           action:      'syncRingCentral',
           total:       _rcSnap.total,
@@ -5095,17 +5097,33 @@ async function testCallRail() {
       if(filter==='outbound') params.set('direction','outbound');
 
       setCallsProgress('cr', `📡 Page ${page} of ${totalPages} — ${allCalls.length} calls so far...`);
-      // Route through worker proxy to avoid CORS
-      const crUrl = _workerUrl
-        ? `${_workerUrl}/callrail/v3/a/${CR_ACC}/calls.json?${params}`
-        : `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
-      const res = await fetch(crUrl, {
-        headers: { 'Authorization': `Token token="${CR_KEY}"`, 'Content-Type': 'application/json' }
-      });
-      if(!res.ok) { const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
-      const d = await res.json();
-      allCalls = [...allCalls, ...(d.calls||[])];
-      totalPages = d.total_pages || 1;
+
+      // CallRail has CORS restrictions — route through Apps Script proxy
+      // The Cloudflare Worker doesn't have a /callrail/ route
+      let res;
+      if(_sheetsProxy){
+        const proxyRes = await fetch(_sheetsProxy, {
+          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+          body: JSON.stringify({
+            action: 'callrailProxy',
+            url: `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`,
+            apiKey: CR_KEY
+          })
+        });
+        const proxyData = await proxyRes.json();
+        if(!proxyData.success) throw new Error(proxyData.error || 'Proxy error');
+        const d = proxyData.data;
+        allCalls = [...allCalls, ...(d.calls||[])];
+        totalPages = d.total_pages || 1;
+      } else {
+        // Direct fetch (works when served locally, not from GitHub Pages)
+        const crUrl = `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
+        res = await fetch(crUrl, { headers: { 'Authorization': `Token token="${CR_KEY}"` } });
+        if(!res.ok){ const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
+        const d = await res.json();
+        allCalls = [...allCalls, ...(d.calls||[])];
+        totalPages = d.total_pages || 1;
+      }
       page++;
     } while(page <= totalPages && page <= 50);
 
@@ -5341,7 +5359,7 @@ async function saveCallsToSheets(source) {
       daily:        JSON.stringify(daily),
     };
 
-    const res  = await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',body:JSON.stringify(payload)});
+    const res  = await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',body:JSON.stringify(payload)});
     const data = await res.json();
     if(data.success) {
       showToast(`✅ ${calls.length} calls saved to Sheets (${source==='callrail'?'CallRail':'RingCentral'} tab)`,'success');
@@ -5452,7 +5470,7 @@ async function saveOrderQueueToSheets() {
       ordered_date: _orderQueue[item.id]?.orderedDate || '',
       ordered_by:   _orderQueue[item.id]?.orderedBy || '',
     }));
-    const res  = await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+    const res  = await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'syncOrderQueue',orders:payload})});
     const data = await res.json();
     if(data.success) showToast(`✅ ${payload.length} orders saved to Sheets`,'success');
@@ -5466,7 +5484,7 @@ function setOrderStatus(id, status) {
   saveOrderQueueLocal();
   // Push just this record to Sheets
   if(_sheetsProxy) {
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'updateOrderStatus',id,status})
     }).catch(()=>{});
   }
@@ -6015,31 +6033,62 @@ function renderGoals(){
   const annualWithOutstanding=annualActual+totalOutstanding;
   const annualWithPct=Math.round(annualWithOutstanding/ANNUAL_GOAL*100);
 
-  // Period cards
   const periodCards=Object.entries(GOALS).map(([key,g])=>{
     const actual=getRevenueForPeriod(g.period);
-    const pct=Math.min(actual/g.target,1);
+    const pct=actual/g.target; // not capped at 1 — can exceed 100%
     const pctN=Math.round(pct*100);
     const pace=getPaceTarget(key);
     const diff=actual-pace;
-    // Daily: show hit/miss vs fixed target — pace = target for a single day, so diff is meaningless
-    // All periods: never show "behind" when already at or above 100% of target
-    const isAhead=pctN>=100||diff>0;
-    const diffLabel=key==='daily'
-      ?(pctN>=100?`✓ ${pctN}% of goal`:`${dollars(Math.abs(actual-g.target))} short`)
-      :(Math.abs(diff)<100?'On pace':isAhead?`+${dollars(diff)} ahead`:`${dollars(Math.abs(diff))} behind`);
-    const diffClass=key==='daily'
-      ?(pctN>=100?'ahead':'behind')
-      :(Math.abs(diff)<100?'on-track':isAhead?'ahead':'behind');
     const barColor=pctN>=100?'#166534':pctN>=70?g.color:pctN>=40?'#E8640A':'#DC2626';
+    const barW=Math.min(pctN,100);
+
+    let diffLabel, diffClass;
+
+    if(key==='daily'){
+      // Daily: show exactly what was collected vs target
+      // Pace target = what you need each day to stay on annual pace (adjusts daily)
+      const paceDaily=workdaysLeft>0?Math.max(0,ANNUAL_GOAL-annualActual)/workdaysLeft:g.target;
+      const shortOfTarget=actual<g.target;
+      const shortOfPace=actual<paceDaily;
+      if(actual===0){
+        diffLabel=`Need ${dollars(g.target)} today`;
+        diffClass='behind';
+      } else if(actual>=g.target){
+        diffLabel=`✓ Target hit${actual>g.target?' +'+dollars(actual-g.target):''}`;
+        diffClass='ahead';
+      } else {
+        diffLabel=`${dollars(g.target-actual)} short of target`;
+        diffClass='behind';
+      }
+      const paceNote=paceDaily!==g.target
+        ?`<div style="font-size:10px;color:#6b7280;margin-top:3px">Pace target: ${dollars(Math.round(paceDaily))}/day to stay on track</div>`
+        :'';
+      return`<div class="goal-period-card ${key}">
+        <div class="goal-period-label">${g.label}</div>
+        <div class="goal-period-target">Daily target: <strong>${dollars(g.target)}</strong></div>
+        <div class="goal-period-actual" style="color:${barColor}">${usedData?dollars(actual):'—'}</div>
+        <div class="goal-period-bar"><div class="goal-period-fill" style="width:${usedData?barW:0}%;background:${barColor}"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="goal-period-pct" style="color:${barColor}">${usedData?pctN+'%':'—'}</span>
+          ${usedData?`<span class="goal-pace-diff ${diffClass}" style="font-size:10px">${diffLabel}</span>`:''}
+        </div>
+        ${usedData?paceNote:''}
+        <div style="font-size:10px;color:#6b7280;margin-top:2px">Collected today only</div>
+      </div>`;
+    }
+
+    // All other periods
+    const isAhead=diff>0;
+    const diffLabelOther=Math.abs(diff)<100?'On pace':isAhead?`+${dollars(diff)} ahead`:`${dollars(Math.abs(diff))} behind`;
+    const diffClassOther=Math.abs(diff)<100?'on-track':isAhead?'ahead':'behind';
     return`<div class="goal-period-card ${key}">
       <div class="goal-period-label">${g.label}</div>
       <div class="goal-period-target">Target: <strong>${dollars(g.target)}</strong></div>
       <div class="goal-period-actual" style="color:${barColor}">${usedData?dollars(actual):'—'}</div>
-      <div class="goal-period-bar"><div class="goal-period-fill" style="width:${usedData?pctN:0}%;background:${barColor}"></div></div>
+      <div class="goal-period-bar"><div class="goal-period-fill" style="width:${usedData?barW:0}%;background:${barColor}"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span class="goal-period-pct" style="color:${barColor}">${usedData?pctN+'%':'—'}</span>
-        ${usedData&&key!=='annual'?`<span class="goal-pace-diff ${diffClass}" style="font-size:10px">${diffLabel}</span>`:''}
+        ${usedData&&key!=='annual'?`<span class="goal-pace-diff ${diffClassOther}" style="font-size:10px">${diffLabelOther}</span>`:''}
       </div>
       <div style="font-size:10px;color:#6b7280;margin-top:4px">Collected only</div>
     </div>`;
@@ -6950,7 +6999,9 @@ function renderTYCards(){
     const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
     const addr=j.address?[j.address.street,j.address.city,j.address.state].filter(Boolean).join(', '):'';
     const phone=cust.mobile_number||cust.home_number||'';
-    const installDate=fmtDY(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+    const installDate = fmtDY(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at);
+    const paidDate    = j._payments?.length ? j._payments[j._payments.length-1].date : null;
+    const paidLabel   = paidDate ? `Paid ${fmtDY(paidDate+'T12:00:00')}` : (isJobPaid(j) ? 'Paid' : 'Unpaid');
     const techName=getAssigned(j);
     const jobRev=getJobRevenue(j);
     const borderColor=status==='sent'?'#059669':status==='skip'?'#d1d5db':'#E8640A';
@@ -6962,7 +7013,7 @@ function renderTYCards(){
           <div style="font-size:12px;color:#6b7280">📍 ${escHtml(addr)} ${phone?'· 📞'+escHtml(phone):''}</div>
           <div style="font-size:12px;color:#374151;margin-top:3px">
             <span style="background:${equip?.color||'#1A3A5C'};color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">${equip?.icon||''} ${equip?.label||'Equipment'}</span>
-            ${escHtml(equipLabel)} · ${installDate} · ${escHtml(techName)} · ${dollars(jobRev)}
+            ${escHtml(equipLabel)} · Completed ${installDate} · <span style="font-weight:600;color:${isJobPaid(j)?'#166534':'#92400E'}">${paidLabel}</span> · ${escHtml(techName)} · ${dollars(jobRev)}
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -7171,15 +7222,15 @@ async function pushToCompanion(){
       await Promise.all([
         syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to),
         _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
           body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
         }).catch(()=>{}) : Promise.resolve(),
         _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
           body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements||[]})
         }).catch(()=>{}) : Promise.resolve(),
         _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
           body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings||{},birthdays:_bdayList||[]})
         }).catch(()=>{}) : Promise.resolve()
       ]);
@@ -7469,7 +7520,7 @@ function saveGapSettings(){
 function saveWallboardSettingsToSheets(){
   try{localStorage.setItem('hcp_wb_settings',JSON.stringify(_wbSettings));}catch(e){}
   if(_sheetsProxy){
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList,holidays:_holidays||[]})
     }).then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Wallboard settings synced','success'); }).catch(()=>{});
   }
@@ -7527,7 +7578,7 @@ function loadAnnouncements(){
 function saveAnnouncements(){
   try{localStorage.setItem('hcp_announcements',JSON.stringify(_announcements));}catch(e){}
   if(_sheetsProxy){
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements})})
     .then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Announcements synced to companion','success'); }).catch(()=>{});
   }
@@ -8778,7 +8829,7 @@ function clearISData(){
 async function clearSheetsTab(tabName){
   if(!_sheetsProxy)return;
   try{
-    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
+    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'clearTab',tabName})});
   }catch(e){console.warn('Sheets clear failed:',tabName,e.message);}
 }
