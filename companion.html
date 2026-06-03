@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.37</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.37</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1380,7 +1380,6 @@ html, body {
       Range: <span id="dataRange" style="color:rgba(255,255,255,.85)">—</span>
     </div>
     <div class="status-item" style="margin-left:auto;gap:16px">
-      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.05em;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">v2.37</div>
       <div style="font-size:13px;color:#fff;font-weight:700;letter-spacing:.05em" id="dateDisp">---</div>
       <div style="font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.85)" id="clock">--:--:--</div>
       <div class="live-badge">
@@ -1394,13 +1393,16 @@ html, body {
     <div style="color:rgba(255,255,255,.9)">
       Auto in <span id="nextRefresh">60</span>s
     </div>
-    <div style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v1.55
+    <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
+      v2.37
     </div>
   </div>
 </div>
 
 <script>
+// ============================================================
+const COMPANION_VERSION = 'v2.37';
+// Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
 // ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝
@@ -3093,6 +3095,13 @@ function el(id) { return document.getElementById(id); }
 // INIT
 // ============================================================
 async function init() {
+  // Set version in all display elements from single constant
+  document.querySelectorAll('#companion-ver,[data-version]').forEach(el => {
+    el.textContent = COMPANION_VERSION;
+  });
+  const watermark = document.querySelector('[data-watermark]');
+  if(watermark) watermark.textContent = COMPANION_VERSION;
+
   buildDots();
   setInterval(updateClock, 1000);
   updateClock();
