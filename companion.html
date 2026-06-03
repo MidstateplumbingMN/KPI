@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.35</title>
+<title>Midstate — KPI Command Center v2.36</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.35</div>
+  <div style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.36</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1380,7 +1380,7 @@ html, body {
       Range: <span id="dataRange" style="color:rgba(255,255,255,.85)">—</span>
     </div>
     <div class="status-item" style="margin-left:auto;gap:16px">
-      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.05em;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">v2.35</div>
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.05em;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">v2.36</div>
       <div style="font-size:13px;color:#fff;font-weight:700;letter-spacing:.05em" id="dateDisp">---</div>
       <div style="font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.85)" id="clock">--:--:--</div>
       <div class="live-badge">
@@ -4098,19 +4098,26 @@ function applyWallboardSettings() {
 
 function applyTheme(theme) {
   const themes = {
-    default: { bg:'#050810', blue:'#00D4FF', green:'#00FF88', orange:'#FF6B35', purple:'#A855F7' },
-    summer:  { bg:'#070A0E', blue:'#38BDF8', green:'#34D399', orange:'#FB923C', purple:'#C084FC' },
-    fall:    { bg:'#0C0800', blue:'#F97316', green:'#A3E635', orange:'#FBBF24', purple:'#E879F9' },
-    winter:  { bg:'#04080F', blue:'#93C5FD', green:'#6EE7F7', orange:'#818CF8', purple:'#C4B5FD' },
-    spring:  { bg:'#060B06', blue:'#4ADE80', green:'#86EFAC', orange:'#F472B6', purple:'#A78BFA' },
-    victory: { bg:'#080600', blue:'#FFD700', green:'#FFD700', orange:'#FFA500', purple:'#FFD700' },
+    default: { bg:'#050810', blue:'#00D4FF', green:'#00FF88', orange:'#FF6B35', purple:'#A855F7', accent:'rgba(0,212,255,.08)' },
+    summer:  { bg:'#060A04', blue:'#38BDF8', green:'#34D399', orange:'#FB923C', purple:'#C084FC', accent:'rgba(251,146,60,.08)' },
+    fall:    { bg:'#0C0600', blue:'#F97316', green:'#A3E635', orange:'#FBBF24', purple:'#E879F9', accent:'rgba(249,115,22,.08)' },
+    winter:  { bg:'#03060F', blue:'#93C5FD', green:'#6EE7F7', orange:'#818CF8', purple:'#C4B5FD', accent:'rgba(147,197,253,.08)' },
+    spring:  { bg:'#030B04', blue:'#4ADE80', green:'#86EFAC', orange:'#F472B6', purple:'#A78BFA', accent:'rgba(74,222,128,.08)' },
+    victory: { bg:'#080600', blue:'#FFD700', green:'#FFD700', orange:'#FFA500', purple:'#FFD700', accent:'rgba(255,215,0,.08)' },
   };
   const t = themes[theme] || themes.default;
   const root = document.documentElement;
   root.style.setProperty('--bg', t.bg);
   root.style.setProperty('--blue', t.blue);
+  root.style.setProperty('--blue-dim', t.accent);
   root.style.setProperty('--green', t.green);
+  root.style.setProperty('--green-dim', t.accent);
   root.style.setProperty('--orange', t.orange);
+  root.style.setProperty('--orange-dim', t.accent);
+  root.style.setProperty('--purple', t.purple);
+  root.style.setProperty('--purple-dim', t.accent);
+  document.body.style.background = t.bg;
+  console.log('[Theme] Applied:', theme, t);
   if(theme === 'victory') triggerVictoryMode();
 }
 
