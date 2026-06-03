@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.36</title>
+<title>Midstate — KPI Command Center v2.37</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.36</div>
+  <div style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.37</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1380,7 +1380,7 @@ html, body {
       Range: <span id="dataRange" style="color:rgba(255,255,255,.85)">—</span>
     </div>
     <div class="status-item" style="margin-left:auto;gap:16px">
-      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.05em;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">v2.36</div>
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.05em;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">v2.37</div>
       <div style="font-size:13px;color:#fff;font-weight:700;letter-spacing:.05em" id="dateDisp">---</div>
       <div style="font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.85)" id="clock">--:--:--</div>
       <div class="live-badge">
@@ -1517,7 +1517,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s2','s3','s6','s7','s8','s9','s10','s11','s12','s13','s14','s5'];
+const SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s12','s13','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -2599,10 +2599,11 @@ function updateS13() {
   let leaderboard = [];
   try { leaderboard = JSON.parse(snap['rc_leaderboard']||'[]'); } catch(e) {}
   const lbEl = el('rc-leaderboard');
-  if(lbEl && leaderboard.length){
-    const maxAns = leaderboard[0]?.answered || 1;
+  const answeredAgents = leaderboard.filter(a => (a.answered||0) > 0);
+  if(lbEl && answeredAgents.length){
+    const maxAns = answeredAgents[0]?.answered || 1;
     const colors = ['#FFD700','#C0C0C0','#CD7F32','#00D4FF','#00FF88','#A855F7','#F97316','#EF4444'];
-    lbEl.innerHTML = leaderboard.slice(0,8).map((agent, i) => {
+    lbEl.innerHTML = answeredAgents.slice(0,8).map((agent, i) => {
       const pct  = Math.round(agent.answered/maxAns*100);
       const col  = colors[i] || '#6b7280';
       const rate = agent.total > 0 ? Math.round(agent.answered/agent.total*100) : 0;
@@ -2636,106 +2637,83 @@ function renderCallsLineChart() {
   const svg = el('calls-line-svg');
   if(!svg) return;
 
-  // Use RC daily data first (more reliable), fall back to CallRail daily
+  // Build daily call count array — rc_daily is 31-element array stored as JSON string
   let daily = [];
-  let weekly = [];
-  try { weekly  = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
   try {
-    const rcDaily = JSON.parse(snap['rc_daily']||'[]');
-    if(rcDaily.length > 0) daily = rcDaily; // RC daily is an array of counts by day-of-month
+    const raw = snap['rc_daily'] || '[]';
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if(Array.isArray(parsed) && parsed.some(v=>v>0)) daily = parsed;
   } catch(e) {}
-  // Fall back to CallRail daily JSON
+
+  // Fallback: CallRail daily
   if(!daily.length) {
-    try { daily = JSON.parse(snap['calls_daily_json']||'[]'); } catch(e) {}
+    try {
+      const raw = snap['calls_daily_json'] || '[]';
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if(Array.isArray(parsed) && parsed.some(v=>v>0)) daily = parsed;
+    } catch(e) {}
   }
+
   const W = svg.parentElement?.clientWidth  || svg.clientWidth  || 700;
   const H = svg.parentElement?.clientHeight || svg.clientHeight || 120;
-  if(W < 50 || H < 30) { setTimeout(()=>renderCallsLineChart(weekly, monthly), 200); return; }
+  if(W < 50 || H < 30) { setTimeout(renderCallsLineChart, 250); return; }
 
-  // Build daily points for this month using weekly data to estimate
-  // Use monthly array for true month totals
   const now = new Date();
   const curM = now.getMonth();
   const daysInMonth = new Date(now.getFullYear(), curM+1, 0).getDate();
   const today = now.getDate();
 
-  // Use weekly day-of-week averages to fill in daily estimate
-  const dayAvg = new Array(7).fill(0);
-  const dayCount = new Array(7).fill(0);
-  weekly.forEach(d => { dayAvg[d.day] = d.count; dayCount[d.day] = 1; });
-
-  // Use actual daily data if available, else fall back to weekly estimate
-  const dailyActual = daily.length > 0 ? daily : [];
-
-  // Build points: actual daily counts or estimate from weekly pattern
-  const pts = [];
-  for(let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(now.getFullYear(), curM, day);
-    const dow  = date.getDay();
-    let count = null;
-    if(day <= today) {
-      if(dailyActual.length >= day) {
-        count = dailyActual[day-1] || 0; // use actual
-      } else {
-        count = dayAvg[dow] || 0; // estimate from weekly
-      }
-    }
-    pts.push({ day, count });
-  }
-
-  const maxVal = Math.max(...pts.filter(p=>p.count!==null).map(p=>p.count), 1);
-  const padL=8, padR=12, padT=20, padB=24;
-  const cW=W-padL-padR, cH=H-padT-padB;
-  const toX = d => padL + ((d-1)/(daysInMonth-1)) * cW;
-  const toY = v => padT + cH - (v/maxVal)*cH;
-
-  // Build SVG
-  const actualPts = pts.filter(p=>p.count!==null);
-  if(!actualPts.length) {
-    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12">No monthly data yet</text>`;
+  if(!daily.length || !daily.slice(0, today).some(v=>v>0)) {
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12">Fetch calls to see daily volume</text>`;
     return;
   }
 
-  // Gradient fill path
+  const pts = [];
+  for(let d=1; d<=Math.min(today, daysInMonth); d++){
+    pts.push({ day: d, count: daily[d-1] || 0 });
+  }
+
+  const maxVal = Math.max(...pts.map(p=>p.count), 1);
+  const padL=20, padR=8, padT=16, padB=22;
+  const cW=W-padL-padR, cH=H-padT-padB;
+  const toX = d => padL + ((d-1)/Math.max(daysInMonth-1,1)) * cW;
+  const toY = v => padT + cH - (v/maxVal)*cH;
+
+  const actualPts = pts.filter(p=>p.count >= 0);
   const linePts = actualPts.map(p => `${toX(p.day).toFixed(1)},${toY(p.count).toFixed(1)}`).join(' ');
   const fillPts = `${toX(actualPts[0].day).toFixed(1)},${(padT+cH).toFixed(1)} ${linePts} ${toX(actualPts[actualPts.length-1].day).toFixed(1)},${(padT+cH).toFixed(1)}`;
 
-  // Gridlines + y labels
   let grid = '';
-  for(let i=0;i<=3;i++) {
+  for(let i=0;i<=3;i++){
     const v = Math.round(maxVal*i/3);
     const y = toY(v);
     grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`;
-    grid += `<text x="${padL-2}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="rgba(255,255,255,.4)">${v}</text>`;
+    grid += `<text x="${(padL-3).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="8" fill="rgba(255,255,255,.4)">${v}</text>`;
   }
 
-  // Day labels (every 5 days)
   let xLabels = '';
-  for(let day=1; day<=daysInMonth; day+=5) {
-    const x = toX(day);
-    const isTod = day === today;
-    xLabels += `<text x="${x.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="8" fill="${isTod?'#38BDF8':'rgba(255,255,255,.4)'}" font-weight="${isTod?'700':'400'}">${day}</text>`;
+  for(let d=1; d<=daysInMonth; d+=5){
+    const x = toX(d);
+    const isTod = d === today;
+    xLabels += `<text x="${x.toFixed(1)}" y="${(H-5).toFixed(1)}" text-anchor="middle" font-size="8" fill="${isTod?'#38BDF8':'rgba(255,255,255,.4)'}" font-weight="${isTod?'700':'400'}">${d}</text>`;
   }
 
-  // Today marker
   const todayX = toX(today);
-  const todayY = toY(actualPts.find(p=>p.day===today)?.count||0);
-  const todayMarker = `<line x1="${todayX.toFixed(1)}" y1="${padT}" x2="${todayX.toFixed(1)}" y2="${(padT+cH).toFixed(1)}" stroke="rgba(56,189,248,.3)" stroke-width="1" stroke-dasharray="3,2"/>
-    <circle cx="${todayX.toFixed(1)}" cy="${todayY.toFixed(1)}" r="4" fill="#38BDF8" filter="url(#cglow)"/>`;
+  const todayY = toY(daily[today-1]||0);
 
   svg.innerHTML = `
     <defs>
-      <linearGradient id="callFill" x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id="callsGrad" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.35"/>
         <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.02"/>
       </linearGradient>
-      <filter id="cglow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     </defs>
     ${grid}
-    <polygon points="${fillPts}" fill="url(#callFill)"/>
-    <polyline points="${linePts}" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    ${todayMarker}
-    ${xLabels}`;
+    <polygon points="${fillPts}" fill="url(#callsGrad)"/>
+    <polyline points="${linePts}" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${xLabels}
+    <circle cx="${todayX.toFixed(1)}" cy="${todayY.toFixed(1)}" r="4" fill="#38BDF8" stroke="#fff" stroke-width="1.5"/>
+    <text x="${todayX.toFixed(1)}" y="${(todayY-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#38BDF8" font-weight="700">${daily[today-1]||0}</text>`;
 }
 
 // ResizeObserver for line chart
@@ -2976,7 +2954,7 @@ function goScene(idx) {
     else { nextScene(); }
   }
   else if (sceneId==='s11') {
-    if (state.holidays && state.holidays.length) { updateS11(); }
+    if (state.holidays && state.holidays.length) { updateS11(); } // self-managed with timer
     else { nextScene(); }
   }
   else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
