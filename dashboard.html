@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.37</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.38</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.37</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.38</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.37</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.38</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2461,7 +2461,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.37
+  // ATTRIBUTION ENGINE — v23.38
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5861,6 +5861,7 @@ function printOrderQueue() {
         <div>
           <div class="customer">${escHtml2(item.customer)}</div>
           <div style="font-size:10px;color:#6b7280;margin-top:2px">📍 ${escHtml2(item.address||'')}</div>
+          ${item.phone?`<div style="font-size:10px;color:#6b7280">📞 ${escHtml2(item.phone)}</div>`:''}
         </div>
         <span class="badge">${item.equip?.icon||'🔧'} ${(item.equip?.label||'Equipment').toUpperCase()}</span>
       </div>
@@ -5871,7 +5872,9 @@ function printOrderQueue() {
         <div class="field"><label>Value</label><strong>${dollars(item.value)}</strong></div>
       </div>
       <div class="equip-box"><strong>Equipment:</strong> ${escHtml2(item.equipLabel||'—')}</div>
-      ${item.notes?`<div class="notes-box"><strong>Notes:</strong> ${escHtml2(item.notes)}</div>`:''}
+      ${item.lineItems?.length>1?`<div class="notes-box" style="background:#f9fafb"><strong style="font-size:9px;text-transform:uppercase;letter-spacing:.3px;color:#6b7280">All Line Items</strong><ul style="margin:4px 0 0 14px;padding:0">${item.lineItems.map(li=>`<li>${escHtml2(li)}</li>`).join('')}</ul></div>`:''}
+      ${item.estNotes?`<div class="notes-box" style="background:#fffbeb;border-color:#fde68a"><strong style="font-size:9px;text-transform:uppercase;letter-spacing:.3px;color:#92400E">📋 Estimate Notes</strong><br>${escHtml2(item.estNotes)}</div>`:''}
+      ${item.jobNotes?`<div class="notes-box" style="background:#eff6ff;border-color:#bfdbfe"><strong style="font-size:9px;text-transform:uppercase;letter-spacing:.3px;color:#1d4ed8">🔧 Job Notes</strong><br>${escHtml2(item.jobNotes)}</div>`:''}
       <div class="write-box"><div class="write-label">Order / Procurement Notes (handwritten)</div></div>
       <div class="checkbox-row">
         <div class="cb-item"><div class="cb-box"></div> Parts Ordered</div>
@@ -6869,42 +6872,43 @@ function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
 function detectEquipmentSale(j, requirePaid=true){
   if(requirePaid && !isJobPaid(j)) return null;
 
-  // Collect all text to check: job description + line items + linked estimate options
-  const texts=[];
-  if(j.description) texts.push(j.description.trim());
-  if(j.summary) texts.push(j.summary.trim());
-  // Line items from the job itself
-  (j.line_items||[]).forEach(li=>{ if(li.name) texts.push(li.name.trim()); });
+  // Equipment installs are HVAC dept only (or Install dept for Gannon/Andy)
+  // Plumbing techs don't install furnaces/ACs
+  // Tankless water heater is the exception — can be plumbing dept
+  const dept = getDept(j);
+  const isHVAC    = dept === 'HVAC';
+  const isInstall = dept === 'Install';
 
-  // Customer estimates — option names contain exact pricebook item names
-  const custId=getCustId(j), custName=getCust(j);
-  const custEsts=_estimates.filter(e=>
-    (custId&&getCustId(e)===custId)||getCust(e)===custName
-  );
-  const linkedId=j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
-  if(linkedId){const le=_estimates.find(e=>e.id===linkedId||(e.options||[]).some(o=>o.id===linkedId));if(le&&!custEsts.find(e=>e.id===le.id))custEsts.push(le);}
+  // Text sources — exact pricebook match ONLY
+  // Do NOT use j.description or j.summary — they cause false positives
+  // (e.g. "tankless water heater repair" in a $200 service call description)
+  const lineItemTexts = (j.line_items||[]).map(li=>(li.name||'').trim()).filter(Boolean);
 
-  custEsts.forEach(est=>{
-    (est.options||[]).forEach(o=>{if(o.name)texts.push(o.name.trim());});
-  });
+  // Linked estimate option names — most reliable source of pricebook item names
+  const linkedId = j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
+  const linkedEst = linkedId
+    ? _estimates.find(e=>e.id===linkedId||(e.options||[]).some(o=>o.id===linkedId))
+    : null;
+  const estOptionTexts = linkedEst
+    ? (linkedEst.options||[]).map(o=>(o.name||'').trim()).filter(Boolean)
+    : [];
 
-  // Match against exact pricebook names
-  for(const text of texts){
-    // Exact match
-    if(TY_ITEM_LOOKUP[text]){
-      const key=TY_ITEM_LOOKUP[text];
-      // Tankless water heater: only qualifies for TY card if job >= $3,000
-      // (prevents small repair calls with "tankless" in notes from matching)
-      if(key==='water_heater'&&(getJobRevenue(j)||getJobTotal(j))<3000) continue;
-      return{key,...TY_ITEM_SETS[key],matchedItem:text};
+  // Check line items first (invoice truth), then estimate options
+  const allTexts = [...lineItemTexts, ...estOptionTexts];
+
+  for(const text of allTexts){
+    if(!TY_ITEM_LOOKUP[text]) continue; // exact match only
+    const key = TY_ITEM_LOOKUP[text];
+
+    if(key === 'water_heater'){
+      // Tankless: any dept OK, but job must be >= $3,000
+      if((getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
+      return {key, ...TY_ITEM_SETS[key], matchedItem:text};
     }
-    // Fuzzy match — handles minor spacing/case differences
-    for(const[name,key] of Object.entries(TY_ITEM_LOOKUP)){
-      if(text.toLowerCase().includes(name.toLowerCase())){
-        if(key==='water_heater'&&(getJobRevenue(j)||getJobTotal(j))<3000) continue;
-        return{key,...TY_ITEM_SETS[key],matchedItem:name};
-      }
-    }
+
+    // All other equipment: HVAC or Install dept required
+    if(!isHVAC && !isInstall) continue;
+    return {key, ...TY_ITEM_SETS[key], matchedItem:text};
   }
   return null;
 }
