@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center</title>
+<title>Midstate — KPI Command Center v2.35</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -877,6 +877,9 @@ html, body {
   <!-- Logo — bottom-left corner, unobtrusive -->
   <!-- Logo removed -->
 
+  <!-- Version watermark — always visible bottom-right -->
+  <div style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.35</div>
+
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
     <div class="scene-dots" id="sceneDots"></div>
@@ -991,6 +994,8 @@ html, body {
         <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:rgba(255,255,255,.9)">
           <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;display:inline-block"></span>Revenue</span>
           <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:2px;background:rgba(255,255,255,.3);display:inline-block"></span>$250K target</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;display:inline-block"></span>At/above goal</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#EF4444;border-radius:2px;display:inline-block"></span>Below goal</span>
         </div>
       </div>
 
@@ -1033,97 +1038,133 @@ html, body {
       </div>
     </div>
 
-    <!-- SCENE 13: CALL VOLUME -->
+    <!-- SCENE 13+14: COMMUNICATIONS — CallRail + RingCentral -->
     <div class="scene" id="s13">
-      <div class="scene-title">// Call Volume — Lead Tracking (CallRail)</div>
+      <div class="scene-title">// Communications — Call Volume &amp; Agent Performance</div>
 
-      <!-- Top: 3 metric cards that rotate Day/Month/Year -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(8px,1.5vw,16px);flex-shrink:0;padding:0 0 12px">
-        <!-- Total Calls -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden">
-          <div id="calls-period-badge" style="position:absolute;top:8px;right:8px;font-size:11px;padding:3px 10px;background:rgba(56,189,248,.25);color:#38BDF8;border-radius:20px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;border:1px solid rgba(56,189,248,.4)">Day</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Total Calls</div>
-          <div class="metric-value glow-blue" id="calls-total" style="font-size:clamp(40px,7vw,72px)">—</div>
-          <div class="metric-sub" id="calls-total-sub">Inbound calls</div>
-          <!-- Mini period dots -->
-          <div style="display:flex;gap:5px;margin-top:8px" id="calls-period-dots">
-            <div style="width:6px;height:6px;border-radius:50%;background:var(--blue)"></div>
-            <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
-            <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
-          </div>
+      <!-- Top row: 5 metric cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;flex-shrink:0;padding:0 0 10px">
+        <!-- CallRail: Total -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
+          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Inbound Calls</div>
+          <div class="metric-value glow-blue" id="calls-total" style="font-size:clamp(28px,4vw,52px)">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">This period</div>
         </div>
-        <!-- New Callers -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
-          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">New Callers</div>
-          <div class="metric-value glow-green" id="calls-new" style="font-size:clamp(40px,7vw,72px)">—</div>
-          <div class="metric-sub" id="calls-new-sub">First-time callers</div>
+        <!-- CallRail: New -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
+          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">New Callers</div>
+          <div class="metric-value glow-green" id="calls-new" style="font-size:clamp(28px,4vw,52px)">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">First-time</div>
         </div>
-        <!-- Answer Rate -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
-          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Answer Rate</div>
-          <div class="metric-value glow-orange" id="calls-answered" style="font-size:clamp(40px,7vw,72px)">—</div>
-          <div class="metric-sub" id="calls-answered-sub">Of all calls answered</div>
+        <!-- RC: Answered -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
+          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">RC Answered</div>
+          <div class="metric-value glow-green" id="rc-answered" style="font-size:clamp(28px,4vw,52px)">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">This period</div>
+        </div>
+        <!-- RC: Answer Rate -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
+          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Answer Rate</div>
+          <div class="metric-value glow-blue" id="rc-rate" style="font-size:clamp(28px,4vw,52px)">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">Of inbound</div>
+        </div>
+        <!-- RC: Missed -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
+          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Missed</div>
+          <div id="rc-missed" style="font-family:var(--font-display);font-size:clamp(28px,4vw,52px);color:#EF4444;line-height:1">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">Calls missed</div>
         </div>
       </div>
 
-      <!-- Bottom: line chart showing this month's daily call volume -->
-      <div class="card" style="flex:1;min-height:0;padding:14px 18px;display:flex;flex-direction:column">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
-          <div style="font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em">Daily Volume — This Month</div>
-          <div id="calls-source" style="font-size:10px;color:rgba(255,255,255,.5)">Source: CallRail</div>
-        </div>
-        <div style="flex:1;min-height:0;position:relative">
-          <svg id="calls-line-svg" style="width:100%;height:100%;display:block;overflow:visible"></svg>
-        </div>
-      </div>
-    </div>
+      <!-- Bottom row: daily line chart (left) + agent leaderboard (right) -->
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:1.4fr 1fr;gap:12px">
 
-    <!-- SCENE 14: RINGCENTRAL PHONE LEADERBOARD -->
-    <div class="scene" id="s14">
-      <div class="scene-title">// Agent Performance — Who Answered (RingCentral)</div>
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1.4fr;gap:16px;min-height:0">
-
-        <!-- Left: summary metrics -->
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div class="card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em">Calls Answered</div>
-            <div class="metric-value glow-green" id="rc-answered" style="font-size:clamp(40px,7vw,72px)">—</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.7)" id="rc-answered-sub">This month</div>
+        <!-- Daily volume line chart -->
+        <div class="card" style="padding:14px 18px;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
+            <div style="font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em">Daily Volume — This Month</div>
+            <div id="calls-source" style="font-size:9px;color:rgba(255,255,255,.4)">RC</div>
           </div>
-          <div class="card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em">Answer Rate</div>
-            <div class="metric-value glow-blue" id="rc-rate">—</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.7)">of all inbound</div>
-          </div>
-          <div class="card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em">Missed</div>
-            <div class="metric-value" id="rc-missed" style="font-size:clamp(36px,6vw,64px);color:#EF4444">—</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.7)">calls missed</div>
+          <div style="flex:1;min-height:0;position:relative">
+            <svg id="calls-line-svg" style="width:100%;height:100%;display:block;overflow:visible"></svg>
           </div>
         </div>
 
-        <!-- Right: leaderboard -->
-        <div class="card" style="display:flex;flex-direction:column;padding:16px;overflow:hidden">
-          <div style="font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;flex-shrink:0">🏆 Calls Answered — Top Agents</div>
-          <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px"></div>
+        <!-- RC agent leaderboard -->
+        <div class="card" style="display:flex;flex-direction:column;padding:14px 16px;overflow:hidden">
+          <div style="font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;flex-shrink:0">🏆 Top Agents</div>
+          <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:5px"></div>
         </div>
       </div>
     </div>
 
-    <!-- SCENE 4: LIVE PERFORMANCE -->
+    <!-- S14 removed — merged into S13 above -->
+
+    <!-- SCENE 4: DEPARTMENT PERFORMANCE — HVAC vs PLUMBING -->
     <div class="scene" id="s4">
-      <div class="scene-title">// Revenue by Employee — Current Period</div>
-      <div class="grid">
-        <div class="card chart-card">
-          <div class="chart-title">Revenue Distribution</div>
-          <canvas id="chartRevenue"></canvas>
+      <div class="scene-title">// Department Performance — HVAC vs Plumbing</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0">
+
+        <!-- HVAC -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="padding:20px 24px;background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(0,212,255,.02));border-top:3px solid var(--blue)">
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:var(--blue);margin-bottom:12px">🌡 HVAC</div>
+            <div id="dept-hvac-rev" style="font-family:var(--font-display);font-size:clamp(36px,5vw,64px);color:#fff;line-height:1">$0</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:4px">Revenue YTD</div>
+            <div style="margin-top:14px;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
+              <div id="dept-hvac-bar" style="height:100%;width:0%;background:var(--blue);border-radius:99px;transition:width 1s ease"></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1">
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);color:var(--green)" id="dept-hvac-conv">0%</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Conversion</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);color:var(--orange)" id="dept-hvac-ests">0</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Estimates</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);color:var(--purple)" id="dept-hvac-conv-n">0</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Sold</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(20px,2.5vw,32px);color:var(--gold)" id="dept-hvac-avg">$0</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Avg Job</div>
+            </div>
+          </div>
         </div>
-        <div class="card metric accent-blue">
-          <div class="metric-value" id="s4-top-name" style="font-size:32px">—</div><div class="metric-sub" id="s4-top-rev">$0 revenue</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Top Earner</div>
+
+        <!-- Plumbing -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="padding:20px 24px;background:linear-gradient(135deg,rgba(255,107,53,.06),rgba(255,107,53,.02));border-top:3px solid var(--orange)">
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:var(--orange);margin-bottom:12px">🔧 Plumbing</div>
+            <div id="dept-plmb-rev" style="font-family:var(--font-display);font-size:clamp(36px,5vw,64px);color:#fff;line-height:1">$0</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:4px">Revenue YTD</div>
+            <div style="margin-top:14px;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
+              <div id="dept-plmb-bar" style="height:100%;width:0%;background:var(--orange);border-radius:99px;transition:width 1s ease"></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1">
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);color:var(--green)" id="dept-plmb-conv">0%</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Conversion</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);color:var(--orange)" id="dept-plmb-ests">0</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Estimates</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(28px,4vw,48px);color:var(--purple)" id="dept-plmb-conv-n">0</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Sold</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+              <div style="font-family:var(--font-display);font-size:clamp(20px,2.5vw,32px);color:var(--gold)" id="dept-plmb-avg">$0</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">Avg Job</div>
+            </div>
+          </div>
         </div>
-        <div class="card metric accent-green">
-          <div class="metric-value" id="s4-conv-name" style="font-size:32px">—</div><div class="metric-sub" id="s4-conv-pct">0% conversion</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Best Converter</div>
-        </div>
+
       </div>
     </div>
 
@@ -1171,6 +1212,12 @@ html, body {
           <div class="wtd-goal-bar" style="margin-top:8px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
           <div style="font-size:11px;color:rgba(255,255,255,.9)"><span id="wtd-goal-pct">0%</span> of goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
           <div id="wtd-gap" style="padding:10px 12px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px;margin-top:4px"></div>
+          <!-- Outstanding uncollected -->
+          <div id="wtd-outstanding-wrap" style="display:none;padding:8px 12px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:8px;margin-top:4px">
+            <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em">⚠ Uncollected</div>
+            <div style="font-size:16px;font-weight:700;color:#EF4444" id="wtd-outstanding">$0</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5)" id="wtd-outstanding-sub">complete jobs not yet paid</div>
+          </div>
           <div style="text-align:center;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff;margin-top:8px">⚡ Revenue Today</div>
         </div>
 
@@ -1333,6 +1380,7 @@ html, body {
       Range: <span id="dataRange" style="color:rgba(255,255,255,.85)">—</span>
     </div>
     <div class="status-item" style="margin-left:auto;gap:16px">
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.05em;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">v2.35</div>
       <div style="font-size:13px;color:#fff;font-weight:700;letter-spacing:.05em" id="dateDisp">---</div>
       <div style="font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.85)" id="clock">--:--:--</div>
       <div class="live-badge">
@@ -1811,6 +1859,21 @@ function refreshS6Data() {
   if(el('wtd-goal-pct'))  el('wtd-goal-pct').textContent = goalPct + '%';
   if(el('wtd-goal-fill')) el('wtd-goal-fill').style.width = goalPct + '%';
   if(el('wtd-daily-goal'))el('wtd-daily-goal').textContent = dollars(dailyGoal);
+
+  // Outstanding uncollected — show when > $0
+  const outstanding    = num(snap['outstanding']||0);
+  const outstandingJobs= num(snap['outstanding_jobs']||0);
+  const outWrap = el('wtd-outstanding-wrap');
+  if(outWrap){
+    if(outstanding > 0){
+      outWrap.style.display = 'block';
+      if(el('wtd-outstanding'))     el('wtd-outstanding').textContent = dollars(outstanding);
+      if(el('wtd-outstanding-sub')) el('wtd-outstanding-sub').textContent = outstandingJobs + ' complete job' + (outstandingJobs!==1?'s':'') + ' not yet paid';
+    } else {
+      outWrap.style.display = 'none';
+    }
+  }
+
   addGapToGoalDisplay(revenue);
 }
 
@@ -2207,62 +2270,35 @@ function renderConvByDept(kpi, deptIdx, totalCount) {
 
 // ---- SCENE 4: LIVE PERFORMANCE ----
 function updateS4() {
-  // Don't render if no snap data
-  if (!state.loaded || Object.keys(state.snap).length === 0) return;
-  const kpi = state.kpi.filter(r => {
-    const name = r[CONFIG.KPI_COLS.name]||'';
-    return name && !name.startsWith('job_') && !name.startsWith('pro_');
-  }).slice(0, 8);
-  if (!kpi.length) return;
+  if(!state.loaded || Object.keys(state.snap).length === 0) return;
+  const snap = state.snap;
 
-  const labels = kpi.map(r => r[CONFIG.KPI_COLS.name].split(' ')[0]);
-  const revenues = kpi.map(r => num(r[CONFIG.KPI_COLS.revenue]));
+  const hvacRev  = num(snap['dept_hvac_rev']||0);
+  const plmbRev  = num(snap['dept_plumbing_rev']||0);
+  const maxRev   = Math.max(hvacRev, plmbRev, 1);
 
-  if (state.barChart) {
-    state.barChart.data.labels = labels;
-    state.barChart.data.datasets[0].data = revenues;
-    state.barChart.update('active');
-  } else {
-    const ctx = document.getElementById('chartRevenue').getContext('2d');
-    state.barChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Revenue',
-          data: revenues,
-          backgroundColor: CONFIG.COLORS.slice(0, kpi.length).map(c => c + '99'),
-          borderColor: CONFIG.COLORS.slice(0, kpi.length),
-          borderWidth: 2,
-          borderRadius: 8,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.85)', font: { family: 'DM Sans', size: 13 } } },
-          y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: {
-            color: 'rgba(255,255,255,.85)',
-            callback: v => '$' + (v/1000).toFixed(0) + 'K'
-          }}
-        }
-      }
-    });
-  }
+  let hvacConv = {total:0,converted:0,pct:0};
+  let plmbConv = {total:0,converted:0,pct:0};
+  try { hvacConv = JSON.parse(snap['dept_hvac_conv']||'{}'); } catch(e) {}
+  try { plmbConv = JSON.parse(snap['dept_plumbing_conv']||'{}'); } catch(e) {}
 
-  const top = kpi[0];
-  if (top) {
-    el('s4-top-name').textContent = top[CONFIG.KPI_COLS.name].split(' ')[0];
-    el('s4-top-rev').textContent = dollars(num(top[CONFIG.KPI_COLS.revenue])) + ' revenue';
-  }
+  // HVAC
+  if(el('dept-hvac-rev'))    el('dept-hvac-rev').textContent    = dollars(hvacRev);
+  if(el('dept-hvac-bar'))    el('dept-hvac-bar').style.width    = Math.round(hvacRev/maxRev*100)+'%';
+  if(el('dept-hvac-conv'))   el('dept-hvac-conv').textContent   = (hvacConv.pct||0)+'%';
+  if(el('dept-hvac-ests'))   el('dept-hvac-ests').textContent   = hvacConv.total||0;
+  if(el('dept-hvac-conv-n')) el('dept-hvac-conv-n').textContent = hvacConv.converted||0;
+  if(el('dept-hvac-avg'))    el('dept-hvac-avg').textContent    = hvacConv.total > 0
+    ? dollars(Math.round(hvacRev/(hvacConv.converted||1))) : '—';
 
-  const bestConv = [...kpi].filter(r=>num(r[CONFIG.KPI_COLS.estimates])>=3)
-    .sort((a,b)=>num(b[CONFIG.KPI_COLS.convPct])-num(a[CONFIG.KPI_COLS.convPct]))[0];
-  if (bestConv) {
-    el('s4-conv-name').textContent = bestConv[CONFIG.KPI_COLS.name].split(' ')[0];
-    el('s4-conv-pct').textContent = Math.round(num(bestConv[CONFIG.KPI_COLS.convPct])) + '% conversion';
-  }
+  // Plumbing
+  if(el('dept-plmb-rev'))    el('dept-plmb-rev').textContent    = dollars(plmbRev);
+  if(el('dept-plmb-bar'))    el('dept-plmb-bar').style.width    = Math.round(plmbRev/maxRev*100)+'%';
+  if(el('dept-plmb-conv'))   el('dept-plmb-conv').textContent   = (plmbConv.pct||0)+'%';
+  if(el('dept-plmb-ests'))   el('dept-plmb-ests').textContent   = plmbConv.total||0;
+  if(el('dept-plmb-conv-n')) el('dept-plmb-conv-n').textContent = plmbConv.converted||0;
+  if(el('dept-plmb-avg'))    el('dept-plmb-avg').textContent    = plmbConv.total > 0
+    ? dollars(Math.round(plmbRev/(plmbConv.converted||1))) : '—';
 }
 
 // ---- SCENE 5: ANNOUNCEMENTS & MOTIVATION ----
@@ -2458,14 +2494,35 @@ function setCallsView(view) {
 }
 
 function renderCallsTrend() {
+  const snap = state.snap;
+
+  // Pull metrics — prefer RC data (more complete), fall back to CallRail
+  const rcTotal    = parseInt(snap['rc_total']||0)||0;
+  const crTotal    = parseInt(snap['calls_total']||0)||0;
+  const crNew      = parseInt(snap['calls_new']||0)||0;
+  const crAnsRate  = crTotal > 0 ? Math.round(parseInt(snap['calls_answered']||0)/crTotal*100) : 0;
+
+  // YTD — use whichever source has more data
+  const ytdTotal = Math.max(rcTotal, crTotal);
+
+  if(el('calls-total'))   el('calls-total').textContent   = crTotal  || rcTotal  || '—';
+  if(el('calls-new'))     el('calls-new').textContent     = crNew    || '—';
+  if(el('calls-ytd'))     el('calls-ytd').textContent     = ytdTotal || '—';
+  if(el('calls-source')) {
+    el('calls-source').textContent = rcTotal > crTotal ? 'Source: RingCentral' : 'Source: CallRail';
+  }
+
   const trendEl = el('calls-trend');
   if(!trendEl) return;
-  const snap = state.snap;
 
   if(_callsView === 'week') {
     let weekly = [];
     try { weekly = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
-    if(!weekly.length) { trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px">No weekly data yet</div>'; return; }
+    // Fall back to RC weekly if CallRail weekly is empty
+    if(!weekly.length) {
+      try { weekly = JSON.parse(snap['rc_daily']||'[]').map((c,i)=>({day:i,count:c||0})); } catch(e) {}
+    }
+    if(!weekly.length) { trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px">No weekly data yet — fetch CallRail or RingCentral calls</div>'; return; }
     const maxC = Math.max(...weekly.map(d=>d.count||0), 1);
     const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     trendEl.innerHTML = weekly.map(d => {
@@ -2480,11 +2537,15 @@ function renderCallsTrend() {
       </div>`;
     }).join('');
   } else {
-    // Monthly — try to load from monthly_calls or compute from weekly data
+    // Monthly bar chart — call volume by month
     let monthly = [];
     try { monthly = JSON.parse(snap['calls_monthly_json']||'[]'); } catch(e) {}
+    // Fall back to RC monthly if available
     if(!monthly.length) {
-      trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:12px 0">Pull CallRail data to see monthly view</div>';
+      try { monthly = JSON.parse(snap['rc_monthly']||'[]'); } catch(e) {}
+    }
+    if(!monthly.length) {
+      trendEl.innerHTML = '<div style="width:100%;text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:12px 0">Fetch calls to see monthly volume</div>';
       return;
     }
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2510,121 +2571,62 @@ function renderCallsTrend() {
 // ============================================================
 let _rcPeriodTimer = null;
 
-function updateS14() {
+// ============================================================
+// SCENE 13 — UNIFIED COMMUNICATIONS (CallRail + RingCentral)
+// ============================================================
+function updateS14() { updateS13(); } // S14 merged — keep for compat
+
+function updateS13() {
   const snap = state.snap;
+
+  // RC metrics
   const rcAnswered = parseInt(snap['rc_answered']||0)||0;
   const rcMissed   = parseInt(snap['rc_missed']||0)||0;
   const rcRate     = parseInt(snap['rc_answer_rate']||0)||0;
-  const rcTotal    = parseInt(snap['rc_total']||0)||0;
 
+  // CallRail metrics
+  const crTotal = parseInt(snap['calls_total']||0)||0;
+  const crNew   = parseInt(snap['calls_new']||0)||0;
+
+  if(el('calls-total')) el('calls-total').textContent = crTotal || '—';
+  if(el('calls-new'))   el('calls-new').textContent   = crNew   || '—';
+  if(el('rc-answered')) el('rc-answered').textContent = rcAnswered || '—';
+  if(el('rc-rate'))     el('rc-rate').textContent     = rcRate > 0 ? rcRate+'%' : '—';
+  if(el('rc-missed'))   el('rc-missed').textContent   = rcMissed || '—';
+  if(el('calls-source'))el('calls-source').textContent= rcAnswered > 0 ? 'RC + CR' : 'CallRail';
+
+  // RC Agent leaderboard
   let leaderboard = [];
   try { leaderboard = JSON.parse(snap['rc_leaderboard']||'[]'); } catch(e) {}
-
-  if(el('rc-answered'))  el('rc-answered').textContent  = rcAnswered || '—';
-  if(el('rc-rate'))      el('rc-rate').textContent      = rcRate > 0 ? rcRate+'%' : '—';
-  if(el('rc-missed'))    el('rc-missed').textContent    = rcMissed || '—';
-
-  // Leaderboard
   const lbEl = el('rc-leaderboard');
-  if(lbEl && leaderboard.length) {
+  if(lbEl && leaderboard.length){
     const maxAns = leaderboard[0]?.answered || 1;
     const colors = ['#FFD700','#C0C0C0','#CD7F32','#00D4FF','#00FF88','#A855F7','#F97316','#EF4444'];
     lbEl.innerHTML = leaderboard.slice(0,8).map((agent, i) => {
       const pct  = Math.round(agent.answered/maxAns*100);
       const col  = colors[i] || '#6b7280';
       const rate = agent.total > 0 ? Math.round(agent.answered/agent.total*100) : 0;
-      const photo = getEmpPhoto(agent.name, '');
       const avgDurStr = agent.avgDur > 0 ? (Math.floor(agent.avgDur/60)+'m '+(agent.avgDur%60).toString().padStart(2,'0')+'s') : '';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-        <div style="font-size:13px;width:20px;text-align:center;color:${col};font-weight:700">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
-        ${photo?`<img src="${photo}" style="width:30px;height:30px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid ${col}44" onerror="this.style.display='none'">`:'<div style="width:30px;height:30px;border-radius:6px;background:rgba(255,255,255,.08);flex-shrink:0"></div>'}
+      const photo = getEmpPhoto(agent.name, '');
+      const name = (agent.name||'Agent');
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:11px;width:18px;text-align:center;color:${col};font-weight:800">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+        ${photo?`<img src="${photo}" style="width:26px;height:26px;border-radius:5px;object-fit:cover;flex-shrink:0;border:1px solid ${col}44" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${agent.name}</div>
-          <div style="display:flex;gap:6px;margin-top:2px">
-            <div style="flex:1;height:3px;background:rgba(255,255,255,.1);border-radius:2px">
-              <div style="height:100%;width:${pct}%;background:${col};border-radius:2px"></div>
-            </div>
+          <div style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name.split(' ')[0]}</div>
+          <div style="height:2px;background:rgba(255,255,255,.08);border-radius:1px;margin-top:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${col}"></div>
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:var(--font-mono);font-size:16px;font-weight:900;color:${col};line-height:1">${agent.answered}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.55);margin-top:1px">${rate}% · ${avgDurStr||'—'} avg</div>
+          <div style="font-family:var(--font-mono);font-size:14px;font-weight:900;color:${col}">${agent.answered}</div>
+          <div style="font-size:8px;color:rgba(255,255,255,.5)">${rate}%${avgDurStr?' · '+avgDurStr:''}</div>
         </div>
       </div>`;
     }).join('');
-  } else if(lbEl) {
-    lbEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:20px 0">Connect RingCentral in Dashboard → Wallboard settings</div>';
+  } else if(lbEl){
+    lbEl.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:11px;text-align:center;padding:12px 0">Fetch RingCentral calls to see agents</div>';
   }
-}
-
-// ============================================================
-// SCENE 13 — CALL VOLUME
-// ============================================================
-let _callsPeriodIdx = 0;
-let _callsPeriodTimer = null;
-
-function updateS13() {
-  const snap = state.snap;
-  const totalWeek   = parseInt(snap['calls_total']||0)||0;
-  const newWeek     = parseInt(snap['calls_new']||0)||0;
-  const answWeek    = parseInt(snap['calls_answered']||0)||0;
-  const answPctWeek = totalWeek > 0 ? Math.round(answWeek/totalWeek*100) : 0;
-
-  // Build monthly total from monthly array
-  let monthly = [];
-  try { monthly = JSON.parse(snap['calls_monthly_json']||'[]'); } catch(e) {}
-  const curM = new Date().getMonth();
-  const totalMonth = monthly[curM] || 0;
-  const totalYear  = monthly.reduce((s,v)=>s+(v||0),0);
-
-  // Today's calls from weekly breakdown
-  let weekly = [];
-  try { weekly = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
-  const todayDay = new Date().getDay();
-  const todayEntry = weekly.find(d=>d.day===todayDay);
-  const totalDay = todayEntry?.count || 0;
-
-  const periods = [
-    { label:'Day',   total:totalDay,   newC: Math.round(newWeek/7)||0,  answPct: answPctWeek, sub:'calls today' },
-    { label:'Month', total:totalMonth, newC: Math.round(newWeek*4)||0,  answPct: answPctWeek, sub:'calls this month' },
-    { label:'Year',  total:totalYear,  newC: Math.round(newWeek*52)||0, answPct: answPctWeek, sub:'calls this year' },
-  ];
-
-  // Start rotation
-  if(_callsPeriodTimer) clearInterval(_callsPeriodTimer);
-  _callsPeriodIdx = 0;
-
-  function showPeriod(idx) {
-    const p = periods[idx];
-    if(!p) return;
-    const totalEl   = el('calls-total');
-    const newEl     = el('calls-new');
-    const answEl    = el('calls-answered');
-    const badgeEl   = el('calls-period-badge');
-    const subEl     = el('calls-total-sub');
-    const dotsEl    = el('calls-period-dots');
-
-    if(totalEl) totalEl.textContent = p.total || '—';
-    if(newEl)   newEl.textContent   = p.newC > 0 ? p.newC : '—';
-    if(answEl)  answEl.textContent  = p.answPct > 0 ? p.answPct+'%' : '—';
-    if(subEl)   subEl.textContent   = p.sub;
-    // Update the 'Total Calls' label to show the period
-    const totLbl = el('calls-total')?.parentElement?.querySelector('div:first-child');
-    if(totLbl) totLbl.textContent = `Total Calls — ${p.label === 'Day' ? 'Today' : p.label === 'Year' ? 'This Year' : p.label === 'Month' ? 'This Month' : 'This Week'}`;
-    if(badgeEl) badgeEl.textContent = p.label;
-    // Update chart title to match period
-    const srcEl = el('calls-source');
-    if(srcEl) srcEl.textContent = `Calls — ${p.label === 'Day' ? 'Today' : p.label === 'Year' ? 'This Year' : p.label === 'Month' ? 'This Month' : 'This Week'} · Source: CallRail`;
-    if(dotsEl) dotsEl.innerHTML = periods.map((_,i) =>
-      `<div style="width:6px;height:6px;border-radius:50%;background:${i===idx?'var(--blue)':'rgba(255,255,255,.2)'}"></div>`
-    ).join('');
-  }
-
-  showPeriod(0);
-  _callsPeriodTimer = setInterval(() => {
-    _callsPeriodIdx = (_callsPeriodIdx + 1) % periods.length;
-    showPeriod(_callsPeriodIdx);
-  }, 7000);
 
   renderCallsLineChart();
 }
@@ -2634,12 +2636,18 @@ function renderCallsLineChart() {
   const svg = el('calls-line-svg');
   if(!svg) return;
 
-  let weekly = [];
-  let monthly = [];
+  // Use RC daily data first (more reliable), fall back to CallRail daily
   let daily = [];
+  let weekly = [];
   try { weekly  = JSON.parse(snap['calls_weekly_json']||'[]'); } catch(e) {}
-  try { monthly = JSON.parse(snap['calls_monthly_json']||'[]'); } catch(e) {}
-  try { daily   = JSON.parse(snap['calls_daily_json']||'[]');  } catch(e) {}
+  try {
+    const rcDaily = JSON.parse(snap['rc_daily']||'[]');
+    if(rcDaily.length > 0) daily = rcDaily; // RC daily is an array of counts by day-of-month
+  } catch(e) {}
+  // Fall back to CallRail daily JSON
+  if(!daily.length) {
+    try { daily = JSON.parse(snap['calls_daily_json']||'[]'); } catch(e) {}
+  }
   const W = svg.parentElement?.clientWidth  || svg.clientWidth  || 700;
   const H = svg.parentElement?.clientHeight || svg.clientHeight || 120;
   if(W < 50 || H < 30) { setTimeout(()=>renderCallsLineChart(weekly, monthly), 200); return; }
@@ -2973,13 +2981,12 @@ function goScene(idx) {
   }
   else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
   else if (sceneId==='s13') {
-    if (state.snap['calls_total'] || state.snap['calls_weekly_json']) { updateS13(); scheduleNextScene('s13'); }
-    else { nextScene(); }
+    // Merged scene: shows CallRail + RingCentral together
+    if (state.snap['calls_total'] || state.snap['rc_answered'] || state.snap['rc_leaderboard'] || state.snap['calls_weekly_json']) {
+      updateS13(); scheduleNextScene('s13');
+    } else { nextScene(); }
   }
-  else if (sceneId==='s14') {
-    if (state.snap['rc_answered'] || state.snap['rc_leaderboard']) { updateS14(); scheduleNextScene('s14'); }
-    else { nextScene(); }
-  }
+  else if (sceneId==='s14') { nextScene(); } // merged into s13
 }
 
 function nextScene() {
