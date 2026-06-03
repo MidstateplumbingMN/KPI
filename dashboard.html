@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.33</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.35</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.33</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.35</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.33</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.35</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2457,7 +2457,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.33
+  // ATTRIBUTION ENGINE — v23.35
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4355,9 +4355,14 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     // Today-only metrics for Win the Day scene
     daily_jobs: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
-      return _jobs.filter(j => {
+      const source = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
+      return source.filter(j => {
         if(!isJobPaid(j)) return false;
-        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||j.created_at);
+        // Use invoice payment dates when available
+        if(j._payments?.length){
+          return j._payments.some(p => p.date === todayLocal);
+        }
+        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
         if(isNaN(d)) return false;
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
@@ -4406,23 +4411,33 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       return matches.length;
     })(),
 
-    // Monthly breakdown for companion bar chart
+    // Monthly breakdown for companion bar chart — uses invoice payment dates when available
     monthly_revenue: (() => {
-      // Use ALL paid jobs regardless of date range — sum by month for current year
-      // This ensures monthly chart shows full year even if date picker is "This Month"
       const months = {};
       const yr = now_snap.getFullYear();
-      // Use the raw _jobs array which contains ALL fetched jobs
-      const allPaidJobs = _jobs.filter(isJobPaid);
-      allPaidJobs.forEach(j => {
-        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||j.schedule?.scheduled_start||j.created_at);
-        if(d.getFullYear()===yr){
-          const m = d.getMonth();
-          months[m] = (months[m]||0) + getJobRevenue(j);
+      // Use _allYearJobs (has invoice payments attached) for accuracy
+      const source = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
+      source.forEach(j => {
+        if(j._payments && j._payments.length > 0){
+          // Spread multi-payment jobs across correct months
+          j._payments.forEach(p => {
+            const d = new Date(p.date + 'T12:00:00');
+            if(d.getFullYear() === yr){
+              const m = d.getMonth();
+              months[m] = (months[m]||0) + p.amount;
+            }
+          });
+        } else {
+          // Fallback: completed_at for jobs without invoice data
+          const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
+          if(!isNaN(d) && d.getFullYear() === yr){
+            const m = d.getMonth();
+            months[m] = (months[m]||0) + getJobRevenue(j);
+          }
         }
       });
       const result = Array.from({length:12},(_,i)=>Math.round(months[i]||0));
-      console.log('[Monthly] Built from', allPaidJobs.length, 'paid jobs. Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
+      console.log('[Monthly] Built from', source.length, 'paid jobs. Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
       return result;
     })(),
 
@@ -4483,6 +4498,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     // RingCentral
     rc_total:         parseInt(_rcSnap?.total||0)||0,
     rc_answered:      parseInt(_rcSnap?.answered||0)||0,
+    rc_missed:        parseInt(_rcSnap?.missed||0)||0,
     rc_answer_rate:   parseInt(_rcSnap?.answer_rate||0)||0,
     rc_leaderboard:   JSON.stringify(_rcSnap?.leaderboard||[]),
     rc_monthly:       JSON.stringify(_rcSnap?.monthly||[]),
@@ -4492,6 +4508,33 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     calls_new:        parseInt(_callrailSnap?.new_callers||0)||0,
     calls_answered:   parseInt(_callrailSnap?.answered||0)||0,
     calls_weekly_json: JSON.stringify(_callrailSnap?.weekly||[]),
+
+    // Daily revenue by calendar day this month — for companion trend line
+    // Array of 31 values (index = day-1), each = revenue collected that day
+    daily_revenue_by_day: (() => {
+      const yr = now_snap.getFullYear();
+      const mo = now_snap.getMonth();
+      const days = new Array(31).fill(0);
+      const source = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
+      source.forEach(j => {
+        if(j._payments?.length){
+          j._payments.forEach(p => {
+            const d = new Date(p.date + 'T12:00:00');
+            if(d.getFullYear()===yr && d.getMonth()===mo){
+              days[d.getDate()-1] += p.amount;
+            }
+          });
+        } else {
+          const ts = j.work_timestamps?.completed_at || j.completed_at;
+          if(!ts) return;
+          const d = new Date(ts);
+          if(d.getFullYear()===yr && d.getMonth()===mo){
+            days[d.getDate()-1] += getJobRevenue(j);
+          }
+        }
+      });
+      return days.map(Math.round);
+    })(),
   };
 
   try{
