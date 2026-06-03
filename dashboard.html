@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.35</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.36</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.35</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.36</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.35</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.36</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1485,6 +1485,7 @@ tr:hover td{background:#fafafa}
 let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BIEsRQu2qGLpk5xrF-vcUBSLhIyM2NPW2qmM/exec';
 let _selectedEmps=new Set(); // empty = all selected
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
+let _invoiceMap = {}; // job_id → [{date, amount, number}] — populated by invoice fetch, used by revenue calculations
 // attributions: jobId -> { techId, techName, confirmed }
 // stored in localStorage so they persist
 let _attr = {};
@@ -2104,6 +2105,7 @@ function showTab(t){
   if(t==='contest') renderContest();
   if(t==='unpaid') renderUnpaid();
   if(t==='goals') renderGoals();
+  if(t==='cal'||t==='calendar') renderCalendar(); // always re-render with fresh data
   if(t==='spotlight'){ loadSpotlights(); populateSlEmpDropdown(); }
   if(t==='announcements'){ loadAnnouncements(); }
   if(t==='wallboard'){ loadWallboardSettings(); loadSceneOrder(); }
@@ -2225,7 +2227,8 @@ async function loadAll(){
     // We join invoices to jobs by job_id so each job has its real payment dates and amounts.
     // This replaces completed_at as the payment date signal entirely.
     stepLog('🧾 Fetching invoices (payment dates)...');
-    let _invoiceMap = {}; // job_id → [{date, amount, invoice_number}]
+    // Reset invoice map for this pull
+    _invoiceMap = {};
     try {
       const yr    = new Date().getFullYear();
       const invQ  = `?paid_at_min=${yr}-01-01T00:00:00Z&paid_at_max=${to}T23:59:59Z&status[]=paid`;
@@ -2457,7 +2460,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.35
+  // ATTRIBUTION ENGINE — v23.36
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4199,9 +4202,12 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
           company_id:  CR_COMPANY,
           fields:      'id,start_time,answered,first_call,direction,tracking_phone_number,customer_phone_number,duration'
         });
-        const crUrl = `https://api.callrail.com/v3/a/${crAccount}/calls.json?${params}`;
+        // Route through Cloudflare Worker to avoid browser tracking prevention (Edge/Firefox block direct callrail.com)
+        const crUrl = _workerUrl
+          ? `${_workerUrl}/callrail/v3/a/${crAccount}/calls.json?${params}`
+          : `https://api.callrail.com/v3/a/${crAccount}/calls.json?${params}`;
         const crRes = await fetch(crUrl, {
-          headers: { 'Authorization': `Token token="${crKey}"`, 'Content-Type': 'application/json' }
+          headers: { 'Authorization': `Token token="${crKey}"` }
         });
         if(!crRes.ok) { const errTxt=await crRes.text().catch(()=>''); console.warn('[CallRail] HTTP', crRes.status, errTxt); dashLog('warn','CallRail: '+crRes.status+' — '+errTxt.slice(0,120)); break; }
         const cr = await crRes.json();
@@ -4572,13 +4578,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 async function syncMonthlyRevenueToSheet(monthly) {
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+    fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
       body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
-    });
-    const d = await res.json();
-    if(d.success) console.log('[Monthly Revenue] Tab synced:', d.rows, 'rows');
-    else console.warn('[Monthly Revenue] Sync failed:', d.error);
+    }).then(()=>console.log('[Monthly Revenue] Tab synced'))
+      .catch(e=>console.warn('[Monthly Revenue] Sync error:', e.message));
   } catch(e) { console.warn('[Monthly Revenue] Sync error:', e.message); }
 }
 
@@ -5171,7 +5175,9 @@ async function testCallRail() {
         });
         if(filter==='inbound')  params.set('direction','inbound');
         if(filter==='outbound') params.set('direction','outbound');
-        crUrl = `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
+        crUrl = _workerUrl
+          ? `${_workerUrl}/callrail/v3/a/${CR_ACC}/calls.json?${params}`
+          : `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
       }
 
       setCallsProgress('cr', `📡 Page ${pageNum} — ${allCalls.length} calls so far...`);
