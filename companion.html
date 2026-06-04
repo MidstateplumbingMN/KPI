@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.44</title>
+<title>Midstate — KPI Command Center v2.45</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.44</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.45</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1092,7 +1092,7 @@ html, body {
       <div class="scene-title">// Communications — Call Volume &amp; Agent Performance</div>
 
       <!-- Top row: 5 metric cards -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;flex-shrink:0;padding:0 0 10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;flex-shrink:0;padding:0 0 10px">
         <!-- CallRail: Total inbound last 30 days -->
         <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Inbound Calls</div>
@@ -1116,12 +1116,6 @@ html, body {
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Answer Rate</div>
           <div class="metric-value glow-blue" id="rc-rate" style="font-size:clamp(28px,4vw,52px)">—</div>
           <div style="font-size:9px;color:rgba(255,255,255,.5)">Of all inbound</div>
-        </div>
-        <!-- RC: Missed -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
-          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Missed</div>
-          <div id="rc-missed" style="font-family:var(--font-display);font-size:clamp(28px,4vw,52px);color:#EF4444;line-height:1">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">Last 30 days</div>
         </div>
       </div>
 
@@ -1443,14 +1437,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.44
+      v2.45
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.44';
+const COMPANION_VERSION = 'v2.45';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2316,12 +2310,13 @@ function updateS3() {
     return;
   }
 
-  // Scale font based on number of technicians
+  // Dynamic text scaling based on number of techs
   const count = kpi.length;
-  const nameFontSize = count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
-  const valFontSize  = count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
-  const itemPadding  = count <= 5 ? '10px 0' : count <= 7 ? '7px 0' : '5px 0';
+  const nameFontSize = count <= 3 ? '18px' : count <= 5 ? '15px' : count <= 7 ? '13px' : '11px';
+  const valFontSize  = count <= 3 ? '20px' : count <= 5 ? '16px' : count <= 7 ? '14px' : '12px';
+  const itemPadding  = count <= 3 ? '12px 0' : count <= 5 ? '9px 0' : count <= 7 ? '6px 0' : '4px 0';
   const barHeight    = count <= 5 ? '5px' : '3px';
+  const photoSize    = count <= 5 ? '36px' : count <= 7 ? '28px' : '22px';
 
   // Revenue leaderboard
   const byRev = [...kpi].sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]));
@@ -2337,7 +2332,7 @@ function updateS3() {
     const photoUrl = getEmpPhoto(name, empPhoto);
     return `<div class="lb-item" style="padding:${itemPadding}">
       <div class="lb-rank ${i<3?'r'+(i+1):''}" style="font-size:${nameFontSize}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
-      ${photoUrl ? `<img src="${photoUrl}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
+      ${photoUrl ? `<img src="${photoUrl}" style="width:${photoSize};height:${photoSize};border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div class="lb-info">
         <div class="lb-name" style="font-size:${nameFontSize}">${name}</div>
         <div style="font-size:9px;color:rgba(255,255,255,.9);margin-top:1px">${empDept(name)}</div>
@@ -2383,10 +2378,12 @@ function renderConvByDept(kpi, deptIdx, totalCount) {
   }
 
   const cCount = totalCount || byConv.length;
-  const cNameFs  = cCount <= 5 ? '15px' : cCount <= 7 ? '13px' : '11px';
-  const cValueFs = cCount <= 5 ? '15px' : cCount <= 7 ? '13px' : '11px';
-  const cPad     = cCount <= 5 ? '10px 0' : cCount <= 7 ? '7px 0' : '5px 0';
+  // Dynamic font scaling: more techs = smaller text, fewer = bigger
+  const cNameFs  = cCount <= 3 ? '18px' : cCount <= 5 ? '15px' : cCount <= 7 ? '13px' : '11px';
+  const cValueFs = cCount <= 3 ? '20px' : cCount <= 5 ? '16px' : cCount <= 7 ? '14px' : '12px';
+  const cPad     = cCount <= 3 ? '12px 0' : cCount <= 5 ? '9px 0' : cCount <= 7 ? '6px 0' : '4px 0';
   const cBarH    = cCount <= 5 ? '5px' : '3px';
+  const photoSz  = cCount <= 5 ? '36px' : cCount <= 7 ? '28px' : '22px';
 
   el('lb-conv').innerHTML = byConv.slice(0, 7).map((row, i) => {
     const pctVal = num(row[CONFIG.KPI_COLS.convPct]);
@@ -2395,11 +2392,15 @@ function renderConvByDept(kpi, deptIdx, totalCount) {
     const conv = num(row[CONFIG.KPI_COLS.converted]);
     const ests = num(row[CONFIG.KPI_COLS.estimates]);
     const color = CONFIG.COLORS[i] || '#6b7280';
+    const empData = (state.kpi||[]).find(r=>r[CONFIG.KPI_COLS.name]===name);
+    const empPhoto = empData ? empData[CONFIG.KPI_COLS.photo]||'' : '';
+    const photoUrl = getEmpPhoto(name, empPhoto);
     return `<div class="lb-item" style="padding:${cPad}">
       <div class="lb-rank ${i<3?'r'+(i+1):''}" style="font-size:${cNameFs}">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+      ${photoUrl ? `<img src="${photoUrl}" style="width:${photoSz};height:${photoSz};border-radius:6px;object-fit:cover;border:2px solid ${color};flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div class="lb-info">
         <div class="lb-name" style="font-size:${cNameFs}">${name}</div>
-        <div class="lb-dept">${conv} of ${ests} estimates</div>
+        <div class="lb-dept" style="font-size:${parseInt(cNameFs)-2}px">${conv} of ${ests} estimates</div>
         <div class="lb-bar-track" style="height:${cBarH}"><div class="lb-bar-fill" style="width:${bar}%;background:${color};height:${cBarH}"></div></div>
       </div>
       <div class="lb-value" style="color:${color};font-size:${cValueFs}">${Math.round(pctVal)}%</div>
