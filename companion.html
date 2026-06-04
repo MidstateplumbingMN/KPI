@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.38</title>
+<title>Midstate — KPI Command Center v2.39</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.38</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.39</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -890,43 +890,92 @@ html, body {
 
     <!-- SCENE 1: KPI OVERVIEW -->
     <div class="scene" id="s1">
-      <div class="scene-title">// KPI Overview — Month to Date</div>
-      <div class="grid">
-        <!-- Hero: Revenue -->
-        <div class="card hero" id="s1-hero">
-          <div class="label">Revenue Collected MTD</div>
-          <div class="big" id="s1-revenue">$0</div>
-          <div class="sub">
-            <span id="s1-goal-pct">0%</span> of monthly goal &nbsp;·&nbsp;
-            <span id="s1-paid-jobs">0</span> paid jobs
+
+      <!-- Period header banner -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:0 2px 12px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.4)">KPI Overview</div>
+          <div style="font-size:11px;padding:3px 10px;background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);border-radius:99px;color:var(--blue);font-weight:700;letter-spacing:.05em" id="s1-period-badge">Month to Date</div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.35);font-family:var(--font-mono)" id="s1-date-range">—</div>
+      </div>
+
+      <div style="flex:1;display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;min-height:0">
+
+        <!-- HERO — MTD Revenue, spans 2 rows -->
+        <div class="card" id="s1-hero" style="grid-row:1/3;display:flex;flex-direction:column;justify-content:space-between;padding:24px 28px;background:linear-gradient(145deg,rgba(0,212,255,.06) 0%,rgba(0,212,255,.01) 100%);border:1.5px solid rgba(0,212,255,.2);position:relative;overflow:hidden">
+          <div>
+            <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.18em;color:var(--blue);margin-bottom:6px">Month to Date</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:16px" id="s1-hero-month">June 2026</div>
+            <div style="font-size:clamp(48px,7vw,88px);font-family:var(--font-display);color:#fff;line-height:.95;font-weight:900" id="s1-revenue">$0</div>
+            <div style="font-size:14px;color:rgba(255,255,255,.55);margin-top:8px">Revenue Collected</div>
           </div>
-          <div class="bar-track">
-            <div class="bar-fill-el" id="s1-goal-bar" style="width:0%"></div>
+
+          <!-- Goal progress -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <div style="font-size:13px;color:rgba(255,255,255,.7)"><span id="s1-goal-pct" style="font-size:22px;font-weight:800;color:var(--blue)">0%</span> of monthly goal</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.5)">Goal: <span id="s1-goal-label" style="color:rgba(255,255,255,.8);font-weight:700">$250K</span></div>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
+              <div id="s1-goal-bar" style="height:100%;width:0%;background:var(--blue);border-radius:99px;transition:width 1.2s ease"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px">
+              <div style="font-size:11px;color:rgba(255,255,255,.45)"><span id="s1-paid-jobs" style="color:rgba(255,255,255,.8);font-weight:700">0</span> paid jobs</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.45)">Avg: <span id="s1-avg" style="color:var(--blue);font-weight:700">$0</span></div>
+            </div>
           </div>
-          <div style="font-size:11px;color:rgba(255,255,255,.9);margin-top:8px">
-            Goal: <span id="s1-goal-label">$250,000</span>
+
+          <!-- YTD callout strip -->
+          <div style="margin-top:16px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.07)">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.4);margin-bottom:4px">Year to Date</div>
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <div style="font-size:clamp(24px,3.5vw,38px);font-family:var(--font-display);color:var(--green);font-weight:900" id="s1-ytd-rev">$0</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.5)"><span id="s1-ytd-pct" style="color:var(--green);font-weight:700">0%</span> of $3M goal</div>
+            </div>
           </div>
         </div>
 
-        <!-- Stat cards -->
-        <div class="card metric accent-blue">
-          <div class="metric-value glow-blue" id="s1-avg">$0</div><div class="metric-sub">Per paid job</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Avg Job Value</div>
+        <!-- Conversion Rate — MTD -->
+        <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--green);margin-bottom:4px">Month to Date</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">Estimates → Jobs</div>
+          <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--green);font-weight:900;line-height:1;margin:8px 0" id="s1-conv">0%</div>
+          <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Conversion Rate</div>
         </div>
-        <div class="card metric accent-green">
-          <div class="metric-value glow-green" id="s1-conv">0%</div><div class="metric-sub">Estimates → Jobs</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Conversion Rate</div>
+
+        <!-- Total Jobs — YTD period -->
+        <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--orange);margin-bottom:4px">In Period</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">All job types</div>
+          <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--orange);font-weight:900;line-height:1;margin:8px 0" id="s1-jobs">0</div>
+          <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Total Jobs</div>
         </div>
-        <div class="card metric accent-orange">
-          <div class="metric-value glow-orange" id="s1-jobs">0</div><div class="metric-sub">In period</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Total Jobs</div>
+
+        <!-- Estimates Scheduled — in period -->
+        <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--purple);margin-bottom:4px">In Period</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">Total scheduled</div>
+          <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--purple);font-weight:900;line-height:1;margin:8px 0" id="s1-ests">0</div>
+          <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Estimates</div>
         </div>
-        <div class="card metric accent-purple">
-          <div class="metric-value glow-purple" id="s1-ests">0</div><div class="metric-sub">Total estimates</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Estimates Scheduled</div>
+
+        <!-- IS Pipeline -->
+        <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:4px">Active Pipeline</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">Unbooked leads</div>
+          <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--gold);font-weight:900;line-height:1;margin:8px 0" id="s1-open">0</div>
+          <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Open Opportunities</div>
         </div>
-        <div class="card metric accent-gold">
-          <div class="metric-value glow-gold" id="s1-open">0</div><div class="metric-sub">IS pipeline</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Open Opportunities</div>
+
+        <!-- Service Plans -->
+        <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);margin-bottom:4px">Active</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">Memberships</div>
+          <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--blue);font-weight:900;line-height:1;margin:8px 0" id="s1-plans">0</div>
+          <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Service Plans</div>
         </div>
-        <div class="card metric accent-blue">
-          <div class="metric-value glow-blue" id="s1-plans">0</div><div class="metric-sub">Active memberships</div><div class="metric-label" style="margin-top:12px;font-size:14px;font-weight:700;text-align:center">Service Plans</div>
-        </div>
+
       </div>
     </div>
 
@@ -1394,14 +1443,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.38
+      v2.39
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.38';
+const COMPANION_VERSION = 'v2.39';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1925,34 +1974,49 @@ function hideNoDataState() {
 // ---- SCENE 1: KPI OVERVIEW ----
 function updateS1() {
   const snap = state.snap;
-  const hasSnap = Object.keys(snap).length > 0;
 
-  const revenue   = num(snap['rev_monthly']||snap['total_revenue']||0);
-  const totalJobs = num(snap['total_jobs']||0);
-  const paidJobs  = num(snap['paid_jobs']||0);
-  const convPct   = num(snap['conversion_pct']||0);
-  const avgJob    = num(snap['avg_job']||0);
-  const totalEsts = num(snap['total_estimates']||0);
-  const openIS    = num(snap['open_is']||0);
-  const goalPct   = Math.min(100, Math.round(revenue / num(snap['goal_monthly']||250000) * 100));
-  const plans     = num(snap['total_plans']||0);
-  const dateFrom  = snap['date_from']||'';
-  const dateTo    = snap['date_to']||'';
+  const revMonthly = num(snap['rev_monthly']||snap['total_revenue']||0);
+  const revAnnual  = num(snap['rev_annual']||0);
+  const goalAnnual = num(snap['goal_annual']||3000000);
+  const goalMonthly= num(snap['goal_monthly']||250000);
+  const totalJobs  = num(snap['total_jobs']||0);
+  const paidJobs   = num(snap['paid_jobs']||0);
+  const convPct    = num(snap['conversion_pct']||0);
+  const avgJob     = num(snap['avg_job']||0);
+  const totalEsts  = num(snap['total_estimates']||0);
+  const openIS     = num(snap['open_is']||0);
+  const plans      = num(snap['total_plans']||0);
+  const goalPct    = Math.min(100, Math.round(revMonthly / goalMonthly * 100));
+  const annualPct  = Math.round(revAnnual / goalAnnual * 100);
+  const dateFrom   = snap['date_from']||'';
+  const dateTo     = snap['date_to']||'';
 
-  const sceneTitle = document.querySelector('#s1 .scene-title');
-  if(sceneTitle && dateFrom) sceneTitle.textContent = `// KPI Overview — ${dateFrom} → ${dateTo}`;
+  // Period badge — detect if YTD or MTD based on date range
+  const now = new Date();
+  const monthName = now.toLocaleString('en-US',{month:'long', year:'numeric'});
+  if(el('s1-hero-month')) el('s1-hero-month').textContent = monthName;
+  if(el('s1-date-range') && dateFrom) el('s1-date-range').textContent = `${dateFrom} → ${dateTo}`;
 
-  animCount('s1-revenue', revenue, true);
-  animCount('s1-avg', avgJob, true);
-  el('s1-conv').textContent = Math.round(convPct) + '%';
-  animCount('s1-jobs', totalJobs, false);
-  animCount('s1-ests', totalEsts, false);
-  animCount('s1-open', openIS, false);
-  el('s1-goal-pct').textContent = goalPct + '%';
-  el('s1-paid-jobs').textContent = paidJobs.toLocaleString();
-  el('s1-goal-label').textContent = dollars(num(snap['goal_monthly']||250000));
-  el('s1-goal-bar').style.width = goalPct + '%';
-  animCount('s1-plans', plans, false);
+  // Hero MTD revenue
+  animCount('s1-revenue', revMonthly, true);
+  if(el('s1-avg'))      el('s1-avg').textContent      = dollars(avgJob);
+  if(el('s1-goal-pct')) el('s1-goal-pct').textContent = goalPct + '%';
+  if(el('s1-goal-label'))el('s1-goal-label').textContent = dollars(goalMonthly);
+  if(el('s1-goal-bar')) el('s1-goal-bar').style.width  = goalPct + '%';
+  if(el('s1-paid-jobs'))el('s1-paid-jobs').textContent = paidJobs.toLocaleString();
+
+  // YTD strip
+  if(el('s1-ytd-rev')) {
+    animCount('s1-ytd-rev', revAnnual, true);
+  }
+  if(el('s1-ytd-pct')) el('s1-ytd-pct').textContent = annualPct + '%';
+
+  // Stat cards
+  if(el('s1-conv'))  el('s1-conv').textContent  = Math.round(convPct) + '%';
+  animCount('s1-jobs',  totalJobs, false);
+  animCount('s1-ests',  totalEsts, false);
+  animCount('s1-open',  openIS,    false);
+  animCount('s1-plans', plans,     false);
 }
 
 // ---- SCENE 2: GOALS ----
