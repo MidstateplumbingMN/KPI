@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.40</title>
+<title>Midstate — KPI Command Center v2.41</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.40</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.41</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1443,14 +1443,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.40
+      v2.41
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.40';
+const COMPANION_VERSION = 'v2.41';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1802,11 +1802,13 @@ function updateAll() {
   hideNoDataState();
   // Refresh data values only — never restart timers or animations
   const cur = SCENES[state.currentScene];
-  if      (cur==='s1') refreshS1Data();
-  else if (cur==='s2') refreshS2Data();
-  else if (cur==='s3') refreshS3Data();
-  else if (cur==='s6') refreshS6Data();
-  // s4/s5/s7/s8/s9/s10/s11 — don't interrupt mid-display
+  if      (cur==='s1')  refreshS1Data();
+  else if (cur==='s2')  refreshS2Data();
+  else if (cur==='s3')  refreshS3Data();
+  else if (cur==='s4')  updateS4();
+  else if (cur==='s6')  refreshS6Data();
+  else if (cur==='s13') { updateS13(); }  // refreshes call metrics + line chart
+  // s5/s7/s8/s9/s10/s11 — don't interrupt mid-display
   checkVictoryMode();
 }
 
@@ -2705,31 +2707,46 @@ function renderCallsLineChart() {
   const svg = el('calls-line-svg');
   if(!svg) return;
 
-  // Build daily call count array — rc_daily is 31-element array stored as JSON string
+  // --- DIAGNOSTIC: log raw data at each stage ---
   let daily = [];
+  let dataSource = 'none';
+
+  // Source 1: rc_daily from KPI_Dashboard snap
   try {
     const raw = snap['rc_daily'] || '[]';
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if(Array.isArray(parsed) && parsed.some(v=>v>0)) daily = parsed;
-  } catch(e) {}
+    console.log('[CallsChart] rc_daily raw length:', Array.isArray(parsed)?parsed.length:0,
+      'has data:', Array.isArray(parsed) && parsed.some(v=>v>0),
+      'sample:', Array.isArray(parsed)?parsed.slice(0,5):[]);
+    if(Array.isArray(parsed) && parsed.some(v=>v>0)) { daily = parsed; dataSource = 'rc_daily'; }
+  } catch(e) { console.warn('[CallsChart] rc_daily parse error:', e.message); }
 
-  // Fallback: CallRail daily
+  // Source 2: calls_daily_json fallback
   if(!daily.length) {
     try {
       const raw = snap['calls_daily_json'] || '[]';
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if(Array.isArray(parsed) && parsed.some(v=>v>0)) daily = parsed;
-    } catch(e) {}
+      console.log('[CallsChart] calls_daily_json raw length:', Array.isArray(parsed)?parsed.length:0,
+        'has data:', Array.isArray(parsed) && parsed.some(v=>v>0));
+      if(Array.isArray(parsed) && parsed.some(v=>v>0)) { daily = parsed; dataSource = 'calls_daily_json'; }
+    } catch(e) { console.warn('[CallsChart] calls_daily_json parse error:', e.message); }
   }
-
-  const W = svg.parentElement?.clientWidth  || svg.clientWidth  || 700;
-  const H = svg.parentElement?.clientHeight || svg.clientHeight || 120;
-  if(W < 50 || H < 30) { setTimeout(renderCallsLineChart, 250); return; }
 
   const now = new Date();
   const curM = now.getMonth();
   const daysInMonth = new Date(now.getFullYear(), curM+1, 0).getDate();
   const today = now.getDate();
+
+  console.log('[CallsChart] Data source:', dataSource, '| SVG dims:', svg.parentElement?.clientWidth, 'x', svg.parentElement?.clientHeight,
+    '| today:', today, '| daysInMonth:', daysInMonth,
+    '| calls today:', daily[today-1]||0, '| total calls this month:', daily.slice(0,today).reduce((a,b)=>a+(b||0),0));
+
+  const W = svg.parentElement?.clientWidth  || svg.clientWidth  || 700;
+  const H = svg.parentElement?.clientHeight || svg.clientHeight || 120;
+  if(W < 50 || H < 30) {
+    console.warn('[CallsChart] SVG container too small:', W, 'x', H, '— retrying');
+    setTimeout(renderCallsLineChart, 250); return;
+  }
 
   if(!daily.length || !daily.slice(0, today).some(v=>v>0)) {
     svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12">Fetch calls to see daily volume</text>`;
@@ -4040,17 +4057,9 @@ async function loadWallboardData() {
       const crDailyRow = settingsRows.find(r => r[0]==='callrail_daily');
       state.snap['calls_daily_json']   = crDailyRow?.[1]||'[]';
     }
-    // RingCentral data
-    const rcAnsRow  = settingsRows.find(r => r[0]==='rc_answered');
-    if(rcAnsRow) {
-      state.snap['rc_answered']    = parseInt(rcAnsRow[1])||0;
-      state.snap['rc_missed']      = parseInt(settingsRows.find(r=>r[0]==='rc_missed')?.[1])||0;
-      state.snap['rc_answer_rate'] = parseInt(settingsRows.find(r=>r[0]==='rc_answer_rate')?.[1])||0;
-      state.snap['rc_total']       = parseInt(settingsRows.find(r=>r[0]==='rc_total')?.[1])||0;
-      state.snap['rc_leaderboard'] = settingsRows.find(r=>r[0]==='rc_leaderboard')?.[1]||'[]';
-      state.snap['rc_monthly']     = settingsRows.find(r=>r[0]==='rc_monthly')?.[1]||'[]';
-      state.snap['rc_daily']       = settingsRows.find(r=>r[0]==='rc_daily')?.[1]||'[]';
-    }
+    // Note: RC data (rc_daily, rc_leaderboard etc.) comes from KPI_Dashboard snap
+    // which is already parsed in loadData() above. The Settings tab does NOT contain RC data.
+    // Do not look for RC keys here — they would overwrite correct KPI_Dashboard values with empty strings.
   } catch(e) { console.log('[Wallboard] Settings read failed:', e.message); }
 
   try {
