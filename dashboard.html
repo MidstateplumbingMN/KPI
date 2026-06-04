@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.49</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.52</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.49</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.52</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.49</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.52</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2478,7 +2478,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.49
+  // ATTRIBUTION ENGINE — v23.52
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3948,7 +3948,7 @@ function renderPlans(plans){
   const total=activePlans.length;
 
   // Compute date range from all plan records
-  let dateRangeLabel = '';
+  const isAggregate = plans.length > 0 && plans[0]?.source === 'upload_aggregate';
   const planDates = plans
     .map(p => p.created_at || p.start_date || '')
     .filter(Boolean)
@@ -3964,7 +3964,11 @@ function renderPlans(plans){
     dateRangeLabel = planDates[0].toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   }
 
-  $$('planMetrics').innerHTML=`
+  $$('planMetrics').innerHTML = (isAggregate ? `
+    <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:10px 14px;margin-bottom:4px;font-size:12px;color:#92400E;grid-column:1/-1">
+      <strong>📋 Summary Report</strong> — This file shows counts per technician but has no customer names or dates.
+      For individual customer records, export the <strong>detailed plan report</strong> from HCP: Members → Export → All columns.
+    </div>` : '') + `
     <div class="metric">
       <div class="metric-label">Active plans</div>
       <div class="metric-value">${total}</div>
@@ -3996,7 +4000,23 @@ function renderPlanRows(plans){
     const soldBy=getPlanSoldBy(p);
     const soldByDisplay=(!soldBy||soldBy==='Unknown'||soldBy==='—')?'<span style="color:#9ca3af;font-style:italic">—</span>':soldBy;
     const custDisplay=getPlanCust(p);
-    const dateDisplay=p.created_at?fmtD(p.created_at):p.start_date?fmtD(p.start_date):'—';
+    const dateDisplay = (() => {
+      const raw = p.created_at || p.start_date;
+      if(!raw) return '—';
+      try {
+        const d = new Date(raw);
+        if(isNaN(d)) return raw;
+        const datePart = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+        // Only show time if it's not midnight (i.e. the source had an actual time)
+        const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+        if(!hasTime) return datePart;
+        const h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2,'0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${datePart} ${h12}:${m} ${ampm}`;
+      } catch(e) { return raw; }
+    })();
     const t=document.createElement('tr');
     t.innerHTML=`<td style="font-weight:500">${custDisplay}</td><td style="color:#1A3A5C;font-weight:500">${getPlanName(p)||'—'}</td><td style="color:#6b7280">${soldByDisplay}</td><td>${badge}</td><td style="color:#6b7280">${dateDisplay}</td>`;
     tb.appendChild(t);
@@ -5715,9 +5735,9 @@ function getOrderQueueItems() {
     const jobNotes  = getJobNotes(j).join('\n');
 
     // Equipment label: prefer estimate option name (most specific) then job line item
-    const equipLabel = getEquipmentLabel(j)
+    const equipLabel = (equip ? getEquipmentLabel(j) : '')
       || (linkedEst ? getEquipLabelFromEst(linkedEst) : '')
-      || equip.label;
+      || equip?.label || 'Equipment';
 
     // Get option-level line items from linked estimate for full detail
     const estLineItems = linkedEst
@@ -5732,14 +5752,14 @@ function getOrderQueueItems() {
       address:     addr,
       phone,
       equipLabel,
-      equip,
+      equip:       equip || {key:'unknown',label:'Equipment',color:'#1A3A5C',icon:'🔧'},
       dept,
       soldBy,
       installDate: installDate ? fmtDY(installDate) : 'TBD',
       installRaw:  installDate,
       jobNotes,
       estNotes,
-      lineItems:   [...new Set([...allLineItems, ...estLineItems])], // merged, deduped
+      lineItems:   [...new Set([...allLineItems, ...estLineItems])],
       value:       getJobTotal(j),
       isComplete,
     });
@@ -6948,19 +6968,17 @@ function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
 function detectEquipmentSale(j, requirePaid=true){
   if(requirePaid && !isJobPaid(j)) return null;
 
-  // Equipment installs are HVAC dept only (or Install dept for Gannon/Andy)
-  // Plumbing techs don't install furnaces/ACs
-  // Tankless water heater is the exception — can be plumbing dept
-  const dept = getDept(j);
-  const isHVAC    = dept === 'HVAC';
-  const isInstall = dept === 'Install';
+  // Department check via tech name — more reliable than getDept which can return "Other"
+  const techName = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
+  const techDept = DEPT_MAP[techName] || getDept(j);
+  const isHVAC    = techDept === 'HVAC';
+  const isInstall = techDept === 'Install'; // legacy
+  const isPlumbing= techDept === 'Plumbing';
 
   // Text sources — exact pricebook match ONLY
-  // Do NOT use j.description or j.summary — they cause false positives
-  // (e.g. "tankless water heater repair" in a $200 service call description)
   const lineItemTexts = (j.line_items||[]).map(li=>(li.name||'').trim()).filter(Boolean);
 
-  // Linked estimate option names — most reliable source of pricebook item names
+  // Linked estimate option names
   const linkedId = j.original_estimate_id||(j.original_estimate_uuids&&j.original_estimate_uuids[0])||null;
   const linkedEst = linkedId
     ? _estimates.find(e=>e.id===linkedId||(e.options||[]).some(o=>o.id===linkedId))
@@ -6969,21 +6987,22 @@ function detectEquipmentSale(j, requirePaid=true){
     ? (linkedEst.options||[]).map(o=>(o.name||'').trim()).filter(Boolean)
     : [];
 
-  // Check line items first (invoice truth), then estimate options
   const allTexts = [...lineItemTexts, ...estOptionTexts];
 
   for(const text of allTexts){
-    if(!TY_ITEM_LOOKUP[text]) continue; // exact match only
+    if(!TY_ITEM_LOOKUP[text]) continue;
     const key = TY_ITEM_LOOKUP[text];
 
     if(key === 'water_heater'){
-      // Tankless: any dept OK, but job must be >= $3,000
+      // Tankless: any dept, but job must be >= $3,000
       if((getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
       return {key, ...TY_ITEM_SETS[key], matchedItem:text};
     }
 
-    // All other equipment: HVAC or Install dept required
-    if(!isHVAC && !isInstall) continue;
+    // All other equipment: must be HVAC or Install dept
+    // If dept is indeterminate ("Other") and tech is unknown, allow it through
+    // so we don't silently miss jobs — the tech can always dismiss on the card
+    if(isPlumbing) continue; // Plumbing techs don't install HVAC equipment
     return {key, ...TY_ITEM_SETS[key], matchedItem:text};
   }
   return null;
@@ -7017,14 +7036,9 @@ function parseCSVLine(line) {
 
 async function fetchTYCardsFromSheets(){
   if(!_sheetsProxy) return;
-  // Debounce — don't run twice within 5 seconds
-  const now = Date.now();
-  if(fetchTYCardsFromSheets._lastRun && now - fetchTYCardsFromSheets._lastRun < 5000) return;
-  fetchTYCardsFromSheets._lastRun = now;
-  // Load statuses from TY_Cards tab via published CSV
   try {
     const SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=TY_Cards`;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=TY_Cards&t=${Date.now()}`;
     const res = await fetch(url, { redirect:'follow' });
     if(!res.ok) throw new Error('CSV fetch failed: ' + res.status);
     const csv = await res.text();
@@ -7034,23 +7048,19 @@ async function fetchTYCardsFromSheets(){
     lines.slice(1).forEach(line => {
       const cols    = parseCSVLine(line);
       const jobId   = (cols[0]||'').replace(/^"|"$/g,'').trim();
-      const status  = (cols[1]||'').replace(/^"|"$/g,'').trim() || 'pending'; // col B = status
-      const sentDate= (cols[2]||'').replace(/^"|"$/g,'').trim();              // col C = sentDate
-      const note    = (cols[3]||'').replace(/^"|"$/g,'').trim();              // col D = note
+      const status  = (cols[1]||'').replace(/^"|"$/g,'').trim() || 'pending';
+      const sentDate= (cols[2]||'').replace(/^"|"$/g,'').trim();
+      const note    = (cols[3]||'').replace(/^"|"$/g,'').trim();
       if(jobId && jobId !== 'jobId') {
         _tyCards[jobId] = { ..._tyCards[jobId]||{}, status, sentDate, note };
         restored++;
       }
     });
-    if(restored > 0) {
-      console.log('[TY Cards] Restored', restored, 'statuses from Sheets');
-      // Statuses stored in Sheets — no localStorage write
-      renderTYCards();
-    }
+    console.log('[TY Cards] Restored', restored, 'statuses from Sheets');
   } catch(e) {
     console.warn('[TY Cards] Sheets load failed:', e.message);
   }
-  // Also ensure the TY_Cards tab exists
+  // Ensure TY_Cards tab exists
   try {
     fetch(_sheetsProxy, { method:'POST', headers:{'Content-Type':'text/plain'}, mode:'no-cors',
       body: JSON.stringify({action:'initTYCards'}) });
@@ -7093,10 +7103,9 @@ async function saveTYCard(jobId,update){
 function getTYSales(){
   const from=$$('tyFrom')?.value||$$('dateFrom')?.value||'';
   const to=$$('tyTo')?.value||$$('dateTo')?.value||'';
-  // Deduplicate by job ID — one card per paid job regardless of how many items match
   const seenJobs=new Set();
-  return _jobs.filter(j=>{
-    if(isJobCanceled(j)||!isJobPaid(j)) return false;
+  const paidJobs = _jobs.filter(j=>isJobPaid(j)&&!isJobCanceled(j));
+  const results = paidJobs.filter(j=>{
     if(seenJobs.has(j.id)) return false;
     const d=fmtKey(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at)||'';
     if(from&&d<from) return false;
@@ -7105,6 +7114,8 @@ function getTYSales(){
     seenJobs.add(j.id);
     return true;
   }).sort((a,b)=>new Date(b.work_timestamps?.completed_at||b.created_at||0)-new Date(a.work_timestamps?.completed_at||a.created_at||0));
+  console.log('[TY Cards] getTYSales: paid jobs='+paidJobs.length+', equipment matches='+results.length+', range='+from+'→'+to);
+  return results;
 }
 
 
@@ -8946,19 +8957,20 @@ function mapPlanRows(rows){
       });
 
       // Create one plan record per unit sold
+      // Aggregate format has NO customer data — HCP summary report doesn't include customer names
+      // To see customer names, export the detailed plan report from HCP instead
       for(let j=0;j<count;j++){
-        const empName = empMatch ? ((empMatch.first_name||'')+' '+(empMatch.last_name||'')).trim() : soldBy;
         plans.push({
           id:'upload_'+i+'_'+j,
-          customer:{first_name:'Plan #'+(j+1),last_name:'('+empName+')',id:'upload_cust_'+i+'_'+j},
+          customer:{first_name:'—',last_name:'',id:'upload_cust_'+i+'_'+j},
           name:'Home Club Maintenance',
-          total_amount:1999, // $19.99 in cents
+          total_amount:1999,
           sold_by:empMatch||{first_name:soldBy,last_name:'',id:'manual_'+soldBy.replace(/\s/g,'_')},
           created_at:new Date().toISOString(),
           status:'Active',
           source:'upload_aggregate',
           _aggregateFormat: true,
-          _soldByName: empName,
+          _soldByName: empMatch ? ((empMatch.first_name||'')+' '+(empMatch.last_name||'')).trim() : soldBy,
         });
       }
     }
