@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.41</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.45</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.41</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.45</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.41</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.45</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1501,8 +1501,8 @@ const DEPT_MAP = {
   'Eric Stoffel':    'HVAC',
   'Lukas Schlosser': 'HVAC',
   'Doug McNamara':   'HVAC',
-  'Gannon Blaiser':  'Install',
-  'Andy Mitchell':   'Install',
+  'Gannon Blaiser':  'HVAC',   // Install counts as HVAC
+  'Andy Mitchell':   'HVAC',   // Install counts as HVAC
   'Robert Danaher':  'Dispatch',
   'Bob Danaher':     'Dispatch',
   'Victoria Ellsworth': 'Dispatch',
@@ -1583,6 +1583,8 @@ function connect(){
   loadCalEmpFilter();
   loadKPIEmpFilter();
   loadUploadedPlans();
+  // Restore plans from Sheets (authoritative) — overrides localStorage cache if Sheets has data
+  if(_sheetsProxy) loadPlansFromSheets();
   loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
@@ -2461,7 +2463,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.41
+  // ATTRIBUTION ENGINE — v23.45
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4179,7 +4181,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const topEmpConv=Object.values(map).filter(e=>!e.installer&&e.estimates>=3).sort((a,b)=>(b.converted/b.estimates)-(a.converted/a.estimates))[0];
 
   // Total plans
-  const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
+  // Total plans: prefer uploaded plan count (authoritative) over KPI-derived count
+  const kpiPlanCount = Object.values(map).reduce((s,e)=>s+e.plans,0);
+  const totalPlans = _uploadedPlans.length > 0 ? _uploadedPlans.filter(isPlanActive).length : kpiPlanCount;
 
   // Auto-fetch CallRail last 30 days when pulling report
   try {
@@ -4355,15 +4359,48 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       }).length;
     })(),
     // Department revenue for conversion rotation in companion S3
-    dept_hvac_rev:       getRevenueForPeriod('year',null,'HVAC'),
-    dept_plumbing_rev:   getRevenueForPeriod('year',null,'Plumbing'),
+    // Department revenue — each job counted ONCE, credited to the primary tech's department
+    // Primary tech = _jobAttribution (selling tech), not all assigned techs
+    // This prevents double-counting when HVAC + Plumbing techs are on the same job
+    dept_hvac_rev: (() => {
+      const yr  = now_snap.getFullYear();
+      const src = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
+      return Math.round(src.reduce((s, j) => {
+        // Single department lookup per job — primary tech only
+        const techName = _jobAttribution[j.id]?.techName || getAssigned(j);
+        const dept = DEPT_MAP[techName];
+        if(dept !== 'HVAC') return s;
+        if(j._payments?.length) return s + j._payments.filter(p => new Date(p.date+'T12:00:00').getFullYear()===yr).reduce((a,p)=>a+p.amount,0);
+        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
+        return s + (isNaN(d)||d.getFullYear()!==yr ? 0 : getJobRevenue(j));
+      }, 0));
+    })(),
+    dept_plumbing_rev: (() => {
+      const yr  = now_snap.getFullYear();
+      const src = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
+      return Math.round(src.reduce((s, j) => {
+        const techName = _jobAttribution[j.id]?.techName || getAssigned(j);
+        const dept = DEPT_MAP[techName];
+        if(dept !== 'Plumbing') return s;
+        if(j._payments?.length) return s + j._payments.filter(p => new Date(p.date+'T12:00:00').getFullYear()===yr).reduce((a,p)=>a+p.amount,0);
+        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
+        return s + (isNaN(d)||d.getFullYear()!==yr ? 0 : getJobRevenue(j));
+      }, 0));
+    })(),
+    // Department conversion — estimates attributed to the primary tech's department
     dept_hvac_conv: (() => {
-      const hvacEsts = _estimates.filter(e=>getDept(e)==='HVAC');
+      const hvacEsts = _estimates.filter(e => {
+        const techName = _jobAttribution[e.id]?.techName || getAssigned(e);
+        return DEPT_MAP[techName] === 'HVAC';
+      });
       const conv = hvacEsts.filter(isConv).length;
       return { total: hvacEsts.length, converted: conv, pct: hvacEsts.length ? Math.round(conv/hvacEsts.length*100) : 0 };
     })(),
     dept_plumbing_conv: (() => {
-      const pEsts = _estimates.filter(e=>getDept(e)==='Plumbing');
+      const pEsts = _estimates.filter(e => {
+        const techName = _jobAttribution[e.id]?.techName || getAssigned(e);
+        return DEPT_MAP[techName] === 'Plumbing';
+      });
       const conv = pEsts.filter(isConv).length;
       return { total: pEsts.length, converted: conv, pct: pEsts.length ? Math.round(conv/pEsts.length*100) : 0 };
     })(),
@@ -8690,6 +8727,36 @@ let _uploadedPlans=[];
 function loadUploadedPlans(){
   try{const s=localStorage.getItem('hcp_uploaded_plans');if(s){_uploadedPlans=JSON.parse(s);_plans=_uploadedPlans;}}catch(e){}
 }
+
+async function loadPlansFromSheets(){
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy+'?action=getPlans', {redirect:'follow'});
+    const data = await res.json();
+    if(data.success && data.plans && data.plans.length > 0){
+      // Convert Sheets records back to plan objects the dashboard understands
+      const plans = data.plans.map((p, i) => ({
+        id:           'sheets_plan_'+i,
+        customer:     { first_name: p.customer_name||'Home Club Member', last_name:'', id:'sheets_cust_'+i },
+        name:         p.plan_name||'Home Club Maintenance',
+        total_amount: Math.round((parseFloat(p.amount)||19.99)*100),
+        sold_by:      { first_name: p.sold_by_name||'Unknown', last_name:'', id:'sheets_emp_'+p.sold_by_name?.replace(/\s/g,'_') },
+        created_at:   p.created_at ? new Date(p.created_at+'T12:00:00').toISOString() : new Date().toISOString(),
+        status:       p.status||'Active',
+        source:       'sheets',
+      }));
+      _uploadedPlans = plans;
+      _plans = plans;
+      saveUploadedPlans();
+      console.log('[Plans] Restored', plans.length, 'plans from Sheets');
+      // Show the plan data view if we have data
+      const box=$$('planUploadBox');const view=$$('planDataView');
+      if(box) box.style.display='none';
+      if(view) view.style.display='block';
+      if(_jobs.length) renderPlans(plans);
+    }
+  } catch(e) { console.warn('[Plans] Sheets restore failed:', e.message); }
+}
 function saveUploadedPlans(){
   try{localStorage.setItem('hcp_uploaded_plans',JSON.stringify(_uploadedPlans));}catch(e){}
 }
@@ -8734,6 +8801,24 @@ async function processPlanFile(file){
     }
     _uploadedPlans=plans;_plans=plans;
     saveUploadedPlans();
+
+    // Push to Google Sheets immediately — dedup by key, never duplicate
+    if(_sheetsProxy) {
+      const plansPayload = plans.map(p => ({
+        plan_name:     getPlanName(p)||'Home Club Maintenance',
+        customer_name: getPlanCust(p)||'',
+        sold_by_name:  getPlanSoldBy(p)||'',
+        created_at:    p.created_at||new Date().toISOString(),
+        amount:        getPlanTotal(p)||19.99,
+        status:        getPlanStatus(p)||'Active',
+      }));
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        body: JSON.stringify({ action:'syncPlans', plans: plansPayload })
+      }).then(()=>{
+        dashLog('success', `Service Plans: ${plans.length} records saved to Sheets`);
+      }).catch(e => dashLog('warn','Plans Sheets sync failed: '+e.message));
+    }
     const isAgg=plans.length>0&&plans[0].source==='upload_aggregate';
     if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${plans.length} plan record${plans.length!==1?'s':''} from "${file.name}"${isAgg?' (expanded from aggregate report)':''}</span>`;
     $$('planUploadBox').style.display='none';
