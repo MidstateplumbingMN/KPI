@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.37</title>
+<title>Midstate — KPI Command Center v2.38</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.37</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.38</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1044,35 +1044,35 @@ html, body {
 
       <!-- Top row: 5 metric cards -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;flex-shrink:0;padding:0 0 10px">
-        <!-- CallRail: Total -->
+        <!-- CallRail: Total inbound last 30 days -->
         <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Inbound Calls</div>
           <div class="metric-value glow-blue" id="calls-total" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">This period</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">Last 30 days</div>
         </div>
-        <!-- CallRail: New -->
+        <!-- CallRail: New callers last 30 days -->
         <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">New Callers</div>
           <div class="metric-value glow-green" id="calls-new" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">First-time</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">First-time callers</div>
         </div>
-        <!-- RC: Answered -->
+        <!-- RC: Answered last 30 days -->
         <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">RC Answered</div>
           <div class="metric-value glow-green" id="rc-answered" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">This period</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">Last 30 days</div>
         </div>
         <!-- RC: Answer Rate -->
         <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Answer Rate</div>
           <div class="metric-value glow-blue" id="rc-rate" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">Of inbound</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">Of all inbound</div>
         </div>
         <!-- RC: Missed -->
         <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
           <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Missed</div>
           <div id="rc-missed" style="font-family:var(--font-display);font-size:clamp(28px,4vw,52px);color:#EF4444;line-height:1">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">Calls missed</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.5)">Last 30 days</div>
         </div>
       </div>
 
@@ -1394,14 +1394,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.37
+      v2.38
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.37';
+const COMPANION_VERSION = 'v2.38';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2609,21 +2609,23 @@ function updateS13() {
       const pct  = Math.round(agent.answered/maxAns*100);
       const col  = colors[i] || '#6b7280';
       const rate = agent.total > 0 ? Math.round(agent.answered/agent.total*100) : 0;
-      const avgDurStr = agent.avgDur > 0 ? (Math.floor(agent.avgDur/60)+'m '+(agent.avgDur%60).toString().padStart(2,'0')+'s') : '';
+      const avgMin = Math.floor((agent.avgDur||0)/60);
+      const avgSec = String((agent.avgDur||0)%60).padStart(2,'0');
+      const avgStr = agent.avgDur > 0 ? `${avgMin}:${avgSec}` : '—';
       const photo = getEmpPhoto(agent.name, '');
-      const name = (agent.name||'Agent');
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div style="font-size:11px;width:18px;text-align:center;color:${col};font-weight:800">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
-        ${photo?`<img src="${photo}" style="width:26px;height:26px;border-radius:5px;object-fit:cover;flex-shrink:0;border:1px solid ${col}44" onerror="this.style.display='none'">`:''}
+      const firstName = (agent.name||'Agent').split(' ')[0];
+      return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:10px;width:16px;text-align:center;color:${col};font-weight:800;flex-shrink:0">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
+        ${photo?`<img src="${photo}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid ${col}55" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name.split(' ')[0]}</div>
-          <div style="height:2px;background:rgba(255,255,255,.08);border-radius:1px;margin-top:3px;overflow:hidden">
+          <div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${firstName}</div>
+          <div style="height:2px;background:rgba(255,255,255,.07);border-radius:1px;margin-top:2px;overflow:hidden">
             <div style="height:100%;width:${pct}%;background:${col}"></div>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:var(--font-mono);font-size:14px;font-weight:900;color:${col}">${agent.answered}</div>
-          <div style="font-size:8px;color:rgba(255,255,255,.5)">${rate}%${avgDurStr?' · '+avgDurStr:''}</div>
+        <div style="text-align:right;flex-shrink:0;min-width:60px">
+          <div style="font-family:var(--font-mono);font-size:13px;font-weight:900;color:${col}">${agent.answered}</div>
+          <div style="font-size:8px;color:rgba(255,255,255,.45)">${rate}% · ${avgStr}</div>
         </div>
       </div>`;
     }).join('');
@@ -3782,6 +3784,7 @@ function degToCompass(deg) {
 // ============================================================
 let _holidayIdx = 0;
 let _holidayTimer = null;
+let _callsPeriodTimer = null; // global — cleared in goScene when leaving s13
 
 function updateS11() {
   const holidays = state.holidays || [];
@@ -3796,7 +3799,6 @@ function updateS11() {
       _holidayIdx++;
       if (_holidayIdx >= holidays.length) {
         clearInterval(_holidayTimer); _holidayTimer = null;
-        resumeGlobalRotation();
         nextScene();
         return;
       }
@@ -3804,7 +3806,7 @@ function updateS11() {
     }, 8000);
     startProgressFor(8000 * holidays.length);
   } else {
-    state.sceneTimer = setTimeout(() => { resumeGlobalRotation(); nextScene(); }, 12000);
+    state.sceneTimer = setTimeout(() => { nextScene(); }, 12000);
     startProgressFor(12000);
   }
 }
