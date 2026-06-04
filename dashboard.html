@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.45</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.47</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.45</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.47</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.45</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.47</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2463,7 +2463,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.45
+  // ATTRIBUTION ENGINE — v23.47
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3928,16 +3928,46 @@ function isPlanActive(p){
 }
 
 function renderPlans(plans){
-  // Only show active plans
   const activePlans=plans.filter(isPlanActive);
   const inactive=plans.length-activePlans.length;
   const total=activePlans.length;
+
+  // Compute date range from all plan records
+  let dateRangeLabel = '';
+  const planDates = plans
+    .map(p => p.created_at || p.start_date || '')
+    .filter(Boolean)
+    .map(d => new Date(d))
+    .filter(d => !isNaN(d))
+    .sort((a,b) => a-b);
+  if(planDates.length >= 2){
+    const earliest = planDates[0];
+    const latest   = planDates[planDates.length-1];
+    const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    dateRangeLabel = `${fmt(earliest)} — ${fmt(latest)}`;
+  } else if(planDates.length === 1){
+    dateRangeLabel = planDates[0].toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  }
+
   $$('planMetrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Active plans</div><div class="metric-value">${total}</div><div class="metric-sub">Active memberships only</div></div>
+    <div class="metric">
+      <div class="metric-label">Active plans</div>
+      <div class="metric-value">${total}</div>
+      <div class="metric-sub">Active memberships only</div>
+    </div>
     ${inactive>0?`<div class="metric"><div class="metric-label">Inactive / canceled</div><div class="metric-value" style="color:#9ca3af">${inactive}</div><div class="metric-sub">Not counted</div></div>`:''}
-    <div class="metric"><div class="metric-label">Total uploaded</div><div class="metric-value">${plans.length}</div><div class="metric-sub">All records</div></div>`;
-  if(!total&&!plans.length)$$('planMetrics').innerHTML+='<div style="font-size:12px;color:#9ca3af;grid-column:1/-1;padding:8px">Upload a service plan CSV in the section above to see memberships.</div>';
-  // Pass active-only to table, but apply text filters on top
+    <div class="metric">
+      <div class="metric-label">Total uploaded</div>
+      <div class="metric-value">${plans.length}</div>
+      <div class="metric-sub">All records</div>
+    </div>
+    ${dateRangeLabel?`<div class="metric">
+      <div class="metric-label">Date range</div>
+      <div class="metric-value" style="font-size:15px">${dateRangeLabel}</div>
+      <div class="metric-sub">Earliest → latest plan date</div>
+    </div>`:''}`;
+
+  if(!total&&!plans.length) $$('planMetrics').innerHTML+='<div style="font-size:12px;color:#9ca3af;grid-column:1/-1;padding:8px">Upload a service plan CSV in the section above to see memberships.</div>';
   renderPlanRows(getPlanFiltered(activePlans));
 }
 function renderPlanRows(plans){
@@ -5052,20 +5082,25 @@ async function fetchRCCallLog(jwt) {
     };
     dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} agents`);
 
-    // Save to dedicated RingCentral tab in Sheets
     if(_sheetsProxy) {
+      const rcPayload = {
+        total:       _rcSnap.total,
+        answered:    _rcSnap.answered,
+        missed:      _rcSnap.missed,
+        answer_rate: _rcSnap.answer_rate,
+        leaderboard: JSON.stringify(leaderboard),
+        monthly:     JSON.stringify(monthCounts),
+        daily:       JSON.stringify(dailyCounts),
+      };
+      // Primary: write directly to KPI_Dashboard — small payload, always succeeds
       fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
-        body: JSON.stringify({
-          action:      'syncRingCentral',
-          total:       _rcSnap.total,
-          answered:    _rcSnap.answered,
-          missed:      _rcSnap.missed,
-          answer_rate: _rcSnap.answer_rate,
-          leaderboard: JSON.stringify(leaderboard),
-          monthly:     JSON.stringify(monthCounts),
-          daily:       JSON.stringify(dailyCounts),
-        })
-      }).catch(e => dashLog('warn','RC Sheets sync failed: '+e.message));
+        body: JSON.stringify({ action:'syncRCSnapshot', ...rcPayload })
+      }).then(()=>dashLog('info','RC → KPI_Dashboard ✅'))
+        .catch(e=>dashLog('warn','RC snapshot failed: '+e.message));
+      // Secondary: write to RingCentral historical tab
+      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+        body: JSON.stringify({ action:'syncRingCentral', ...rcPayload })
+      }).catch(e=>dashLog('warn','RC tab sync failed: '+e.message));
     }
   } catch(e) {
     dashLog('error','RC failed: '+e.message);
