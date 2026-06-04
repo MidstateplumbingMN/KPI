@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.38</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.41</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.38</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.41</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.38</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.41</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2461,7 +2461,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.38
+  // ATTRIBUTION ENGINE — v23.41
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4181,99 +4181,68 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   // Total plans
   const totalPlans=Object.values(map).reduce((s,e)=>s+e.plans,0);
 
-  // Fetch CallRail weekly call data
+  // Auto-fetch CallRail last 30 days when pulling report
   try {
     const crKey     = _wbSettings.callrailKey || 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
     const crAccount = _wbSettings.callrailAccount || '541526025';
     if(crKey && crAccount && _workerUrl) {
       const now  = new Date();
-      const mon  = new Date(now); mon.setDate(now.getDate() - now.getDay() + (now.getDay()===0?-6:1));
-      const sun  = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const from = new Date(now); from.setDate(now.getDate()-30);
       const fmt  = d => d.toISOString().split('T')[0];
-      // Call CallRail DIRECTLY from browser (same pattern as callrailtracker.html)
-      // No proxy needed — browser requests from github.io are allowed
-      const CR_COMPANY = '819196701';
-      let crCalls = [], crPage = 1, crTotalPages = 1;
+      dashLog('info','Fetching CallRail last 30 days...');
+      let crCalls=[], nextPageUrl=null, crPage=1;
       do {
-        const params = new URLSearchParams({
-          start_date:  fmt(mon),
-          end_date:    fmt(sun),
-          per_page:    '250',
-          page:        String(crPage),
-          company_id:  CR_COMPANY,
-          fields:      'id,start_time,answered,first_call,direction,tracking_phone_number,customer_phone_number,duration'
-        });
-        // Route through Cloudflare Worker to avoid browser tracking prevention (Edge/Firefox block direct callrail.com)
-        const crUrl = _workerUrl
-          ? `${_workerUrl}/callrail/v3/a/${crAccount}/calls.json?${params}`
-          : `https://api.callrail.com/v3/a/${crAccount}/calls.json?${params}`;
-        const crRes = await fetch(crUrl, {
-          headers: { 'Authorization': `Token token="${crKey}"` }
-        });
-        if(!crRes.ok) { const errTxt=await crRes.text().catch(()=>''); console.warn('[CallRail] HTTP', crRes.status, errTxt); dashLog('warn','CallRail: '+crRes.status+' — '+errTxt.slice(0,120)); break; }
-        const cr = await crRes.json();
-        const page = cr.calls || [];
-        crCalls = [...crCalls, ...page];
-        crTotalPages = cr.total_pages || 1;
-        crPage++;
-      } while(crPage <= crTotalPages && crPage <= 20);
-
-      if(crCalls.length > 0 || crTotalPages >= 1) {
-        // Inbound only — CallRail forwards inbound calls to RC, outbound tracked separately
-        const inbound   = crCalls.filter(c => (c.direction||'').toLowerCase() === 'inbound' || !c.direction);
-        const total     = inbound.length;
-        const answered  = inbound.filter(c => c.answered).length;
-        const newCalls  = inbound.filter(c => c.first_call).length;
-        // Daily breakdown by weekday
-        const dayCounts = [0,0,0,0,0,0,0];
-        inbound.forEach(c => {
-          const day = new Date(c.start_time).getDay();
-          if(day >= 0 && day < 7) dayCounts[day]++;
-        });
-        const weekly = dayCounts.map((count, day) => ({ day, count }));
-        // Monthly totals from start_time
-        const monthCounts = new Array(12).fill(0);
-        // Daily totals for current month line chart (up to 31 days)
-        const curM = new Date().getMonth();
-        const dailyCounts = new Array(31).fill(0);
-        inbound.forEach(c => {
-          const dt = new Date(c.start_time);
-          const m  = dt.getMonth();
-          if(m >= 0 && m < 12) monthCounts[m]++;
-          if(m === curM) {
-            const day = dt.getDate()-1; // 0-indexed
-            if(day >= 0 && day < 31) dailyCounts[day]++;
-          }
-        });
-        // Note: CallRail 'answered' = successfully forwarded to RC (not agent answer rate)
-        // Use RingCentral data for actual agent answer/miss rates
-        _callrailSnap = { total, answered, missed: total - answered, new_callers: newCalls, weekly, monthly: monthCounts, daily: dailyCounts };
-        console.log('[CallRail] Week:', total, 'inbound calls,', newCalls, 'new,', answered, 'answered');
-        dashLog('success', `CallRail: ${total} calls, ${newCalls} new, ${answered} answered this week`);
-        // Save to dedicated CallRail tab in Sheets
-        if(_sheetsProxy) {
-          fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
-            body:JSON.stringify({
-              action:       'syncCallRail',
-              total:        total,
-              new_callers:  newCalls,
-              answered:     answered,
-              missed:       total - answered,
-              answer_rate:  total > 0 ? Math.round(answered/total*100) : 0,
-              weekly_json:  JSON.stringify(weekly),
-              monthly_json: JSON.stringify(monthCounts),
-              daily_json:   JSON.stringify(dailyCounts),
-            })
-          }).catch(e => dashLog('warn','CallRail Sheets sync failed: '+e.message));
+        let crUrl;
+        if(nextPageUrl){ crUrl = nextPageUrl; }
+        else {
+          const params = new URLSearchParams({
+            start_date: fmt(from), end_date: fmt(now), per_page:'250',
+            relative_pagination:'true', company_id:'819196701',
+            fields:'id,start_time,answered,first_call,direction,tracking_phone_number,customer_phone_number,duration,source_name,agent_email',
+            direction:'inbound'
+          });
+          crUrl = `${_workerUrl}/callrail/v3/a/${crAccount}/calls.json?${params}`;
         }
-      }
-    }
-  } catch(e) { console.warn('[CallRail] fetch failed:', e.message); }
+        const crRes = await fetch(crUrl, { headers: { 'Authorization': `Token token="${crKey}"` } });
+        if(!crRes.ok) break;
+        const crData = await crRes.json();
+        crCalls = [...crCalls, ...(crData.calls||[])];
+        nextPageUrl = crData.has_next_page ? crData.next_page : null;
+        crPage++;
+      } while(nextPageUrl && crPage <= 20);
 
-  // Fetch RingCentral call log
+      // Build daily counts for this month
+      const curM  = now.getMonth(), curY = now.getFullYear();
+      const daily = new Array(31).fill(0);
+      const monthly = new Array(12).fill(0);
+      crCalls.forEach(c => {
+        const d = new Date(c.start_time||c.startTime||'');
+        if(isNaN(d)) return;
+        if(d.getFullYear()===curY){ monthly[d.getMonth()]++; }
+        if(d.getFullYear()===curY && d.getMonth()===curM){ daily[d.getDate()-1]++; }
+      });
+
+      _callrailSnap = {
+        total:       crCalls.length,
+        new_callers: crCalls.filter(c=>c.first_call).length,
+        answered:    crCalls.filter(c=>c.answered).length,
+        weekly:      [{day:0,count:0},{day:1,count:0},{day:2,count:0},{day:3,count:0},{day:4,count:0},{day:5,count:0},{day:6,count:0}],
+        monthly,
+        daily,
+      };
+      // Fill weekly from calls
+      crCalls.forEach(c => {
+        const d = new Date(c.start_time||'');
+        if(!isNaN(d)){ const dow=d.getDay(); _callrailSnap.weekly[dow].count++; }
+      });
+      dashLog('success',`CallRail: ${crCalls.length} calls last 30 days, ${_callrailSnap.new_callers} new callers`);
+    }
+  } catch(e) { console.warn('[CallRail auto-fetch] error:', e.message); }
+  // Fetch RingCentral call log — await so _rcSnap is populated before snapshot is built
   const rcJwt = _wbSettings.rcJwt || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
   if(rcJwt && _workerUrl) {
-    fetchRCCallLog(rcJwt).catch(e => dashLog('warn','RC fetch skipped: '+e.message));
+    try { await fetchRCCallLog(rcJwt); }
+    catch(e) { dashLog('warn','RC fetch skipped: '+e.message); }
   }
 
   // Fetch weather forecast from weatherapi.com (1 day = free tier)
@@ -4484,10 +4453,38 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     top_conv_name: topEmpConv?.name||'',
     top_conv_pct: topEmpConv?Math.round(topEmpConv.converted/topEmpConv.estimates*100):0,
 
-    // Holidays and birthdays — embedded so companion reads from KPI_Dashboard tab
-    holidays: (_holidays||[]).filter(h=>h.enabled),
-    birthdays: _bdayList||[],
-    weather: _weatherSnap,
+    // Weather — flattened with wx_ prefix so companion can read each key directly
+    wx_temp:          _weatherSnap.temp||'',
+    wx_city:          _weatherSnap.city||'',
+    wx_description:   _weatherSnap.description||'',
+    wx_high_f:        _weatherSnap.high_f||'',
+    wx_low_f:         _weatherSnap.low_f||'',
+    wx_feels_like:    _weatherSnap.feels_like||'',
+    wx_humidity:      _weatherSnap.humidity||'',
+    wx_wind_speed:    _weatherSnap.wind_speed||'',
+    wx_wind_dir:      _weatherSnap.wind_dir||'',
+    wx_uv:            _weatherSnap.uv||'',
+    wx_max_uv:        _weatherSnap.max_uv||'',
+    wx_icon_url:      _weatherSnap.icon_url||'',
+    wx_icon_code:     _weatherSnap.icon_code||'',
+    wx_chance_rain:   _weatherSnap.chance_rain||0,
+    wx_daily_rain_in: _weatherSnap.daily_rain_in||0,
+    wx_peak_heat_temp:_weatherSnap.peak_heat_temp||'',
+    wx_peak_heat_time:_weatherSnap.peak_heat_time||'',
+    wx_rain_window:   _weatherSnap.rain_window||'',
+    wx_hourly_temps:  JSON.stringify(_weatherSnap.hourly_temps||[]),
+    wx_alert_count:   _weatherSnap.alert_count||0,
+    wx_alert_headline:_weatherSnap.alert_headline||'',
+    wx_fetched_at:    _weatherSnap.fetched_at||'',
+    weather_loc:      _wbSettings.weatherLoc||'55033',
+
+    // CallRail daily/monthly — flattened for companion
+    calls_daily_json:   JSON.stringify(_callrailSnap?.daily||[]),
+    calls_monthly_json: JSON.stringify(_callrailSnap?.monthly||[]),
+
+    // Holidays and birthdays — kept as JSON strings
+    holidays_json:  JSON.stringify((_holidays||[]).filter(h=>h.enabled)),
+    birthdays_json: JSON.stringify(_bdayList||[]),
 
     // Big Win — most recent paid job over threshold
     big_win_job: (() => {
@@ -4975,30 +4972,37 @@ async function fetchRCCallLog(jwt) {
       if(m >= 0 && m < 12) monthCounts[m]++;
       if(m === curM && day >= 0) dailyCounts[day]++;
 
-      // Who answered
-      const legs = call.legs || [];
-      legs.filter(l => l.action === 'Accept' || l.result === 'Accepted').forEach(leg => {
-        const ext  = leg.extension?.extensionNumber || leg.to?.extensionNumber || 'Unknown';
-        const name = leg.extension?.name || leg.to?.name || ext;
-        if(!byExt[name]) byExt[name] = { name, ext, answered:0, missed:0, total:0 };
-        byExt[name].answered++;
-        byExt[name].total++;
-      });
-    });
+      const callDur = parseInt(call.duration||0);
 
-    // Missed calls
-    allCalls.filter(c => c.result === 'Missed').forEach(call => {
+      // Who answered — find the leg that accepted the call
       const legs = call.legs || [];
-      const dest = legs[legs.length-1];
-      const name = dest?.extension?.name || dest?.to?.name || 'Unknown';
-      if(!byExt[name]) byExt[name] = { name, ext:'', answered:0, missed:0, total:0 };
-      byExt[name].missed++;
-      byExt[name].total++;
+      const acceptLegs = legs.filter(l => l.action === 'Accept' || l.result === 'Accepted');
+      if(acceptLegs.length > 0){
+        acceptLegs.forEach(leg => {
+          const name = leg.extension?.name || leg.to?.name || leg.extension?.extensionNumber || 'Unknown';
+          if(!byExt[name]) byExt[name] = { name, answered:0, missed:0, total:0, totalDur:0 };
+          byExt[name].answered++;
+          byExt[name].total++;
+          byExt[name].totalDur += parseInt(leg.duration || callDur || 0);
+        });
+      } else if(call.result === 'Missed') {
+        // Track missed against the last destination
+        const dest = legs[legs.length-1];
+        const name = dest?.extension?.name || dest?.to?.name || 'Queue';
+        if(!byExt[name]) byExt[name] = { name, answered:0, missed:0, total:0, totalDur:0 };
+        byExt[name].missed++;
+        byExt[name].total++;
+      }
     });
 
     const leaderboard = Object.values(byExt)
-      .filter(e => e.total > 0)
-      .map(e => ({ ...e, avgDur: e.total > 0 ? Math.round(e.totalDur/e.total) : 0, ansRate: e.total > 0 ? Math.round(e.answered/e.total*100) : 0 }))
+      .filter(e => e.answered > 0) // only show agents who actually answered
+      .filter(e => !e.name.toLowerCase().includes('voicemail') && !e.name.toLowerCase().includes('queue') && !e.name.toLowerCase().includes('auto'))
+      .map(e => ({
+        ...e,
+        avgDur:  e.answered > 0 ? Math.round(e.totalDur / e.answered) : 0,
+        ansRate: e.total    > 0 ? Math.round(e.answered / e.total * 100) : 0,
+      }))
       .sort((a,b) => b.answered - a.answered);
 
     const totalAnswered = allCalls.filter(c => c.result !== 'Missed').length;
