@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.41</title>
+<title>Midstate — KPI Command Center v2.43</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.41</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.43</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -938,15 +938,15 @@ html, body {
 
         <!-- Conversion Rate — MTD -->
         <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--green);margin-bottom:4px">Month to Date</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--green);margin-bottom:4px" id="s1-conv-period">In Period</div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">Estimates → Jobs</div>
           <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--green);font-weight:900;line-height:1;margin:8px 0" id="s1-conv">0%</div>
           <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Conversion Rate</div>
         </div>
 
-        <!-- Total Jobs — YTD period -->
+        <!-- Total Jobs — period -->
         <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--orange);margin-bottom:4px">In Period</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--orange);margin-bottom:4px" id="s1-jobs-period">In Period</div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">All job types</div>
           <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--orange);font-weight:900;line-height:1;margin:8px 0" id="s1-jobs">0</div>
           <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Total Jobs</div>
@@ -954,7 +954,7 @@ html, body {
 
         <!-- Estimates Scheduled — in period -->
         <div class="card" style="display:flex;flex-direction:column;padding:18px 20px">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--purple);margin-bottom:4px">In Period</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--purple);margin-bottom:4px" id="s1-ests-period">In Period</div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:auto">Total scheduled</div>
           <div style="font-size:clamp(42px,6vw,72px);font-family:var(--font-display);color:var(--purple);font-weight:900;line-height:1;margin:8px 0" id="s1-ests">0</div>
           <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.6)">Estimates</div>
@@ -1443,14 +1443,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.41
+      v2.43
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.41';
+const COMPANION_VERSION = 'v2.43';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1993,11 +1993,36 @@ function updateS1() {
   const dateFrom   = snap['date_from']||'';
   const dateTo     = snap['date_to']||'';
 
-  // Period badge — detect if YTD or MTD based on date range
+  // Derive a human period label from the pulled date range
+  // e.g. "Jan 1 – Jun 4, 2026" or "Jun 1 – Jun 4"
+  function fmtRangeLabel(from, to) {
+    if(!from || !to) return 'In Period';
+    const f = new Date(from+'T12:00:00');
+    const t = new Date(to+'T12:00:00');
+    if(isNaN(f)||isNaN(t)) return 'In Period';
+    const sameYear  = f.getFullYear() === t.getFullYear();
+    const sameMonth = sameYear && f.getMonth() === t.getMonth();
+    const mo = (d,short=true) => d.toLocaleString('en-US',{month:short?'short':'long'});
+    if(sameMonth) return `${mo(f)} ${f.getDate()}–${t.getDate()}, ${t.getFullYear()}`;
+    if(sameYear)  return `${mo(f)} ${f.getDate()} – ${mo(t)} ${t.getDate()}, ${t.getFullYear()}`;
+    return `${mo(f)} ${f.getDate()}, ${f.getFullYear()} – ${mo(t)} ${t.getDate()}, ${t.getFullYear()}`;
+  }
+  const periodLabel = fmtRangeLabel(dateFrom, dateTo);
+
+  // Detect if this is a YTD pull (started Jan 1) vs MTD (started first of current month)
   const now = new Date();
+  const isYTD = dateFrom && dateFrom.endsWith('-01-01');
+  const isMTD = dateFrom && dateFrom >= `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const rangeTag = isYTD ? 'Year to Date' : isMTD ? 'Month to Date' : periodLabel;
+
   const monthName = now.toLocaleString('en-US',{month:'long', year:'numeric'});
   if(el('s1-hero-month')) el('s1-hero-month').textContent = monthName;
   if(el('s1-date-range') && dateFrom) el('s1-date-range').textContent = `${dateFrom} → ${dateTo}`;
+
+  // Update the "In Period" sublabels on each stat card to show the actual range
+  ['s1-jobs-period','s1-ests-period','s1-conv-period'].forEach(id => {
+    if(el(id)) el(id).textContent = rangeTag;
+  });
 
   // Hero MTD revenue
   animCount('s1-revenue', revMonthly, true);
@@ -2008,9 +2033,7 @@ function updateS1() {
   if(el('s1-paid-jobs'))el('s1-paid-jobs').textContent = paidJobs.toLocaleString();
 
   // YTD strip
-  if(el('s1-ytd-rev')) {
-    animCount('s1-ytd-rev', revAnnual, true);
-  }
+  if(el('s1-ytd-rev')) animCount('s1-ytd-rev', revAnnual, true);
   if(el('s1-ytd-pct')) el('s1-ytd-pct').textContent = annualPct + '%';
 
   // Stat cards
@@ -3109,17 +3132,23 @@ function restartProgress() {
 function animCount(id, target, isCurrency) {
   const el2 = el(id);
   if (!el2) return;
-  const start = 0;
-  const duration = 1200;
-  const startTime = performance.now();
   const fmt = isCurrency ? dollars : v => Math.round(v).toLocaleString();
 
+  // Only animate if the value actually changed — prevents re-animation on every 30s refresh
+  const currentText = el2.textContent;
+  const targetText  = fmt(target);
+  if (currentText === targetText) return; // no change, no animation
+
+  const duration  = 1200;
+  const startTime = performance.now();
+
   function tick(now) {
-    const elapsed = now - startTime;
+    const elapsed  = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3);
-    el2.textContent = fmt(start + (target - start) * ease);
+    const ease     = 1 - Math.pow(1 - progress, 3);
+    el2.textContent = fmt(target * ease);
     if (progress < 1) requestAnimationFrame(tick);
+    else el2.textContent = targetText; // ensure exact final value
   }
   requestAnimationFrame(tick);
 }
