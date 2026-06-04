@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.52</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.53</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.52</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.53</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.52</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.53</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2237,6 +2237,22 @@ async function loadAll(){
     async function fetchJobs(){
       const schedJobs = await fetchAll('/jobs'+jSchedQ, ['jobs','data','results']);
       console.log(`[Jobs] Fetched ${schedJobs.length} jobs`);
+
+      // Also fetch FUTURE jobs (today → +90 days) for the Order Queue
+      // These won't be in the main pull since it ends at 'to' (today)
+      const futureFrom = to; // today
+      const futureTo   = new Date(); futureTo.setDate(futureTo.getDate()+90);
+      const futureFmt  = futureTo.toISOString().split('T')[0];
+      if(futureFmt > to) { // only if there's actually future dates to fetch
+        try {
+          const futureQ = `?scheduled_start_min=${futureFrom}T00:00:00Z&scheduled_start_max=${futureFmt}T23:59:59Z`;
+          const futureJobs = await fetchAll('/jobs'+futureQ, ['jobs','data','results']);
+          // Merge, dedup by ID
+          const seen = new Set(schedJobs.map(j=>j.id));
+          futureJobs.forEach(j=>{ if(!seen.has(j.id)){ schedJobs.push(j); seen.add(j.id); } });
+          console.log(`[Jobs] +${futureJobs.length} future jobs (order queue)`);
+        } catch(e) { console.warn('[Jobs] Future fetch failed:', e.message); }
+      }
       return schedJobs;
     }
 
@@ -2478,7 +2494,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.52
+  // ATTRIBUTION ENGINE — v23.53
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5579,11 +5595,11 @@ function setOQRange(range) {
 }
 
 function loadOrderQueue() {
-  // Default: today through 60 days out — upcoming installs needing equipment ordered
   const now = new Date();
-  const to  = new Date(); to.setDate(now.getDate()+60);
-  const fmt = d => d.toISOString().split('T')[0];
-  if($$('oqFrom')&&!$$('oqFrom').value) $$('oqFrom').value = fmt(now);
+  const from = new Date(); from.setDate(now.getDate()-30);  // 30 days back
+  const to   = new Date(); to.setDate(now.getDate()+90);    // 90 days forward
+  const fmt  = d => d.toISOString().split('T')[0];
+  if($$('oqFrom')&&!$$('oqFrom').value) $$('oqFrom').value = fmt(from);
   if($$('oqTo')  &&!$$('oqTo').value)   $$('oqTo').value   = fmt(to);
   fetchOrderQueueFromSheets();
   renderOrderQueue();
@@ -5615,29 +5631,26 @@ async function saveOrderQueueToSheets() {
   if(!_sheetsProxy) { showToast('Connect to Sheets first','error'); return; }
   const orders = getOrderQueueItems();
   if(!orders.length) { showToast('No orders to save','warn'); return; }
-  try {
-    const payload = orders.map(item => ({
-      id:           item.id,
-      customer:     item.customer,
-      address:      item.address,
-      equipment:    item.equipLabel,
-      dept:         item.dept,
-      sold_by:      item.soldBy,
-      install_date: item.installDate,
-      estimate_num: item.estNum,
-      job_num:      item.jobNum,
-      value:        item.value,
-      notes:        item.notes,
-      status:       _orderQueue[item.id]?.status || 'pending',
-      ordered_date: _orderQueue[item.id]?.orderedDate || '',
-      ordered_by:   _orderQueue[item.id]?.orderedBy || '',
-    }));
-    const res  = await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
-      body:JSON.stringify({action:'syncOrderQueue',orders:payload})});
-    const data = await res.json();
-    if(data.success) showToast(`✅ ${payload.length} orders saved to Sheets`,'success');
-    else throw new Error(data.error);
-  } catch(e) { showToast('Save failed: '+e.message,'error'); }
+  const payload = orders.map(item => ({
+    id:           item.id,
+    customer:     item.customer,
+    address:      item.address,
+    equipment:    item.equipLabel,
+    dept:         item.dept,
+    sold_by:      item.soldBy,
+    install_date: item.installDate,
+    estimate_num: item.estNum,
+    job_num:      item.jobNum,
+    value:        item.value,
+    notes:        item.estNotes || item.jobNotes || '',
+    status:       _orderQueue[item.id]?.status || 'pending',
+    ordered_date: _orderQueue[item.id]?.orderedDate || '',
+    ordered_by:   _orderQueue[item.id]?.orderedBy || '',
+  }));
+  fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+    body:JSON.stringify({action:'syncOrderQueue',orders:payload})
+  }).then(()=>showToast(`✅ ${payload.length} orders saved to Sheets`,'success'))
+    .catch(e=>showToast('Save failed: '+e.message,'error'));
 }
 
 function setOrderStatus(id, status) {
@@ -5710,10 +5723,13 @@ function getOrderQueueItems() {
     const isComplete = norm === 'Paid' || norm === 'Unpaid';
 
     // Date filter — uses install (scheduled_start) date
-    const installDate = j.schedule?.scheduled_start || '';
+    // Jobs with no scheduled date are kept (shown as TBD) unless date filter is active
+    const installDate = j.schedule?.scheduled_start || j.scheduled_start || '';
     const d = fmtKey(installDate) || '';
-    if(fromVal && d && d < fromVal) return;
-    if(toVal   && d && d > toVal)   return;
+    if(fromVal && toVal && d) {
+      // Only apply date filter when we have a scheduled date AND a filter is set
+      if(d < fromVal || d > toVal) return;
+    }
 
     const dept = getDept(j);
     if(deptFil && dept !== deptFil) return;
