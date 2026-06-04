@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.45</title>
+<title>Midstate — KPI Command Center v2.46</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.45</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.46</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1437,14 +1437,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.45
+      v2.46
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.45';
+const COMPANION_VERSION = 'v2.46';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2772,6 +2772,13 @@ function updateS13() {
   }
 
   renderCallsLineChart();
+
+  // Wire ResizeObserver so re-renders when scene becomes visible / fullscreen
+  const svgEl = el('calls-line-svg');
+  if(svgEl && svgEl.parentElement && !_callsResizeObs && window.ResizeObserver) {
+    _callsResizeObs = new ResizeObserver(() => renderCallsLineChart());
+    _callsResizeObs.observe(svgEl.parentElement);
+  }
 }
 
 function renderCallsLineChart() {
@@ -2820,9 +2827,37 @@ function renderCallsLineChart() {
     setTimeout(renderCallsLineChart, 250); return;
   }
 
+  // If no data yet, poll every 5s for up to 2 minutes waiting for RC data to arrive
   if(!daily.length || !daily.slice(0, today).some(v=>v>0)) {
-    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12">Fetch calls to see daily volume</text>`;
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12" dominant-baseline="middle">Waiting for call data...</text>`;
+    if(!renderCallsLineChart._pollTimer) {
+      let polls = 0;
+      renderCallsLineChart._pollTimer = setInterval(() => {
+        polls++;
+        const freshDaily = (() => {
+          try {
+            const raw = state.snap['rc_daily'] || '[]';
+            const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            return Array.isArray(p) && p.some(v=>v>0) ? p : [];
+          } catch(e) { return []; }
+        })();
+        if(freshDaily.length && freshDaily.some(v=>v>0)) {
+          clearInterval(renderCallsLineChart._pollTimer);
+          renderCallsLineChart._pollTimer = null;
+          renderCallsLineChart(); // re-render with real data
+        } else if(polls >= 24) { // 2 minutes
+          clearInterval(renderCallsLineChart._pollTimer);
+          renderCallsLineChart._pollTimer = null;
+          svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="12" dominant-baseline="middle">Fetch calls to see daily volume</text>`;
+        }
+      }, 5000);
+    }
     return;
+  }
+  // Clear any pending poll — we have data
+  if(renderCallsLineChart._pollTimer) {
+    clearInterval(renderCallsLineChart._pollTimer);
+    renderCallsLineChart._pollTimer = null;
   }
 
   const pts = [];
