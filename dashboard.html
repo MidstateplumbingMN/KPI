@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.47</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.48</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.47</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.48</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.47</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.48</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2463,7 +2463,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.47
+  // ATTRIBUTION ENGINE — v23.48
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4017,7 +4017,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       dept:getDept(j),
       status:getNormStatus(j),
       assigned_to:getAssigned(j),
-      revenue_to:attr?.techName||'',
+      revenue_to:attr?.techName||getAssigned(j)||'',
       attribution_source:attr?.source||'',
       total:getJobTotal(j),
       outstanding:parseFloat(j.outstanding_balance)||0,
@@ -4052,14 +4052,16 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const invoicesPayload = [];
   jobs.forEach(j => {
     if(!j._payments || !j._payments.length) return;
-    const attr = _jobAttribution[j.id];
+    const attr     = _jobAttribution[j.id];
+    const techName = attr?.techName || getAssigned(j) || '';
+    const dept     = DEPT_MAP[techName] || getDept(j) || 'Other';
     j._payments.forEach(pmt => {
       invoicesPayload.push({
         invoice_number: pmt.number || '',
         job_number:     j.job_number || j.id,
         customer_name:  getCust(j),
-        dept:           getDept(j),
-        revenue_to:     attr?.techName || getAssigned(j) || '',
+        dept,
+        revenue_to:     techName,
         amount:         pmt.amount,
         date_paid:      pmt.date,
         status:         'Paid',
@@ -4389,51 +4391,13 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       }).length;
     })(),
     // Department revenue for conversion rotation in companion S3
-    // Department revenue — each job counted ONCE, credited to the primary tech's department
-    // Primary tech = _jobAttribution (selling tech), not all assigned techs
-    // This prevents double-counting when HVAC + Plumbing techs are on the same job
-    dept_hvac_rev: (() => {
-      const yr  = now_snap.getFullYear();
-      const src = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
-      return Math.round(src.reduce((s, j) => {
-        // Single department lookup per job — primary tech only
-        const techName = _jobAttribution[j.id]?.techName || getAssigned(j);
-        const dept = DEPT_MAP[techName];
-        if(dept !== 'HVAC') return s;
-        if(j._payments?.length) return s + j._payments.filter(p => new Date(p.date+'T12:00:00').getFullYear()===yr).reduce((a,p)=>a+p.amount,0);
-        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
-        return s + (isNaN(d)||d.getFullYear()!==yr ? 0 : getJobRevenue(j));
-      }, 0));
-    })(),
-    dept_plumbing_rev: (() => {
-      const yr  = now_snap.getFullYear();
-      const src = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
-      return Math.round(src.reduce((s, j) => {
-        const techName = _jobAttribution[j.id]?.techName || getAssigned(j);
-        const dept = DEPT_MAP[techName];
-        if(dept !== 'Plumbing') return s;
-        if(j._payments?.length) return s + j._payments.filter(p => new Date(p.date+'T12:00:00').getFullYear()===yr).reduce((a,p)=>a+p.amount,0);
-        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
-        return s + (isNaN(d)||d.getFullYear()!==yr ? 0 : getJobRevenue(j));
-      }, 0));
-    })(),
-    // Department conversion — estimates attributed to the primary tech's department
-    dept_hvac_conv: (() => {
-      const hvacEsts = _estimates.filter(e => {
-        const techName = _jobAttribution[e.id]?.techName || getAssigned(e);
-        return DEPT_MAP[techName] === 'HVAC';
-      });
-      const conv = hvacEsts.filter(isConv).length;
-      return { total: hvacEsts.length, converted: conv, pct: hvacEsts.length ? Math.round(conv/hvacEsts.length*100) : 0 };
-    })(),
-    dept_plumbing_conv: (() => {
-      const pEsts = _estimates.filter(e => {
-        const techName = _jobAttribution[e.id]?.techName || getAssigned(e);
-        return DEPT_MAP[techName] === 'Plumbing';
-      });
-      const conv = pEsts.filter(isConv).length;
-      return { total: pEsts.length, converted: conv, pct: pEsts.length ? Math.round(conv/pEsts.length*100) : 0 };
-    })(),
+    // Department revenue — computed server-side by Apps Script from Invoices tab
+    // Apps Script syncDeptRevenueFromInvoices() writes dept_hvac_rev/dept_plumbing_rev
+    // to KPI_Dashboard after every sync. Values here are placeholders only.
+    dept_hvac_rev:     0,
+    dept_plumbing_rev: 0,
+    dept_hvac_conv:    JSON.stringify({total:0,converted:0,pct:0}),
+    dept_plumbing_conv:JSON.stringify({total:0,converted:0,pct:0}),
 
     daily_converted: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
@@ -4631,9 +4595,18 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       redirect:'follow',
       mode:'no-cors',
     });
-    // no-cors responses are opaque — can't read result, but write succeeded if no exception
+    // no-cors responses are opaque — write succeeded if no exception
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
     syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
+
+    // Trigger dept revenue recompute from Invoices tab — runs server-side in Apps Script
+    // Small payload, fast execution, writes dept_hvac_rev/dept_plumbing_rev to KPI_Dashboard
+    if(_sheetsProxy) {
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        body: JSON.stringify({ action:'computeDeptRevenue' })
+      }).catch(()=>{});
+    }
   }catch(err){
     console.warn('Report sync failed:',err.message);
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${dateFrom} → ${dateTo} · (Sheets sync unavailable)`;
