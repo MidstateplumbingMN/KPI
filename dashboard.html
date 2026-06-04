@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.48</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.49</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.48</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.49</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.48</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.49</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1164,15 +1164,19 @@ tr:hover td{background:#fafafa}
 
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
             <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Seasonal Theme</div>
-            <select id="wb-theme" onchange="saveWbSetting('theme',this.value)"
-              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
-              <option value="default">🌑 Default Dark</option>
-              <option value="summer">☀️ Summer</option>
-              <option value="fall">🍂 Fall</option>
-              <option value="winter">❄️ Winter</option>
-              <option value="spring">🌸 Spring</option>
-              <option value="victory">🏆 Victory Mode</option>
-            </select>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <select id="wb-theme" style="flex:1;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff"
+                onchange="updateThemePreview(this.value)">
+                <option value="default">🌑 Default Dark</option>
+                <option value="summer">☀️ Summer</option>
+                <option value="fall">🍂 Fall</option>
+                <option value="winter">❄️ Winter</option>
+                <option value="spring">🌸 Spring</option>
+                <option value="victory">🏆 Victory Mode</option>
+              </select>
+              <button onclick="applyWallboardTheme()" style="padding:7px 14px;background:#6366F1;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Apply</button>
+            </div>
+            <div id="theme-preview" style="font-size:11px;color:#6b7280;padding:6px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:5px;line-height:1.5"></div>
           </div>
 
           <!-- HOLIDAY SLIDES -->
@@ -1494,21 +1498,26 @@ const INSTALLER_NAMES = ['Andy Mitchell','Gannon Blaiser'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
+  // Plumbing
   'Mark Daniels':    'Plumbing',
   'Gordon Radant':   'Plumbing',
   'Jon Glenn':       'Plumbing',
   'Jeff Hohenauer':  'Plumbing',
+  // HVAC
   'Eric Stoffel':    'HVAC',
   'Lukas Schlosser': 'HVAC',
   'Doug McNamara':   'HVAC',
-  'Gannon Blaiser':  'HVAC',   // Install counts as HVAC
-  'Andy Mitchell':   'HVAC',   // Install counts as HVAC
-  'Robert Danaher':  'Dispatch',
-  'Bob Danaher':     'Dispatch',
+  'Gannon Blaiser':  'HVAC',
+  'Andy Mitchell':   'HVAC',
+  'Andrew Mitchell': 'HVAC',  // alias
+  // Dispatch
+  'Robert Danaher':     'Dispatch',
+  'Bob Danaher':        'Dispatch',
   'Victoria Ellsworth': 'Dispatch',
-  'Victoria':        'Dispatch',
-  'Jody Serres':     'Office',
-  'Office Staff':    'Office',
+  'Victoria':           'Dispatch',
+  // Office
+  'Jody Serres':   'Office',
+  'Office Staff':  'Office',
 };
 
 // Employees fully excluded from KPI (no revenue, no plans tracking)
@@ -1790,7 +1799,13 @@ function getCust(x){
 function getCustId(x){return x.customer?.id||x.customer_id||'';}
 function getDeptFromTags(emp){ return getDept(emp); }
 function getDept(x){
-  return x.job_fields?.business_unit?.name||x.estimate_fields?.business_unit?.name||x.business_unit?.name||'Other';
+  // Primary: look up DEPT_MAP by assigned tech name — authoritative
+  const techName = getAssigned(x);
+  if(techName && techName !== '—' && DEPT_MAP[techName]) return DEPT_MAP[techName];
+  // Secondary: HCP business unit field (often blank)
+  const bu = x.job_fields?.business_unit?.name||x.estimate_fields?.business_unit?.name||x.business_unit?.name||'';
+  if(bu) return bu;
+  return 'Other';
 }
 function getRawStatus(x){return(x.work_status||x.status||'').toLowerCase();}
 
@@ -2115,7 +2130,7 @@ function showTab(t){
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
-    renderTYCards();
+    fetchTYCardsFromSheets().then(()=>renderTYCards());
   }
 }
 function printReport(){
@@ -2463,7 +2478,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.48
+  // ATTRIBUTION ENGINE — v23.49
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5639,22 +5654,34 @@ function getOrderQueueItems() {
     if(seenJobs.has(j.id)) return;
     if(isJobCanceled(j)) return;
 
-    // TRIGGER: job must have originated from an estimate (converted sale)
+    // TRIGGER: job has qualifying equipment line items
+    // Primary: job must have estimate link (converted sale — most reliable)
+    // Secondary: job has qualifying line items directly (catches manually created jobs)
     const linkedId = j.original_estimate_id
       || (j.original_estimate_uuids && j.original_estimate_uuids[0])
       || null;
-    if(!linkedId) return; // no estimate link — not a sold install
 
     // Find the linked estimate
-    const linkedEst = estById[linkedId] || null;
+    const linkedEst = linkedId ? (estById[linkedId] || null) : null;
 
     // Detect equipment — check job line items AND estimate option names
-    // requirePaid=false: payment not required, just needs to be a scheduled install
     const equip = detectEquipmentSale(j, false);
-    if(!equip) return;
 
-    // Order queue only cares about the four types that need parts ordered
-    if(!isOrderEquip(equip.key)) return;
+    // If no equipment detected via line items/estimate, check job description keywords
+    // as last resort for manually-created jobs
+    if(!equip) {
+      // Must have at least one qualifying line item directly on the job
+      const hasLineItem = (j.line_items||[]).some(li => {
+        const name = (li.name||'').toLowerCase();
+        return ORDER_EQUIP_KEYS.size > 0 && (
+          name.includes('furnace') || name.includes('air conditioner') ||
+          name.includes(' ac ') || name.includes('boiler') ||
+          name.includes('heat pump') || name.includes('mini split') ||
+          name.includes('tankless') || name.includes('package unit')
+        );
+      });
+      if(!hasLineItem) return;
+    } else if(!isOrderEquip(equip.key)) return;
 
     seenJobs.add(j.id);
 
@@ -7589,7 +7616,7 @@ function loadWallboardSettings(){
   loadHolidays();
   // Restore form values
   if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'https://midstateplumbingmn.github.io/KPI/images/logo.png';
-  if($$('wb-theme'))         $$('wb-theme').value          = _wbSettings.theme||'default';
+  if($$('wb-theme'))         { $$('wb-theme').value = _wbSettings.theme||'default'; updateThemePreview(_wbSettings.theme||'default'); }
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
   if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||RC_JWT_DEFAULT//eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
@@ -7613,6 +7640,26 @@ function loadWallboardSettings(){
         }
       }).catch(()=>{});
   }
+}
+
+function updateThemePreview(theme) {
+  const preEl = $$('theme-preview');
+  if(!preEl) return;
+  const d = {
+    default: 'Deep navy background · Cyan / green / orange accents · Standard dark mode',
+    summer:  'Warm dark background · Sky blue, teal, coral · Light summer palette',
+    fall:    'Dark amber background · Orange, chartreuse, yellow · Autumn harvest tones',
+    winter:  'Midnight blue background · Soft blue, ice cyan, indigo · Cool winter palette',
+    spring:  'Dark forest background · Lime green, pink, lavender · Fresh spring tones',
+    victory: 'Dark gold background · All gold/yellow accents everywhere · Big win mode',
+  };
+  preEl.textContent = d[theme] || d.default;
+}
+
+function applyWallboardTheme() {
+  const theme = $$('wb-theme')?.value || 'default';
+  saveWbSetting('theme', theme);
+  dashLog('success', `Theme "${theme}" saved — companion updates on next 30s refresh`);
 }
 
 function saveWbSetting(key, val){
@@ -8900,15 +8947,18 @@ function mapPlanRows(rows){
 
       // Create one plan record per unit sold
       for(let j=0;j<count;j++){
+        const empName = empMatch ? ((empMatch.first_name||'')+' '+(empMatch.last_name||'')).trim() : soldBy;
         plans.push({
           id:'upload_'+i+'_'+j,
-          customer:{first_name:'Home Club Member',last_name:'',id:'upload_cust_'+i+'_'+j},
+          customer:{first_name:'Plan #'+(j+1),last_name:'('+empName+')',id:'upload_cust_'+i+'_'+j},
           name:'Home Club Maintenance',
           total_amount:1999, // $19.99 in cents
           sold_by:empMatch||{first_name:soldBy,last_name:'',id:'manual_'+soldBy.replace(/\s/g,'_')},
           created_at:new Date().toISOString(),
           status:'Active',
-          source:'upload_aggregate'
+          source:'upload_aggregate',
+          _aggregateFormat: true,
+          _soldByName: empName,
         });
       }
     }
