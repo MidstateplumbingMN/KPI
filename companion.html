@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.39</title>
+<title>Midstate — KPI Command Center v2.40</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.39</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.40</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1443,14 +1443,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.39
+      v2.40
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.39';
+const COMPANION_VERSION = 'v2.40';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3004,7 +3004,13 @@ function goScene(idx) {
   // SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s5']
   const sceneId = SCENES[idx];
   if      (sceneId==='s1') { updateS1(); scheduleNextScene('s1'); }
-  else if (sceneId==='s2') { updateS2(); scheduleNextScene('s2'); }
+  else if (sceneId==='s2') {
+    // Always reload monthly revenue — data may have been pushed since last view
+    loadMonthlyRevenue().then(() => {
+      updateS2();
+      scheduleNextScene('s2');
+    });
+  }
   else if (sceneId==='s3') { updateS3(); scheduleNextScene('s3'); }
   else if (sceneId==='s4') { updateS4(); scheduleNextScene('s4'); }
   else if (sceneId==='s5') { updateS5(); } // self-managed — end of cycle
@@ -4104,34 +4110,45 @@ async function loadWallboardData() {
 }
 
 async function loadMonthlyRevenue() {
-  // Try Monthly_Revenue tab first (dedicated tab, no sensitive data)
-  try {
-    const mrows = await fetchCSV('Monthly_Revenue');
-    if(mrows.length > 1) {
-      const arr = new Array(12).fill(0);
-      mrows.slice(1).forEach(r => {
-        const monthNum = parseInt(r[1]||0) - 1;
-        const rev = parseFloat((r[2]||'').replace(/[^0-9.]/g,''))||0;
-        if(monthNum >= 0 && monthNum < 12) arr[monthNum] = rev;
-      });
-      if(arr.some(v=>v>0)) {
-        state.snap._monthly = arr;
-        console.log('[Monthly Revenue] Loaded from Monthly_Revenue tab:', arr.filter(v=>v>0).length, 'months');
-        return;
-      }
-    }
-  } catch(e) { console.log('[Monthly Revenue] Monthly_Revenue tab not available:', e.message); }
+  // Strategy 1: Read directly from KPI_Dashboard snap (already in state.snap._monthly)
+  if(state.snap._monthly && state.snap._monthly.some(v=>v>0)) {
+    console.log('[Monthly Revenue] Using KPI_Dashboard snap:', state.snap._monthly.filter(v=>v>0).length, 'months');
+    return;
+  }
 
-  // Fallback: parse monthly_revenue JSON from KPI_Dashboard snap
+  // Strategy 2: Parse monthly_revenue key from snap (JSON array string)
   if(state.snap['monthly_revenue']) {
     try {
       const arr = JSON.parse(state.snap['monthly_revenue']||'[]');
       if(Array.isArray(arr) && arr.some(v=>v>0)) {
         state.snap._monthly = arr;
-        console.log('[Monthly Revenue] Loaded from KPI_Dashboard snap:', arr.filter(v=>v>0).length, 'months');
+        console.log('[Monthly Revenue] Parsed from snap key:', arr.filter(v=>v>0).length, 'months');
+        return;
       }
     } catch(e) {}
   }
+
+  // Strategy 3: Read Monthly_Revenue tab CSV directly
+  // Tab columns: A=Month_Index(0-11), B=Month_Name, C=Revenue
+  try {
+    const mrows = await fetchCSV('Monthly_Revenue');
+    if(mrows.length > 1) {
+      const arr = new Array(12).fill(0);
+      mrows.slice(1).forEach(r => {
+        // r[0] = 0-based month index, r[1] = month name, r[2] = revenue
+        const monthIdx = parseInt(r[0]||'-1');
+        const rev = parseFloat(String(r[2]||'0').replace(/[$,]/g,''))||0;
+        if(monthIdx >= 0 && monthIdx < 12 && rev > 0) arr[monthIdx] = rev;
+      });
+      if(arr.some(v=>v>0)) {
+        state.snap._monthly = arr;
+        console.log('[Monthly Revenue] Loaded from Monthly_Revenue tab:', arr.filter(v=>v>0).length, 'months with data');
+        return;
+      }
+    }
+  } catch(e) { console.log('[Monthly Revenue] CSV fetch failed:', e.message); }
+
+  console.log('[Monthly Revenue] No data found in any source');
 }
 
 function applyWallboardSettings() {
