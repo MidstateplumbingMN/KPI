@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.61</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.62</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.61</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.62</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.61</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.62</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2506,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.61
+  // ATTRIBUTION ENGINE — v23.62
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4710,11 +4710,13 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   };
 
   try{
+    // Main sync: snapshot + KPI + jobs + invoices (compact, fast)
+    // Estimates are sent separately to avoid Apps Script timeout on 12K+ records
     const payload=JSON.stringify({
       action:'syncReport',
       dateFrom,dateTo,
       jobs:jobsPayload,
-      estimates:estsPayload,
+      estimates:[],           // sent separately below
       invoices:invoicesPayload,
       kpi:kpiPayload,
       attribution:attrPayload,
@@ -4732,9 +4734,23 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       redirect:'follow',
       mode:'no-cors',
     });
-    // no-cors responses are opaque — write succeeded if no exception
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
     syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
+
+    // Send estimates separately — large payload, non-blocking
+    // Estimates tab is for historical records; not needed by companion
+    if(estsPayload.length && PROXY) {
+      fetch(PROXY, {
+        method:'POST', headers:{'Content-Type':'text/plain'},
+        redirect:'follow', mode:'no-cors',
+        body: JSON.stringify({
+          action:'syncReport',
+          dateFrom, dateTo,
+          jobs:[], estimates:estsPayload, invoices:[], kpi:[],
+          attribution:[], summary:{}, dashboardSnapshot:null,
+        })
+      }).catch(()=>{});
+    }
 
     // Trigger dept revenue recompute from Invoices tab — runs server-side in Apps Script
     // Small payload, fast execution, writes dept_hvac_rev/dept_plumbing_rev to KPI_Dashboard
