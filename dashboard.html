@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.60</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.61</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.60</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.61</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.60</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.61</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2506,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.60
+  // ATTRIBUTION ENGINE — v23.61
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4743,6 +4743,47 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
         body: JSON.stringify({ action:'computeDeptRevenue' })
       }).catch(()=>{});
+
+      // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
+      // These are the exact values the companion displays on every scene
+      const criticalKeys = {
+        monthly_revenue:     dashboardSnapshot.monthly_revenue,
+        rev_annual:          dashboardSnapshot.rev_annual,
+        rev_monthly:         dashboardSnapshot.rev_monthly,
+        rev_weekly:          dashboardSnapshot.rev_weekly,
+        rev_daily:           dashboardSnapshot.rev_daily,
+        total_revenue:       dashboardSnapshot.total_revenue,
+        total_jobs:          dashboardSnapshot.total_jobs,
+        paid_jobs:           dashboardSnapshot.paid_jobs,
+        avg_job:             dashboardSnapshot.avg_job,
+        conversion_pct:      dashboardSnapshot.conversion_pct,
+        total_estimates:     dashboardSnapshot.total_estimates,
+        converted_estimates: dashboardSnapshot.converted_estimates,
+        total_plans:         dashboardSnapshot.total_plans,
+        goal_annual_pct:     dashboardSnapshot.goal_annual_pct,
+        goal_monthly_pct:    dashboardSnapshot.goal_monthly_pct,
+        goal_monthly:        dashboardSnapshot.goal_monthly,
+        goal_annual:         dashboardSnapshot.goal_annual,
+        date_from:           dashboardSnapshot.date_from,
+        date_to:             dashboardSnapshot.date_to,
+        daily_jobs:          dashboardSnapshot.daily_jobs,
+        daily_estimates:     dashboardSnapshot.daily_estimates,
+        daily_converted:     dashboardSnapshot.daily_converted,
+        wx_temp:             dashboardSnapshot.wx_temp,
+        wx_city:             dashboardSnapshot.wx_city,
+        wx_description:      dashboardSnapshot.wx_description,
+        wx_high_f:           dashboardSnapshot.wx_high_f,
+        wx_low_f:            dashboardSnapshot.wx_low_f,
+        wx_icon_url:         dashboardSnapshot.wx_icon_url,
+        wx_chance_rain:      dashboardSnapshot.wx_chance_rain,
+        outstanding:         dashboardSnapshot.outstanding,
+        outstanding_jobs:    dashboardSnapshot.outstanding_jobs,
+      };
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        body: JSON.stringify({ action:'syncSnapshotKeys', keys: criticalKeys })
+      }).then(()=>dashLog('success','✅ Key metrics pushed to KPI_Dashboard'))
+        .catch(()=>{});
     }
   }catch(err){
     console.warn('Report sync failed:',err.message);
