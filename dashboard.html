@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.56</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.60</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.56</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.60</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.56</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.60</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2506,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.56
+  // ATTRIBUTION ENGINE — v23.60
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3956,7 +3956,13 @@ function renderKPI(jobs,estimates,employees,plans){
 // ============================================================
 function getPlanName(p){return p.plan_name||p.name||p.membership_type?.name||p.service_plan?.name||p.title||'';}
 function getPlanSoldBy(p){const e=p.sold_by||p.employee||p.pro||p.assigned_employee;if(!e)return'—';return((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'—';}
-function getPlanCust(p){if(p.customer){const c=p.customer;return((c.first_name||'')+' '+(c.last_name||'')).trim()||c.name||c.company_name||'—';}return p.customer_name||'—';}
+function getPlanCust(p){
+  if(p.customer){
+    const c=p.customer;
+    return c.display_name||((c.first_name||'')+' '+(c.last_name||'')).trim()||c.name||c.company_name||'—';
+  }
+  return p.customer_name||'—';
+}
 function getPlanStatus(p){return p.status||p.membership_status||'';}
 function getPlanTotal(p){const raw=p.price??p.total_amount??p.amount??p.value??null;if(raw===null)return 0;const n=parseFloat(raw)||0;return n>500?n/100:n;}
 function getPlanFiltered(source){const pool=source||_plans.filter(isPlanActive);const ef=$$('planEmpFilter').value,tf=$$('planTypeFilter').value;return pool.filter(p=>{if(ef&&getPlanSoldBy(p)!==ef)return false;if(tf&&getPlanName(p)!==tf)return false;return true;});}
@@ -3974,78 +3980,139 @@ function renderPlans(plans){
   const inactive=plans.length-activePlans.length;
   const total=activePlans.length;
 
-  // Compute date range from all plan records
+  // Compute date range and upload context
   const isAggregate = plans.length > 0 && plans[0]?.source === 'upload_aggregate';
-  const planDates = plans
-    .map(p => p.created_at || p.start_date || '')
-    .filter(Boolean)
-    .map(d => new Date(d))
-    .filter(d => !isNaN(d))
-    .sort((a,b) => a-b);
-  if(planDates.length >= 2){
-    const earliest = planDates[0];
-    const latest   = planDates[planDates.length-1];
-    const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    dateRangeLabel = `${fmt(earliest)} — ${fmt(latest)}`;
-  } else if(planDates.length === 1){
-    dateRangeLabel = planDates[0].toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const uploadedAt  = plans.find(p=>p._uploadedAt)?._uploadedAt;
+  const uploadedStr = uploadedAt
+    ? new Date(uploadedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})
+    : '';
+
+  // Group aggregate plans by tech for the summary
+  let techSummary = '';
+  if(isAggregate){
+    const byTech = {};
+    plans.forEach(p => {
+      const name = p._soldByName || getPlanSoldBy(p);
+      byTech[name] = (byTech[name]||0) + 1;
+    });
+    techSummary = Object.entries(byTech)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([name,cnt])=>`${name.split(' ')[0]}: ${cnt}`)
+      .join(' · ');
+  }
+
+  let dateRangeLabel = '';
+  if(!isAggregate){
+    const planDates = plans
+      .map(p => p.created_at||p.start_date||'')
+      .filter(Boolean).map(d=>new Date(d)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+    if(planDates.length >= 2){
+      const fmt = d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      dateRangeLabel = `${fmt(planDates[0])} — ${fmt(planDates[planDates.length-1])}`;
+    }
   }
 
   $$('planMetrics').innerHTML = (isAggregate ? `
     <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:10px 14px;margin-bottom:4px;font-size:12px;color:#92400E;grid-column:1/-1">
-      <strong>📋 Summary Report</strong> — This file shows counts per technician but has no customer names or dates.
-      For individual customer records, export the <strong>detailed plan report</strong> from HCP: Members → Export → All columns.
+      <strong>📋 HCP Aggregate Report</strong> — Summary counts per technician (no individual customer records).
+      Re-upload any time to update counts — existing data merges automatically.
+      ${uploadedStr?`<span style="float:right;opacity:.7">Last uploaded: ${uploadedStr}</span>`:''}
     </div>` : '') + `
     <div class="metric">
       <div class="metric-label">Active plans</div>
       <div class="metric-value">${total}</div>
-      <div class="metric-sub">Active memberships only</div>
+      <div class="metric-sub">${isAggregate ? 'YTD total' : 'Active memberships'}</div>
     </div>
     ${inactive>0?`<div class="metric"><div class="metric-label">Inactive / canceled</div><div class="metric-value" style="color:#9ca3af">${inactive}</div><div class="metric-sub">Not counted</div></div>`:''}
     <div class="metric">
-      <div class="metric-label">Total uploaded</div>
+      <div class="metric-label">Total records</div>
       <div class="metric-value">${plans.length}</div>
-      <div class="metric-sub">All records</div>
+      <div class="metric-sub">All uploaded</div>
     </div>
-    ${dateRangeLabel?`<div class="metric">
-      <div class="metric-label">Date range</div>
-      <div class="metric-value" style="font-size:15px">${dateRangeLabel}</div>
-      <div class="metric-sub">Earliest → latest plan date</div>
-    </div>`:''}`;
+    ${dateRangeLabel?`<div class="metric"><div class="metric-label">Date range</div><div class="metric-value" style="font-size:15px">${dateRangeLabel}</div><div class="metric-sub">Earliest → latest</div></div>`:''}
+    ${isAggregate&&techSummary?`<div class="metric" style="grid-column:1/-1"><div class="metric-label">By technician</div><div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">${techSummary}</div></div>`:''}`;
 
   if(!total&&!plans.length) $$('planMetrics').innerHTML+='<div style="font-size:12px;color:#9ca3af;grid-column:1/-1;padding:8px">Upload a service plan CSV in the section above to see memberships.</div>';
   renderPlanRows(getPlanFiltered(activePlans));
 }
 function renderPlanRows(plans){
-  const tb=$$('plansBody');tb.innerHTML='';
-  if(!plans.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">No active plans found</td></tr>';return;}
+  const tb=$$('plansBody');
+  if(!tb){ return; }
+  tb.innerHTML='';
+  if(!plans.length){
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">No active plans found</td></tr>';
+    return;
+  }
+
+  const isDetailed = plans.some(p => p.source==='upload_detailed');
+
+  // Update table headers if detailed format
+  const thead = tb.closest('table')?.querySelector('thead tr');
+  if(thead){
+    if(isDetailed){
+      thead.innerHTML=`
+        <th>Customer</th><th>Plan</th><th>Phone / Email</th>
+        <th>Address</th><th>Start</th><th>End / Status</th><th>Actions</th>`;
+    } else {
+      thead.innerHTML=`
+        <th>Customer</th><th>Plan</th><th>Sold By</th>
+        <th>Status</th><th>Date</th><th></th><th></th>`;
+    }
+  }
+
   plans.forEach(p=>{
-    const s=getPlanStatus(p)||'Active';const v=s.toLowerCase();
-    let badge=`<span class="badge bgr">${s}</span>`;
-    if(v==='active'||v==='paid')badge=`<span class="badge bg">Active</span>`;
-    else if(v.includes('cancel'))badge=`<span class="badge br">Canceled</span>`;
-    const soldBy=getPlanSoldBy(p);
-    const soldByDisplay=(!soldBy||soldBy==='Unknown'||soldBy==='—')?'<span style="color:#9ca3af;font-style:italic">—</span>':soldBy;
-    const custDisplay=getPlanCust(p);
-    const dateDisplay = (() => {
-      const raw = p.created_at || p.start_date;
+    const s   = getPlanStatus(p)||'Active';
+    const v   = s.toLowerCase();
+    const isActive   = v==='active'||v==='paid';
+    const isPending  = v.includes('renew')||v==='sent'||v.includes('expir');
+    let badge = `<span class="badge bgr">${s}</span>`;
+    if(isActive)  badge = `<span class="badge bg">Active</span>`;
+    else if(isPending) badge = `<span class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A">${s}</span>`;
+    else if(v.includes('cancel')) badge = `<span class="badge br">Canceled</span>`;
+
+    const cust      = p.customer || {};
+    const custName  = getPlanCust(p);
+    const phone     = cust.phone || '';
+    const email     = cust.email || '';
+    const address   = cust.address || '';
+    const startDate = (() => {
+      const raw = p.created_at||p.start_date||'';
       if(!raw) return '—';
-      try {
-        const d = new Date(raw);
-        if(isNaN(d)) return raw;
-        const datePart = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
-        // Only show time if it's not midnight (i.e. the source had an actual time)
-        const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
-        if(!hasTime) return datePart;
-        const h = d.getHours();
-        const m = String(d.getMinutes()).padStart(2,'0');
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        return `${datePart} ${h12}:${m} ${ampm}`;
-      } catch(e) { return raw; }
+      try{ const d=new Date(raw); return isNaN(d)?raw:`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; }
+      catch(e){ return raw; }
     })();
+    const endDate = (() => {
+      const raw = p.end_date||'';
+      if(!raw) return '—';
+      try{ const d=new Date(raw+'T12:00:00'); return isNaN(d)?raw:`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; }
+      catch(e){ return raw; }
+    })();
+
     const t=document.createElement('tr');
-    t.innerHTML=`<td style="font-weight:500">${custDisplay}</td><td style="color:#1A3A5C;font-weight:500">${getPlanName(p)||'—'}</td><td style="color:#6b7280">${soldByDisplay}</td><td>${badge}</td><td style="color:#6b7280">${dateDisplay}</td>`;
+    if(isDetailed){
+      t.innerHTML=`
+        <td style="font-weight:500">${escHtml(custName)}</td>
+        <td style="color:#1A3A5C;font-weight:500;max-width:160px">${escHtml(getPlanName(p)||'—')}</td>
+        <td style="color:#6b7280;font-size:12px">
+          ${phone?`<div>📞 ${escHtml(phone)}</div>`:''}
+          ${email?`<div style="overflow:hidden;text-overflow:ellipsis;max-width:160px">✉ ${escHtml(email)}</div>`:''}
+          ${!phone&&!email?'—':''}
+        </td>
+        <td style="color:#6b7280;font-size:12px;max-width:140px">${escHtml(address)||'—'}</td>
+        <td style="color:#6b7280;font-size:12px">${startDate}</td>
+        <td style="font-size:12px">${badge}${endDate!=='—'?`<div style="font-size:10px;color:#9ca3af;margin-top:2px">Ends ${endDate}</div>`:''}</td>
+        <td></td>`;
+    } else {
+      const soldBy = getPlanSoldBy(p);
+      const soldByDisplay = (!soldBy||soldBy==='Unknown'||soldBy==='—') ? '<span style="color:#9ca3af;font-style:italic">—</span>' : escHtml(soldBy);
+      t.innerHTML=`
+        <td style="font-weight:500">${escHtml(custName)}</td>
+        <td style="color:#1A3A5C;font-weight:500">${escHtml(getPlanName(p)||'—')}</td>
+        <td style="color:#6b7280">${soldByDisplay}</td>
+        <td>${badge}</td>
+        <td style="color:#6b7280">${startDate}</td>
+        <td></td><td></td>`;
+    }
     tb.appendChild(t);
   });
 }
@@ -4228,16 +4295,27 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     };
   });
 
-  // Summary
-  const paidJobs=jobs.filter(isJobPaid);
-  const totalRev=paidJobs.reduce((s,j)=>s+getJobRevenue(j),0);
-  const convEsts=estimates.filter(isConv);
-  const openIS=estimates.filter(e=>getEstTotal(e)>=1000&&!isConv(e)&&(_isStatus[e.id]||'open')==='open').length;
-  const summary={
-    total_jobs:jobs.length,completed_jobs:paidJobs.length,total_revenue:totalRev,
-    total_estimates:estimates.length,converted_estimates:convEsts.length,
+  // Summary — using _jobs with _invoiceMap payments (same as Jobs & Revenue tab)
+  // getJobRevenue() returns job total_amount; for revenue we must use invoice paid amounts
+  const paidJobs = jobs.filter(isJobPaid);
+
+  // Revenue collected = sum of actual invoice payments, not job totals
+  // This matches exactly what the Jobs & Revenue tab shows
+  function jobCollected(j){
+    if(j._payments && j._payments.length > 0){
+      return j._payments.reduce((s,p) => s + p.amount, 0);
+    }
+    return getJobRevenue(j); // fallback for jobs without invoice data
+  }
+  const totalRev = paidJobs.reduce((s,j) => s + jobCollected(j), 0);
+
+  const convEsts = estimates.filter(isConv);
+  const openIS   = estimates.filter(e=>getEstTotal(e)>=1000&&!isConv(e)&&(_isStatus[e.id]||'open')==='open').length;
+  const summary  = {
+    total_jobs:jobs.length, completed_jobs:paidJobs.length, total_revenue:totalRev,
+    total_estimates:estimates.length, converted_estimates:convEsts.length,
     conversion_pct:estimates.length?Math.round(convEsts.length/estimates.length*100):0,
-    open_is:openIS,employees:employees.length,
+    open_is:openIS, employees:employees.length,
   };
 
   // Build full dashboard snapshot for companion
@@ -4426,13 +4504,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     rev_weekly: revWeekly,
     rev_daily: revDaily,
 
-    // Today-only metrics for Win the Day scene
+    // Today-only metrics for Win the Day scene — uses _jobs with invoice payments
     daily_jobs: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
-      const source = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
-      return source.filter(j => {
+      return _jobs.filter(j => {
         if(!isJobPaid(j)) return false;
-        // Use invoice payment dates when available
         if(j._payments?.length){
           return j._payments.some(p => p.date === todayLocal);
         }
@@ -4480,33 +4556,32 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       return matches.length;
     })(),
 
-    // Monthly breakdown for companion bar chart — uses invoice payment dates when available
+    // Monthly breakdown for companion bar chart
+    // Uses _jobs with _invoiceMap payments — same source as Jobs & Revenue tab
+    // Each payment is bucketed into the month it was PAID (not scheduled)
     monthly_revenue: (() => {
-      const months = {};
+      const months = new Array(12).fill(0);
       const yr = now_snap.getFullYear();
-      // Use _allYearJobs (has invoice payments attached) for accuracy
-      const source = _allYearJobs.length > 0 ? _allYearJobs : _jobs.filter(isJobPaid);
+      const source = _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j));
       source.forEach(j => {
         if(j._payments && j._payments.length > 0){
-          // Spread multi-payment jobs across correct months
           j._payments.forEach(p => {
             const d = new Date(p.date + 'T12:00:00');
-            if(d.getFullYear() === yr){
-              const m = d.getMonth();
-              months[m] = (months[m]||0) + p.amount;
+            if(!isNaN(d) && d.getFullYear() === yr){
+              months[d.getMonth()] += p.amount;
             }
           });
         } else {
-          // Fallback: completed_at for jobs without invoice data
-          const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
-          if(!isNaN(d) && d.getFullYear() === yr){
-            const m = d.getMonth();
-            months[m] = (months[m]||0) + getJobRevenue(j);
-          }
+          // No invoice data — use completed_at
+          const ts = j.work_timestamps?.completed_at || j.completed_at;
+          if(!ts) return;
+          const d = new Date(ts);
+          if(isNaN(d) || d.getFullYear() !== yr) return;
+          months[d.getMonth()] += getJobRevenue(j);
         }
       });
-      const result = Array.from({length:12},(_,i)=>Math.round(months[i]||0));
-      console.log('[Monthly] Built from', source.length, 'paid jobs. Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
+      const result = months.map(Math.round);
+      console.log('[Monthly] Built from', source.length, 'paid jobs (from _jobs). Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
       return result;
     })(),
 
@@ -6084,45 +6159,36 @@ const GOALS = {
 function getRevenueForPeriod(period){
   const now = new Date();
 
-  // Payment date = completed_at ONLY.
-  // No fallbacks to on_my_way_at, updated_at, or created_at —
-  // those exist on scheduled/in-progress jobs and produce false revenue dates.
-  function getPaymentDate(j){
-    // Payment date — invoice paid_at is the truth.
-    // If the job has _payments (from the invoice fetch), use the most recent payment date.
-    // For multi-payment jobs, getRevenueForPeriod sums ALL payments within the period window
-    // using the sumInvoicesForPeriod helper below — not this single-date function.
-    // This function is only used when we need ONE representative date for filtering.
-    const ts = j.work_timestamps?.completed_at || j.completed_at;
-    return ts ? new Date(ts) : null;
-  }
-
   function toLocalDate(d){
     if(!d || isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  // Sum invoice payments for a job that fall within a date test function.
-  // For jobs with _payments, we sum each individual payment that passes the test.
-  // For jobs without invoice data, we treat the whole job revenue as landing on completed_at.
+  // Sum invoice payments for a job that fall within the date test.
+  // Uses _payments (from _invoiceMap) when available — same data the Jobs tab renders.
+  // Falls back to completed_at only when no invoice data exists.
   function sumJobRevForPeriod(j, dateTest){
     if(isReturnVisit(j)) return 0;
     if(j._payments && j._payments.length > 0){
-      // Sum only the invoice payments that fall within this period
       return j._payments
-        .filter(p => { const d = new Date(p.date+'T12:00:00'); return dateTest(d); })
+        .filter(p => { const d = new Date(p.date+'T12:00:00'); return !isNaN(d) && dateTest(d); })
         .reduce((s, p) => s + p.amount, 0);
     }
-    // No invoice data — use completed_at and count full job revenue
-    const d = getPaymentDate(j);
-    if(!d || !dateTest(d)) return 0;
+    // No invoice data — fall back to completed_at
+    const ts = j.work_timestamps?.completed_at || j.completed_at;
+    if(!ts) return 0;
+    const d = new Date(ts);
+    if(isNaN(d) || !dateTest(d)) return 0;
     return getJobRevenue(j);
   }
 
-  // Source set — all jobs with any payment activity (invoice or completed_at)
-  const paidJobs = _allYearJobs.length > 0
-    ? _allYearJobs
-    : _jobs.filter(isJobPaid);
+  // SOURCE OF TRUTH: _jobs with _invoiceMap attached — exactly what the Jobs & Revenue tab shows.
+  // _allYearJobs is a secondary YTD fetch used only for annual/monthly charts; do NOT use it
+  // for period revenue because it may be fetched at a different time and miss today's payments.
+  // If _jobs is empty (first load), fall back to _allYearJobs.
+  const paidJobs = _jobs.length > 0
+    ? _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j))
+    : _allYearJobs;
 
   if(period==='year'){
     const yr = now.getFullYear();
@@ -6145,7 +6211,7 @@ function getRevenueForPeriod(period){
   }
 
   if(period==='week'){
-    const dayOfWeek  = now.getDay();
+    const dayOfWeek   = now.getDay();
     const daysFromMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - daysFromMon);
@@ -6166,7 +6232,7 @@ function getRevenueForPeriod(period){
         todayTotal += contrib;
       }
     });
-    console.log(`[Daily Rev] today=${todayLocal}, $${todayTotal.toFixed(2)}`);
+    console.log(`[Daily Rev] today=${todayLocal}, source=_jobs(${paidJobs.length}), $${todayTotal.toFixed(2)}`);
     return todayTotal;
   }
 
@@ -8932,39 +8998,110 @@ async function processPlanFile(file){
       if(status) status.innerHTML='<span style="color:#dc2626">No data rows found in file.</span>';
       return;
     }
-    const plans=mapPlanRows(rows);
-    if(!plans.length){
+    const newPlans=mapPlanRows(rows);
+    if(!newPlans.length){
       if(status) status.innerHTML='<span style="color:#dc2626">Could not map columns. Make sure your file has recognizable headers like Customer, Plan, Sold By, Date, Amount.</span>';
       return;
     }
-    _uploadedPlans=plans;_plans=plans;
+
+    const isAgg = newPlans.length>0 && newPlans[0].source==='upload_aggregate';
+
+    if(isAgg){
+      // Aggregate format: merge by tech name — replace existing counts for known techs,
+      // keep records for techs not in this upload (they may be from a different period)
+      // Strategy: group new plans by soldByName, then replace all existing plans for
+      // those techs in _uploadedPlans, keeping any techs not in the new file.
+      const newBySoldBy = {};
+      newPlans.forEach(p => {
+        const name = p._soldByName || getPlanSoldBy(p);
+        if(!newBySoldBy[name]) newBySoldBy[name] = [];
+        newBySoldBy[name].push(p);
+      });
+
+      // Remove existing plans for techs that ARE in the new upload (they'll be replaced)
+      const techsInUpload = new Set(Object.keys(newBySoldBy));
+      const kept = (_uploadedPlans||[]).filter(p => {
+        const name = p._soldByName || getPlanSoldBy(p);
+        return !techsInUpload.has(name);
+      });
+
+      _uploadedPlans = [...kept, ...newPlans];
+      _plans = _uploadedPlans;
+
+      const totalNew = newPlans.length;
+      const totalNow = _uploadedPlans.length;
+      if(status) status.innerHTML=`<span style="color:#166534">✅ Merged ${totalNew} plan records from "${file.name}" — ${totalNow} total active plans</span>`;
+    } else {
+      // Detailed format: merge by HCP customer ID when available, else by key fields
+      const isDetailedAgreement = newPlans.length > 0 && newPlans[0].source === 'upload_detailed';
+
+      if(isDetailedAgreement){
+        // Dedup by HCP customer ID — stable across re-exports
+        const existingById = new Map(
+          (_uploadedPlans||[])
+            .filter(p => p.hcp_id)
+            .map(p => [p.hcp_id, p])
+        );
+        // Replace existing records with same HCP ID, append new ones
+        const existingWithoutUpdated = (_uploadedPlans||[]).filter(p =>
+          !p.hcp_id || !newPlans.find(n => n.hcp_id && n.hcp_id === p.hcp_id)
+        );
+        _uploadedPlans = [...existingWithoutUpdated, ...newPlans];
+        _plans = _uploadedPlans;
+        const updated = newPlans.filter(n => n.hcp_id && existingById.has(n.hcp_id)).length;
+        const added   = newPlans.length - updated;
+        if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${newPlans.length} active agreements from "${file.name}" — ${added} new, ${updated} updated — ${_uploadedPlans.length} total</span>`;
+      } else {
+        const existingKeys = new Set((_uploadedPlans||[]).map(p => {
+          const soldBy = getPlanSoldBy(p);
+          const cust   = getPlanCust(p);
+          const date   = (p.created_at||'').split('T')[0];
+          return `${soldBy}|${cust}|${date}`.toLowerCase();
+        }));
+        const deduped = newPlans.filter(p => {
+          const soldBy = getPlanSoldBy(p);
+          const cust   = getPlanCust(p);
+          const date   = (p.created_at||'').split('T')[0];
+          const key = `${soldBy}|${cust}|${date}`.toLowerCase();
+          return !existingKeys.has(key);
+        });
+        _uploadedPlans = [...(_uploadedPlans||[]), ...deduped];
+        _plans = _uploadedPlans;
+        if(status) status.innerHTML=`<span style="color:#166534">✅ Added ${deduped.length} new plan${deduped.length!==1?'s':''} from "${file.name}" (${newPlans.length-deduped.length} duplicates skipped) — ${_uploadedPlans.length} total</span>`;
+      }
+    }
+
     saveUploadedPlans();
 
-    // Push to Google Sheets immediately — dedup by key, never duplicate
+    // Push merged data to Google Sheets — syncPlans handles dedup server-side too
     if(_sheetsProxy) {
-      const plansPayload = plans.map(p => ({
+      const plansPayload = _uploadedPlans.map(p => ({
         plan_name:     getPlanName(p)||'Home Club Maintenance',
         customer_name: getPlanCust(p)||'',
         sold_by_name:  getPlanSoldBy(p)||'',
         created_at:    p.created_at||new Date().toISOString(),
-        amount:        getPlanTotal(p)||19.99,
+        end_date:      p.end_date||'',
         status:        getPlanStatus(p)||'Active',
+        phone:         p.customer?.phone||'',
+        email:         p.customer?.email||'',
+        address:       p.customer?.address||'',
+        hcp_id:        p.hcp_id||'',
       }));
       fetch(_sheetsProxy, {
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
         body: JSON.stringify({ action:'syncPlans', plans: plansPayload })
       }).then(()=>{
-        dashLog('success', `Service Plans: ${plans.length} records saved to Sheets`);
+        dashLog('success', `Service Plans: ${_uploadedPlans.length} total records synced to Sheets`);
       }).catch(e => dashLog('warn','Plans Sheets sync failed: '+e.message));
     }
-    const isAgg=plans.length>0&&plans[0].source==='upload_aggregate';
-    if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${plans.length} plan record${plans.length!==1?'s':''} from "${file.name}"${isAgg?' (expanded from aggregate report)':''}</span>`;
+
     $$('planUploadBox').style.display='none';
     $$('planDataView').style.display='block';
-    populateFilters(_jobs,_estimates,plans);
-    renderPlans(plans);
+    populateFilters(_jobs,_estimates,_uploadedPlans);
+    renderPlans(_uploadedPlans);
   }catch(err){
     if(status) status.innerHTML=`<span style="color:#dc2626">Error: ${err.message}</span>`;
+    console.error('[Plans] Upload error:', err);
   }
 }
 
@@ -9009,48 +9146,127 @@ function mapPlanRows(rows){
   const isAggregateFormat=soldByCol>=0&&countCol>=0&&soldByCol!==countCol;
 
   if(isAggregateFormat){
-    // HCP aggregate export: one row per tech with a count — expand into individual plan records
+    // HCP aggregate export: one row per tech with a count
+    // This is always a YTD report from HCP — counts are cumulative for the year
+    // We store as individual records keyed by tech+index so dedup works on re-upload
     const plans=[];
+    const uploadDate = new Date().toISOString();
+    const yearStart  = `${new Date().getFullYear()}-01-01`;
+
     for(let i=1;i<rows.length;i++){
       const r=rows[i];
       if(!r||r.every(c=>!String(c||'').trim())) continue;
       const soldBy=String(r[soldByCol]||'').trim();
-      if(!soldBy||soldBy.toLowerCase()==='total') continue; // skip total row
+      if(!soldBy||soldBy.toLowerCase()==='total') continue;
       const count=parseInt(String(r[countCol]||'0').replace(/[^0-9]/g,''))||0;
       if(count===0) continue;
 
-      // Match to employee
       const empMatch=_employees.find(e=>{
         const n=((e.first_name||'')+' '+(e.last_name||'')).trim().toLowerCase();
         const sb=soldBy.toLowerCase();
-        // Handle "Office Staff" as Victoria Ellsworth or skip
         if(sb==='office staff') return e.role&&e.role.toLowerCase().includes('office');
         return n===sb||sb.includes(n.split(' ')[0].toLowerCase())||n.includes(sb.split(' ')[0].toLowerCase());
       });
+      const empName = empMatch ? ((empMatch.first_name||'')+' '+(empMatch.last_name||'')).trim() : soldBy;
 
-      // Create one plan record per unit sold
-      // Aggregate format has NO customer data — HCP summary report doesn't include customer names
-      // To see customer names, export the detailed plan report from HCP instead
       for(let j=0;j<count;j++){
         plans.push({
-          id:'upload_'+i+'_'+j,
-          customer:{first_name:'—',last_name:'',id:'upload_cust_'+i+'_'+j},
-          name:'Home Club Maintenance',
-          total_amount:1999,
-          sold_by:empMatch||{first_name:soldBy,last_name:'',id:'manual_'+soldBy.replace(/\s/g,'_')},
-          created_at:new Date().toISOString(),
-          status:'Active',
-          source:'upload_aggregate',
+          id:           `agg_${empName.replace(/\s/g,'_')}_${j}`,
+          customer:     {first_name:'—',last_name:'',id:`agg_cust_${i}_${j}`},
+          name:         'Home Club Maintenance',
+          total_amount: 1999,
+          sold_by:      empMatch||{first_name:soldBy,last_name:'',id:'manual_'+soldBy.replace(/\s/g,'_')},
+          created_at:   yearStart+'T12:00:00.000Z', // YTD report — attribute to year start
+          status:       'Active',
+          source:       'upload_aggregate',
           _aggregateFormat: true,
-          _soldByName: empMatch ? ((empMatch.first_name||'')+' '+(empMatch.last_name||'')).trim() : soldBy,
+          _soldByName:  empName,
+          _uploadedAt:  uploadDate,
         });
       }
     }
     return plans;
   }
 
-  // Detailed format: one row per plan sold (customer name, date, etc.)
-  const custCol=findCol('customer','client','name');
+  // ── Detailed HCP service agreement export format ────────────────────────────
+  // Columns: Plan, Start Date, End Date, Status, First Name, Last Name,
+  //          Display Name, Mobile, Home, Email, Company, ID, Address...
+  // Dedup key: HCP customer ID (column 12) — stable across re-exports
+  const planCol2    = findCol('plan');
+  const startCol    = findCol('start date','start_date','startdate');
+  const endCol      = findCol('end date','end_date','enddate','expir');
+  const statusCol2  = findCol('status');
+  const firstCol    = findCol('first name','first_name','firstname');
+  const lastCol     = findCol('last name','last_name','lastname');
+  const displayCol  = findCol('display name','display_name');
+  const mobileCol   = findCol('mobile','mobile number');
+  const emailCol    = findCol('email');
+  const idCol       = findCol('id');
+  const addr1Col    = findCol('address street line 1','street','address1','addr1');
+  const cityCol     = findCol('city');
+  const stateCol    = findCol('state');
+  const zipCol      = findCol('postal','zip');
+
+  const isDetailedAgreement = idCol >= 0 && statusCol2 >= 0 && (firstCol >= 0 || displayCol >= 0);
+
+  if(isDetailedAgreement){
+    // Active statuses — exclude Expired and Draft
+    const ACTIVE_STATUSES = new Set(['active','pending renewal','renewed','expiring soon','sent']);
+
+    const plans = [];
+    for(let i=1; i<rows.length; i++){
+      const r = rows[i];
+      if(!r || r.every(c=>!String(c||'').trim())) continue;
+
+      const status = String(r[statusCol2]||'').trim();
+      if(!ACTIVE_STATUSES.has(status.toLowerCase())) continue; // skip Expired, Draft
+
+      const planName  = planCol2>=0  ? String(r[planCol2]||'').trim()||'Home Club Maintenance' : 'Home Club Maintenance';
+      const startDate = startCol>=0  ? String(r[startCol]||'').trim() : '';
+      const endDate   = endCol>=0    ? String(r[endCol]||'').trim()   : '';
+      const firstName = firstCol>=0  ? String(r[firstCol]||'').trim() : '';
+      const lastName  = lastCol>=0   ? String(r[lastCol]||'').trim()  : '';
+      const display   = displayCol>=0? String(r[displayCol]||'').trim(): '';
+      const custName  = display || [firstName,lastName].filter(Boolean).join(' ') || '—';
+      const mobile    = mobileCol>=0 ? String(r[mobileCol]||'').trim() : '';
+      const email     = emailCol>=0  ? String(r[emailCol]||'').trim()  : '';
+      const hcpId     = idCol>=0     ? String(r[idCol]||'').trim()     : '';
+      const addr1     = addr1Col>=0  ? String(r[addr1Col]||'').trim()  : '';
+      const city      = cityCol>=0   ? String(r[cityCol]||'').trim()   : '';
+      const state     = stateCol>=0  ? String(r[stateCol]||'').trim()  : '';
+      const zip       = zipCol>=0    ? String(r[zipCol]||'').trim()    : '';
+      const address   = [addr1, city, state, zip].filter(Boolean).join(', ');
+
+      // Parse start date
+      let dateISO = new Date().toISOString();
+      try {
+        if(startDate){ const d=new Date(startDate+'T12:00:00'); if(!isNaN(d)) dateISO=d.toISOString(); }
+      } catch(e){}
+
+      plans.push({
+        id:           'hcp_'+( hcpId || i ),
+        customer: {
+          first_name:  firstName || custName.split(' ')[0] || '—',
+          last_name:   lastName  || '',
+          id:          hcpId     || 'hcp_cust_'+i,
+          display_name:custName,
+          phone:       mobile,
+          email:       email,
+          address:     address,
+        },
+        name:         planName,
+        total_amount: 1999,   // $19.99 — amount not in this export
+        sold_by:      { first_name:'', last_name:'', id:'' }, // not in this export
+        created_at:   dateISO,
+        end_date:     endDate,
+        status,
+        hcp_id:       hcpId,
+        source:       'upload_detailed',
+        _soldByName:  '',
+      });
+    }
+    return plans;
+  }
   const planCol=findCol('plan','type','service','agreement','product','description');
   const soldCol=findCol('sold by','tech','employee','rep','salesperson','staff','sold');
   const dateCol=findCol('date','sold date','created','start','closed');
