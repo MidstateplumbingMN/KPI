@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.53</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.56</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.53</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.56</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.53</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.56</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1584,6 +1584,18 @@ function connect(){
   if(!t){err.textContent='Enter HCP API key.';err.style.display='block';return;}
   if(!s){err.textContent='Enter Google Sheets Proxy URL.';err.style.display='block';return;}
   _workerUrl=w; _token=t; _sheetsProxy=s;
+
+  // Load all user preferences from Sheets — replaces localStorage reads
+  // This runs asynchronously so UI is not blocked
+  loadAllSettingsFromSheets().then(() => {
+    console.log('[Connect] Settings loaded from Sheets');
+    // Restore content data from Sheets
+    loadPlansFromSheets();
+    loadTYCards();
+    loadSpotlights();
+    loadAnnouncements();
+    loadHolidays();
+  });
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
   loadIS();
@@ -1633,10 +1645,10 @@ let _autoPullTimer=null;
 let _autoPullCountdown=null;
 
 function getAutoPullConfig(){
-  try{return JSON.parse(localStorage.getItem('hcp_autopull')||'{}');}catch(e){return{};}
+  return {};// loaded from Sheets on connect
 }
 function saveAutoPullConfig(cfg){
-  try{localStorage.setItem('hcp_autopull',JSON.stringify(cfg));}catch(e){}
+  try{saveSettingToSheets('hcp_autopull', JSON.stringify(cfg));}catch(e){}
 }
 
 function startAutoPull(){
@@ -2056,12 +2068,12 @@ function updateEmpFilterLabel(){
 }
 
 function saveEmpFilter(){
-  try{localStorage.setItem('hcp_emp_filter',JSON.stringify([..._selectedEmps]));}catch(e){}
+  try{saveSettingToSheets('hcp_emp_filter', JSON.stringify([..._selectedEmps]));}catch(e){}
 }
 
 function loadEmpFilter(){
   try{
-    const saved=localStorage.getItem('hcp_emp_filter');
+    // Employee filter loaded from Sheets on connect via loadAllSettingsFromSheets()
     if(saved){_selectedEmps=new Set(JSON.parse(saved));}
   }catch(e){}
 }
@@ -2474,7 +2486,7 @@ async function loadAll(){
       loadAnnouncements();
     }, 100);
 
-    try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
+    _wbSettings = _wbSettings || {};// loaded from Sheets
     if(!_holidays.length) _holidays=JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
   }catch(e){
     showErr('Error: '+e.message);$$('statusBar').textContent='';
@@ -2494,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.53
+  // ATTRIBUTION ENGINE — v23.56
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3473,8 +3485,7 @@ function updateKPIEmpLabel(){
   else{label.textContent=`👥 ${sel} of ${total} shown`;btn?.classList.add('active');}
 }
 function saveKPIEmpFilter(){
-  try{localStorage.setItem('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));}catch(e){}
-  saveSettingToSheets('hcp_kpi_emps',JSON.stringify([..._kpiSelectedEmps]));
+  saveSettingToSheets('hcp_kpi_emps', JSON.stringify([..._kpiSelectedEmps]));
 }
 async function loadKPIEmpFilter(){
   // Version key — increment when DEPT_MAP changes to force filter reset
@@ -3495,7 +3506,7 @@ async function loadKPIEmpFilter(){
       if(sheetsVal) { _kpiSelectedEmps=new Set(JSON.parse(sheetsVal)); return; }
     }
   } catch(e) {}
-  try{const s=localStorage.getItem('hcp_kpi_emps');if(s)_kpiSelectedEmps=new Set(JSON.parse(s));}catch(e){}
+  // kpi emps loaded from Sheets on connect
 }
 
 function syncNewEmployeesToFilter(){
@@ -4755,16 +4766,6 @@ async function fetchYTDMonthlyRevenue() {
 // ============================================================
 // SHEETS SETTINGS — replaces localStorage for critical data
 // ============================================================
-async function saveSettingToSheets(key, value) {
-  if(!_sheetsProxy) return;
-  try {
-    await fetch(_sheetsProxy, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-      body: JSON.stringify({ action:'syncSettings', settings:{ [key]: value } })
-    });
-  } catch(e) { console.warn('[Settings] Save failed:', e.message); }
-}
-
 async function loadSettingsFromSheets() {
   if(!_sheetsProxy) return {};
   try {
@@ -4775,18 +4776,82 @@ async function loadSettingsFromSheets() {
   return {};
 }
 
-// Save with localStorage fallback
-function saveSetting(key, value) {
-  try { localStorage.setItem(key, typeof value==='object'?JSON.stringify(value):value); } catch(e) {}
-  saveSettingToSheets(key, value); // async, fire-and-forget
+// Load all user preferences from Sheets on connect
+async function loadAllSettingsFromSheets() {
+  if(!_sheetsProxy) return;
+  try {
+    const s = await loadSettingsFromSheets();
+    if(!s || !Object.keys(s).length) return;
+
+    // Employee filter
+    if(s.hcp_emp_filter) try { const v=JSON.parse(s.hcp_emp_filter); if(Array.isArray(v)) _selectedEmps=new Set(v); } catch(e){}
+
+    // KPI employee filter
+    if(s.hcp_kpi_emps) try { const v=JSON.parse(s.hcp_kpi_emps); if(Array.isArray(v)) _kpiSelectedEmps=new Set(v); } catch(e){}
+
+    // Scene order
+    if(s.wb_scene_order) try { const v=JSON.parse(s.wb_scene_order); if(Array.isArray(v)) _sceneOrder=v; } catch(e){}
+
+    // Auto-pull config
+    if(s.hcp_autopull) try { Object.assign(_autoPull||{}, JSON.parse(s.hcp_autopull)); } catch(e){}
+
+    // Unpaid annotations
+    if(s.hcp_unpaid_notes)    try { _unpaidNotes    = JSON.parse(s.hcp_unpaid_notes);    } catch(e){}
+    if(s.hcp_unpaid_status)   try { _unpaidStatus   = JSON.parse(s.hcp_unpaid_status);   } catch(e){}
+    if(s.hcp_unpaid_payments) try { _unpaidPayments = JSON.parse(s.hcp_unpaid_payments); } catch(e){}
+
+    // IS email states  
+    if(s.hcp_is_email_statuses) try { _isEmailStatuses = JSON.parse(s.hcp_is_email_statuses); } catch(e){}
+    if(s.hcp_is_email_drafts)   try { _isEmailDrafts   = JSON.parse(s.hcp_is_email_drafts);   } catch(e){}
+
+    // Cal emp filter
+    if(s.hcp_cal_emps) try { const v=JSON.parse(s.hcp_cal_emps); if(Array.isArray(v)) _calSelectedEmps=new Set(v); } catch(e){}
+
+    // Contest items
+    if(s.hcp_contest_items) try { _contestItems = JSON.parse(s.hcp_contest_items); } catch(e){}
+
+    console.log('[Settings] Loaded from Sheets:', Object.keys(s).length, 'keys');
+  } catch(e) { console.warn('[Settings] loadAll failed:', e.message); }
 }
 
-// Load — Sheets takes priority over localStorage
+// Save any key/value to Sheets Settings tab — fire and forget
+function saveSetting(key, value) {
+  // rc_jwt and hcp_sheets_proxy stay local only (sensitive / chicken-and-egg)
+  if(key === 'rc_jwt' || key === 'hcp_sheets_proxy') {
+    try { localStorage.setItem(key, typeof value==='object'?JSON.stringify(value):value); } catch(e) {}
+    return;
+  }
+  saveSettingToSheets(key, value);
+}
+
+function saveSettingToSheets(key, value) {
+  if(!_sheetsProxy) return;
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    body: JSON.stringify({ action:'syncSettings', settings:{ [key]: typeof value==='object'?JSON.stringify(value):String(value) } })
+  }).catch(()=>{});
+}
+
+function saveSettingsToSheets(obj) {
+  if(!_sheetsProxy || !obj || !Object.keys(obj).length) return;
+  const flat = {};
+  Object.entries(obj).forEach(([k,v]) => { flat[k] = typeof v==='object' ? JSON.stringify(v) : String(v); });
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    body: JSON.stringify({ action:'syncSettings', settings: flat })
+  }).catch(()=>{});
+}
+
+// Read a setting — Sheets is authoritative, no localStorage for non-sensitive keys
 async function loadSetting(key, defaultVal='') {
-  // Try localStorage first for speed
-  let local = null;
-  try { local = localStorage.getItem(key); } catch(e) {}
-  return local !== null ? local : defaultVal;
+  if(key === 'rc_jwt' || key === 'hcp_sheets_proxy') {
+    try { return localStorage.getItem(key) || defaultVal; } catch(e) { return defaultVal; }
+  }
+  if(!_sheetsProxy) return defaultVal;
+  try {
+    const s = await loadSettingsFromSheets();
+    return s[key] !== undefined ? s[key] : defaultVal;
+  } catch(e) { return defaultVal; }
 }
 
 
@@ -4838,7 +4903,7 @@ let _sceneOrder = null;
 
 function loadSceneOrder() {
   try {
-    const saved = localStorage.getItem('wb_scene_order');
+    const saved = null; // loaded from Sheets on connect
     _sceneOrder = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
   } catch(e) { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
   renderSceneOrder();
@@ -4881,7 +4946,7 @@ function resetSceneOrder() {
   renderSceneOrder();
 }
 async function saveSceneOrder() {
-  localStorage.setItem('wb_scene_order', JSON.stringify(_sceneOrder));
+  saveSettingToSheets('wb_scene_order', JSON.stringify(_sceneOrder));
   const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
   if(_sheetsProxy) {
     try {
@@ -7397,66 +7462,51 @@ async function pushToCompanion(){
   btn.textContent='📺 Pushing...';
   btn.disabled=true;
 
+  if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); btn.textContent=orig; btn.disabled=false; return; }
+  if(!_jobs.length){ showToast('Pull a report first','warn'); btn.textContent=orig; btn.disabled=false; return; }
+
   try{
-    if(_jobs.length){
-      $$('statusBar').textContent='Syncing to Sheets for companion...';
-      const from=$$('dateFrom')?.value||'';
-      const to=$$('dateTo')?.value||'';
+    dashLog('info','📺 Pushing to companion...');
+    $$('statusBar').textContent='📺 Pushing data to companion...';
 
-      // Sync report data AND spotlights/promos/announcements in parallel
-      await Promise.all([
-        syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to),
-        _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
-          body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
-        }).catch(()=>{}) : Promise.resolve(),
-        _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
-          body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements||[]})
-        }).catch(()=>{}) : Promise.resolve(),
-        _sheetsProxy ? fetch(_sheetsProxy,{
-          method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
-          body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings||{},birthdays:_bdayList||[]})
-        }).catch(()=>{}) : Promise.resolve()
-      ]);
+    const from = $$('dateFrom')?.value||'';
+    const to   = $$('dateTo')?.value||'';
 
-      $$('statusBar').textContent='✅ Companion updated — data + spotlights + promotions + announcements pushed';
-      btn.textContent='✅ Pushed!';
-      btn.style.cssText='background:#059669;color:#fff;border:none';
-      setTimeout(()=>{
-        btn.textContent=orig;
-        btn.style.cssText='';
-        btn.disabled=false;
-      },3000);
-    } else {
-      if(!_workerUrl){
-        alert('Pull a report first, or connect to the worker to push.');
-        btn.textContent=orig; btn.disabled=false; return;
-      }
-      const res=await fetch(_workerUrl+'/cron-pull');
-      const data=await res.json();
-      if(data.success){
-        // Also push spotlights
-        if(_sheetsProxy){
-          fetch(_sheetsProxy,{
-            method:'POST',
-            headers:{'Content-Type':'text/plain'},
-            body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
-          }).catch(()=>{});
-        }
-        btn.textContent='✅ Pushed!';
-        btn.style.cssText='background:#059669;color:#fff;border:none';
-        $$('statusBar').textContent=`✅ Companion updated via worker — ${data.jobs} jobs · ${data.estimates} ests`;
-        setTimeout(()=>{btn.textContent=orig;btn.style.cssText='';btn.disabled=false;},3000);
-      } else {
-        throw new Error(data.error||'Worker pull failed');
-      }
-    }
+    // ── 1. Build the companion snapshot (all KPI data the wallboard needs) ──
+    // This is the primary payload — everything the companion displays
+    // Built from already-computed in-memory values, not a re-fetch
+    await syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to);
+
+    // ── 2. Push spotlights, promos, announcements, wallboard settings ──
+    // These are independent small payloads — always succeed fast
+    const smallPushes = [
+      _spotlights?.length ? fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+        body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos||[]})
+      }).catch(()=>{}) : null,
+      _announcements?.length ? fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+        body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements})
+      }).catch(()=>{}) : null,
+      fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+        body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings||{},birthdays:_bdayList||[]})
+      }).catch(()=>{}),
+    ].filter(Boolean);
+    await Promise.all(smallPushes);
+
+    // ── 3. Trigger dept revenue recompute (server-side, uses Invoices tab) ──
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      body:JSON.stringify({action:'computeDeptRevenue'})
+    }).catch(()=>{});
+
+    dashLog('success','📺 Companion updated — all data pushed to Sheets');
+    $$('statusBar').textContent='✅ Companion data pushed — wallboard will refresh within 30 seconds';
+    btn.textContent='✅ Pushed!';
+    btn.style.cssText='background:#059669;color:#fff;border:none';
+    setTimeout(()=>{ btn.textContent=orig; btn.style.cssText=''; btn.disabled=false; },4000);
+
   }catch(e){
-    btn.textContent='❌ Failed';
-    btn.style.cssText='background:#dc2626;color:#fff;border:none';
-    $$('statusBar').textContent='Push failed: '+e.message;
-    setTimeout(()=>{btn.textContent=orig;btn.style.cssText='';btn.disabled=false;},3000);
+    dashLog('error','Push failed: '+e.message);
+    showToast('Push failed: '+e.message,'error');
+    btn.textContent=orig; btn.disabled=false;
   }
 }
 
@@ -7526,7 +7576,7 @@ let _holidays = [];
 
 function loadHolidays(){
   try{
-    const stored = JSON.parse(localStorage.getItem('hcp_holidays')||'[]');
+    const stored = []; // loaded from Sheets on connect
     if(stored.length){
       // Merge stored toggles/edits with default list (add new defaults if missing)
       const storedMap = {};
@@ -7542,8 +7592,7 @@ function loadHolidays(){
 }
 
 function saveHolidays(){
-  try{localStorage.setItem('hcp_holidays',JSON.stringify(_holidays));}catch(e){}
-  saveSettingToSheets('hcp_holidays',JSON.stringify(_holidays));
+  saveSettingToSheets('hcp_holidays', JSON.stringify(_holidays));
   saveWallboardSettingsToSheets();
 }
 
@@ -7638,8 +7687,8 @@ function renderHolidayList(){
 }
 
 function loadWallboardSettings(){
-  try{ _wbSettings=JSON.parse(localStorage.getItem('hcp_wb_settings')||'{}'); }catch(e){ _wbSettings={}; }
-  try{ _bdayList=JSON.parse(localStorage.getItem('hcp_bday_list')||'[]'); }catch(e){ _bdayList=[]; }
+  _wbSettings = _wbSettings || {};// loaded from Sheets
+  _bdayList = _bdayList || [];
   loadHolidays();
   // Restore form values
   if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'https://midstateplumbingmn.github.io/KPI/images/logo.png';
@@ -7663,7 +7712,7 @@ function loadWallboardSettings(){
       .then(d=>{
         if(d.success){
           if(d.settings)  { _wbSettings=d.settings; }
-          if(d.birthdays) { _bdayList=d.birthdays; try{localStorage.setItem('hcp_bday_list',JSON.stringify(_bdayList));}catch(e){} renderBdayList(); }
+          if(d.birthdays) { _bdayList=d.birthdays; try{saveSettingToSheets('hcp_bday_list', JSON.stringify(_bdayList));}catch(e){} renderBdayList(); }
         }
       }).catch(()=>{});
   }
@@ -7691,7 +7740,7 @@ function applyWallboardTheme() {
 
 function saveWbSetting(key, val){
   _wbSettings[key]=val;
-  try{localStorage.setItem('hcp_wb_settings',JSON.stringify(_wbSettings));}catch(e){}
+  try{saveSettingsToSheets({hcp_wb_settings: JSON.stringify(_wbSettings)});}catch(e){}
 }
 
 function previewWbLogo(url){
@@ -7723,11 +7772,11 @@ function saveGapSettings(){
 }
 
 function saveWallboardSettingsToSheets(){
-  try{localStorage.setItem('hcp_wb_settings',JSON.stringify(_wbSettings));}catch(e){}
+  saveSettingsToSheets({hcp_wb_settings: JSON.stringify(_wbSettings)});
   if(_sheetsProxy){
     fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList,holidays:_holidays||[]})
-    }).then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Wallboard settings synced','success'); }).catch(()=>{});
+    }).then(()=>showToast('✅ Wallboard settings synced','success')).catch(()=>{});
   }
 }
 
@@ -7770,18 +7819,18 @@ function renderBdayList(){
 }
 
 function loadAnnouncements(){
-  try{ _announcements=JSON.parse(localStorage.getItem('hcp_announcements')||'[]'); }catch(e){ _announcements=[]; }
+  _announcements = _announcements || [];
   renderAnnList();
   if(_sheetsProxy){
     fetch(_sheetsProxy+'?action=getAnnouncements',{redirect:'follow'})
       .then(r=>r.json())
-      .then(d=>{ if(d.success&&d.announcements){ _announcements=d.announcements; try{localStorage.setItem('hcp_announcements',JSON.stringify(_announcements));}catch(e){} renderAnnList(); }})
+      .then(d=>{ if(d.success&&d.announcements){ _announcements=d.announcements; try{saveSettingToSheets('hcp_announcements', JSON.stringify(_announcements));}catch(e){} renderAnnList(); }})
       .catch(()=>{});
   }
 }
 
 function saveAnnouncements(){
-  try{localStorage.setItem('hcp_announcements',JSON.stringify(_announcements));}catch(e){}
+  try{saveSettingToSheets('hcp_announcements', JSON.stringify(_announcements));}catch(e){}
   if(_sheetsProxy){
     fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
       body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements})})
@@ -7996,8 +8045,8 @@ function renderAnnList(){
 
 function loadSpotlights(){
   // Load from localStorage first (instant)
-  try{ _spotlights=JSON.parse(localStorage.getItem('hcp_spotlights')||'[]'); }catch(e){ _spotlights=[]; }
-  try{ _promos=JSON.parse(localStorage.getItem('hcp_promos')||'[]'); }catch(e){ _promos=[]; }
+  _spotlights = _spotlights || [];
+  _promos = _promos || [];
   renderSpotlightList();
   renderPromoList();
   // Then fetch from Sheets (source of truth — persists across browsers/sessions)
@@ -8009,8 +8058,8 @@ function loadSpotlights(){
           if(data.spotlights) _spotlights=data.spotlights;
           if(data.promos)     _promos=data.promos;
           // Update localStorage cache
-          try{localStorage.setItem('hcp_spotlights',JSON.stringify(_spotlights));}catch(e){}
-          try{localStorage.setItem('hcp_promos',JSON.stringify(_promos));}catch(e){}
+          try{saveSettingToSheets('hcp_spotlights', JSON.stringify(_spotlights));}catch(e){}
+          try{saveSettingToSheets('hcp_promos', JSON.stringify(_promos));}catch(e){}
           renderSpotlightList();
           renderPromoList();
         }
@@ -8023,7 +8072,7 @@ function loadSpotlights(){
 function loadPromotions(){ loadSpotlights(); }
 
 function saveSpotlights(){
-  try{ localStorage.setItem('hcp_spotlights',JSON.stringify(_spotlights)); }catch(e){}
+  try{ saveSettingToSheets('hcp_spotlights', JSON.stringify(_spotlights)); }catch(e){}
   // Push to Sheets for companion
   if(_sheetsProxy){
     fetch(_sheetsProxy,{
@@ -8424,9 +8473,9 @@ let _unpaidPayments={}; // jobId -> [{amount, date, note}]
 
 function loadUnpaidState(){
   try{
-    const n=localStorage.getItem('hcp_unpaid_notes');
-    const s=localStorage.getItem('hcp_unpaid_status');
-    const p=localStorage.getItem('hcp_unpaid_payments');
+    const n=null; // loaded from Sheets
+    const s=null; // loaded from Sheets
+    const p=null; // loaded from Sheets
     if(n)_unpaidNotes=JSON.parse(n);
     if(s)_unpaidStatus=JSON.parse(s);
     if(p)_unpaidPayments=JSON.parse(p);
@@ -8434,9 +8483,9 @@ function loadUnpaidState(){
 }
 function saveUnpaidState(){
   try{
-    localStorage.setItem('hcp_unpaid_notes',JSON.stringify(_unpaidNotes));
-    localStorage.setItem('hcp_unpaid_status',JSON.stringify(_unpaidStatus));
-    localStorage.setItem('hcp_unpaid_payments',JSON.stringify(_unpaidPayments));
+    saveSettingToSheets('hcp_unpaid_notes', JSON.stringify(_unpaidNotes));
+    saveSettingToSheets('hcp_unpaid_status', JSON.stringify(_unpaidStatus));
+    saveSettingToSheets('hcp_unpaid_payments', JSON.stringify(_unpaidPayments));
   }catch(e){}
 }
 
@@ -8807,7 +8856,7 @@ function printUnpaidTicket(jobId){
 let _uploadedPlans=[];
 
 function loadUploadedPlans(){
-  try{const s=localStorage.getItem('hcp_uploaded_plans');if(s){_uploadedPlans=JSON.parse(s);_plans=_uploadedPlans;}}catch(e){}
+  // plans loaded from Sheets on connect via loadPlansFromSheets()
 }
 
 async function loadPlansFromSheets(){
@@ -8823,7 +8872,14 @@ async function loadPlansFromSheets(){
         name:         p.plan_name||'Home Club Maintenance',
         total_amount: Math.round((parseFloat(p.amount)||19.99)*100),
         sold_by:      { first_name: p.sold_by_name||'Unknown', last_name:'', id:'sheets_emp_'+p.sold_by_name?.replace(/\s/g,'_') },
-        created_at:   p.created_at ? new Date(p.created_at+'T12:00:00').toISOString() : new Date().toISOString(),
+        created_at:   (() => {
+          const raw = p.created_at;
+          if(!raw) return new Date().toISOString();
+          // Already a full ISO string? Use it directly
+          if(String(raw).includes('T') || String(raw).includes('Z')) return new Date(raw).toISOString();
+          // Date-only string like "2026-05-15"
+          return new Date(raw + 'T12:00:00').toISOString();
+        })(),
         status:       p.status||'Active',
         source:       'sheets',
       }));
@@ -8840,7 +8896,7 @@ async function loadPlansFromSheets(){
   } catch(e) { console.warn('[Plans] Sheets restore failed:', e.message); }
 }
 function saveUploadedPlans(){
-  try{localStorage.setItem('hcp_uploaded_plans',JSON.stringify(_uploadedPlans));}catch(e){}
+  try{saveSettingToSheets('hcp_uploaded_plans', JSON.stringify(_uploadedPlans));}catch(e){}
 }
 
 // Drag and drop support
@@ -9075,7 +9131,7 @@ function clearISData(){
   _isActivity={};_isStatus={};_isConvertedBy={};
   // NOTE: _isEmailDrafts and _isEmailStatuses are intentionally NOT cleared here
   // They represent real contact history and must survive report pulls and data resets
-  try{['hcp_is_activity','hcp_is_status','hcp_is_conv'].forEach(k=>localStorage.removeItem(k));}catch(e){}
+  // IS state lives in Sheets now
   clearSheetsTab('Inside_Sales');
   clearSheetsTab('IS_Activity');
   if(_estimates.length) renderIS();
@@ -9104,7 +9160,7 @@ async function fullReset(){
   if(!confirm('Last chance — are you sure?'))return;
   _attr={};_isActivity={};_isStatus={};_isConvertedBy={};
   // Email drafts and statuses are intentionally preserved — they represent real contact history
-  try{['hcp_attr','hcp_is_activity','hcp_is_status','hcp_is_conv'].forEach(k=>localStorage.removeItem(k));}catch(e){}
+  // State lives in Sheets now
   await Promise.all([clearSheetsTab('KPI_Scores'),clearSheetsTab('Reports'),clearSheetsTab('Inside_Sales'),clearSheetsTab('IS_Activity')]);
   if(_jobs.length){buildAttribution(_jobs,_estimates);renderAttr(_jobs,_estimates);}
   if(_estimates.length) renderIS();
@@ -9119,13 +9175,11 @@ let _isStatus   = {};
 let _isConvertedBy = {};
 
 function loadIS(){
-  // Load from localStorage as immediate fallback while Sheets loads
-  try{
-    _isActivity=JSON.parse(localStorage.getItem('hcp_is_activity')||'{}');
-    _isStatus=JSON.parse(localStorage.getItem('hcp_is_status')||'{}');
-    _isConvertedBy=JSON.parse(localStorage.getItem('hcp_is_conv')||'{}');
-  }catch(e){}
-  // Then load from Sheets (async — will re-render when done)
+  // Initialize empty — Sheets is authoritative, loaded async below
+  _isActivity    = _isActivity    || {};
+  _isStatus      = _isStatus      || {};
+  _isConvertedBy = _isConvertedBy || {};
+  // Load from Sheets (async — will re-render when done)
   fetchISFromSheets();
 }
 
@@ -9151,11 +9205,11 @@ async function fetchISFromSheets(){
       if(data.emailStatuses) Object.assign(_isEmailStatuses, data.emailStatuses);
       if(data.emailDrafts)   Object.assign(_isEmailDrafts,   data.emailDrafts);
       // Persist merged state to localStorage as cache
-      localStorage.setItem('hcp_is_activity',JSON.stringify(_isActivity));
-      localStorage.setItem('hcp_is_status',JSON.stringify(_isStatus));
-      localStorage.setItem('hcp_is_conv',JSON.stringify(_isConvertedBy));
-      localStorage.setItem('hcp_is_email_statuses',JSON.stringify(_isEmailStatuses));
-      localStorage.setItem('hcp_is_email_drafts',JSON.stringify(_isEmailDrafts));
+      // IS activity saved to Sheets via saveISActivity action;
+      // IS status saved to Sheets via saveISStatus action;
+      // IS conv saved to Sheets;
+      saveSettingToSheets('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
+      saveSettingToSheets('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
       // Re-render with fresh data
       if(_estimates.length) renderIS();
       updateISBadge();
@@ -9170,9 +9224,9 @@ async function fetchISFromSheets(){
 function saveIS(){
   // Always save to localStorage immediately
   try{
-    localStorage.setItem('hcp_is_activity',JSON.stringify(_isActivity));
-    localStorage.setItem('hcp_is_status',JSON.stringify(_isStatus));
-    localStorage.setItem('hcp_is_conv',JSON.stringify(_isConvertedBy));
+    // IS activity saved to Sheets via saveISActivity action;
+    // IS status saved to Sheets via saveISStatus action;
+    // IS conv saved to Sheets;
   }catch(e){}
 }
 
@@ -9506,14 +9560,10 @@ let _isEmailDrafts={};    // estId -> {text, generatedAt, template}
 let _isEmailStatuses={};  // estId -> 'pending'|'followed_up'|'declined'|'sold'
 
 function loadISEmailState(){
-  // Load from localStorage as immediate fallback
-  try{
-    const d=localStorage.getItem('hcp_is_email_drafts');
-    const s=localStorage.getItem('hcp_is_email_statuses');
-    if(d) _isEmailDrafts=JSON.parse(d);
-    if(s) _isEmailStatuses=JSON.parse(s);
-  }catch(e){}
-  // Then sync from Sheets (async — overwrites local with shared state)
+  // Initialize empty — Sheets is authoritative, loaded async below
+  _isEmailDrafts   = _isEmailDrafts   || {};
+  _isEmailStatuses = _isEmailStatuses || {};
+  // Sync from Sheets (async — shared state across all users)
   fetchISEmailStateFromSheets();
 }
 
@@ -9527,8 +9577,8 @@ async function fetchISEmailStateFromSheets(){
       if(data.emailStatuses) Object.assign(_isEmailStatuses, data.emailStatuses);
       if(data.emailDrafts) Object.assign(_isEmailDrafts, data.emailDrafts);
       // Write back to localStorage as cache
-      localStorage.setItem('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
-      localStorage.setItem('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
+      saveSettingToSheets('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
+      saveSettingToSheets('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
       if(_estimates.length) renderIS();
     }
   }catch(e){
@@ -9540,8 +9590,8 @@ async function fetchISEmailStateFromSheets(){
 function saveISEmailState(){
   // Always save localStorage immediately (instant local feedback)
   try{
-    localStorage.setItem('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
-    localStorage.setItem('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
+    saveSettingToSheets('hcp_is_email_drafts', JSON.stringify(_isEmailDrafts));
+    saveSettingToSheets('hcp_is_email_statuses', JSON.stringify(_isEmailStatuses));
   }catch(e){}
   // Then push to Sheets (async — shared with everyone)
   syncISEmailStateToSheets();
@@ -10295,8 +10345,8 @@ function updateCalEmpLabel(){
   if(sel===0||sel===total){label.textContent='👥 All employees';btn?.classList.remove('active');}
   else{label.textContent=`👥 ${sel} of ${total} shown`;btn?.classList.add('active');}
 }
-function saveCalEmpFilter(){try{localStorage.setItem('hcp_cal_emps',JSON.stringify([..._calSelectedEmps]));}catch(e){}}
-function loadCalEmpFilter(){try{const s=localStorage.getItem('hcp_cal_emps');if(s)_calSelectedEmps=new Set(JSON.parse(s));}catch(e){}}
+function saveCalEmpFilter(){saveSettingToSheets('hcp_cal_emps', JSON.stringify([..._calSelectedEmps]));}
+function loadCalEmpFilter(){// loaded from Sheets on connect}
 function toggleCalEmpFilter(e){
   e.stopPropagation();
   const dd=$$('calEmpFilterDropdown');
@@ -11046,11 +11096,11 @@ let _contestItems=[]; // [{label, product, color, isPlans}]
 const CONTEST_COLORS=['#1A3A5C','#E8640A','#059669','#7C3AED','#DC2626','#0891B2','#D97706','#BE185D'];
 
 function loadContestItems(){
-  try{const s=localStorage.getItem('hcp_contest_items');if(s)_contestItems=JSON.parse(s);}catch(e){}
+  // contest items loaded from Sheets on connect
   renderContestTags();
 }
 function saveContestItems(){
-  try{localStorage.setItem('hcp_contest_items',JSON.stringify(_contestItems));}catch(e){}
+  try{saveSettingToSheets('hcp_contest_items', JSON.stringify(_contestItems));}catch(e){}
 }
 
 function addContestItem(){
