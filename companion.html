@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.46</title>
+<title>Midstate — KPI Command Center v2.47</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.46</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.47</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1437,14 +1437,14 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.46
+      v2.47
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.46';
+const COMPANION_VERSION = 'v2.47';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1712,13 +1712,12 @@ function dollars(v) {
 async function loadData() {
   try {
     setStatus('loading');
-    // Fetch snapshot (primary), KPI scores, and reports in parallel
-    // KPI_Dashboard must be published in Google Sheets for this to work
-    const [snapRows, kpiRows, rptRows] = await Promise.allSettled([
-      fetchCSV(CONFIG.TABS.SNAPSHOT),
-      fetchCSV(CONFIG.TABS.KPI),
-      fetchCSV(CONFIG.TABS.REPORTS),
-    ]).then(results => results.map(r => r.status==='fulfilled' ? r.value : []));
+    // Stagger fetches — parallel hits cause Google to rate-limit (ERR_CONNECTION_CLOSED)
+    const snapRows = await fetchCSV(CONFIG.TABS.SNAPSHOT).catch(() => []);
+    await new Promise(r => setTimeout(r, 400));
+    const kpiRows  = await fetchCSV(CONFIG.TABS.KPI).catch(() => []);
+    await new Promise(r => setTimeout(r, 400));
+    const rptRows  = await fetchCSV(CONFIG.TABS.REPORTS).catch(() => []);
 
     // Parse snapshot into key→value object
     state.snap = {};
@@ -4200,8 +4199,9 @@ async function loadWallboardData() {
       console.log('[Holidays] CSV rows:', hrows.length, 'raw[1]:', hrows[1]);
       const parsed = hrows.slice(1).filter(r => {
         if(!r || !r[0]) return false;
-        const enabled = String(r[4]).trim().toUpperCase();
-        return enabled === 'TRUE' || enabled === 'true' || enabled === '1';
+        const enabled = String(r[4]||'').trim().toUpperCase();
+        // Empty or missing = enabled by default; explicitly FALSE/NO/0 = disabled
+        return enabled !== 'FALSE' && enabled !== 'NO' && enabled !== '0';
       }).map(r=>({
         id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
         enabled:true, message:r[5]||'', photoUrl:r[6]||''
