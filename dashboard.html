@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.69</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.71</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.69</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.71</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.69</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.71</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2484,7 +2484,7 @@ async function loadAll(){
 
       // Step 2 — now write snapshot with correct annual/quarterly/monthly revenue
       stepLog('📤 Syncing to Sheets...');
-      syncReportToSheets(jobs,estimates,employees,plans,from,to);
+      syncReportToSheets(jobs,estimates,employees,plans,from,to, {skipHealthCheck:true});
 
       // Step 3 — everything else in parallel
       fetchTYCardsFromSheets();
@@ -2515,7 +2515,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.69
+  // ATTRIBUTION ENGINE — v23.71
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4126,7 +4126,7 @@ function renderPlanRows(plans){
 // ============================================================
 // REPORT DATA → GOOGLE SHEETS SYNC
 // ============================================================
-async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, dateTo){
+async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, dateTo, opts={}){
   // Local helper since num() may not be in scope at call time
   const _n = v => parseFloat(String(v||'').replace(/[^0-9.-]/g,''))||0;
   const PROXY=_sheetsProxy;
@@ -4492,7 +4492,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.69',  // dashboard version that generated this push
+    dash_version: 'v23.71',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4528,14 +4528,39 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
     })(),
-    // Department revenue for conversion rotation in companion S3
-    // Department revenue — computed server-side by Apps Script from Invoices tab
-    // Apps Script syncDeptRevenueFromInvoices() writes dept_hvac_rev/dept_plumbing_rev
-    // to KPI_Dashboard after every sync. Values here are placeholders only.
+    // Department revenue — written by Apps Script computeDeptRevenue (reads Invoices tab)
+    // Placeholders here; real values injected by syncRCSnapshotKeys after computeDeptRevenue runs
     dept_hvac_rev:     0,
     dept_plumbing_rev: 0,
-    dept_hvac_conv:    JSON.stringify({total:0,converted:0,pct:0}),
-    dept_plumbing_conv:JSON.stringify({total:0,converted:0,pct:0}),
+
+    // Department conversion — computed from _estimates in memory (same pull, always current)
+    // DEPT_MAP matches tech name to dept — same logic as getDept()
+    dept_hvac_conv: (() => {
+      const hvacTechs = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='HVAC').map(([n])=>n));
+      let total=0, converted=0;
+      estimates.forEach(e => {
+        const tech = ((e.employee?.first_name||'')+' '+(e.employee?.last_name||'')).trim()
+          || e.tech || '';
+        if(!hvacTechs.has(tech)) return;
+        total++;
+        if(isConv(e)) converted++;
+      });
+      const pct = total > 0 ? Math.round(converted/total*100) : 0;
+      return JSON.stringify({total, converted, pct});
+    })(),
+    dept_plumbing_conv: (() => {
+      const plmbTechs = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='Plumbing').map(([n])=>n));
+      let total=0, converted=0;
+      estimates.forEach(e => {
+        const tech = ((e.employee?.first_name||'')+' '+(e.employee?.last_name||'')).trim()
+          || e.tech || '';
+        if(!plmbTechs.has(tech)) return;
+        total++;
+        if(isConv(e)) converted++;
+      });
+      const pct = total > 0 ? Math.round(converted/total*100) : 0;
+      return JSON.stringify({total, converted, pct});
+    })(),
 
     daily_converted: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
@@ -4765,7 +4790,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Covers every key companion reads — if syncReport 500s, companion still works
       const criticalKeys = {
         // Identity
-        dash_version:        'v23.69',
+        dash_version:        'v23.71',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -4838,6 +4863,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         holidays_json:       dashboardSnapshot.holidays_json,
         birthdays_json:      dashboardSnapshot.birthdays_json,
         big_win_job:         dashboardSnapshot.big_win_job,
+        // Dept conversion — computed client-side from _estimates
+        dept_hvac_conv:      dashboardSnapshot.dept_hvac_conv,
+        dept_plumbing_conv:  dashboardSnapshot.dept_plumbing_conv,
         // Companion fallback keys — safe defaults exist but explicit is better
         open_hour:           dashboardSnapshot.open_hour   || 7,
         close_hour:          dashboardSnapshot.close_hour  || 17,
@@ -4852,18 +4880,20 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       }).then(()=>dashLog('success','✅ Key metrics pushed to KPI_Dashboard'))
         .catch(()=>{});
 
-      // Health check — verify KPI_Dashboard has all required keys (runs async, non-blocking)
-      setTimeout(() => {
-        fetch(_sheetsProxy + '?action=healthCheck', { redirect:'follow' })
-          .then(r => r.json())
-          .then(d => {
-            if(d.missing?.length || d.empty?.length) {
-              dashLog('warn', `⚠️ KPI_Dashboard: ${d.missing?.length||0} missing, ${d.empty?.length||0} empty keys`);
-            } else {
-              dashLog('success', `✅ KPI_Dashboard healthy — ${d.total_keys} keys written`);
-            }
-          }).catch(()=>{});
-      }, 8000); // wait 8s for syncSnapshotKeys to complete first
+      // Health check — only on explicit Push to Companion, not on auto-pull sync
+      if(!opts.skipHealthCheck) {
+        setTimeout(() => {
+          fetch(_sheetsProxy + '?action=healthCheck', { redirect:'follow' })
+            .then(r => r.json())
+            .then(d => {
+              if(d.missing?.length || d.empty?.length) {
+                dashLog('warn', `⚠️ KPI_Dashboard: ${d.missing?.length||0} missing, ${d.empty?.length||0} empty keys`);
+              } else {
+                dashLog('success', `✅ KPI_Dashboard healthy — ${d.total_keys} keys written`);
+              }
+            }).catch(()=>{});
+        }, 8000);
+      }
     }
   }catch(err){
     console.warn('Report sync failed:',err.message);
