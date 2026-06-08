@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.68</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.69</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.68</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.69</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.68</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.69</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2515,7 +2515,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.68
+  // ATTRIBUTION ENGINE — v23.69
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4492,7 +4492,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.68',  // dashboard version that generated this push
+    dash_version: 'v23.69',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4761,46 +4761,109 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       }).catch(()=>{});
 
       // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
-      // These are the exact values the companion displays on every scene
+      // Push ALL companion-read keys as dedicated small POST
+      // Covers every key companion reads — if syncReport 500s, companion still works
       const criticalKeys = {
-        dash_version:        'v23.68',
+        // Identity
+        dash_version:        'v23.69',
+        pull_date:           dashboardSnapshot.pull_date,
+        date_from:           dashboardSnapshot.date_from,
+        date_to:             dashboardSnapshot.date_to,
+        // Revenue
         monthly_revenue:     dashboardSnapshot.monthly_revenue,
         rev_annual:          dashboardSnapshot.rev_annual,
         rev_monthly:         dashboardSnapshot.rev_monthly,
+        rev_quarterly:       dashboardSnapshot.rev_quarterly,
         rev_weekly:          dashboardSnapshot.rev_weekly,
         rev_daily:           dashboardSnapshot.rev_daily,
         total_revenue:       dashboardSnapshot.total_revenue,
+        // Jobs / estimates
         total_jobs:          dashboardSnapshot.total_jobs,
         paid_jobs:           dashboardSnapshot.paid_jobs,
         avg_job:             dashboardSnapshot.avg_job,
         conversion_pct:      dashboardSnapshot.conversion_pct,
         total_estimates:     dashboardSnapshot.total_estimates,
         converted_estimates: dashboardSnapshot.converted_estimates,
+        open_is:             dashboardSnapshot.open_is,
         total_plans:         dashboardSnapshot.total_plans,
+        outstanding:         dashboardSnapshot.outstanding,
+        outstanding_jobs:    dashboardSnapshot.outstanding_jobs,
+        // Goals
+        goal_annual:         dashboardSnapshot.goal_annual,
+        goal_quarterly:      dashboardSnapshot.goal_quarterly,
+        goal_monthly:        dashboardSnapshot.goal_monthly,
+        goal_daily:          dashboardSnapshot.goal_daily,
         goal_annual_pct:     dashboardSnapshot.goal_annual_pct,
         goal_monthly_pct:    dashboardSnapshot.goal_monthly_pct,
-        goal_monthly:        dashboardSnapshot.goal_monthly,
-        goal_annual:         dashboardSnapshot.goal_annual,
-        date_from:           dashboardSnapshot.date_from,
-        date_to:             dashboardSnapshot.date_to,
+        projected_annual:    dashboardSnapshot.projected_annual,
+        needed_per_workday:  dashboardSnapshot.needed_per_workday,
+        workdays_left:       dashboardSnapshot.workdays_left,
+        days_left:           dashboardSnapshot.days_left,
+        // Daily win
         daily_jobs:          dashboardSnapshot.daily_jobs,
         daily_estimates:     dashboardSnapshot.daily_estimates,
         daily_converted:     dashboardSnapshot.daily_converted,
+        // Weather
         wx_temp:             dashboardSnapshot.wx_temp,
         wx_city:             dashboardSnapshot.wx_city,
         wx_description:      dashboardSnapshot.wx_description,
         wx_high_f:           dashboardSnapshot.wx_high_f,
         wx_low_f:            dashboardSnapshot.wx_low_f,
+        wx_feels_like:       dashboardSnapshot.wx_feels_like,
+        wx_humidity:         dashboardSnapshot.wx_humidity,
+        wx_wind_speed:       dashboardSnapshot.wx_wind_speed,
+        wx_wind_dir:         dashboardSnapshot.wx_wind_dir,
+        wx_uv:               dashboardSnapshot.wx_uv,
+        wx_max_uv:           dashboardSnapshot.wx_max_uv,
         wx_icon_url:         dashboardSnapshot.wx_icon_url,
+        wx_icon_code:        dashboardSnapshot.wx_icon_code,
         wx_chance_rain:      dashboardSnapshot.wx_chance_rain,
-        outstanding:         dashboardSnapshot.outstanding,
-        outstanding_jobs:    dashboardSnapshot.outstanding_jobs,
+        wx_daily_rain_in:    dashboardSnapshot.wx_daily_rain_in,
+        wx_peak_heat_temp:   dashboardSnapshot.wx_peak_heat_temp,
+        wx_peak_heat_time:   dashboardSnapshot.wx_peak_heat_time,
+        wx_rain_window:      dashboardSnapshot.wx_rain_window,
+        wx_hourly_temps:     dashboardSnapshot.wx_hourly_temps,
+        wx_alert_count:      dashboardSnapshot.wx_alert_count,
+        wx_alert_headline:   dashboardSnapshot.wx_alert_headline,
+        wx_fetched_at:       dashboardSnapshot.wx_fetched_at,
+        weather_loc:         dashboardSnapshot.weather_loc,
+        // Calls (CallRail)
+        calls_total:         dashboardSnapshot.calls_total,
+        calls_new:           dashboardSnapshot.calls_new,
+        calls_answered:      dashboardSnapshot.calls_answered,
+        calls_daily_json:    dashboardSnapshot.calls_daily_json,
+        calls_weekly_json:   dashboardSnapshot.calls_weekly_json,
+        calls_monthly_json:  dashboardSnapshot.calls_monthly_json,
+        // Content
+        holidays_json:       dashboardSnapshot.holidays_json,
+        birthdays_json:      dashboardSnapshot.birthdays_json,
+        big_win_job:         dashboardSnapshot.big_win_job,
+        // Companion fallback keys — safe defaults exist but explicit is better
+        open_hour:           dashboardSnapshot.open_hour   || 7,
+        close_hour:          dashboardSnapshot.close_hour  || 17,
+        daily_goal:          dashboardSnapshot.goal_daily  || 8219,
+        wx_heat_index:       dashboardSnapshot.wx_heat_index    || dashboardSnapshot.wx_temp || '',
+        wx_wind_chill:       dashboardSnapshot.wx_wind_chill    || dashboardSnapshot.wx_temp || '',
+        wx_daily_rain_chance:dashboardSnapshot.wx_daily_rain_chance || dashboardSnapshot.wx_chance_rain || 0,
       };
       fetch(_sheetsProxy, {
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
         body: JSON.stringify({ action:'syncSnapshotKeys', keys: criticalKeys })
       }).then(()=>dashLog('success','✅ Key metrics pushed to KPI_Dashboard'))
         .catch(()=>{});
+
+      // Health check — verify KPI_Dashboard has all required keys (runs async, non-blocking)
+      setTimeout(() => {
+        fetch(_sheetsProxy + '?action=healthCheck', { redirect:'follow' })
+          .then(r => r.json())
+          .then(d => {
+            if(d.missing?.length || d.empty?.length) {
+              dashLog('warn', `⚠️ KPI_Dashboard: ${d.missing?.length||0} missing, ${d.empty?.length||0} empty keys`);
+            } else {
+              dashLog('success', `✅ KPI_Dashboard healthy — ${d.total_keys} keys written`);
+            }
+          }).catch(()=>{});
+      }, 8000); // wait 8s for syncSnapshotKeys to complete first
     }
   }catch(err){
     console.warn('Report sync failed:',err.message);
