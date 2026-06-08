@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.85</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.89</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.85</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.89</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.85</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.89</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2523,7 +2523,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.85
+  // ATTRIBUTION ENGINE — v23.89
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4563,7 +4563,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.85',  // dashboard version that generated this push
+    dash_version: 'v23.89',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4913,23 +4913,114 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       }).catch(()=>{});
     }
 
-    // Trigger dept revenue recompute from Invoices tab — runs server-side in Apps Script
-    // Small payload, fast execution, writes dept_hvac_rev/dept_plumbing_rev to KPI_Dashboard
+    // Compute dept performance entirely client-side from _jobs + _estimates + _invoiceMap
+    // Then write to dedicated Dept_Performance tab — companion reads it directly via fetchCSV
+    // This bypasses the Estimates tab dependency that was causing conv=0
     if(_sheetsProxy) {
-      fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
-        body: JSON.stringify({ action:'computeDeptRevenue' })
-      }).catch(()=>{});
+      (() => {
+        const HVAC_TECHS    = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='HVAC').map(([n])=>n));
+        const PLMB_TECHS    = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='Plumbing').map(([n])=>n));
+
+        // Revenue from _invoiceMap (most accurate — all paid invoices)
+        const deptRev = {HVAC:0, Plumbing:0};
+        const deptMonthly = {HVAC:new Array(12).fill(0), Plumbing:new Array(12).fill(0)};
+        const curY = new Date().getFullYear();
+        Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
+          const job = _jobs.find(j=>j.id===jobId);
+          if(!job) return;
+          const tech = getAssigned(job);
+          const dept = DEPT_MAP[tech];
+          if(dept !== 'HVAC' && dept !== 'Plumbing') return;
+          payments.forEach(p => {
+            const d = new Date(p.date+'T12:00:00');
+            if(isNaN(d)||d.getFullYear()!==curY) return;
+            deptRev[dept]             += p.amount;
+            deptMonthly[dept][d.getMonth()] += p.amount;
+          });
+        });
+
+        // Conversion from _estimates (all 12,520 in memory — most complete)
+        const deptConv = {HVAC:{total:0,converted:0}, Plumbing:{total:0,converted:0}};
+        estimates.forEach(e => {
+          const emp  = getAssignedList(e)[0];
+          if(!emp) return;
+          const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'';
+          const dept = DEPT_MAP[tech];
+          if(dept !== 'HVAC' && dept !== 'Plumbing') return;
+          deptConv[dept].total++;
+          if(isConv(e)) deptConv[dept].converted++;
+        });
+
+        const hvacConvPct = deptConv.HVAC.total > 0
+          ? Math.round(deptConv.HVAC.converted/deptConv.HVAC.total*100) : 0;
+        const plmbConvPct = deptConv.Plumbing.total > 0
+          ? Math.round(deptConv.Plumbing.converted/deptConv.Plumbing.total*100) : 0;
+
+        // Avg job = revenue / paid jobs in dept
+        const deptPaidJobs = {HVAC:0, Plumbing:0};
+        jobs.filter(isJobPaid).forEach(j => {
+          const dept = DEPT_MAP[getAssigned(j)];
+          if(dept==='HVAC'||dept==='Plumbing') deptPaidJobs[dept]++;
+        });
+
+        const hvacAvg = deptPaidJobs.HVAC > 0 ? Math.round(deptRev.HVAC/deptPaidJobs.HVAC) : 0;
+        const plmbAvg = deptPaidJobs.Plumbing > 0 ? Math.round(deptRev.Plumbing/deptPaidJobs.Plumbing) : 0;
+
+        const depts = [
+          {
+            dept:          'HVAC',
+            rev_ytd:       Math.round(deptRev.HVAC),
+            est_total:     deptConv.HVAC.total,
+            est_converted: deptConv.HVAC.converted,
+            conv_pct:      hvacConvPct,
+            avg_job:       hvacAvg,
+            monthly_json:  JSON.stringify(deptMonthly.HVAC.map(Math.round)),
+          },
+          {
+            dept:          'Plumbing',
+            rev_ytd:       Math.round(deptRev.Plumbing),
+            est_total:     deptConv.Plumbing.total,
+            est_converted: deptConv.Plumbing.converted,
+            conv_pct:      plmbConvPct,
+            avg_job:       plmbAvg,
+            monthly_json:  JSON.stringify(deptMonthly.Plumbing.map(Math.round)),
+          },
+        ];
+
+        dashLog('info', `[DeptPerf] HVAC $${Math.round(deptRev.HVAC).toLocaleString()} conv=${hvacConvPct}% | Plumbing $${Math.round(deptRev.Plumbing).toLocaleString()} conv=${plmbConvPct}%`);
+
+        // Write to dedicated Dept_Performance tab
+        fetch(_sheetsProxy, {
+          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+          body: JSON.stringify({ action:'syncDeptPerformance', depts })
+        }).catch(()=>{});
+
+        // Also write to KPI_Dashboard for snap-based fallback
+        const deptSnapKeys = {
+          dept_hvac_rev:       Math.round(deptRev.HVAC),
+          dept_plumbing_rev:   Math.round(deptRev.Plumbing),
+          dept_hvac_conv:      JSON.stringify({total:deptConv.HVAC.total, converted:deptConv.HVAC.converted, pct:hvacConvPct}),
+          dept_plumbing_conv:  JSON.stringify({total:deptConv.Plumbing.total, converted:deptConv.Plumbing.converted, pct:plmbConvPct}),
+          dept_hvac_monthly:   JSON.stringify(deptMonthly.HVAC.map(Math.round)),
+          dept_plumbing_monthly: JSON.stringify(deptMonthly.Plumbing.map(Math.round)),
+        };
+        fetch(_sheetsProxy, {
+          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+          body: JSON.stringify({ action:'syncSnapshotKeys', keys: deptSnapKeys })
+        }).catch(()=>{});
+      })();
+    }
 
       // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
       // Push ALL companion-read keys as dedicated small POST
       // Covers every key companion reads — if syncReport 500s, companion still works
+      if(_sheetsProxy) {
       const criticalKeys = {
         // Proxy URL — enables companion to call Apps Script directly
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v23.85',
+        dash_version:        'v23.89',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5500,58 +5591,208 @@ async function fetchRCCallLog(jwt) {
     }
     console.log('[RC] Fetched', allCalls.length, 'inbound calls');
 
-    // Process by extension (who answered)
-    const byExt = {};
+    // Process calls — categorize by agent type, filter spam, tally by extension
     const monthCounts  = new Array(12).fill(0);
     const dailyCounts  = new Array(31).fill(0);
-    const hourlyCounts = new Array(24).fill(0); // today's calls by hour
+    const hourlyCounts = new Array(24).fill(0);
     const curM = now.getMonth();
     const curY = now.getFullYear();
     const todayStr = `${curY}-${String(curM+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
+    // ── EMPLOYEE CLASSIFICATION ────────────────────────────────
+    // DISPATCH AGENTS — answer incoming customer calls
+    const DISPATCH_AGENTS = new Set([
+      'Robert Danaher', 'Bob Danaher',
+      'Victoria Ellsworth', 'Victoria',
+      'Jody Serres',
+      'Eric Stoffel',   // also handles incoming calls
+      'Jason Cornell',
+    ]);
+
+    // TECHNICIANS — field staff, appear as callers (calling in) not as agents
+    const TECH_NAMES = new Set([
+      'Lukas Schlosser', 'Doug McNamara',
+      'Gannon Blaiser', 'Andy Mitchell', 'Andrew Mitchell',
+      'Mark Daniels', 'Gordon Radant', 'Jon Glenn', 'Jeff Hohenauer',
+    ]);
+
+    // QUEUE/ROUTING entries — not real people, never tally
+    const QUEUE_NAMES = new Set([
+      'Service Coordinator', 'Call all', 'Unknown',
+      'Voicemail', 'Auto-Receptionist', 'Main Line',
+      'After Hours', 'Emergency Line', 'Hunt Group',
+      'Call Queue', 'Queue', 'Park Location',
+    ]);
+
+    // Spam/hangup threshold
+    const SPAM_THRESHOLD_SEC = 60;
+
+    // Tallies
+    const byAgent    = {}; // dispatch staff answering customer calls
+    const byTech     = {}; // technician call-ins from field
+    let   spamCount  = 0;  // calls < 60s (likely spam/hangup)
+    let   spamDur    = 0;  // total duration of spam calls
+
+    const ensure = (map, name) => {
+      if(!map[name]) map[name] = { name, answered:0, total:0, totalDur:0, missed:0 };
+    };
+
     allCalls.forEach(call => {
-      const dt  = new Date(call.startTime);
-      const m   = dt.getMonth();
-      const day = dt.getDate()-1;
+      const dt      = new Date(call.startTime);
+      const m       = dt.getMonth();
+      const day     = dt.getDate()-1;
+      const callDur = parseInt(call.duration||0);
+
+      // Monthly / daily / hourly counts (all calls including spam for volume)
       if(m >= 0 && m < 12) monthCounts[m]++;
       if(m === curM && day >= 0) dailyCounts[day]++;
-
-      // Hourly — today only
       const callDateStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
       if(callDateStr === todayStr) hourlyCounts[dt.getHours()]++;
 
-      const callDur = parseInt(call.duration||0);
+      // Spam / hangup detection — short calls not worth tallying per-agent
+      if(callDur < SPAM_THRESHOLD_SEC) {
+        spamCount++;
+        spamDur += callDur;
+        return; // don't attribute to any agent
+      }
 
-      // Who answered — find the leg that accepted the call
       const legs = call.legs || [];
-      const acceptLegs = legs.filter(l => l.action === 'Accept' || l.result === 'Accepted');
-      if(acceptLegs.length > 0){
+
+      // Find who actually answered (accepted the call)
+      const acceptLegs = legs.filter(l =>
+        l.action === 'Accept' || l.result === 'Accepted' || l.result === 'Connected'
+      );
+
+      // Check if this is a TECH calling IN from the field
+      // Technician calls show the tech name in the FROM field
+      const fromName = call.from?.name || '';
+      const isTechCall = TECH_NAMES.has(fromName);
+
+      if(isTechCall) {
+        // Tally as tech call-in — answered = the call connected
+        ensure(byTech, fromName);
+        byTech[fromName].total++;
+        if(acceptLegs.length > 0 || call.result !== 'Missed') {
+          byTech[fromName].answered++;
+          byTech[fromName].totalDur += callDur;
+        } else {
+          byTech[fromName].missed++;
+        }
+        return;
+      }
+
+      // Customer call — tally against the agent who answered
+      if(acceptLegs.length > 0) {
         acceptLegs.forEach(leg => {
-          const name = leg.extension?.name || leg.to?.name || leg.extension?.extensionNumber || 'Unknown';
-          if(!byExt[name]) byExt[name] = { name, answered:0, missed:0, total:0, totalDur:0 };
-          byExt[name].answered++;
-          byExt[name].total++;
-          byExt[name].totalDur += parseInt(leg.duration || callDur || 0);
+          const name = leg.extension?.name || leg.to?.name || '';
+          if(!name || QUEUE_NAMES.has(name)) return; // skip queue entries
+          ensure(byAgent, name);
+          byAgent[name].answered++;
+          byAgent[name].total++;
+          byAgent[name].totalDur += parseInt(leg.duration || callDur || 0);
         });
       } else if(call.result === 'Missed') {
-        // Track missed against the last destination
-        const dest = legs[legs.length-1];
-        const name = dest?.extension?.name || dest?.to?.name || 'Queue';
-        if(!byExt[name]) byExt[name] = { name, answered:0, missed:0, total:0, totalDur:0 };
-        byExt[name].missed++;
-        byExt[name].total++;
+        // Missed customer call — attribute to last non-queue destination
+        const nonQueueLegs = legs.filter(l => {
+          const n = l.extension?.name || l.to?.name || '';
+          return n && !QUEUE_NAMES.has(n);
+        });
+        const dest = nonQueueLegs[nonQueueLegs.length-1] || legs[legs.length-1];
+        const name = dest?.extension?.name || dest?.to?.name || '';
+        if(name && !QUEUE_NAMES.has(name)) {
+          ensure(byAgent, name);
+          byAgent[name].missed++;
+          byAgent[name].total++;
+        }
       }
     });
 
-    const leaderboard = Object.values(byExt)
-      .filter(e => e.answered > 0) // only show agents who actually answered
-      .filter(e => !e.name.toLowerCase().includes('voicemail') && !e.name.toLowerCase().includes('queue') && !e.name.toLowerCase().includes('auto'))
+    // Build leaderboard from dispatch agents
+    const leaderboard = Object.values(byAgent)
+      .filter(e => !QUEUE_NAMES.has(e.name))
+      .filter(e => !e.name.toLowerCase().includes('voicemail'))
+      .map(e => ({
+        ...e,
+        avgDur:  e.answered > 0 ? Math.round(e.totalDur / e.answered) : 0,
+        ansRate: e.total    > 0 ? Math.round(e.answered / e.total * 100) : 0,
+        isDispatch: DISPATCH_AGENTS.has(e.name),
+      }))
+      .sort((a,b) => b.answered - a.answered);
+
+    // Tech call-in summary
+    const techCalls = Object.values(byTech)
       .map(e => ({
         ...e,
         avgDur:  e.answered > 0 ? Math.round(e.totalDur / e.answered) : 0,
         ansRate: e.total    > 0 ? Math.round(e.answered / e.total * 100) : 0,
       }))
-      .sort((a,b) => b.answered - a.answered);
+      .sort((a,b) => b.total - a.total);
+
+    console.log(`[RC] Agents: ${leaderboard.length} | Tech call-ins: ${techCalls.length} | Spam/hangup: ${spamCount} (<60s)`);
+    dashLog('info', `RC: ${allCalls.length} calls | ${leaderboard.filter(a=>a.answered>0).length} agents | ${spamCount} spam/hangups`);
+
+    // Pinned dispatch agents — always show these, even with 0 calls
+    const PINNED_AGENTS = [
+      { name: 'Robert Danaher',    display: 'Bob D.'   },
+      { name: 'Victoria Ellsworth',display: 'Victoria' },
+      { name: 'Eric Stoffel',      display: 'Eric'     },
+    ];
+
+    // Build RC_Agents tab payload
+    const pinnedNames = new Set(PINNED_AGENTS.map(p => p.name));
+    const agentsForTab = [];
+
+    // Pinned first
+    PINNED_AGENTS.forEach(pin => {
+      const live = leaderboard.find(a => a.name === pin.name);
+      agentsForTab.push({
+        name:        pin.display,
+        answered:    live?.answered    || 0,
+        total:       live?.total       || 0,
+        ans_rate:    live?.ansRate     || 0,
+        avg_dur_sec: live?.avgDur      || 0,
+        pinned:      true,
+        category:    'dispatch',
+      });
+    });
+
+    // Non-pinned dispatch agents ranked by answered
+    leaderboard
+      .filter(a => !pinnedNames.has(a.name) && a.answered > 0)
+      .slice(0, 4)
+      .forEach(a => agentsForTab.push({
+        name:        a.name,
+        answered:    a.answered,
+        total:       a.total,
+        ans_rate:    a.ansRate,
+        avg_dur_sec: a.avgDur,
+        pinned:      false,
+        category:    'dispatch',
+      }));
+
+    // Tech call-ins (separate category)
+    techCalls.slice(0, 5).forEach(t => agentsForTab.push({
+      name:        t.name.split(' ')[0], // first name only
+      answered:    t.answered,
+      total:       t.total,
+      ans_rate:    t.ansRate,
+      avg_dur_sec: t.avgDur,
+      pinned:      false,
+      category:    'tech',
+    }));
+
+    // Spam row
+    if(spamCount > 0) {
+      agentsForTab.push({
+        name:        'Spam/Hangup',
+        answered:    0,
+        total:       spamCount,
+        ans_rate:    0,
+        avg_dur_sec: spamCount > 0 ? Math.round(spamDur / spamCount) : 0,
+        pinned:      false,
+        category:    'spam',
+      });
+    }
 
     const totalAnswered = allCalls.filter(c => c.result !== 'Missed').length;
     const totalMissed   = allCalls.filter(c => c.result === 'Missed').length;
@@ -5562,9 +5803,14 @@ async function fetchRCCallLog(jwt) {
       answer_rate: ansRate, leaderboard, monthly: monthCounts,
       daily: dailyCounts, hourly: hourlyCounts
     };
-    dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} agents`);
+    dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} real agents`);
 
     if(_sheetsProxy) {
+      // Write RC_Agents tab — dedicated tab companion reads directly via fetchCSV
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        body: JSON.stringify({ action:'syncRCAgents', agents: agentsForTab })
+      }).then(()=>dashLog('info','RC agents → RC_Agents tab ✅')).catch(()=>{});
       const rcPayload = {
         total:       _rcSnap.total,
         answered:    _rcSnap.answered,
