@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.47</title>
+<title>Midstate — KPI Command Center v2.52</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.47</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.52</div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1089,44 +1089,75 @@ html, body {
 
     <!-- SCENE 13+14: COMMUNICATIONS — CallRail + RingCentral -->
     <div class="scene" id="s13">
-      <div class="scene-title">// Communications — Call Volume &amp; Agent Performance</div>
 
-      <!-- Top row: 5 metric cards -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;flex-shrink:0;padding:0 0 10px">
-        <!-- CallRail: Total inbound last 30 days -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
-          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Inbound Calls</div>
-          <div class="metric-value glow-blue" id="calls-total" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">Last 30 days</div>
-        </div>
-        <!-- CallRail: New callers last 30 days -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
-          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">New Callers</div>
-          <div class="metric-value glow-green" id="calls-new" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">First-time callers</div>
-        </div>
-        <!-- RC: Answered last 30 days -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
-          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">RC Answered</div>
-          <div class="metric-value glow-green" id="rc-answered" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">Last 30 days</div>
-        </div>
-        <!-- RC: Answer Rate -->
-        <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px">
-          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Answer Rate</div>
-          <div class="metric-value glow-blue" id="rc-rate" style="font-size:clamp(28px,4vw,52px)">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.5)">Of all inbound</div>
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:0 2px 10px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.4)">Communications</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="font-size:9px;padding:2px 8px;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.25);border-radius:99px;color:var(--blue)">CallRail + RingCentral</div>
+          <div id="calls-source" style="font-size:9px;color:rgba(255,255,255,.3)">RC + CR</div>
         </div>
       </div>
 
-      <!-- Bottom row: daily line chart (left) + agent leaderboard (right) -->
-      <div style="flex:1;min-height:0;display:grid;grid-template-columns:1.4fr 1fr;gap:12px">
+      <!-- Period-labelled metric groups -->
+      <div style="flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
 
-        <!-- Daily volume line chart -->
-        <div class="card" style="padding:14px 18px;display:flex;flex-direction:column">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
-            <div style="font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em">Daily Volume — This Month</div>
-            <div id="calls-source" style="font-size:9px;color:rgba(255,255,255,.4)">RC</div>
+        <!-- Last 30 Days group -->
+        <div style="background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.12);border-radius:10px;padding:8px 12px">
+          <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--blue);margin-bottom:8px;border-bottom:1px solid rgba(0,212,255,.15);padding-bottom:4px">📅 Last 30 Days</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--blue);font-weight:900;line-height:1" id="calls-total">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Inbound Calls</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="calls-new">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">New Callers</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="rc-answered">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">RC Answered</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--blue);font-weight:900;line-height:1" id="rc-rate">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Answer Rate</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- This Month group -->
+        <div style="background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.12);border-radius:10px;padding:8px 12px">
+          <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--green);margin-bottom:8px;border-bottom:1px solid rgba(0,255,136,.15);padding-bottom:4px">📆 This Month</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="calls-mtd">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Calls MTD</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--gold);font-weight:900;line-height:1" id="calls-today">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Today</div>
+            </div>
+            <div style="text-align:center;grid-column:1/-1">
+              <div style="font-family:var(--font-display);font-size:clamp(18px,2.5vw,30px);color:var(--orange);font-weight:900;line-height:1" id="calls-ytd">—</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Year to Date</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom row: daily chart + top agents -->
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:1.4fr 1fr;gap:10px">
+
+        <!-- Daily/Hourly rotating chart -->
+        <div class="card" style="padding:12px 16px;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-shrink:0">
+            <div style="font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.12em">
+              <span id="calls-chart-label">Daily Volume — This Month</span>
+            </div>
+            <div style="display:flex;gap:4px">
+              <div id="calls-chart-dot-0" style="width:5px;height:5px;border-radius:50%;background:var(--blue)"></div>
+              <div id="calls-chart-dot-1" style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
+            </div>
           </div>
           <div style="flex:1;min-height:0;position:relative">
             <svg id="calls-line-svg" style="width:100%;height:100%;display:block;overflow:visible"></svg>
@@ -1134,9 +1165,11 @@ html, body {
         </div>
 
         <!-- RC agent leaderboard -->
-        <div class="card" style="display:flex;flex-direction:column;padding:14px 16px;overflow:hidden">
-          <div style="font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;flex-shrink:0">🏆 Top Agents</div>
-          <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:5px"></div>
+        <div class="card" style="display:flex;flex-direction:column;padding:12px 14px;overflow:hidden">
+          <div style="font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;flex-shrink:0">
+            🏆 Top Agents — <span style="color:rgba(255,255,255,.4);font-size:8px;font-weight:400">Last 30 days · calls answered</span>
+          </div>
+          <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px"></div>
         </div>
       </div>
     </div>
@@ -1437,14 +1470,17 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.47
+      v2.52
+    </div>
+    <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
+      dash: —
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.47';
+const COMPANION_VERSION = 'v2.52';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1599,7 +1635,112 @@ const COMPANION_PHOTOS = {
 };
 function getEmpPhoto(name, kpiPhotoUrl) {
   if(kpiPhotoUrl && kpiPhotoUrl.trim()) return kpiPhotoUrl.trim();
-  return COMPANION_PHOTOS[name] || '';
+  if(!name) return '';
+  // Exact match first
+  if(COMPANION_PHOTOS[name]) return COMPANION_PHOTOS[name];
+  // Fuzzy: check if any known name starts with or contains the agent name
+  const n = name.toLowerCase().trim();
+  for(const [known, url] of Object.entries(COMPANION_PHOTOS)){
+    if(!url) continue;
+    const k = known.toLowerCase();
+    const kFirst = k.split(' ')[0];
+    const kLast  = k.split(' ').slice(-1)[0];
+    const nFirst = n.split(' ')[0];
+    // "Doug M" matches "Doug McNamara", "Victoria E" matches "Victoria Ellsworth"
+    if(n === kFirst || n.startsWith(kFirst+' ') || k.startsWith(n+' ') ||
+       (nFirst === kFirst && n.length > 2)) return url;
+  }
+  return '';
+}
+
+function renderHourlyCallChart() {
+  const snap = state.snap;
+  const svg  = el('calls-line-svg');
+  if(!svg) return;
+
+  let hourly = [];
+  try {
+    const raw = snap['rc_hourly'] || '[]';
+    hourly = JSON.parse(raw);
+  } catch(e) {}
+  if(!Array.isArray(hourly) || hourly.length < 24) hourly = new Array(24).fill(0);
+
+  const rect = svg.parentElement?.getBoundingClientRect();
+  const W = rect?.width  || 600;
+  const H = rect?.height || 200;
+  if(W < 50 || H < 30) { setTimeout(renderHourlyCallChart, 300); return; }
+
+  const now     = new Date();
+  const curHour = now.getHours();
+
+  // Business hours only: 7am → 5pm (hours 7..17 inclusive = 11 bars)
+  const BIZ_START = 7;
+  const BIZ_END   = 17; // inclusive
+  const BIZ_HOURS = BIZ_END - BIZ_START + 1; // 11
+
+  const bizSlice = hourly.slice(BIZ_START, BIZ_END + 1);
+  const maxVal   = Math.max(...bizSlice, 1);
+
+  const padL = 28, padR = 8, padT = 20, padB = 22;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW   = chartW / BIZ_HOURS;
+  const gap    = Math.max(2, barW * 0.18);
+  const bw     = barW - gap;
+
+  let out = '';
+
+  // Gridlines
+  [0.25, 0.5, 0.75, 1.0].forEach(p => {
+    const y = padT + chartH * (1 - p);
+    const v = Math.round(maxVal * p);
+    out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;
+    out += `<text x="${(padL-3).toFixed(1)}" y="${(y+3).toFixed(1)}" fill="rgba(255,255,255,.3)" font-size="8" text-anchor="end">${v}</text>`;
+  });
+
+  // Bars — one per business hour
+  for(let i = 0; i < BIZ_HOURS; i++){
+    const h     = BIZ_START + i;
+    const count = hourly[h] || 0;
+    const x     = padL + i * barW + gap / 2;
+    const cx    = x + bw / 2;
+    const isFut = h > curHour;
+    const isCur = h === curHour;
+    const barH  = isFut ? 0 : Math.max(count > 0 ? 2 : 0, chartH * (count / maxVal));
+    const y     = padT + chartH - barH;
+
+    const fill = isFut ? 'rgba(255,255,255,.04)'
+      : isCur  ? 'var(--blue)'
+      :           'rgba(0,212,255,.55)';
+
+    // Track
+    out += `<rect x="${x.toFixed(1)}" y="${padT}" width="${bw.toFixed(1)}" height="${chartH}" fill="rgba(255,255,255,.02)" rx="2"/>`;
+    if(barH > 0){
+      out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${barH.toFixed(1)}" fill="${fill}" rx="2"/>`;
+    }
+    if(count > 0 && !isFut){
+      const fs = bw > 40 ? 10 : 8;
+      out += `<text x="${cx.toFixed(1)}" y="${Math.max(padT+fs, y-2).toFixed(1)}" fill="rgba(255,255,255,.85)" font-size="${fs}" text-anchor="middle">${count}</text>`;
+    }
+
+    // Hour labels
+    const ampm = h < 12 ? 'a' : 'p';
+    const h12  = h % 12 || 12;
+    out += `<text x="${cx.toFixed(1)}" y="${(H-4).toFixed(1)}" fill="${isCur ? 'var(--blue)' : 'rgba(255,255,255,.5)'}" font-size="${bw > 35 ? 10 : 8}" text-anchor="middle" font-weight="${isCur ? '700' : '400'}">${h12}${ampm}</text>`;
+  }
+
+  // Current hour indicator
+  if(curHour >= BIZ_START && curHour <= BIZ_END){
+    const ci  = curHour - BIZ_START;
+    const nowX = padL + ci * barW + bw / 2 + gap / 2;
+    out += `<line x1="${nowX.toFixed(1)}" y1="${padT}" x2="${nowX.toFixed(1)}" y2="${(padT+chartH).toFixed(1)}" stroke="var(--blue)" stroke-width="1.5" stroke-dasharray="3,2" opacity=".7"/>`;
+  }
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.removeAttribute('preserveAspectRatio');
+  svg.style.width  = '100%';
+  svg.style.height = '100%';
+  svg.innerHTML = out;
 }
 
 // Force-include DEPT_MAP employees in KPI leaderboard
@@ -1743,6 +1884,17 @@ async function loadData() {
           state.snap[key] = row[1];
         } else {
           state.snap[key] = row[1];
+          // Show dashboard version in status bar
+          if(key === 'dash_version' && row[1]) {
+            const dv = document.getElementById('dash-ver-display');
+            if(dv) dv.textContent = 'dash: ' + row[1];
+          }
+          if(key === 'pull_date' && row[1]) {
+            const dv = document.getElementById('dash-ver-display');
+            if(dv && !state.snap['dash_version']) {
+              dv.textContent = 'pushed: ' + row[1];
+            }
+          }
         }
       });
     }
@@ -1970,7 +2122,7 @@ function hideNoDataState() {
 function updateS1() {
   const snap = state.snap;
 
-  const revMonthly = num(snap['rev_monthly']||snap['total_revenue']||0);
+  const revMonthly = num(snap['rev_monthly']||0);
   const revAnnual  = num(snap['rev_annual']||0);
   const goalAnnual = num(snap['goal_annual']||3000000);
   const goalMonthly= num(snap['goal_monthly']||250000);
@@ -2718,12 +2870,11 @@ function updateS14() { updateS13(); } // S14 merged — keep for compat
 function updateS13() {
   const snap = state.snap;
 
-  // RC metrics
+  // RC metrics (last 30 days)
   const rcAnswered = parseInt(snap['rc_answered']||0)||0;
-  const rcMissed   = parseInt(snap['rc_missed']||0)||0;
   const rcRate     = parseInt(snap['rc_answer_rate']||0)||0;
 
-  // CallRail metrics
+  // CallRail metrics (last 30 days)
   const crTotal = parseInt(snap['calls_total']||0)||0;
   const crNew   = parseInt(snap['calls_new']||0)||0;
 
@@ -2731,53 +2882,107 @@ function updateS13() {
   if(el('calls-new'))   el('calls-new').textContent   = crNew   || '—';
   if(el('rc-answered')) el('rc-answered').textContent = rcAnswered || '—';
   if(el('rc-rate'))     el('rc-rate').textContent     = rcRate > 0 ? rcRate+'%' : '—';
-  if(el('rc-missed'))   el('rc-missed').textContent   = rcMissed || '—';
   if(el('calls-source'))el('calls-source').textContent= rcAnswered > 0 ? 'RC + CR' : 'CallRail';
+
+  // This Month / MTD / Today / YTD from rc_daily array
+  let daily = [];
+  try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
+  if(!Array.isArray(daily) || !daily.length) daily = new Array(31).fill(0);
+
+  const now     = new Date();
+  const today   = now.getDate();
+  const mtdTotal = daily.slice(0, today).reduce((s,v)=>s+(v||0), 0);
+  const todayVal = daily[today-1] || 0;
+
+  // YTD from monthly totals
+  let rcMonthly = [];
+  try { rcMonthly = JSON.parse(snap['rc_monthly']||'[]'); } catch(e) {}
+  const ytdTotal = Array.isArray(rcMonthly) ? rcMonthly.reduce((s,v)=>s+(v||0),0) : 0;
+
+  if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal  || '—';
+  if(el('calls-today')) el('calls-today').textContent = todayVal  || '—';
+  if(el('calls-ytd'))   el('calls-ytd').textContent   = ytdTotal > 0 ? ytdTotal.toLocaleString() : '—';
 
   // RC Agent leaderboard
   let leaderboard = [];
   try { leaderboard = JSON.parse(snap['rc_leaderboard']||'[]'); } catch(e) {}
   const lbEl = el('rc-leaderboard');
   const answeredAgents = leaderboard.filter(a => (a.answered||0) > 0);
+
   if(lbEl && answeredAgents.length){
     const maxAns = answeredAgents[0]?.answered || 1;
     const colors = ['#FFD700','#C0C0C0','#CD7F32','#00D4FF','#00FF88','#A855F7','#F97316','#EF4444'];
-    lbEl.innerHTML = answeredAgents.slice(0,8).map((agent, i) => {
-      const pct  = Math.round(agent.answered/maxAns*100);
-      const col  = colors[i] || '#6b7280';
-      const rate = agent.total > 0 ? Math.round(agent.answered/agent.total*100) : 0;
-      const avgMin = Math.floor((agent.avgDur||0)/60);
-      const avgSec = String((agent.avgDur||0)%60).padStart(2,'0');
-      const avgStr = agent.avgDur > 0 ? `${avgMin}:${avgSec}` : '—';
-      const photo = getEmpPhoto(agent.name, '');
-      const firstName = (agent.name||'Agent').split(' ')[0];
-      return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div style="font-size:10px;width:16px;text-align:center;color:${col};font-weight:800;flex-shrink:0">${i===0?'①':i===1?'②':i===2?'③':(i+1)}</div>
-        ${photo?`<img src="${photo}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid ${col}55" onerror="this.style.display='none'">`:''}
+    const count  = answeredAgents.length;
+    // Scale font based on agent count
+    const namFs  = count <= 4 ? '13px' : count <= 6 ? '11px' : '10px';
+    const valFs  = count <= 4 ? '15px' : count <= 6 ? '13px' : '11px';
+    const imgSz  = count <= 4 ? '28px' : count <= 6 ? '22px' : '18px';
+    const pad    = count <= 4 ? '5px 0' : '3px 0';
+
+    lbEl.innerHTML = answeredAgents.slice(0, 8).map((agent, i) => {
+      const pct     = Math.round(agent.answered / maxAns * 100);
+      const col     = colors[i] || '#6b7280';
+      const rate    = agent.total > 0 ? Math.round(agent.answered / agent.total * 100) : 0;
+      const avgMin  = Math.floor((agent.avgDur||0)/60);
+      const avgSec  = String((agent.avgDur||0)%60).padStart(2,'0');
+      const avgStr  = agent.avgDur > 0 ? `${avgMin}:${avgSec}` : '—';
+      const photo   = getEmpPhoto(agent.name, '');
+      const name    = (agent.name||'Agent').split(' ')[0];
+      const medal   = i===0?'①':i===1?'②':i===2?'③':(i+1);
+      return `<div style="display:flex;align-items:center;gap:6px;padding:${pad};border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:10px;width:14px;text-align:center;color:${col};font-weight:800;flex-shrink:0">${medal}</div>
+        ${photo?`<img src="${photo}" style="width:${imgSz};height:${imgSz};border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid ${col}55" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${firstName}</div>
+          <div style="font-size:${namFs};font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
           <div style="height:2px;background:rgba(255,255,255,.07);border-radius:1px;margin-top:2px;overflow:hidden">
             <div style="height:100%;width:${pct}%;background:${col}"></div>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0;min-width:60px">
-          <div style="font-family:var(--font-mono);font-size:13px;font-weight:900;color:${col}">${agent.answered}</div>
-          <div style="font-size:8px;color:rgba(255,255,255,.45)">${rate}% · ${avgStr}</div>
+        <div style="text-align:right;flex-shrink:0;min-width:54px">
+          <div style="font-family:var(--font-mono);font-size:${valFs};font-weight:900;color:${col}">${agent.answered}</div>
+          <div style="font-size:7px;color:rgba(255,255,255,.4)">${rate}% · ${avgStr}</div>
         </div>
       </div>`;
     }).join('');
-  } else if(lbEl){
-    lbEl.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:11px;text-align:center;padding:12px 0">Fetch RingCentral calls to see agents</div>';
+  } else if(lbEl) {
+    lbEl.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:11px;text-align:center;padding:16px 0;line-height:1.6">RC data not yet pushed<br><span style="font-size:9px">Pull report → Push to Companion</span></div>';
   }
 
-  renderCallsLineChart();
+  renderCallsChart();
 
-  // Wire ResizeObserver so re-renders when scene becomes visible / fullscreen
+  // Rotate chart every 15s: MTD ↔ Today Hourly
+  if(window._callsChartTimer) clearInterval(window._callsChartTimer);
+  let _chartMode = 0;
+  window._callsChartTimer = setInterval(() => {
+    _chartMode = (_chartMode + 1) % 2;
+    const d0 = el('calls-chart-dot-0'), d1 = el('calls-chart-dot-1');
+    const lbl = el('calls-chart-label');
+    if(d0) d0.style.background = _chartMode===0 ? 'var(--blue)' : 'rgba(255,255,255,.2)';
+    if(d1) d1.style.background = _chartMode===1 ? 'var(--blue)' : 'rgba(255,255,255,.2)';
+    if(_chartMode === 0) {
+      if(lbl) lbl.textContent = 'Daily Volume — This Month';
+      renderCallsLineChart();
+    } else {
+      if(lbl) lbl.textContent = "Today's Calls — By Hour";
+      renderHourlyCallChart();
+    }
+  }, 15000);
+
+  // Wire ResizeObserver
   const svgEl = el('calls-line-svg');
   if(svgEl && svgEl.parentElement && !_callsResizeObs && window.ResizeObserver) {
-    _callsResizeObs = new ResizeObserver(() => renderCallsLineChart());
+    _callsResizeObs = new ResizeObserver(() => renderCallsChart());
     _callsResizeObs.observe(svgEl.parentElement);
   }
+}
+
+function renderCallsChart() {
+  const lbl = el('calls-chart-label');
+  if(lbl) lbl.textContent = 'Daily Volume — This Month';
+  const d0 = el('calls-chart-dot-0'), d1 = el('calls-chart-dot-1');
+  if(d0) d0.style.background = 'var(--blue)';
+  if(d1) d1.style.background = 'rgba(255,255,255,.2)';
+  renderCallsLineChart();
 }
 
 function renderCallsLineChart() {
@@ -3101,7 +3306,10 @@ function goScene(idx) {
   // Stop self-managed timers when leaving those scenes
   if (SCENES[state.currentScene] === 's7') { if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; } }
   if (SCENES[state.currentScene] === 's2') { if (window._gapRotTimer) { clearInterval(window._gapRotTimer); window._gapRotTimer = null; } }
-  if (SCENES[state.currentScene] === 's13') { if (_callsPeriodTimer) { clearInterval(_callsPeriodTimer); _callsPeriodTimer = null; } }
+  if (SCENES[state.currentScene] === 's13') {
+    if (_callsPeriodTimer) { clearInterval(_callsPeriodTimer); _callsPeriodTimer = null; }
+    if (window._callsChartTimer) { clearInterval(window._callsChartTimer); window._callsChartTimer = null; }
+  }
   if (SCENES[state.currentScene] === 's8') { if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; } }
   if (SCENES[state.currentScene] === 's11') { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
   if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
