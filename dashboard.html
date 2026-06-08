@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.64</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.66</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.64</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.66</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.64</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.66</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2506,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.64
+  // ATTRIBUTION ENGINE — v23.66
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4494,7 +4494,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.64',  // dashboard version that generated this push
+    dash_version: 'v23.66',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4764,7 +4764,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
       // These are the exact values the companion displays on every scene
       const criticalKeys = {
-        dash_version:        'v23.64',
+        dash_version:        'v23.66',
         monthly_revenue:     dashboardSnapshot.monthly_revenue,
         rev_annual:          dashboardSnapshot.rev_annual,
         rev_monthly:         dashboardSnapshot.rev_monthly,
@@ -6241,50 +6241,64 @@ function getRevenueForPeriod(period){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  // Sum invoice payments for a job that fall within the date test.
-  // Uses _payments (from _invoiceMap) when available — same data the Jobs tab renders.
-  // Falls back to completed_at only when no invoice data exists.
-  function sumJobRevForPeriod(j, dateTest){
-    if(isReturnVisit(j)) return 0;
-    if(j._payments && j._payments.length > 0){
-      return j._payments
-        .filter(p => { const d = new Date(p.date+'T12:00:00'); return !isNaN(d) && dateTest(d); })
-        .reduce((s, p) => s + p.amount, 0);
-    }
-    // No invoice data — fall back to completed_at
-    const ts = j.work_timestamps?.completed_at || j.completed_at;
-    if(!ts) return 0;
-    const d = new Date(ts);
-    if(isNaN(d) || !dateTest(d)) return 0;
-    return getJobRevenue(j);
+  // PRIMARY SOURCE: _invoiceMap — every paid invoice for the year, keyed by job ID.
+  // This is the most direct source: sum payment amounts by paid_at date.
+  // Does NOT depend on _jobs being in scope — avoids the scheduled_start filter gap
+  // (jobs scheduled before Jan 1 but paid this year would be missed via _jobs).
+  const allPayments = [];
+  if(_invoiceMap && Object.keys(_invoiceMap).length > 0){
+    Object.values(_invoiceMap).forEach(payments => {
+      payments.forEach(p => {
+        if(p.date && p.amount > 0) allPayments.push(p);
+      });
+    });
   }
 
-  // SOURCE OF TRUTH: _jobs with _invoiceMap attached — exactly what the Jobs & Revenue tab shows.
-  // _allYearJobs is a secondary YTD fetch used only for annual/monthly charts; do NOT use it
-  // for period revenue because it may be fetched at a different time and miss today's payments.
-  // If _jobs is empty (first load), fall back to _allYearJobs.
-  const paidJobs = _jobs.length > 0
-    ? _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j))
-    : _allYearJobs;
+  // FALLBACK: if _invoiceMap is empty (edge case), use _jobs with _payments attached
+  const useInvoiceMap = allPayments.length > 0;
+
+  function sumPaymentsByDate(dateTest){
+    if(useInvoiceMap){
+      return allPayments.reduce((s, p) => {
+        const d = new Date(p.date + 'T12:00:00');
+        return isNaN(d) || !dateTest(d) ? s : s + p.amount;
+      }, 0);
+    }
+    // Fallback via _jobs
+    const paidJobs = _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j));
+    return paidJobs.reduce((s, j) => {
+      if(isReturnVisit(j)) return s;
+      if(j._payments?.length > 0){
+        return s + j._payments.reduce((ps, p) => {
+          const d = new Date(p.date + 'T12:00:00');
+          return isNaN(d) || !dateTest(d) ? ps : ps + p.amount;
+        }, 0);
+      }
+      const ts = j.work_timestamps?.completed_at || j.completed_at;
+      if(!ts) return s;
+      const d = new Date(ts);
+      return isNaN(d) || !dateTest(d) ? s : s + getJobRevenue(j);
+    }, 0);
+  }
 
   if(period==='year'){
     const yr = now.getFullYear();
-    return paidJobs.reduce((s,j) =>
-      s + sumJobRevForPeriod(j, d => d.getFullYear() === yr), 0);
+    const total = sumPaymentsByDate(d => d.getFullYear() === yr);
+    return total;
   }
 
   if(period==='quarter'){
     const yr = now.getFullYear();
     const q  = Math.floor(now.getMonth()/3);
-    return paidJobs.reduce((s,j) =>
-      s + sumJobRevForPeriod(j, d => d.getFullYear()===yr && Math.floor(d.getMonth()/3)===q), 0);
+    return sumPaymentsByDate(d => d.getFullYear()===yr && Math.floor(d.getMonth()/3)===q);
   }
 
   if(period==='month'){
     const yr = now.getFullYear();
     const mo = now.getMonth();
-    return paidJobs.reduce((s,j) =>
-      s + sumJobRevForPeriod(j, d => d.getFullYear()===yr && d.getMonth()===mo), 0);
+    const total = sumPaymentsByDate(d => d.getFullYear()===yr && d.getMonth()===mo);
+    console.log(`[MTD Rev] yr=${yr} mo=${mo} source=${useInvoiceMap?'_invoiceMap('+allPayments.length+' payments)':'_jobs fallback'} total=$${total.toFixed(2)}`);
+    return total;
   }
 
   if(period==='week'){
@@ -6293,24 +6307,22 @@ function getRevenueForPeriod(period){
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - daysFromMon);
     startOfWeek.setHours(0, 0, 0, 0);
-    const weekTotal = paidJobs.reduce((s,j) =>
-      s + sumJobRevForPeriod(j, d => d >= startOfWeek && d.getFullYear()===now.getFullYear()), 0);
-    console.log(`[Weekly Rev] Mon=${toLocalDate(startOfWeek)}, $${weekTotal.toFixed(2)}`);
-    return weekTotal;
+    const total = sumPaymentsByDate(d => d >= startOfWeek && d.getFullYear()===now.getFullYear());
+    console.log(`[Weekly Rev] Mon=${toLocalDate(startOfWeek)}, $${total.toFixed(2)}`);
+    return total;
   }
 
   if(period==='day'){
     const todayLocal = toLocalDate(now);
-    let todayTotal = 0;
-    paidJobs.forEach(j => {
-      const contrib = sumJobRevForPeriod(j, d => toLocalDate(d) === todayLocal);
-      if(contrib > 0){
-        console.log(`  ▸ #${j.job_number||j.id} | ${getCust(j)} | $${contrib.toFixed(2)}`);
-        todayTotal += contrib;
-      }
-    });
-    console.log(`[Daily Rev] today=${todayLocal}, source=_jobs(${paidJobs.length}), $${todayTotal.toFixed(2)}`);
-    return todayTotal;
+    const total = sumPaymentsByDate(d => toLocalDate(d) === todayLocal);
+    console.log(`[Daily Rev] today=${todayLocal} source=${useInvoiceMap?'_invoiceMap':'_jobs'} total=$${total.toFixed(2)}`);
+    if(useInvoiceMap){
+      // Log individual today payments for verification
+      allPayments.filter(p => p.date === todayLocal).forEach(p => {
+        console.log(`  ▸ Invoice ${p.number||'?'} | $${p.amount.toFixed(2)}`);
+      });
+    }
+    return total;
   }
 
   return 0;
