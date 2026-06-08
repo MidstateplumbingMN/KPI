@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.73</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.74</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.73</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.74</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.73</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.74</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2515,7 +2515,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.73
+  // ATTRIBUTION ENGINE — v23.74
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4409,7 +4409,26 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
           crUrl = `${_workerUrl}/callrail/v3/a/${crAccount}/calls.json?${params}`;
         }
         const crRes = await fetch(crUrl, { headers: { 'Authorization': `Token token="${crKey}"` } });
-        if(!crRes.ok) break;
+        if(!crRes.ok) {
+          dashLog('warn', `CallRail: Worker returned ${crRes.status} — trying Apps Script proxy`);
+          // Fallback: route through Apps Script proxy
+          if(_sheetsProxy) {
+            const proxyRes = await fetch(_sheetsProxy, {
+              method:'POST', headers:{'Content-Type':'text/plain'},
+              body: JSON.stringify({ action:'callrailProxy', url: crUrl.replace(_workerUrl+'/callrail','https://api.callrail.com'), apiKey: crKey })
+            }).catch(()=>null);
+            if(proxyRes?.ok) {
+              const pd = await proxyRes.json();
+              if(pd.success && pd.data) {
+                crCalls = [...crCalls, ...(pd.data.calls||[])];
+                nextPageUrl = pd.data.has_next_page ? pd.data.next_page : null;
+                crPage++;
+                continue;
+              }
+            }
+          }
+          break;
+        }
         const crData = await crRes.json();
         crCalls = [...crCalls, ...(crData.calls||[])];
         nextPageUrl = crData.has_next_page ? crData.next_page : null;
@@ -4523,7 +4542,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.73',  // dashboard version that generated this push
+    dash_version: 'v23.74',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4821,7 +4840,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Covers every key companion reads — if syncReport 500s, companion still works
       const criticalKeys = {
         // Identity
-        dash_version:        'v23.73',
+        dash_version:        'v23.74',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
