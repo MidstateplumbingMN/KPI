@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.79</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.81</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.79</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.81</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.79</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.81</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2515,7 +2515,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.79
+  // ATTRIBUTION ENGINE — v23.81
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4555,7 +4555,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.79',  // dashboard version that generated this push
+    dash_version: 'v23.81',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4564,7 +4564,38 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     rev_quarterly: revQuarterly,
     rev_monthly: revMonthly,
     rev_weekly: revWeekly,
+    // Daily revenue split — for Win the Day scene
+    // rev_daily = ALL payments received today (total collected)
+    // rev_daily_today_jobs = payments on jobs completed TODAY
+    // rev_daily_past_jobs  = payments on jobs completed on a PREVIOUS day (final payments etc.)
     rev_daily: revDaily,
+    rev_daily_today_jobs: (() => {
+      if(!_invoiceMap || !Object.keys(_invoiceMap).length) return 0;
+      const todayLocal = toLocalDate(new Date());
+      let total = 0;
+      Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
+        const job = _jobs.find(j => j.id === jobId);
+        const completedAt = job?.work_timestamps?.completed_at || job?.completed_at || '';
+        const completedDate = completedAt ? toLocalDate(new Date(completedAt)) : '';
+        if(completedDate !== todayLocal) return;
+        payments.forEach(p => { if(p.date === todayLocal) total += p.amount; });
+      });
+      return total;
+    })(),
+    rev_daily_past_jobs: (() => {
+      if(!_invoiceMap || !Object.keys(_invoiceMap).length) return 0;
+      const todayLocal = toLocalDate(new Date());
+      let total = 0;
+      Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
+        const job = _jobs.find(j => j.id === jobId);
+        const completedAt = job?.work_timestamps?.completed_at || job?.completed_at || '';
+        const completedDate = completedAt ? toLocalDate(new Date(completedAt)) : '';
+        // Past jobs = completed before today OR not in _jobs range (pre-Jan)
+        if(completedDate === todayLocal) return;
+        payments.forEach(p => { if(p.date === todayLocal) total += p.amount; });
+      });
+      return total;
+    })(),
 
     // Jobs completed today (scheduled/completed_at date = today)
     // NOT payment date — "Win the Day" shows work done today, not invoices cleared
@@ -4598,30 +4629,37 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
     // Department conversion — computed from _estimates in memory (same pull, always current)
     // DEPT_MAP matches tech name to dept — same logic as getDept()
+    // Department conversion — computed from estimates using canonical getAssignedList()
+    // Uses same employee extraction as renderKPI() to ensure consistent name matching
     dept_hvac_conv: (() => {
       const hvacTechs = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='HVAC').map(([n])=>n));
       let total=0, converted=0;
       estimates.forEach(e => {
-        const tech = ((e.employee?.first_name||'')+' '+(e.employee?.last_name||'')).trim()
-          || e.tech || '';
-        if(!hvacTechs.has(tech)) return;
+        // Use getAssignedList — handles assigned_employees[], e.employee, e.pro, e.technician
+        const emp = getAssignedList(e)[0];
+        if(!emp) return;
+        const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim() || emp.name || '';
+        if(!tech || !hvacTechs.has(tech)) return;
         total++;
         if(isConv(e)) converted++;
       });
       const pct = total > 0 ? Math.round(converted/total*100) : 0;
+      console.log(`[DeptConv] HVAC: ${total} estimates, ${converted} converted, ${pct}%`);
       return JSON.stringify({total, converted, pct});
     })(),
     dept_plumbing_conv: (() => {
       const plmbTechs = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='Plumbing').map(([n])=>n));
       let total=0, converted=0;
       estimates.forEach(e => {
-        const tech = ((e.employee?.first_name||'')+' '+(e.employee?.last_name||'')).trim()
-          || e.tech || '';
-        if(!plmbTechs.has(tech)) return;
+        const emp = getAssignedList(e)[0];
+        if(!emp) return;
+        const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim() || emp.name || '';
+        if(!tech || !plmbTechs.has(tech)) return;
         total++;
         if(isConv(e)) converted++;
       });
       const pct = total > 0 ? Math.round(converted/total*100) : 0;
+      console.log(`[DeptConv] Plumbing: ${total} estimates, ${converted} converted, ${pct}%`);
       return JSON.stringify({total, converted, pct});
     })(),
 
@@ -4865,7 +4903,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v23.79',
+        dash_version:        'v23.81',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -4876,6 +4914,8 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         rev_quarterly:       dashboardSnapshot.rev_quarterly,
         rev_weekly:          dashboardSnapshot.rev_weekly,
         rev_daily:           dashboardSnapshot.rev_daily,
+        rev_daily_today_jobs:dashboardSnapshot.rev_daily_today_jobs,
+        rev_daily_past_jobs: dashboardSnapshot.rev_daily_past_jobs,
         total_revenue:       dashboardSnapshot.total_revenue,
         // Jobs / estimates
         total_jobs:          dashboardSnapshot.total_jobs,
@@ -6500,14 +6540,30 @@ function getRevenueForPeriod(period){
 
   if(period==='day'){
     const todayLocal = toLocalDate(now);
-    const total = sumPaymentsByDate(d => toLocalDate(d) === todayLocal);
-    console.log(`[Daily Rev] today=${todayLocal} source=${useInvoiceMap?'_invoiceMap':'_jobs'} total=$${total.toFixed(2)}`);
-    if(useInvoiceMap){
-      // Log individual today payments for verification
-      allPayments.filter(p => p.date === todayLocal).forEach(p => {
-        console.log(`  ▸ Invoice ${p.number||'?'} | $${p.amount.toFixed(2)}`);
-      });
-    }
+    const todayPayments = allPayments.filter(p => p.date === todayLocal);
+    const total = todayPayments.reduce((s,p) => s+p.amount, 0);
+
+    // Split: payments on jobs completed TODAY vs payments on PAST jobs
+    // Used by S6 "Win the Day" to show Revenue Today vs Collected Past
+    let todayJobsRev = 0, pastJobsRev = 0;
+    todayPayments.forEach(p => {
+      // Find the job this payment belongs to
+      const job = _jobs.find(j => j.id === p.jobId);
+      if(job) {
+        const completedAt = job.work_timestamps?.completed_at || job.completed_at || '';
+        const completedDate = completedAt ? toLocalDate(new Date(completedAt)) : '';
+        if(completedDate === todayLocal) todayJobsRev += p.amount;
+        else pastJobsRev += p.amount;
+      } else {
+        // Job not in _jobs range (pre-Jan job) — count as past
+        pastJobsRev += p.amount;
+      }
+    });
+
+    console.log(`[Daily Rev] today=${todayLocal} total=$${total.toFixed(2)} todayJobs=$${todayJobsRev.toFixed(2)} pastJobs=$${pastJobsRev.toFixed(2)}`);
+    todayPayments.forEach(p => {
+      console.log(`  ▸ Invoice ${p.number||'?'} | $${p.amount.toFixed(2)}`);
+    });
     return total;
   }
 
