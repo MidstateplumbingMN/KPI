@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.52</title>
+<title>Midstate — KPI Command Center v2.55</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -878,7 +878,7 @@ html, body {
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none">v2.52</div>
+  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none"></div>
 
   <!-- Dots — top center, subtle -->
   <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
@@ -1470,7 +1470,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.52
+      v2.55
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1480,7 +1480,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.52';
+const COMPANION_VERSION = 'v2.55';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1581,6 +1581,7 @@ const CONFIG = {
 // ============================================================
 let state = {
   snap: {},      // pre-computed dashboard snapshot (from KPI_Dashboard tab)
+  proxyUrl: '',  // Apps Script proxy URL — read from snap.proxy_url, enables direct content fetches
   announcements: [], // motivation quotes/announcements
   wbSettings: {logo_url:'https://midstateplumbingmn.github.io/KPI/images/logo.png'},    // wallboard settings (logo, theme, weather, gap)
   birthdays: [],     // team birthdays/anniversaries
@@ -1870,16 +1871,44 @@ async function loadData() {
         // monthly_revenue is stored as JSON array
         if (key === 'monthly_revenue') {
           try { state.snap._monthly = JSON.parse(row[1]||'[]'); } catch(e) { state.snap._monthly = []; }
+        } else if (key === 'proxy_url') {
+          // Apps Script proxy URL — store so companion can call it directly
+          if(row[1] && row[1].includes('script.google.com')) {
+            state.proxyUrl = row[1];
+            console.log('[Companion] Proxy URL loaded — direct content fetches enabled');
+          }
+          state.snap[key] = row[1];
         } else if (key === 'holidays_json') {
           try {
             const h = JSON.parse(row[1]||'[]');
-            state.holidays = Array.isArray(h) ? h : [];
+            if(Array.isArray(h) && h.length) state.holidays = h;
           } catch(e) {}
           state.snap[key] = row[1];
         } else if (key === 'birthdays_json') {
           try {
             const b = JSON.parse(row[1]||'[]');
-            state.birthdays = Array.isArray(b) ? b : [];
+            if(Array.isArray(b) && b.length) state.birthdays = b;
+          } catch(e) {}
+          state.snap[key] = row[1];
+        } else if (key === 'spotlights_json') {
+          try {
+            const s = JSON.parse(row[1]||'[]');
+            if(Array.isArray(s) && s.length) _spotlights = s;
+          } catch(e) {}
+          state.snap[key] = row[1];
+        } else if (key === 'promos_json') {
+          try {
+            const p = JSON.parse(row[1]||'[]');
+            if(Array.isArray(p) && p.length) {
+              const today = new Date().toISOString().split('T')[0];
+              _promos = p.filter(x => !x.end || x.end >= today);
+            }
+          } catch(e) {}
+          state.snap[key] = row[1];
+        } else if (key === 'announcements_json') {
+          try {
+            const a = JSON.parse(row[1]||'[]');
+            if(Array.isArray(a) && a.length) state.announcements = a;
           } catch(e) {}
           state.snap[key] = row[1];
         } else {
@@ -3552,42 +3581,88 @@ let _spIdx = 0;
 let _spItems = []; // combined auto + manual items
 let _spRotateTimer = null;
 
-async function loadSpotlightData() {
-  // Load announcements for motivation scene
+// ============================================================
+// PROXY GET — calls Apps Script directly for live content data
+// URL comes from state.proxyUrl (written to KPI_Dashboard by dashboard push)
+// Falls back to fetchCSV if proxy unavailable
+// ============================================================
+async function proxyGet(action) {
+  if(!state.proxyUrl) return null;
   try {
-    const annRows = await fetchCSV('Announcements');
-    state.announcements = annRows.slice(1)
-      .filter(r => r && r[0])
-      .map(r => ({ id:r[0], message:r[1]||'', author:r[2]||'Midstate Team', type:r[3]||'motivation', photoUrl:r[4]||'' }));
-  } catch(e) { state.announcements = []; }
-
-  try {
-    // Try to load from Sheets (Spotlights tab)
-    const rows = await fetchCSV('Spotlights');
-    _spotlights = rows.slice(1)
-      .filter(r => r && r[0])
-      .map(r => ({
-        id: r[0], name: r[1]||'', type: r[2]||'⭐ Top Performer',
-        praise: r[3]||'', photoUrl: r[4]||'', dept: r[5]||'',
-        createdAt: r[6]||''
-      }));
+    const url = `${state.proxyUrl}?action=${action}`;
+    const res = await Promise.race([
+      fetch(url, { redirect:'follow', mode:'cors' }),
+      new Promise((_,r) => setTimeout(() => r(new Error('timeout')), 8000))
+    ]);
+    if(!res || !res.ok) return null;
+    const data = await res.json();
+    return data.success ? data : null;
   } catch(e) {
-    // Spotlights tab may not exist yet — silently ignore
-    _spotlights = [];
+    console.warn(`[Proxy] ${action} failed:`, e.message);
+    return null;
   }
-  try {
-    const rows = await fetchCSV('Promotions');
-    const today = new Date().toISOString().split('T')[0];
-    _promos = rows.slice(1)
-      .filter(r => r && r[0])
-      .filter(r => !r[4] || r[4] >= today) // not expired
-      .map(r => ({
-        id: r[0], title: r[1]||'', offer: r[2]||'',
-        desc: r[3]||'', end: r[4]||'', color: r[5]||'#E8640A',
-        banner: r[6]||'', imageUrl: r[6]||''  // imageUrl alias for display
-      }));
-  } catch(e) {
-    _promos = [];
+}
+
+async function loadSpotlightData() {
+  // STRATEGY 1: Call Apps Script proxy directly (live data, no 30s lag)
+  // STRATEGY 2: Read from KPI_Dashboard snapshot JSON blobs (written on push)
+  // STRATEGY 3: fetchCSV from published tab (fallback, requires tab to be published)
+
+  // ── Spotlights + Promos ──
+  if(!_spotlights?.length || !_promos?.length) {
+    // Try proxy first
+    const proxyData = await proxyGet('getSpotlights');
+    if(proxyData) {
+      if(proxyData.spotlights?.length) {
+        _spotlights = proxyData.spotlights;
+        console.log('[Spotlights] Loaded', _spotlights.length, 'via proxy');
+      }
+      if(proxyData.promos?.length) {
+        const today = new Date().toISOString().split('T')[0];
+        _promos = proxyData.promos.filter(p => !p.end || p.end >= today);
+        console.log('[Promotions] Loaded', _promos.length, 'via proxy');
+      }
+    }
+    // Strategy 2: already parsed from snap in loadData() — check state
+    if(!_spotlights?.length) {
+      try {
+        const rows = await fetchCSV('Spotlights');
+        _spotlights = rows.slice(1).filter(r => r && r[0]).map(r => ({
+          id:r[0], name:r[1]||'', type:r[2]||'⭐ Top Performer',
+          praise:r[3]||'', photoUrl:r[4]||'', dept:r[5]||'', createdAt:r[6]||''
+        }));
+        console.log('[Spotlights] Loaded', _spotlights.length, 'via CSV fallback');
+      } catch(e) { _spotlights = []; }
+    }
+    if(!_promos?.length) {
+      try {
+        const rows = await fetchCSV('Promotions');
+        const today = new Date().toISOString().split('T')[0];
+        _promos = rows.slice(1).filter(r => r && r[0])
+          .filter(r => !r[4] || r[4] >= today)
+          .map(r => ({
+            id:r[0], title:r[1]||'', offer:r[2]||'', desc:r[3]||'',
+            end:r[4]||'', color:r[5]||'#E8640A', banner:r[6]||'', imageUrl:r[6]||''
+          }));
+        console.log('[Promotions] Loaded', _promos.length, 'via CSV fallback');
+      } catch(e) { _promos = []; }
+    }
+  }
+
+  // ── Announcements ──
+  if(!state.announcements?.length) {
+    const proxyData = await proxyGet('getAnnouncements');
+    if(proxyData?.announcements?.length) {
+      state.announcements = proxyData.announcements;
+      console.log('[Announcements] Loaded', state.announcements.length, 'via proxy');
+    } else {
+      try {
+        const rows = await fetchCSV('Announcements');
+        state.announcements = rows.slice(1).filter(r => r && r[0])
+          .map(r => ({ id:r[0], message:r[1]||'', author:r[2]||'Midstate Team', type:r[3]||'motivation', photoUrl:r[4]||'' }));
+        console.log('[Announcements] Loaded', state.announcements.length, 'via CSV fallback');
+      } catch(e) { state.announcements = []; }
+    }
   }
 }
 
@@ -4347,8 +4422,8 @@ function updateS10() {
 // WALLBOARD SETTINGS — load from Sheets
 // ============================================================
 async function loadWallboardData() {
+  // Settings tab — scene order and CallRail data
   try {
-    // Check for custom scene order from dashboard
     const settingsRows = await fetchCSV('Settings').catch(()=>[]);
     const sceneOrderRow = settingsRows.find(r => r[0]==='wb_scene_order');
     if(sceneOrderRow && sceneOrderRow[1]) {
@@ -4362,78 +4437,67 @@ async function loadWallboardData() {
         }
       } catch(e) {}
     }
-    // Also check for CallRail data stored in settings
+    // CallRail data from settings
     const crTotalRow  = settingsRows.find(r => r[0]==='callrail_total');
-    const crNewRow    = settingsRows.find(r => r[0]==='callrail_new');
-    const crAnsRow    = settingsRows.find(r => r[0]==='callrail_answered');
-    const crWeekRow   = settingsRows.find(r => r[0]==='callrail_weekly');
     if(crTotalRow) {
       state.snap['calls_total']        = parseInt(crTotalRow[1])||0;
-      state.snap['calls_new']          = parseInt(crNewRow?.[1])||0;
-      state.snap['calls_answered']     = parseInt(crAnsRow?.[1])||0;
-      state.snap['calls_weekly_json']  = crWeekRow?.[1]||'[]';
-      const crMonthRow = settingsRows.find(r => r[0]==='callrail_monthly');
-      state.snap['calls_monthly_json'] = crMonthRow?.[1]||'[]';
-      const crDailyRow = settingsRows.find(r => r[0]==='callrail_daily');
-      state.snap['calls_daily_json']   = crDailyRow?.[1]||'[]';
+      state.snap['calls_new']          = parseInt(settingsRows.find(r=>r[0]==='callrail_new')?.[1])||0;
+      state.snap['calls_answered']     = parseInt(settingsRows.find(r=>r[0]==='callrail_answered')?.[1])||0;
+      state.snap['calls_weekly_json']  = settingsRows.find(r=>r[0]==='callrail_weekly')?.[1]||'[]';
+      state.snap['calls_monthly_json'] = settingsRows.find(r=>r[0]==='callrail_monthly')?.[1]||'[]';
+      state.snap['calls_daily_json']   = settingsRows.find(r=>r[0]==='callrail_daily')?.[1]||'[]';
     }
-    // Note: RC data (rc_daily, rc_leaderboard etc.) comes from KPI_Dashboard snap
-    // which is already parsed in loadData() above. The Settings tab does NOT contain RC data.
-    // Do not look for RC keys here — they would overwrite correct KPI_Dashboard values with empty strings.
   } catch(e) { console.log('[Wallboard] Settings read failed:', e.message); }
 
-  try {
-    const rows = await fetchCSV('WallboardSettings');
-    const settings = {};
-    rows.slice(1).forEach(r => { if(r && r[0]) settings[r[0]] = r[1]; });
-    state.wbSettings = Object.assign({}, state.wbSettings, settings);
-  } catch(e) { /* use defaults */ }
+  // ── WallboardSettings + Birthdays + Holidays via proxy ──
+  const proxyData = await proxyGet('getWallboardSettings');
+  if(proxyData) {
+    if(proxyData.settings && Object.keys(proxyData.settings).length) {
+      state.wbSettings = Object.assign({}, state.wbSettings, proxyData.settings);
+      console.log('[WallboardSettings] Loaded via proxy');
+    }
+    if(proxyData.birthdays?.length) {
+      state.birthdays = proxyData.birthdays;
+      console.log('[Birthdays] Loaded', state.birthdays.length, 'via proxy');
+    }
+    if(proxyData.holidays?.length) {
+      state.holidays = proxyData.holidays.filter(h => h.enabled !== false);
+      console.log('[Holidays] Loaded', state.holidays.length, 'via proxy');
+    }
+  }
 
-  // Load holidays from KPI_Dashboard snapshot first (most reliable)
-  // Falls back to separate Holidays tab if snap doesn't have them
-  const snapHolidays = state.snap['holidays_json'];
-  if (snapHolidays) {
+  // Fallback: fetchCSV for WallboardSettings
+  if(!proxyData || !proxyData.settings) {
     try {
-      const parsed = JSON.parse(snapHolidays);
-      if (Array.isArray(parsed) && parsed.length) {
-        state.holidays = parsed;
-        console.log('[Holidays] Loaded', state.holidays.length, 'from snapshot');
-      }
+      const rows = await fetchCSV('WallboardSettings');
+      const settings = {};
+      rows.slice(1).forEach(r => { if(r && r[0]) settings[r[0]] = r[1]; });
+      state.wbSettings = Object.assign({}, state.wbSettings, settings);
     } catch(e) {}
   }
-  if (!state.holidays || !state.holidays.length) {
+
+  // Fallback: KPI_Dashboard snap for birthdays/holidays (already parsed in loadData)
+  if(!state.birthdays?.length) {
     try {
-      const hrows = await fetchCSV('Holidays');
-      console.log('[Holidays] CSV rows:', hrows.length, 'raw[1]:', hrows[1]);
-      const parsed = hrows.slice(1).filter(r => {
+      const rows = await fetchCSV('Birthdays');
+      state.birthdays = rows.slice(1).filter(r=>r&&r[0]).map(r=>({
+        id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
+      }));
+    } catch(e) { state.birthdays = []; }
+  }
+  if(!state.holidays?.length) {
+    try {
+      const rows = await fetchCSV('Holidays');
+      state.holidays = rows.slice(1).filter(r => {
         if(!r || !r[0]) return false;
         const enabled = String(r[4]||'').trim().toUpperCase();
-        // Empty or missing = enabled by default; explicitly FALSE/NO/0 = disabled
         return enabled !== 'FALSE' && enabled !== 'NO' && enabled !== '0';
       }).map(r=>({
         id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
         enabled:true, message:r[5]||'', photoUrl:r[6]||''
       }));
-      console.log('[Holidays] Enabled holidays:', parsed.map(h=>h.name));
-      if (parsed.length) state.holidays = parsed;
+      if(state.holidays.length) console.log('[Holidays] Loaded', state.holidays.length, 'via CSV fallback');
     } catch(e) {}
-  }
-
-  // Load birthdays from snapshot first
-  const snapBirthdays = state.snap['birthdays_json'];
-  if (snapBirthdays) {
-    try {
-      const parsed = JSON.parse(snapBirthdays);
-      if (Array.isArray(parsed) && parsed.length) state.birthdays = parsed;
-    } catch(e) {}
-  }
-  if (!state.birthdays || !state.birthdays.length) {
-    try {
-      const brows = await fetchCSV('Birthdays');
-      state.birthdays = brows.slice(1).filter(r=>r&&r[0]).map(r=>({
-        id:r[0], name:r[1]||'', birthday:r[2]||'', startDate:r[3]||'', photoUrl:r[4]||''
-      }));
-    } catch(e) { state.birthdays = []; }
   }
 
   applyWallboardSettings();
