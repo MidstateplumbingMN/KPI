@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.62</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.64</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.62</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.64</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.62</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.64</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2506,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.62
+  // ATTRIBUTION ENGINE — v23.64
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4494,6 +4494,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
+    dash_version: 'v23.64',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4763,6 +4764,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
       // These are the exact values the companion displays on every scene
       const criticalKeys = {
+        dash_version:        'v23.64',
         monthly_revenue:     dashboardSnapshot.monthly_revenue,
         rev_annual:          dashboardSnapshot.rev_annual,
         rev_monthly:         dashboardSnapshot.rev_monthly,
@@ -4809,13 +4811,22 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
 async function syncMonthlyRevenueToSheet(monthly) {
   if(!_sheetsProxy) return;
-  try {
-    fetch(_sheetsProxy, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
-      body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
-    }).then(()=>console.log('[Monthly Revenue] Tab synced'))
-      .catch(e=>console.warn('[Monthly Revenue] Sync error:', e.message));
-  } catch(e) { console.warn('[Monthly Revenue] Sync error:', e.message); }
+  // Write to Monthly_Revenue tab (for companion bar chart direct read)
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
+  }).then(()=>console.log('[Monthly Revenue] Tab synced'))
+    .catch(e=>console.warn('[Monthly Revenue] Sync error:', e.message));
+
+  // ALSO write monthly_revenue key directly to KPI_Dashboard
+  // This works with the OLD Apps Script (syncReport action) as a fallback
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    body: JSON.stringify({
+      action:'syncSnapshotKeys',
+      keys:{ monthly_revenue: monthly }
+    })
+  }).catch(()=>{});
 }
 
 // ============================================================
@@ -5249,9 +5260,12 @@ async function fetchRCCallLog(jwt) {
 
     // Process by extension (who answered)
     const byExt = {};
-    const monthCounts = new Array(12).fill(0);
-    const dailyCounts = new Array(31).fill(0);
+    const monthCounts  = new Array(12).fill(0);
+    const dailyCounts  = new Array(31).fill(0);
+    const hourlyCounts = new Array(24).fill(0); // today's calls by hour
     const curM = now.getMonth();
+    const curY = now.getFullYear();
+    const todayStr = `${curY}-${String(curM+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
     allCalls.forEach(call => {
       const dt  = new Date(call.startTime);
@@ -5259,6 +5273,10 @@ async function fetchRCCallLog(jwt) {
       const day = dt.getDate()-1;
       if(m >= 0 && m < 12) monthCounts[m]++;
       if(m === curM && day >= 0) dailyCounts[day]++;
+
+      // Hourly — today only
+      const callDateStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+      if(callDateStr === todayStr) hourlyCounts[dt.getHours()]++;
 
       const callDur = parseInt(call.duration||0);
 
@@ -5299,7 +5317,8 @@ async function fetchRCCallLog(jwt) {
 
     _rcSnap = {
       total: allCalls.length, answered: totalAnswered, missed: totalMissed,
-      answer_rate: ansRate, leaderboard, monthly: monthCounts, daily: dailyCounts
+      answer_rate: ansRate, leaderboard, monthly: monthCounts,
+      daily: dailyCounts, hourly: hourlyCounts
     };
     dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} agents`);
 
@@ -5312,6 +5331,7 @@ async function fetchRCCallLog(jwt) {
         leaderboard: JSON.stringify(leaderboard),
         monthly:     JSON.stringify(monthCounts),
         daily:       JSON.stringify(dailyCounts),
+        hourly:      JSON.stringify(hourlyCounts),
       };
       // Primary: write directly to KPI_Dashboard — small payload, always succeeds
       fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
