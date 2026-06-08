@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.74</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.79</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.74</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.79</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.74</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.79</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2515,7 +2515,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.74
+  // ATTRIBUTION ENGINE — v23.79
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3815,31 +3815,44 @@ function renderKPI(jobs,estimates,employees,plans){
   });
   // Filter plans to KPI date range (same as jobs/estimates)
   const {from:kpiF, to:kpiT}=getKPIDateRange();
-  const kpiPlans=plans.filter(p=>{
-    if(!isPlanActive(p)) return false;
-    // Aggregate uploads have no real date — include them always with a note
+
+  // Use _uploadedPlans (from uploaded CSV) if available — more accurate than HCP API estimate scan
+  // Fall back to _plans (from HCP estimates) when no upload exists
+  const planSource = _uploadedPlans && _uploadedPlans.length > 0
+    ? _uploadedPlans.filter(isPlanActive)
+    : plans.filter(isPlanActive);
+
+  const kpiPlans=planSource.filter(p=>{
+    // Aggregate uploads have no real date — include always
     if(p.source==='upload_aggregate') return true;
     const pd=p.created_at||p.start_date||'';
-    if(!pd||pd.startsWith(new Date().toISOString().split('T')[0])) return true; // today = no real date
+    if(!pd||pd.startsWith(new Date().toISOString().split('T')[0])) return true;
     if(kpiF&&pd<kpiF) return false;
     if(kpiT&&pd>kpiT+'T23:59:59') return false;
     return true;
   });
   const hasAggregatePlans=kpiPlans.some(p=>p.source==='upload_aggregate');
 
-  // Only count ACTIVE plans in KPI scorecards — filtered to KPI date range
+  // Count plans per employee
   kpiPlans.forEach(p=>{
-    const e=p.sold_by||p.employee||p.pro||p.assigned_employee;
-    if(!e)return;
-    const n=((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
-    // For manually uploaded plans, find real employee by name match
+    // sold_by may be a name string (uploaded CSV) or an employee object (HCP API)
+    let n = '', useId = '', useRole = '';
+    if(typeof p.sold_by === 'string' && p.sold_by) {
+      n = p.sold_by.trim();
+    } else {
+      const e = p.sold_by||p.employee||p.pro||p.assigned_employee;
+      if(!e) return;
+      n = ((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
+    }
+    if(!n) return;
+    // Match to real employee by name
     const realEmp=employees.find(x=>{
       const xn=((x.first_name||'')+' '+(x.last_name||'')).trim().toLowerCase();
       return xn===n.toLowerCase()||xn.includes(n.toLowerCase().split(' ')[0]);
     });
-    const useId=realEmp?.id||e.id;
-    const useRole=realEmp?.role||e.role||'';
-    ensure(useId,n,useRole);
+    useId   = realEmp?.id   || n; // use name as ID if no match
+    useRole = realEmp?.role || '';
+    ensure(useId, n, useRole);
     if(map[useId]) map[useId].plans++;
   });
 
@@ -4542,7 +4555,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.74',  // dashboard version that generated this push
+    dash_version: 'v23.79',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4726,8 +4739,17 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     calls_monthly_json: JSON.stringify(_callrailSnap?.monthly||[]),
 
     // Holidays and birthdays — kept as JSON strings
+    // Proxy URL — written to KPI_Dashboard so companion can call Apps Script directly
+    // Companion reads this on load and uses it for all content fetches
+    proxy_url: _sheetsProxy || '',
+
     holidays_json:  JSON.stringify((_holidays||[]).filter(h=>h.enabled)),
     birthdays_json: JSON.stringify(_bdayList||[]),
+    // Content tabs — pushed to KPI_Dashboard so companion reads from one reliable source
+    // Falls back to published CSV tabs if these keys are empty
+    spotlights_json:     JSON.stringify(_spotlights||[]),
+    promos_json:         JSON.stringify(_promos||[]),
+    announcements_json:  JSON.stringify(_announcements||[]),
 
     // Big Win — most recent paid job over threshold
     big_win_job: (() => {
@@ -4839,8 +4861,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Push ALL companion-read keys as dedicated small POST
       // Covers every key companion reads — if syncReport 500s, companion still works
       const criticalKeys = {
+        // Proxy URL — enables companion to call Apps Script directly
+        proxy_url:           _sheetsProxy || '',
+
         // Identity
-        dash_version:        'v23.74',
+        dash_version:        'v23.79',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -4912,6 +4937,9 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         // Content
         holidays_json:       dashboardSnapshot.holidays_json,
         birthdays_json:      dashboardSnapshot.birthdays_json,
+        spotlights_json:     dashboardSnapshot.spotlights_json,
+        promos_json:         dashboardSnapshot.promos_json,
+        announcements_json:  dashboardSnapshot.announcements_json,
         big_win_job:         dashboardSnapshot.big_win_job,
         // Dept conversion — computed client-side from _estimates
         dept_hvac_conv:      dashboardSnapshot.dept_hvac_conv,
@@ -5085,7 +5113,7 @@ async function loadAllSettingsFromSheets() {
     if(s.hcp_unpaid_status)   try { _unpaidStatus   = JSON.parse(s.hcp_unpaid_status);   } catch(e){}
     if(s.hcp_unpaid_payments) try { _unpaidPayments = JSON.parse(s.hcp_unpaid_payments); } catch(e){}
 
-    // IS email states  
+    // IS email states
     if(s.hcp_is_email_statuses) try { _isEmailStatuses = JSON.parse(s.hcp_is_email_statuses); } catch(e){}
     if(s.hcp_is_email_drafts)   try { _isEmailDrafts   = JSON.parse(s.hcp_is_email_drafts);   } catch(e){}
 
@@ -5094,6 +5122,12 @@ async function loadAllSettingsFromSheets() {
 
     // Contest items
     if(s.hcp_contest_items) try { _contestItems = JSON.parse(s.hcp_contest_items); } catch(e){}
+
+    // NOTE: Do NOT restore _spotlights, _promos, _announcements, _wbSettings, _bdayList,
+    // or _holidays from Settings tab — these have dedicated Sheets tabs (Spotlights,
+    // Promotions, Announcements, WallboardSettings, Birthdays, Holidays) which are the
+    // authoritative source. loadSpotlights(), loadAnnouncements(), loadWallboardSettings()
+    // fetch from those tabs directly. Writing them to Settings causes stale-data overwrites.
 
     console.log('[Settings] Loaded from Sheets:', Object.keys(s).length, 'keys');
   } catch(e) { console.warn('[Settings] loadAll failed:', e.message); }
@@ -7425,34 +7459,43 @@ function parseCSVLine(line) {
 async function fetchTYCardsFromSheets(){
   if(!_sheetsProxy) return;
   try {
-    const SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=TY_Cards&t=${Date.now()}`;
+    // Use Apps Script proxy — TY_Cards tab is private (not published to web)
+    const url = `${_sheetsProxy}?action=getTYCards`;
     const res = await fetch(url, { redirect:'follow' });
-    if(!res.ok) throw new Error('CSV fetch failed: ' + res.status);
-    const csv = await res.text();
-    const lines = csv.trim().split('\n');
-    if(lines.length < 2) { console.log('[TY Cards] No rows in sheet yet'); return; }
+    if(!res.ok) throw new Error('Proxy fetch failed: ' + res.status);
+    const data = await res.json();
+    if(!data.success || !data.cards) throw new Error('No cards in response');
     let restored = 0;
-    lines.slice(1).forEach(line => {
-      const cols    = parseCSVLine(line);
-      const jobId   = (cols[0]||'').replace(/^"|"$/g,'').trim();
-      const status  = (cols[1]||'').replace(/^"|"$/g,'').trim() || 'pending';
-      const sentDate= (cols[2]||'').replace(/^"|"$/g,'').trim();
-      const note    = (cols[3]||'').replace(/^"|"$/g,'').trim();
-      if(jobId && jobId !== 'jobId') {
-        _tyCards[jobId] = { ..._tyCards[jobId]||{}, status, sentDate, note };
+    Object.entries(data.cards).forEach(([jobId, card]) => {
+      if(jobId) {
+        _tyCards[jobId] = { ..._tyCards[jobId]||{}, ...card };
         restored++;
       }
     });
     console.log('[TY Cards] Restored', restored, 'statuses from Sheets');
   } catch(e) {
     console.warn('[TY Cards] Sheets load failed:', e.message);
+    // Fallback: try direct CSV (only works if sheet is published)
+    try {
+      const SHEET_ID = '1IU3SWGbpZLNbvwdoAvN_3zuM-JEQKnTYFoZBuNAkXfU';
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=TY_Cards&t=${Date.now()}`;
+      const res = await fetch(url, { redirect:'follow' });
+      if(!res.ok) return;
+      const csv = await res.text();
+      const lines = csv.trim().split('\n');
+      if(lines.length < 2) return;
+      let restored = 0;
+      lines.slice(1).forEach(line => {
+        const cols   = parseCSVLine(line);
+        const jobId  = (cols[0]||'').replace(/^"|"$/g,'').trim();
+        const status = (cols[1]||'').replace(/^"|"$/g,'').trim() || 'pending';
+        const sentDate=(cols[2]||'').replace(/^"|"$/g,'').trim();
+        const note   = (cols[3]||'').replace(/^"|"$/g,'').trim();
+        if(jobId && jobId !== 'jobId') { _tyCards[jobId]={..._tyCards[jobId]||{},status,sentDate,note}; restored++; }
+      });
+      if(restored) console.log('[TY Cards] Restored', restored, 'from CSV fallback');
+    } catch(e2) { console.warn('[TY Cards] CSV fallback also failed:', e2.message); }
   }
-  // Ensure TY_Cards tab exists
-  try {
-    fetch(_sheetsProxy, { method:'POST', headers:{'Content-Type':'text/plain'}, mode:'no-cors',
-      body: JSON.stringify({action:'initTYCards'}) });
-  } catch(e) {}
 }
 
 async function saveTYCard(jobId,update){
@@ -8019,7 +8062,7 @@ function loadWallboardSettings(){
       .then(d=>{
         if(d.success){
           if(d.settings)  { _wbSettings=d.settings; }
-          if(d.birthdays) { _bdayList=d.birthdays; try{saveSettingToSheets('hcp_bday_list', JSON.stringify(_bdayList));}catch(e){} renderBdayList(); }
+          if(d.birthdays) { _bdayList=d.birthdays; renderBdayList(); }
         }
       }).catch(()=>{});
   }
@@ -8131,12 +8174,17 @@ function loadAnnouncements(){
   if(_sheetsProxy){
     fetch(_sheetsProxy+'?action=getAnnouncements',{redirect:'follow'})
       .then(r=>r.json())
-      .then(d=>{ if(d.success&&d.announcements){ _announcements=d.announcements; try{saveSettingToSheets('hcp_announcements', JSON.stringify(_announcements));}catch(e){} renderAnnList(); }})
+      .then(d=>{ if(d.success&&d.announcements){ _announcements=d.announcements; renderAnnList(); }})
       .catch(()=>{});
   }
 }
 
 function saveAnnouncements(){
+  // Safety guard — never save empty array to Sheets
+  if(!_announcements || _announcements.length === 0){
+    showToast('⚠️ Nothing to save — announcements are empty','warn');
+    return;
+  }
   try{saveSettingToSheets('hcp_announcements', JSON.stringify(_announcements));}catch(e){}
   if(_sheetsProxy){
     fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
@@ -8364,9 +8412,7 @@ function loadSpotlights(){
         if(data.success){
           if(data.spotlights) _spotlights=data.spotlights;
           if(data.promos)     _promos=data.promos;
-          // Update localStorage cache
-          try{saveSettingToSheets('hcp_spotlights', JSON.stringify(_spotlights));}catch(e){}
-          try{saveSettingToSheets('hcp_promos', JSON.stringify(_promos));}catch(e){}
+          // Spotlights/promos live in their dedicated Sheets tabs — don't copy to Settings
           renderSpotlightList();
           renderPromoList();
         }
@@ -8379,6 +8425,11 @@ function loadSpotlights(){
 function loadPromotions(){ loadSpotlights(); }
 
 function saveSpotlights(){
+  // Safety guard — never save empty arrays to Sheets (would wipe the tab)
+  if((!_spotlights || _spotlights.length === 0) && (!_promos || _promos.length === 0)){
+    showToast('⚠️ Nothing to save — spotlights and promos are empty','warn');
+    return;
+  }
   try{ saveSettingToSheets('hcp_spotlights', JSON.stringify(_spotlights)); }catch(e){}
   // Push to Sheets for companion
   if(_sheetsProxy){
