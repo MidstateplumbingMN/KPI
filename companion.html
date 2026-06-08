@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.55</title>
+<title>Midstate — KPI Command Center v2.56</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1283,8 +1283,16 @@ html, body {
 
         <!-- Left: revenue number + goal bar + gap -->
         <div class="card wtd-hero" id="wtd-hero-card" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:20px 24px;gap:8px">
+          <!-- Revenue Today (jobs completed today) -->
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5)">Revenue Today</div>
           <div class="wtd-hero-val" id="wtd-revenue">$0</div>
-          <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs</div>
+          <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs completed today</div>
+          <!-- Collected Past (payments on previous jobs received today) -->
+          <div id="wtd-past-wrap" style="display:none;padding:8px 12px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.18);border-radius:8px;margin-top:2px">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(0,212,255,.7)">+ Collected Past</div>
+            <div style="font-size:18px;font-weight:900;color:var(--blue);font-family:var(--font-display)" id="wtd-past-rev">$0</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.4)" id="wtd-past-sub">final payments on previous jobs</div>
+          </div>
           <div class="wtd-goal-bar" style="margin-top:8px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
           <div style="font-size:11px;color:rgba(255,255,255,.9)"><span id="wtd-goal-pct">0%</span> of goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
           <div id="wtd-gap" style="padding:10px 12px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px;margin-top:4px"></div>
@@ -1470,7 +1478,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.55
+      v2.56
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1480,7 +1488,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.55';
+const COMPANION_VERSION = 'v2.56';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3210,13 +3218,18 @@ async function updateS6() {
 
     // Today-only metrics from dashboard snapshot
     const _stale      = isDailyStale();
-    const revenue     = _stale ? 0 : num(snap['rev_daily']||0);
+    const revenueAll  = _stale ? 0 : num(snap['rev_daily']||0);
+    const revToday    = _stale ? 0 : num(snap['rev_daily_today_jobs']||0);
+    const revPast     = _stale ? 0 : num(snap['rev_daily_past_jobs']||0);
+    // Use today-jobs revenue as the hero number (what was earned today from today's work)
+    // Fall back to total if split not available (old push)
+    const revenue     = revToday > 0 ? revToday : (revPast === 0 ? revenueAll : revToday);
     const dailyJobs   = _stale ? 0 : num(snap['daily_jobs']||0);
     const dailyEsts   = _stale ? 0 : num(snap['daily_estimates']||0);
     const dailyConv   = _stale ? 0 : num(snap['daily_converted']||0);
     const convPct     = dailyEsts > 0 ? Math.round(dailyConv/dailyEsts*100) : null;
     const dailyGoal   = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
-    const goalPct     = Math.min(100, Math.round(revenue/dailyGoal*100));
+    const goalPct     = Math.min(100, Math.round(revenueAll/dailyGoal*100)); // goal uses total collected
 
     // Date header
     const now_wtd = new Date();
@@ -3226,14 +3239,31 @@ async function updateS6() {
     el('wtd-daily-goal').textContent = dollars(dailyGoal);
 
     // Revenue pop animation
-    if (revenue > _wtdLastRevenue && _wtdLastRevenue > 0) fireRevenuePop(revenue - _wtdLastRevenue);
-    _wtdLastRevenue = revenue;
+    if (revenueAll > _wtdLastRevenue && _wtdLastRevenue > 0) fireRevenuePop(revenueAll - _wtdLastRevenue);
+    _wtdLastRevenue = revenueAll;
 
-    // Update displays — today only
+    // Main revenue display — today's jobs only
     animCount('wtd-revenue', revenue, true);
     el('wtd-jobs').textContent      = dailyJobs;
     el('wtd-completed').textContent = dailyJobs;
     el('wtd-ests').textContent      = dailyEsts;
+
+    // Collected Past — show only when there are past-job payments today
+    const pastWrap = el('wtd-past-wrap');
+    if(pastWrap) {
+      if(revPast > 0) {
+        pastWrap.style.display = 'block';
+        const pastEl = el('wtd-past-rev');
+        if(pastEl) pastEl.textContent = dollars(revPast);
+        const pastSub = el('wtd-past-sub');
+        if(pastSub) {
+          // Calculate how many invoices make up the past revenue
+          pastSub.textContent = 'final payments on previous jobs';
+        }
+      } else {
+        pastWrap.style.display = 'none';
+      }
+    }
 
     // Alternate Jobs Completed card between paid jobs and estimates every 6s
     if(window._wtdJobsFlipTimer) clearInterval(window._wtdJobsFlipTimer);
@@ -3256,8 +3286,8 @@ async function updateS6() {
     flipJobsCard();
     window._wtdJobsFlipTimer = setInterval(flipJobsCard, 6000);
 
-    // Thermometer for revenue vs daily goal
-    renderThermometer('wtd-thermo', revenue, dailyGoal);
+    // Thermometer uses total collected today (today jobs + past payments)
+    renderThermometer('wtd-thermo', revenueAll, dailyGoal);
     el('wtd-conv').textContent      = convPct !== null ? dailyConv + ' / ' + dailyEsts : '—';
     const convSub = el('wtd-conv-sub');
     if(convSub) convSub.textContent = convPct !== null ? convPct + '% conversion rate' : 'Estimates sold today';
