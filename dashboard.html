@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.66</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.67</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.66</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.67</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.66</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.67</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2506,7 +2506,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.66
+  // ATTRIBUTION ENGINE — v23.67
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3330,17 +3330,12 @@ function sortItems(items,col,dir){
 // RENDER JOBS
 // ============================================================
 function renderJobs(jobs,estimates){
-  const todayStr = new Date().toISOString().split('T')[0];
-  // Revenue: sum actual invoice payments through today
+  // Revenue: sum actual invoice payments — use jobCollected() for consistency with Goals tab
   let rev = 0;
   let paidCount = 0;
   jobs.forEach(j => {
     if(!isJobPaid(j)) return;
-    if(j._payments?.length){
-      j._payments.forEach(p => { if(p.date <= todayStr) rev += p.amount; });
-    } else {
-      rev += getJobRevenue(j);
-    }
+    rev += jobCollected(j);
     paidCount++;
   });
   const avg=paidCount?rev/paidCount:0;
@@ -4494,7 +4489,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.66',  // dashboard version that generated this push
+    dash_version: 'v23.67',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4505,15 +4500,16 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     rev_weekly: revWeekly,
     rev_daily: revDaily,
 
-    // Today-only metrics for Win the Day scene — uses _jobs with invoice payments
+    // Jobs completed today (scheduled/completed_at date = today)
+    // NOT payment date — "Win the Day" shows work done today, not invoices cleared
     daily_jobs: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
       return _jobs.filter(j => {
         if(!isJobPaid(j)) return false;
-        if(j._payments?.length){
-          return j._payments.some(p => p.date === todayLocal);
-        }
-        const d = new Date(j.work_timestamps?.completed_at||j.completed_at||'');
+        // Use completed_at as the job completion date
+        const ts = j.work_timestamps?.completed_at || j.completed_at || j.schedule?.scheduled_start || '';
+        if(!ts) return false;
+        const d = new Date(ts);
         if(isNaN(d)) return false;
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
@@ -4764,7 +4760,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
       // These are the exact values the companion displays on every scene
       const criticalKeys = {
-        dash_version:        'v23.66',
+        dash_version:        'v23.67',
         monthly_revenue:     dashboardSnapshot.monthly_revenue,
         rev_annual:          dashboardSnapshot.rev_annual,
         rev_monthly:         dashboardSnapshot.rev_monthly,
@@ -10235,7 +10231,10 @@ function buildSummaryData(){
   const paidJobs=jobs.filter(isJobPaid);
   const unpaidJobs=jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j));
   const inProgressJobs=jobs.filter(j=>!isJobComplete(j)&&!isJobExcluded(j));
-  const totalRev=paidJobs.reduce((s,j)=>s+getJobRevenue(j),0);
+  // Revenue — use actual collected payments (same as Goals tab)
+  // jobCollected sums j._payments amounts (invoice paid_at data)
+  // getJobRevenue returns job.total_amount which may differ from what was collected
+  const totalRev=paidJobs.reduce((s,j)=>s+jobCollected(j),0);
   const totalUnpaid=unpaidJobs.reduce((s,j)=>s+getJobTotal(j),0);
   const totalPipeline=inProgressJobs.reduce((s,j)=>s+getJobTotal(j),0);
   const avgJob=paidJobs.length?totalRev/paidJobs.length:0;
