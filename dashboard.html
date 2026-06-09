@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.93</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.94</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.93</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.94</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.93</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.94</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2132,7 +2132,7 @@ function showTab(t){
     else if(t==='attr')  renderAttr(_jobs,_estimates);
     else if(t==='kpi')   { renderKPI(_jobs,_estimates,_employees,_plans); initKPIRange(); }
     else if(t==='goals') renderGoals();
-    else if(t==='calendar') { renderCalendar(); loadCalEmpFilter(); }
+    else if(t==='cal'||t==='calendar') { renderCalendar(); loadCalEmpFilter(); }
     else if(t==='is')    renderIS();
     else if(t==='unpaid') renderUnpaid();
     else if(t==='plans') renderPlans(_plans);
@@ -2480,7 +2480,7 @@ async function loadAll(){
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
 
     // Mark all other tabs as needing a render — they'll render on first click
-    _tabNeedsRender = new Set(['jobs','estimates','attr','kpi','goals','calendar','is','unpaid','plans','contest','ty'].filter(t=>t!==activeTab));
+    _tabNeedsRender = new Set(['jobs','estimates','attr','kpi','goals','cal','is','unpaid','plans','contest','ty'].filter(t=>t!==activeTab));
 
     // Defer background work — sequence matters:
     // 1. Fetch full-year paid jobs → populates _allYearJobs → accurate period revenue
@@ -2523,7 +2523,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.93
+  // ATTRIBUTION ENGINE — v23.94
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4576,7 +4576,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.93',  // dashboard version that generated this push
+    dash_version: 'v23.94',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4587,8 +4587,8 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     rev_weekly: revWeekly,
     // Daily revenue split — for Win the Day scene
     // rev_daily = ALL payments received today (total collected)
-    // rev_daily_today_jobs = payments on jobs completed TODAY
-    // rev_daily_past_jobs  = payments on jobs completed on a PREVIOUS day (final payments etc.)
+    // rev_daily_today_jobs = payments on jobs completed TODAY (positive amounts only)
+    // rev_daily_past_jobs  = payments on jobs completed on a PREVIOUS day (positive amounts only)
     rev_daily: revDaily,
     rev_daily_today_jobs: (() => {
       if(!_invoiceMap || !Object.keys(_invoiceMap).length) return 0;
@@ -4597,25 +4597,17 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       const toLD = d => { if(!d||isNaN(d.getTime())) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
       let total = 0;
       Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
-        // Only process if this job has a payment today
-        const todayPmts = payments.filter(p => p.date === todayLocal);
+        const todayPmts = payments.filter(p => p.date === todayLocal && p.amount > 0); // positive only
         if(!todayPmts.length) return;
         const job = _jobs.find(j => j.id === jobId);
-        if(!job) {
-          console.log(`[DailyRev] Invoice ${todayPmts[0].number} jobId=${jobId} — NOT FOUND in _jobs (pre-Jan or ID mismatch) → goes to pastJobs`);
-          return;
-        }
-        const jobDate = job.work_timestamps?.completed_at
-          || job.completed_at
-          || job.schedule?.scheduled_start
-          || job.scheduled_start
-          || '';
+        if(!job) return; // pre-Jan job → goes to pastJobs
+        const jobDate = job.work_timestamps?.completed_at || job.completed_at
+          || job.schedule?.scheduled_start || job.scheduled_start || '';
         const jobDateLocal = jobDate ? toLD(new Date(jobDate)) : '';
-        console.log(`[DailyRev] Invoice ${todayPmts[0].number} jobId=${jobId} completedAt=${job.work_timestamps?.completed_at||'null'} scheduled=${job.schedule?.scheduled_start||'null'} jobDateLocal=${jobDateLocal} todayLocal=${todayLocal} match=${jobDateLocal===todayLocal}`);
         if(jobDateLocal !== todayLocal) return;
         todayPmts.forEach(p => { total += p.amount; });
       });
-      console.log(`[DailyRev] todayJobs total=$${total.toFixed(2)}`);
+      console.log(`[DailyRev] todayJobs=$${total.toFixed(2)} pastJobs=<see next>`);
       return total;
     })(),
     rev_daily_past_jobs: (() => {
@@ -4628,10 +4620,10 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         const job = _jobs.find(j => j.id === jobId);
         const jobDate = job
           ? (job.work_timestamps?.completed_at || job.completed_at || job.schedule?.scheduled_start || job.scheduled_start || '')
-          : ''; // no job = pre-Jan, count as past
+          : '';
         const jobDateLocal = jobDate ? toLD(new Date(jobDate)) : '';
-        if(jobDateLocal === todayLocal) return; // skip today's jobs
-        payments.forEach(p => { if(p.date === todayLocal) total += p.amount; });
+        if(jobDateLocal === todayLocal) return;
+        payments.forEach(p => { if(p.date === todayLocal && p.amount > 0) total += p.amount; }); // positive only
       });
       return total;
     })(),
@@ -4883,10 +4875,19 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     rc_leaderboard:   JSON.stringify(_rcSnap?.leaderboard||[]),
     rc_monthly:       JSON.stringify(_rcSnap?.monthly||[]),
     rc_daily:         JSON.stringify(_rcSnap?.daily||[]),
+    // Period breakdowns — today/MTD/YTD
+    rc_today:  (() => { if(!_rcSnap) return 0;
+                  const d = new Date().getDate()-1;
+                  return (_rcSnap.daily||[])[d] || 0; })(),
+    rc_mtd:    (() => { if(!_rcSnap) return 0;
+                  return (_rcSnap.monthly||[])[new Date().getMonth()] || 0; })(),
+    rc_ytd:    (_rcSnap?.monthly||[]).reduce((s,v)=>s+v,0),
     // CallRail
     calls_total:      parseInt(_callrailSnap?.total||0)||0,
     calls_new:        parseInt(_callrailSnap?.new_callers||0)||0,
     calls_answered:   parseInt(_callrailSnap?.answered||0)||0,
+    calls_mtd:        parseInt(_callrailSnap?.mtd||0)||0,
+    calls_ytd:        parseInt(_callrailSnap?.ytd||0)||0,
     calls_weekly_json: JSON.stringify(_callrailSnap?.weekly||[]),
 
     // Daily revenue by calendar day this month — for companion trend line
@@ -5067,7 +5068,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v23.93',
+        dash_version:        'v23.94',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5892,6 +5893,7 @@ async function fetchRCCallLog(jwt) {
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
         body: JSON.stringify({ action:'syncRCAgents', agents: agentsForTab })
       }).then(()=>dashLog('info','RC agents → RC_Agents tab ✅')).catch(()=>{});
+      const todayIdx = new Date().getDate() - 1;
       const rcPayload = {
         total:       _rcSnap.total,
         answered:    _rcSnap.answered,
@@ -5901,6 +5903,9 @@ async function fetchRCCallLog(jwt) {
         monthly:     JSON.stringify(monthCounts),
         daily:       JSON.stringify(dailyCounts),
         hourly:      JSON.stringify(hourlyCounts),
+        today:       dailyCounts[todayIdx] || 0,
+        mtd:         monthCounts[new Date().getMonth()] || 0,
+        ytd:         monthCounts.reduce((s,v)=>s+v,0),
       };
       // Primary: write directly to KPI_Dashboard — small payload, always succeeds
       fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
