@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1920">
-<title>Midstate — KPI Command Center v2.61</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+<title>Midstate — KPI Command Center v2.65</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -50,15 +50,32 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  background: #000; /* letterbox color */
   font-family: var(--font-body);
   color: var(--text-1);
   cursor: default;
 }
 
+/* ---- SCALE-TO-FIT WRAPPER ----
+   #scaler is a fixed 1920×1080 canvas that gets CSS-scaled
+   uniformly to fit any screen. This preserves aspect ratio
+   on every display — 4K TV, 1080p TV, PC monitor, laptop.
+   JS calculates the exact scale factor on resize.
+   Letterbox bars (black) fill the gaps if aspect differs.
+*/
+#scaler {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
+  overflow: hidden;
+  background: var(--bg);
+}
+
 /* ---- ANIMATED BACKGROUND ---- */
 .bg-canvas {
-  position: fixed; inset: 0; z-index: 0;
+  position: absolute; inset: 0; z-index: 0;
   background:
     radial-gradient(ellipse 80% 50% at 20% 20%, rgba(0,212,255,.06) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168,85,247,.07) 0%, transparent 60%),
@@ -83,7 +100,7 @@ html, body {
 
 /* Moving grid */
 .grid-layer {
-  position: fixed; inset: -50%;
+  position: absolute; inset: -50%;
   width: 200%; height: 200%;
   z-index: 0;
   background-image:
@@ -100,8 +117,8 @@ html, body {
 
 /* ---- LAYOUT ---- */
 #app {
-  position: relative; z-index: 1;
-  width: 100vw; height: 100vh;
+  position: absolute; inset: 0; z-index: 1;
+  width: 1920px; height: 1080px;
   display: flex; flex-direction: column;
 }
 
@@ -199,7 +216,7 @@ html, body {
 
 /* ---- PROGRESS BAR ---- */
 .progress-bar {
-  position: fixed; bottom: 46px; left: 0;
+  position: absolute; bottom: 46px; left: 0;
   height: 3px;
   background: linear-gradient(90deg, var(--blue), var(--purple));
   width: 0%;
@@ -873,15 +890,16 @@ html, body {
 <!-- Progress bar -->
 <div class="progress-bar" id="progressBar"></div>
 
+<div id="scaler">
 <div id="app">
   <!-- Logo — bottom-left corner, unobtrusive -->
   <!-- Logo removed -->
 
   <!-- Version watermark — always visible bottom-right -->
-  <div data-watermark style="position:fixed;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none"></div>
+  <div data-watermark style="position:absolute;bottom:10px;right:14px;z-index:20;font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;pointer-events:none"></div>
 
   <!-- Dots — top center, subtle -->
-  <div style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
+  <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none">
     <div class="scene-dots" id="sceneDots"></div>
   </div>
 
@@ -932,6 +950,12 @@ html, body {
             <div style="display:flex;align-items:baseline;gap:10px">
               <div style="font-size:clamp(24px,3.5vw,38px);font-family:var(--font-display);color:var(--green);font-weight:900" id="s1-ytd-rev">$0</div>
               <div style="font-size:12px;color:rgba(255,255,255,.5)"><span id="s1-ytd-pct" style="color:var(--green);font-weight:700">0%</span> of $3M goal</div>
+            </div>
+            <!-- Outstanding unpaid — shown here on YTD card when non-zero -->
+            <div id="s1-outstanding-wrap" style="display:none;margin-top:8px;padding:6px 10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px">
+              <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em">⚠ Unpaid — Complete Jobs</div>
+              <div style="font-size:18px;font-weight:700;color:#EF4444;font-family:var(--font-display)" id="s1-outstanding">$0</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.45)" id="s1-outstanding-sub"></div>
             </div>
           </div>
         </div>
@@ -1257,56 +1281,64 @@ html, body {
     </div>
 
     <!-- SCENE 6: WIN THE DAY -->
-    <div class="scene" id="s6" style="display:flex;flex-direction:column;gap:12px">
+    <div class="scene" id="s6" style="display:flex;flex-direction:column;gap:10px">
 
       <!-- Row 1: 3 metric cards -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(8px,1.5vw,16px);padding:0 clamp(12px,3vw,40px);flex-shrink:0">
-        <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
-          <div class="metric-value glow-green" id="wtd-completed" style="font-size:clamp(40px,6vw,72px)">0</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 32px;flex-shrink:0">
+        <div class="card metric accent-green" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+          <div class="metric-value glow-green" id="wtd-completed" style="font-size:clamp(36px,5vw,64px)">0</div>
           <div class="metric-sub" id="wtd-jobs-sub">Paid &amp; closed today</div>
-          <div class="metric-label" style="margin-top:8px;font-size:13px;font-weight:700;text-align:center" id="wtd-jobs-label">Jobs Completed</div>
+          <div class="metric-label" style="margin-top:6px;font-size:13px;font-weight:700;text-align:center">Jobs Completed</div>
         </div>
-        <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
-          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:clamp(40px,6vw,72px)">0</div>
+        <div class="card metric accent-blue" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+          <div class="metric-value glow-blue" id="wtd-ests" style="font-size:clamp(36px,5vw,64px)">0</div>
           <div class="metric-sub">Scheduled today</div>
-          <div class="metric-label" style="margin-top:8px;font-size:13px;font-weight:700;text-align:center">Estimates Scheduled</div>
+          <div class="metric-label" style="margin-top:6px;font-size:13px;font-weight:700;text-align:center">Estimates Scheduled</div>
         </div>
-        <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px">
-          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:clamp(36px,5vw,60px);white-space:nowrap">—</div>
-          <div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Estimates sold today</div>
-          <div class="metric-label" style="margin-top:8px;font-size:13px;font-weight:700;text-align:center">Converted</div>
+        <div class="card metric accent-orange" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px">
+          <div class="metric-value glow-orange" id="wtd-conv" style="font-size:clamp(32px,4.5vw,56px);white-space:nowrap">—</div>
+          <div class="metric-sub" id="wtd-conv-sub" style="white-space:nowrap">Sold today</div>
+          <div class="metric-label" style="margin-top:6px;font-size:13px;font-weight:700;text-align:center">Converted</div>
         </div>
       </div>
 
-      <!-- Row 2: Revenue + thermometer — fills remaining space -->
-      <div style="flex:1;min-height:0;padding:0 clamp(12px,3vw,40px);display:flex;gap:clamp(8px,1.5vw,16px)">
+      <!-- Row 2: Two revenue cards + tech call-ins + thermometer -->
+      <div style="flex:1;min-height:0;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px">
 
-        <!-- Left: revenue number + goal bar + gap -->
-        <div class="card wtd-hero" id="wtd-hero-card" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:20px 24px;gap:8px">
-          <!-- Revenue Today (jobs completed today) -->
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5)">Revenue Today</div>
-          <div class="wtd-hero-val" id="wtd-revenue">$0</div>
-          <div class="wtd-hero-sub"><span id="wtd-jobs">0</span> paid jobs completed today</div>
-          <!-- Collected Past (payments on previous jobs received today) -->
-          <div id="wtd-past-wrap" style="display:none;padding:8px 12px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.18);border-radius:8px;margin-top:2px">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(0,212,255,.7)">+ Collected Past</div>
-            <div style="font-size:18px;font-weight:900;color:var(--blue);font-family:var(--font-display)" id="wtd-past-rev">$0</div>
-            <div style="font-size:9px;color:rgba(255,255,255,.4)" id="wtd-past-sub">final payments on previous jobs</div>
-          </div>
-          <div class="wtd-goal-bar" style="margin-top:8px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
-          <div style="font-size:11px;color:rgba(255,255,255,.9)"><span id="wtd-goal-pct">0%</span> of goal · Target: <span id="wtd-daily-goal">$8,000</span></div>
-          <div id="wtd-gap" style="padding:10px 12px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:10px;margin-top:4px"></div>
-          <!-- Outstanding uncollected -->
-          <div id="wtd-outstanding-wrap" style="display:none;padding:8px 12px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:8px;margin-top:4px">
-            <div style="font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em">⚠ Uncollected</div>
-            <div style="font-size:16px;font-weight:700;color:#EF4444" id="wtd-outstanding">$0</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.5)" id="wtd-outstanding-sub">complete jobs not yet paid</div>
-          </div>
-          <div style="text-align:center;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff;margin-top:8px">⚡ Revenue Today</div>
+        <!-- Revenue Today — jobs completed & paid today -->
+        <div class="card" style="display:flex;flex-direction:column;justify-content:center;padding:18px 20px;gap:6px">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--green)">⚡ Revenue Today</div>
+          <div style="font-family:var(--font-display);font-size:clamp(32px,4.5vw,56px);color:var(--green);line-height:1;font-weight:900" id="wtd-revenue">$0</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.55)" id="wtd-rev-sub">from <span id="wtd-jobs">0</span> jobs completed today</div>
+          <div class="wtd-goal-bar" style="margin-top:6px"><div class="wtd-goal-fill" id="wtd-goal-fill" style="width:0%"></div></div>
+          <div style="font-size:10px;color:rgba(255,255,255,.8)"><span id="wtd-goal-pct">0%</span> of <span id="wtd-daily-goal">$8K</span> goal</div>
+          <div id="wtd-gap" style="padding:8px 10px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:8px;margin-top:4px;font-size:11px"></div>
         </div>
 
-        <!-- Right: thermometer — large, centered, full height -->
-        <div class="card" style="width:clamp(140px,18vw,220px);display:flex;align-items:center;justify-content:center;padding:16px">
+        <!-- Collected Past — animated payments from prior jobs -->
+        <div class="card" style="display:flex;flex-direction:column;justify-content:center;padding:18px 20px;gap:6px;position:relative;overflow:hidden">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--blue)">💰 Collected Past</div>
+          <div style="font-family:var(--font-display);font-size:clamp(32px,4.5vw,56px);color:var(--blue);line-height:1;font-weight:900" id="wtd-past-rev">$0</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.55)">final payments on prior jobs</div>
+          <!-- Animated payment pops container -->
+          <div id="wtd-payment-pops" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></div>
+          <!-- Total collected today -->
+          <div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:6px;border:1px solid rgba(255,255,255,.08)">
+            <div style="font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4)">Total Collected Today</div>
+            <div style="font-family:var(--font-display);font-size:22px;color:#fff;font-weight:900" id="wtd-total-today">$0</div>
+          </div>
+        </div>
+
+        <!-- Tech Call-ins -->
+        <div class="card" style="display:flex;flex-direction:column;padding:16px 18px;gap:6px">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--orange);margin-bottom:2px">🔧 Tech Call-ins Today</div>
+          <div id="wtd-tech-calls" style="flex:1;display:flex;flex-direction:column;gap:4px;overflow:hidden">
+            <div style="color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:16px 0">No tech calls today</div>
+          </div>
+        </div>
+
+        <!-- Thermometer -->
+        <div class="card" style="width:140px;display:flex;align-items:center;justify-content:center;padding:14px">
           <div id="wtd-thermo" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"></div>
         </div>
 
@@ -1314,7 +1346,33 @@ html, body {
     </div><!-- end s6 -->
 
 
-    <!-- SCENE 7: EMPLOYEE SPOTLIGHT — 3D CUBE -->
+    <!-- SCENE 14: CALLBACK LEADERBOARD -->
+    <div class="scene" id="s14">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:0 2px 12px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.4)">Callback Leaderboard</div>
+        <div style="font-size:9px;padding:2px 8px;background:rgba(255,107,53,.12);border:1px solid rgba(255,107,53,.25);border-radius:99px;color:var(--orange)">Jobs + Estimates Tagged "Callback"</div>
+      </div>
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- Leaderboard list -->
+        <div class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px;overflow:hidden">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">By Technician — Callback Volume</div>
+          <div id="cb-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <!-- Summary stats -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;flex:1">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.4);margin-bottom:8px">Total Callbacks</div>
+            <div style="font-family:var(--font-display);font-size:clamp(48px,7vw,80px);color:var(--orange);font-weight:900;line-height:1" id="cb-total">0</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:8px">This Period</div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;flex:1">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.4);margin-bottom:8px">Resolved</div>
+            <div style="font-family:var(--font-display);font-size:clamp(48px,7vw,80px);color:var(--green);font-weight:900;line-height:1" id="cb-resolved">0</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:8px">Paid &amp; Closed</div>
+          </div>
+        </div>
+      </div>
+    </div><!-- end s14 -->
     <div class="scene" id="s7">
       <div class="spotlight-confetti" id="confettiWrap"></div>
       <div class="scene-title" style="position:relative;z-index:1">// Employee Spotlight</div>
@@ -1478,17 +1536,18 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.61
+      v2.65
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
     </div>
   </div>
-</div>
+</div><!-- /#app -->
+</div><!-- /#scaler -->
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.61';
+const COMPANION_VERSION = 'v2.65';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1607,7 +1666,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s12','s13','s5'];
+const SCENES = ['s1','s2','s3','s4','s6','s7','s8','s9','s10','s11','s12','s13','s14','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -2093,20 +2152,6 @@ function refreshS6Data() {
   if(el('wtd-goal-fill')) el('wtd-goal-fill').style.width = goalPct + '%';
   if(el('wtd-daily-goal'))el('wtd-daily-goal').textContent = dollars(dailyGoal);
 
-  // Outstanding uncollected — show when > $0
-  const outstanding    = num(snap['outstanding']||0);
-  const outstandingJobs= num(snap['outstanding_jobs']||0);
-  const outWrap = el('wtd-outstanding-wrap');
-  if(outWrap){
-    if(outstanding > 0){
-      outWrap.style.display = 'block';
-      if(el('wtd-outstanding'))     el('wtd-outstanding').textContent = dollars(outstanding);
-      if(el('wtd-outstanding-sub')) el('wtd-outstanding-sub').textContent = outstandingJobs + ' complete job' + (outstandingJobs!==1?'s':'') + ' not yet paid';
-    } else {
-      outWrap.style.display = 'none';
-    }
-  }
-
   addGapToGoalDisplay(revenue);
 }
 
@@ -2215,6 +2260,21 @@ function updateS1() {
   // YTD strip
   if(el('s1-ytd-rev')) animCount('s1-ytd-rev', revAnnual, true);
   if(el('s1-ytd-pct')) el('s1-ytd-pct').textContent = annualPct + '%';
+
+  // Outstanding unpaid revenue on YTD card
+  const outstanding     = num(snap['outstanding']||0);
+  const outstandingJobs = num(snap['outstanding_jobs']||0);
+  const outWrap = el('s1-outstanding-wrap');
+  if(outWrap) {
+    if(outstanding > 0) {
+      outWrap.style.display = 'block';
+      if(el('s1-outstanding'))     el('s1-outstanding').textContent = dollars(outstanding);
+      if(el('s1-outstanding-sub')) el('s1-outstanding-sub').textContent =
+        outstandingJobs + ' complete job' + (outstandingJobs!==1?'s':'') + ' not yet paid';
+    } else {
+      outWrap.style.display = 'none';
+    }
+  }
 
   // Stat cards
   if(el('s1-conv'))  el('s1-conv').textContent  = Math.round(convPct) + '%';
@@ -2789,6 +2849,54 @@ function renderThermometer(containerId, current, goal) {
 // ============================================================
 // SCENE 12 — SERVICE PLANS LEADERBOARD
 // ============================================================
+function updateS14() {
+  const snap = state.snap;
+  let callbacks = [];
+  try { callbacks = JSON.parse(snap['callback_leaderboard']||'[]'); } catch(e) {}
+
+  const lbEl = el('cb-leaderboard');
+  const totalEl = el('cb-total');
+  const resolvedEl = el('cb-resolved');
+
+  const totalJobs    = callbacks.reduce((s,c) => s+(c.jobs||0), 0);
+  const totalResolved= callbacks.reduce((s,c) => s+(c.converted||0), 0);
+
+  if(totalEl)    animCount('cb-total',    totalJobs, false);
+  if(resolvedEl) animCount('cb-resolved', totalResolved, false);
+
+  if(!lbEl) return;
+  if(!callbacks.length) {
+    lbEl.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:13px;text-align:center;padding:20px 0">No callback jobs found<br><span style="font-size:10px;opacity:.6">Jobs or estimates with "callback" in type or tags</span></div>';
+    return;
+  }
+
+  const maxJobs = Math.max(...callbacks.map(c=>c.jobs||0), 1);
+  const colors  = ['#FFD700','#C0C0C0','#CD7F32','#00D4FF','#00FF88','#A855F7','#F97316'];
+  lbEl.innerHTML = callbacks.slice(0, 8).map((agent, i) => {
+    const pct   = Math.round((agent.jobs||0) / maxJobs * 100);
+    const col   = colors[i] || '#6b7280';
+    const photo = getEmpPhoto(agent.name, '');
+    const medal = i===0?'①':i===1?'②':i===2?'③':(i+1);
+    const convRate = agent.jobs > 0 ? Math.round((agent.converted||0)/agent.jobs*100) : 0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <div style="font-size:12px;width:18px;text-align:center;color:${col};font-weight:800;flex-shrink:0">${medal}</div>
+      ${photo?`<img src="${photo}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0;border:2px solid ${col}55" onerror="this.style.display='none'">`:''}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:#fff">${agent.name}</div>
+        <div style="height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${col}"></div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--font-mono);font-size:18px;font-weight:900;color:${col}">${agent.jobs||0}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.4)">${convRate}% resolved</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+// ============================================================
+// SCENE 12 — SERVICE PLANS LEADERBOARD
+// ============================================================
 function updateS12() {
   const allKpi = (state.kpi||[]).filter(r => {
     const name = r[CONFIG.KPI_COLS.name]||'';
@@ -2945,8 +3053,6 @@ let _rcPeriodTimer = null;
 // ============================================================
 // SCENE 13 — UNIFIED COMMUNICATIONS (CallRail + RingCentral)
 // ============================================================
-function updateS14() { updateS13(); } // S14 merged — keep for compat
-
 async function updateS13() {
   const snap = state.snap;
 
@@ -3291,7 +3397,7 @@ function fireBigWinBanner(job) {
   const banner = document.createElement('div');
   banner.id = 'big-win-banner';
   banner.style.cssText = `
-    position:fixed;top:0;left:0;right:0;z-index:500;
+    position:absolute;top:0;left:0;right:0;z-index:500;
     background:linear-gradient(135deg,#FFD700,#FF6B35,#FFD700);
     color:#000;font-family:var(--font-display);
     font-size:clamp(18px,3vw,32px);letter-spacing:.1em;
@@ -3306,7 +3412,7 @@ function fireBigWinBanner(job) {
   // Confetti
   spawnVictoryConfetti();
 
-  document.body.appendChild(banner);
+  document.getElementById('scaler').appendChild(banner);
   setTimeout(() => { banner.style.transition='opacity 1s'; banner.style.opacity='0'; setTimeout(()=>banner.remove(),1000); }, 8000);
 }
 
@@ -3318,105 +3424,123 @@ function fireBigWinBanner(job) {
 })();
 
 async function updateS6() {
-  // Debounce — don't re-run if already running (prevents multiple rapid calls)
   if (updateS6._running) return;
   updateS6._running = true;
   setTimeout(() => { updateS6._running = false; }, 2000);
   try {
     const snap = state.snap;
+    const _stale    = isDailyStale();
+    const revToday  = _stale ? 0 : num(snap['rev_daily_today_jobs']||0);
+    const revPast   = _stale ? 0 : num(snap['rev_daily_past_jobs']||0);
+    const revenueAll= _stale ? 0 : num(snap['rev_daily']||0);
+    const dailyJobs = _stale ? 0 : num(snap['daily_jobs']||0);
+    const dailyEsts = _stale ? 0 : num(snap['daily_estimates']||0);
+    const dailyConv = _stale ? 0 : num(snap['daily_converted']||0);
+    const convPct   = dailyEsts > 0 ? Math.round(dailyConv/dailyEsts*100) : null;
+    const dailyGoal = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
+    const goalPct   = Math.min(100, Math.round(revenueAll/dailyGoal*100));
 
-    // Today-only metrics from dashboard snapshot
-    const _stale      = isDailyStale();
-    const revenueAll  = _stale ? 0 : num(snap['rev_daily']||0);
-    const revToday    = _stale ? 0 : num(snap['rev_daily_today_jobs']||0);
-    const revPast     = _stale ? 0 : num(snap['rev_daily_past_jobs']||0);
-    // Use today-jobs revenue as the hero number (what was earned today from today's work)
-    // Fall back to total if split not available (old push)
-    const revenue     = revToday > 0 ? revToday : (revPast === 0 ? revenueAll : revToday);
-    const dailyJobs   = _stale ? 0 : num(snap['daily_jobs']||0);
-    const dailyEsts   = _stale ? 0 : num(snap['daily_estimates']||0);
-    const dailyConv   = _stale ? 0 : num(snap['daily_converted']||0);
-    const convPct     = dailyEsts > 0 ? Math.round(dailyConv/dailyEsts*100) : null;
-    const dailyGoal   = num(snap['goal_daily']||CONFIG.DAILY_GOAL);
-    const goalPct     = Math.min(100, Math.round(revenueAll/dailyGoal*100)); // goal uses total collected
+    // Revenue Today card
+    animCount('wtd-revenue', revToday, true);
+    if(el('wtd-jobs')) el('wtd-jobs').textContent = dailyJobs;
+    if(el('wtd-completed')) el('wtd-completed').textContent = dailyJobs;
+    if(el('wtd-ests'))      el('wtd-ests').textContent = dailyEsts;
+    if(el('wtd-conv'))      el('wtd-conv').textContent = convPct !== null ? dailyConv+' / '+dailyEsts : '—';
+    if(el('wtd-goal-pct'))  el('wtd-goal-pct').textContent = goalPct + '%';
+    if(el('wtd-goal-fill')) el('wtd-goal-fill').style.width = goalPct + '%';
+    if(el('wtd-daily-goal'))el('wtd-daily-goal').textContent = dollars(dailyGoal);
 
-    // Date header
-    const now_wtd = new Date();
-    const wtdDateStr = now_wtd.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'}).toUpperCase();
-    const heroEl = document.getElementById('wtd-date-hero');
-    if(heroEl) heroEl.textContent = wtdDateStr;
-    el('wtd-daily-goal').textContent = dollars(dailyGoal);
+    // Collected Past card
+    if(el('wtd-past-rev'))    el('wtd-past-rev').textContent   = dollars(revPast);
+    if(el('wtd-total-today')) el('wtd-total-today').textContent = dollars(revenueAll);
 
-    // Revenue pop animation
+    // Animate payment pops on Collected Past card when scene enters or total increases
+    if(revPast > 0 && revPast !== updateS6._lastPast) {
+      updateS6._lastPast = revPast;
+      // Schedule individual payment pop animations
+      const payments = [];
+      try { const d = JSON.parse(snap['daily_past_payments_json']||'[]'); payments.push(...d); } catch(e) {}
+      if(!payments.length && revPast > 0) payments.push({amount: revPast});
+      animatePaymentPops(payments);
+    }
+
+    // Tech call-ins today
+    const techEl = el('wtd-tech-calls');
+    if(techEl) {
+      let techCalls = [];
+      try { techCalls = JSON.parse(snap['tech_calls_today']||'[]'); } catch(e) {}
+      if(techCalls.length) {
+        techEl.innerHTML = techCalls.map(t => {
+          const photo = getEmpPhoto(t.name, '');
+          return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+            ${photo?`<img src="${photo}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
+            <div style="flex:1;font-size:12px;font-weight:600;color:#fff">${t.name.split(' ')[0]}</div>
+            <div style="font-family:var(--font-mono);font-size:13px;color:var(--orange);font-weight:700">${t.calls}</div>
+          </div>`;
+        }).join('');
+      } else {
+        techEl.innerHTML = '<div style="color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:16px 0">No tech calls today</div>';
+      }
+    }
+
+    // Revenue pop animation (legacy — fires when total increases)
     if (revenueAll > _wtdLastRevenue && _wtdLastRevenue > 0) fireRevenuePop(revenueAll - _wtdLastRevenue);
     _wtdLastRevenue = revenueAll;
 
-    // Main revenue display — today's jobs only
-    animCount('wtd-revenue', revenue, true);
-    el('wtd-jobs').textContent      = dailyJobs;
-    el('wtd-completed').textContent = dailyJobs;
-    el('wtd-ests').textContent      = dailyEsts;
-
-    // Collected Past — show only when there are past-job payments today
-    const pastWrap = el('wtd-past-wrap');
-    if(pastWrap) {
-      if(revPast > 0) {
-        pastWrap.style.display = 'block';
-        const pastEl = el('wtd-past-rev');
-        if(pastEl) pastEl.textContent = dollars(revPast);
-        const pastSub = el('wtd-past-sub');
-        if(pastSub) {
-          // Calculate how many invoices make up the past revenue
-          pastSub.textContent = 'final payments on previous jobs';
-        }
-      } else {
-        pastWrap.style.display = 'none';
-      }
-    }
-
-    // Alternate Jobs Completed card between paid jobs and estimates every 6s
-    if(window._wtdJobsFlipTimer) clearInterval(window._wtdJobsFlipTimer);
-    let _wtdFlipState = 0;
-    function flipJobsCard() {
-      const lbl = el('wtd-jobs-label');
-      const val = el('wtd-completed');
-      const sub = el('wtd-jobs-sub');
-      if(_wtdFlipState % 2 === 0) {
-        if(lbl) lbl.textContent = 'Jobs Completed';
-        if(val) { val.textContent = dailyJobs; val.className = 'metric-value glow-green'; }
-        if(sub) sub.textContent = 'Paid & closed today';
-      } else {
-        if(lbl) lbl.textContent = 'Estimates Scheduled';
-        if(val) { val.textContent = dailyEsts; val.className = 'metric-value glow-blue'; }
-        if(sub) sub.textContent = 'Visits scheduled today';
-      }
-      _wtdFlipState++;
-    }
-    flipJobsCard();
-    window._wtdJobsFlipTimer = setInterval(flipJobsCard, 6000);
-
-    // Thermometer uses total collected today (today jobs + past payments)
+    addGapToGoalDisplay(revenueAll);
     renderThermometer('wtd-thermo', revenueAll, dailyGoal);
-    el('wtd-conv').textContent      = convPct !== null ? dailyConv + ' / ' + dailyEsts : '—';
-    const convSub = el('wtd-conv-sub');
-    if(convSub) convSub.textContent = convPct !== null ? convPct + '% conversion rate' : 'Estimates sold today';
-    el('wtd-goal-pct').textContent  = goalPct + '%';
-    el('wtd-goal-fill').style.width = goalPct + '%';
-    addGapToGoalDisplay(revenue);
-
-    // Color hero based on pace
-    const heroCard = el('wtd-hero-card');
-    if(heroCard) {
-      heroCard.style.background = goalPct >= 100
-        ? 'linear-gradient(135deg,rgba(0,255,136,.12),rgba(0,212,255,.08))'
-        : goalPct >= 50
-        ? 'linear-gradient(135deg,rgba(0,255,136,.06),rgba(0,212,255,.04))'
-        : 'linear-gradient(135deg,rgba(255,107,53,.06),rgba(168,85,247,.04))';
-    }
-  } catch(e) {
-    console.warn('Win the Day error:', e);
+  } finally {
+    updateS6._running = false;
   }
 }
+
+// Animate individual payment pops on the Collected Past card
+// Each payment floats up with the dollar amount and a coin/wallet icon
+function animatePaymentPops(payments) {
+  const container = el('wtd-payment-pops');
+  if(!container) return;
+  container.innerHTML = '';
+  const icons = ['💰','💵','🪙','💳','🏦'];
+  payments.slice(0, 8).forEach((pmt, i) => {
+    setTimeout(() => {
+      const pop = document.createElement('div');
+      const icon = icons[i % icons.length];
+      const amt  = dollars(pmt.amount||0);
+      const x    = 10 + Math.random() * 70;
+      pop.style.cssText = `
+        position:absolute;
+        left:${x}%;bottom:10%;
+        font-size:14px;font-weight:800;
+        color:var(--blue);
+        font-family:var(--font-mono);
+        white-space:nowrap;
+        pointer-events:none;
+        opacity:0;
+        animation:paymentPop 2.5s ease-out forwards;
+        text-shadow:0 0 10px rgba(0,212,255,.5);
+      `;
+      pop.textContent = `${icon} +${amt}`;
+      container.appendChild(pop);
+      setTimeout(() => pop.remove(), 3000);
+    }, i * 400);
+  });
+}
+
+// Add keyframes for payment pop animation if not already present
+if(!document.getElementById('payment-pop-style')) {
+  const style = document.createElement('style');
+  style.id = 'payment-pop-style';
+  style.textContent = `
+    @keyframes paymentPop {
+      0%   { opacity:0; transform:translateY(0) scale(0.8); }
+      20%  { opacity:1; transform:translateY(-20px) scale(1.1); }
+      80%  { opacity:.8; transform:translateY(-80px) scale(1); }
+      100% { opacity:0; transform:translateY(-120px) scale(0.9); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 
 function fireRevenuePop(amount) {
   const hero = el('wtd-hero-card');
@@ -3530,7 +3654,7 @@ function goScene(idx) {
     if (state.holidays && state.holidays.length) { updateS11(); } // self-managed with timer
     else { nextScene(); }
   }
-  else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
+  else if (sceneId==='s14') { updateS14(); scheduleNextScene('s14'); }
   else if (sceneId==='s13') {
     // Merged scene: shows CallRail + RingCentral together
     if (state.snap['calls_total'] || state.snap['rc_answered'] || state.snap['rc_leaderboard'] || state.snap['calls_weekly_json']) {
@@ -3671,6 +3795,31 @@ function el(id) { return document.getElementById(id); }
 // ============================================================
 // INIT
 // ============================================================
+// ============================================================
+// SCALE TO FIT — maintains 1920×1080 aspect ratio on any screen
+// Scales the entire #scaler canvas uniformly, centers it,
+// letterboxes with black if screen aspect differs from 16:9
+// ============================================================
+function scaleToFit() {
+  const scaler = document.getElementById('scaler');
+  if(!scaler) return;
+  const W = 1920, H = 1080;
+  const sw = window.innerWidth;
+  const sh = window.innerHeight;
+  const scale = Math.min(sw / W, sh / H);
+  const scaledW = Math.round(W * scale);
+  const scaledH = Math.round(H * scale);
+  const left = Math.round((sw - scaledW) / 2);
+  const top  = Math.round((sh - scaledH) / 2);
+  scaler.style.transform = `scale(${scale})`;
+  scaler.style.left = left + 'px';
+  scaler.style.top  = top  + 'px';
+}
+
+window.addEventListener('resize', scaleToFit);
+// Run immediately before init so there's no flash of unstyled layout
+scaleToFit();
+
 async function init() {
   // Set version in all display elements from single constant
   document.querySelectorAll('#companion-ver,[data-version]').forEach(el => {
@@ -4735,8 +4884,8 @@ function applyHolidayOverlay(holiday) {
   if(!overlay) {
     overlay = document.createElement('div');
     overlay.id = 'holiday-overlay';
-    overlay.style.cssText = 'position:fixed;top:60px;right:20px;font-size:28px;z-index:50;opacity:.7;pointer-events:none;letter-spacing:4px';
-    document.body.appendChild(overlay);
+    overlay.style.cssText = 'position:absolute;top:60px;right:20px;font-size:28px;z-index:50;opacity:.7;pointer-events:none;letter-spacing:4px';
+    document.getElementById('scaler').appendChild(overlay);
   }
   overlay.textContent = emojis;
 }
@@ -4752,9 +4901,9 @@ function triggerVictoryMode() {
   if(!banner) {
     banner = document.createElement('div');
     banner.id = 'victory-banner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:200;background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700);color:#000;font-family:var(--font-display);font-size:24px;letter-spacing:.15em;text-align:center;padding:10px;box-shadow:0 0 40px rgba(255,215,0,.6)';
+    banner.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:200;background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700);color:#000;font-family:var(--font-display);font-size:24px;letter-spacing:.15em;text-align:center;padding:10px;box-shadow:0 0 40px rgba(255,215,0,.6)';
     banner.textContent = '🏆 GOAL ACHIEVED — OUTSTANDING WORK, TEAM! 🏆';
-    document.body.appendChild(banner);
+    document.getElementById('scaler').appendChild(banner);
   }
   spawnVictoryConfetti();
   setTimeout(() => { _victoryActive = false; banner.remove(); }, 30000);
@@ -4764,8 +4913,8 @@ function spawnVictoryConfetti() {
   for(let i=0;i<50;i++){
     setTimeout(()=>{
       const p=document.createElement('div');
-      p.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}%;width:8px;height:8px;border-radius:2px;z-index:199;pointer-events:none;background:${['#FFD700','#FFA500','#fff','#FF6B35'][Math.floor(Math.random()*4)]};animation:confettiFall ${3+Math.random()*3}s linear forwards`;
-      document.body.appendChild(p);
+      p.style.cssText=`position:absolute;top:-10px;left:${Math.random()*100}%;width:8px;height:8px;border-radius:2px;z-index:199;pointer-events:none;background:${['#FFD700','#FFA500','#fff','#FF6B35'][Math.floor(Math.random()*4)]};animation:confettiFall ${3+Math.random()*3}s linear forwards`;
+      document.getElementById('scaler').appendChild(p);
       setTimeout(()=>p.remove(),6000);
     }, i*80);
   }
