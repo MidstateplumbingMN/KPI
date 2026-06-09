@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.90</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v23.93</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.90</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.93</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.90</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.93</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2523,7 +2523,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.90
+  // ATTRIBUTION ENGINE — v23.93
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3830,6 +3830,11 @@ function renderKPI(jobs,estimates,employees,plans){
     ? _uploadedPlans.filter(isPlanActive)
     : plans.filter(isPlanActive);
 
+  console.log(`[Plans] leaderboard source: ${_uploadedPlans.length > 0 ? '_uploadedPlans' : '_plans(HCP)'} — ${planSource.length} active plans`);
+  if(planSource.length === 0 && _uploadedPlans.length === 0) {
+    dashLog('warn','Plans: No uploaded plan data — upload service agreements CSV in Service Plans tab');
+  }
+
   const kpiPlans=planSource.filter(p=>{
     // Aggregate uploads have no real date — include always
     if(p.source==='upload_aggregate') return true;
@@ -3843,8 +3848,8 @@ function renderKPI(jobs,estimates,employees,plans){
 
   // Count plans per employee
   kpiPlans.forEach(p=>{
-    // sold_by may be a name string (uploaded CSV) or an employee object (HCP API)
-    let n = '', useId = '', useRole = '';
+    let n = '';
+    // sold_by can be: plain string, object with first/last name, or object with name
     if(typeof p.sold_by === 'string' && p.sold_by) {
       n = p.sold_by.trim();
     } else {
@@ -3852,15 +3857,18 @@ function renderKPI(jobs,estimates,employees,plans){
       if(!e) return;
       n = ((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'?';
     }
+    // Also check top-level sold_by_name (from Sheets upload format)
+    if(!n && p.sold_by_name) n = p.sold_by_name.trim();
     if(!n) return;
-    // Match to real employee by name
+    // Match to real employee by full name or first name
     const realEmp=employees.find(x=>{
       const xn=((x.first_name||'')+' '+(x.last_name||'')).trim().toLowerCase();
-      return xn===n.toLowerCase()||xn.includes(n.toLowerCase().split(' ')[0]);
+      return xn===n.toLowerCase()
+        || xn.startsWith(n.toLowerCase().split(' ')[0]+' ')
+        || n.toLowerCase().startsWith(xn.split(' ')[0]);
     });
-    useId   = realEmp?.id   || n; // use name as ID if no match
-    useRole = realEmp?.role || '';
-    ensure(useId, n, useRole);
+    const useId = realEmp?.id || n;
+    ensure(useId, realEmp ? ((realEmp.first_name||'')+' '+(realEmp.last_name||'')).trim() : n, realEmp?.role||'');
     if(map[useId]) map[useId].plans++;
   });
 
@@ -4483,11 +4491,16 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       dashLog('success',`CallRail: ${crCalls.length} calls last 30 days, ${_callrailSnap.new_callers} new callers`);
     }
   } catch(e) { console.warn('[CallRail auto-fetch] error:', e.message); }
-  // Fetch RingCentral call log — await so _rcSnap is populated before snapshot is built
-  const rcJwt = _wbSettings.rcJwt || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
-  if(rcJwt && _workerUrl) {
-    try { await fetchRCCallLog(rcJwt); }
-    catch(e) { dashLog('warn','RC fetch skipped: '+e.message); }
+  // Fetch RingCentral call log — only if not already fetched this pull
+  // (syncReportToSheets runs twice: from auto-pull and from Push to Companion)
+  if(!_rcSnap) {
+    const rcJwt = _wbSettings.rcJwt || localStorage.getItem('rc_jwt') || '';
+    if(rcJwt && _workerUrl) {
+      try { await fetchRCCallLog(rcJwt); }
+      catch(e) { dashLog('warn','RC fetch skipped: '+e.message); }
+    }
+  } else {
+    dashLog('info','RC: using cached data from this pull');
   }
 
   // Fetch weather forecast from weatherapi.com (1 day = free tier)
@@ -4563,7 +4576,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.90',  // dashboard version that generated this push
+    dash_version: 'v23.93',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4809,7 +4822,41 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
     holidays_json:  JSON.stringify((_holidays||[]).filter(h=>h.enabled)),
     birthdays_json: JSON.stringify(_bdayList||[]),
-    // Content tabs — pushed to KPI_Dashboard so companion reads from one reliable source
+    // Callback leaderboard — jobs/estimates with "call back" type or tag
+    callback_leaderboard: (() => {
+      const cbMap = {};
+      // Check jobs with work_type containing 'callback' or 'call back'
+      jobs.forEach(j => {
+        const wt = (j.work_type||j.job_type||'').toLowerCase();
+        const tags = (j.tags||[]).map(t=>t.toLowerCase());
+        const isCallback = wt.includes('call back') || wt.includes('callback')
+          || tags.some(t=>t.includes('call back')||t.includes('callback'));
+        if(!isCallback) return;
+        const tech = getAssigned(j);
+        if(!tech) return;
+        if(!cbMap[tech]) cbMap[tech]={name:tech,jobs:0,converted:0};
+        cbMap[tech].jobs++;
+        if(isJobPaid(j)) cbMap[tech].converted++;
+      });
+      // Check estimates with callback tag/option
+      estimates.forEach(e => {
+        const tags = (e.tags||[]).map(t=>t.toLowerCase());
+        const label = (e.label||e.work_type||e.title||'').toLowerCase();
+        const isCallback = tags.some(t=>t.includes('call back')||t.includes('callback'))
+          || label.includes('call back') || label.includes('callback');
+        if(!isCallback) return;
+        const emp = getAssignedList(e)[0];
+        if(!emp) return;
+        const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'';
+        if(!tech) return;
+        if(!cbMap[tech]) cbMap[tech]={name:tech,jobs:0,converted:0};
+        // Only count estimates not already counted as jobs
+        if(isConv(e) && !cbMap[tech].jobs) cbMap[tech].converted++;
+      });
+      return JSON.stringify(
+        Object.values(cbMap).sort((a,b)=>b.jobs-a.jobs)
+      );
+    })(),
     // Falls back to published CSV tabs if these keys are empty
     spotlights_json:     JSON.stringify(_spotlights||[]),
     promos_json:         JSON.stringify(_promos||[]),
@@ -5020,7 +5067,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v23.90',
+        dash_version:        'v23.93',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5096,6 +5143,8 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         birthdays_json:      dashboardSnapshot.birthdays_json,
         spotlights_json:     dashboardSnapshot.spotlights_json,
         promos_json:         dashboardSnapshot.promos_json,
+        callback_leaderboard: dashboardSnapshot.callback_leaderboard,
+        tech_calls_today:    dashboardSnapshot.tech_calls_today,
         announcements_json:  dashboardSnapshot.announcements_json,
         big_win_job:         dashboardSnapshot.big_win_job,
         // Dept conversion — computed client-side from _estimates
@@ -5639,8 +5688,9 @@ async function fetchRCCallLog(jwt) {
       'Call Queue', 'Queue', 'Park Location',
     ]);
 
-    // Spam/hangup threshold
-    const SPAM_THRESHOLD_SEC = 60;
+    // Spam/hangup threshold — true hangups/robocalls are under 10 seconds
+    // 60s was filtering too many legitimate short calls (quick transfers, brief answers)
+    const SPAM_THRESHOLD_SEC = 10;
 
     // Tallies
     const byAgent    = {}; // dispatch staff answering customer calls
@@ -5673,10 +5723,16 @@ async function fetchRCCallLog(jwt) {
 
       const legs = call.legs || [];
 
-      // Find who actually answered (accepted the call)
-      const acceptLegs = legs.filter(l =>
-        l.action === 'Accept' || l.result === 'Accepted' || l.result === 'Connected'
-      );
+      // Find who actually answered — RC uses various result values
+      const acceptLegs = legs.filter(l => {
+        const action = (l.action||'').toLowerCase();
+        const result = (l.result||'').toLowerCase();
+        return action === 'accept'
+          || result === 'accepted'
+          || result === 'connected'
+          || result === 'answered'
+          || (action === '' && result === '' && parseInt(l.duration||0) > 0);
+      });
 
       // Check if this is a TECH calling IN from the field
       // Technician calls show the tech name in the FROM field
@@ -5815,7 +5871,18 @@ async function fetchRCCallLog(jwt) {
     _rcSnap = {
       total: allCalls.length, answered: totalAnswered, missed: totalMissed,
       answer_rate: ansRate, leaderboard, monthly: monthCounts,
-      daily: dailyCounts, hourly: hourlyCounts
+      daily: dailyCounts, hourly: hourlyCounts,
+      // Tech call-ins today — for Win the Day scene
+      techCallsToday: techCalls
+        .filter(t => {
+          const todayCalls = allCalls.filter(c => {
+            const d = new Date(c.startTime);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayStr
+              && (c.from?.name||'') === t.name;
+          });
+          return todayCalls.length > 0;
+        })
+        .map(t => ({name:t.name, calls:t.total})),
     };
     dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} real agents`);
 
@@ -8157,6 +8224,17 @@ async function pushToCompanion(){
   if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); btn.textContent=orig; btn.disabled=false; return; }
   if(!_jobs.length){ showToast('Pull a report first','warn'); btn.textContent=orig; btn.disabled=false; return; }
 
+  // Remind if no service plan data uploaded
+  if(!_uploadedPlans || _uploadedPlans.length === 0) {
+    const go = confirm(
+      '⚠️ No Service Plan data uploaded.\n\n' +
+      'Service plan counts on the leaderboard will be empty.\n\n' +
+      'Upload the HCP service agreements CSV in the Service Plans tab before pushing.\n\n' +
+      'Push anyway? (OK = yes, Cancel = go upload plans first)'
+    );
+    if(!go){ btn.textContent=orig; btn.disabled=false; return; }
+  }
+
   try{
     dashLog('info','📺 Pushing to companion...');
     $$('statusBar').textContent='📺 Pushing data to companion...';
@@ -8725,11 +8803,17 @@ function renderAnnList(){
   if(countEl) countEl.textContent=`${_announcements.length} item${_announcements.length!==1?'s':''}`;
   if(!_announcements.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No announcements yet.</div>'; return; }
   const icons={'motivation':'💪','announcement':'📢','achievement':'🏆','reminder':'🔔'};
-  el.innerHTML=_announcements.map(a=>`
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:10px">
+  el.innerHTML=_announcements.map((a,i)=>`
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+      <!-- Sort handle -->
+      <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;padding-top:2px">
+        <button onclick="moveAnnouncement(${a.id},-1)" ${i===0?'disabled':''} style="font-size:11px;padding:2px 6px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:4px;cursor:pointer;opacity:${i===0?'0.3':'1'}" title="Move up">▲</button>
+        <button onclick="moveAnnouncement(${a.id},1)" ${i===_announcements.length-1?'disabled':''} style="font-size:11px;padding:2px 6px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:4px;cursor:pointer;opacity:${i===_announcements.length-1?'0.3':'1'}" title="Move down">▼</button>
+      </div>
       ${a.photoUrl?`<img src="${a.photoUrl}" style="max-width:80px;max-height:80px;width:auto;height:auto;border-radius:8px;object-fit:contain;border:2px solid #8B5CF6;flex-shrink:0">`
         :`<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${icons[a.type]||'💬'}</div>`}
       <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:#6B7280;margin-bottom:2px">#${i+1} · ${a.type||'motivation'}</div>
         <div style="font-size:13px;font-weight:600;color:#111827;line-height:1.4">"${a.message}"</div>
         <div style="font-size:11px;color:#8B5CF6;margin-top:3px">— ${a.author}</div>
       </div>
@@ -8738,6 +8822,17 @@ function renderAnnList(){
         <button onclick="deleteAnnouncement(${a.id})" style="font-size:10px;padding:3px 8px;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;cursor:pointer">✕ Delete</button>
       </div>
     </div>`).join('');
+}
+
+function moveAnnouncement(id, direction) {
+  const idx = _announcements.findIndex(a=>a.id===id);
+  if(idx < 0) return;
+  const newIdx = idx + direction;
+  if(newIdx < 0 || newIdx >= _announcements.length) return;
+  // Swap
+  [_announcements[idx], _announcements[newIdx]] = [_announcements[newIdx], _announcements[idx]];
+  saveAnnouncements();
+  renderAnnList();
 }
 
 function loadSpotlights(){
