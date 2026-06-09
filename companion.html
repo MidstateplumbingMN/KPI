@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.65</title>
+<title>Midstate — KPI Command Center v2.66</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1188,9 +1188,11 @@ html, body {
           </div>
         </div>
 
-        <!-- RC agent leaderboard -->
-        <div class="card" style="display:flex;flex-direction:column;padding:12px 14px;overflow:hidden">
-          <div style="font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;flex-shrink:0">
+        <!-- RC agent leaderboard + rotating leader card -->
+        <div class="card" style="display:flex;flex-direction:column;padding:12px 14px;overflow:hidden;gap:8px">
+          <!-- Rotating call leader highlight -->
+          <div id="call-leader-card" style="flex-shrink:0;padding:8px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;min-height:72px;transition:opacity .3s"></div>
+          <div style="font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.12em;flex-shrink:0">
             🏆 Top Agents — <span style="color:rgba(255,255,255,.4);font-size:8px;font-weight:400">Last 30 days · calls answered</span>
           </div>
           <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px"></div>
@@ -1536,7 +1538,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.65
+      v2.66
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1547,7 +1549,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.65';
+const COMPANION_VERSION = 'v2.66';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2006,7 +2008,7 @@ async function loadData() {
       }
     }
     state.kpi = Object.values(empMap)
-      .filter(r => num(r[CONFIG.KPI_COLS.revenue]) > 0 || num(r[CONFIG.KPI_COLS.jobs]) > 0)
+      .filter(r => num(r[CONFIG.KPI_COLS.revenue]) > 0 || num(r[CONFIG.KPI_COLS.jobs]) > 0 || num(r[CONFIG.KPI_COLS.plans]||0) > 0)
       .sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]));
 
     // Reports: take most recent
@@ -3052,6 +3054,48 @@ let _rcPeriodTimer = null;
 
 // ============================================================
 // SCENE 13 — UNIFIED COMMUNICATIONS (CallRail + RingCentral)
+// Rotating call leader card — cycles Today / MTD / YTD every 5s
+function startCallLeaderRotation(agent, today, mtd, ytd) {
+  const cardEl = el('call-leader-card');
+  if(!cardEl || !agent) return;
+  if(window._callLeaderTimer) clearInterval(window._callLeaderTimer);
+
+  const lookup = agent.name === 'Bob D.' ? 'Robert Danaher'
+    : agent.name === 'Victoria' ? 'Victoria Ellsworth'
+    : agent.name === 'Eric' ? 'Eric Stoffel'
+    : agent.name;
+  const photo = getEmpPhoto(lookup, '');
+  const periods = [
+    { label: 'Today',      value: today, color: 'var(--gold)' },
+    { label: 'This Month', value: mtd,   color: 'var(--blue)' },
+    { label: 'Year to Date', value: ytd, color: 'var(--green)' },
+  ];
+  let idx = 0;
+
+  function render() {
+    const p = periods[idx];
+    cardEl.style.transition = 'opacity .3s';
+    cardEl.style.opacity = '0';
+    setTimeout(() => {
+      cardEl.innerHTML = `
+        <div style="font-size:7px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:${p.color};margin-bottom:6px">📞 Call Leader — ${p.label}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${photo ? `<img src="${photo}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:2px solid ${p.color}66" onerror="this.style.display='none'">` : ''}
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#fff">${agent.name}</div>
+            <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:${p.color};line-height:1">${p.value||'—'}</div>
+            <div style="font-size:8px;color:rgba(255,255,255,.4)">calls ${p.label.toLowerCase()}</div>
+          </div>
+        </div>`;
+      cardEl.style.opacity = '1';
+    }, 300);
+    idx = (idx + 1) % periods.length;
+  }
+
+  render();
+  window._callLeaderTimer = setInterval(render, 5000);
+}
+
 // ============================================================
 async function updateS13() {
   const snap = state.snap;
@@ -3070,23 +3114,28 @@ async function updateS13() {
   if(el('rc-rate'))     el('rc-rate').textContent     = rcRate > 0 ? rcRate+'%' : '—';
   if(el('calls-source'))el('calls-source').textContent= rcAnswered > 0 ? 'RC + CR' : 'CallRail';
 
-  // This Month / MTD / Today / YTD from rc_daily array
-  let daily = [];
-  try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
-  if(!Array.isArray(daily) || !daily.length) daily = new Array(31).fill(0);
+  // This Month / MTD / Today / YTD — use pre-computed keys first, compute from arrays as fallback
+  const rcToday  = parseInt(snap['rc_today']||0) || (() => {
+    let daily = []; try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
+    return daily[new Date().getDate()-1] || 0;
+  })();
+  const rcMtd    = parseInt(snap['rc_mtd']||0) || (() => {
+    let daily = []; try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
+    const today = new Date().getDate();
+    return daily.slice(0, today).reduce((s,v)=>s+(v||0), 0);
+  })();
+  const rcYtd    = parseInt(snap['rc_ytd']||0) || (() => {
+    let monthly = []; try { monthly = JSON.parse(snap['rc_monthly']||'[]'); } catch(e) {}
+    return Array.isArray(monthly) ? monthly.reduce((s,v)=>s+(v||0),0) : 0;
+  })();
 
-  const now     = new Date();
-  const today   = now.getDate();
-  const mtdTotal = daily.slice(0, today).reduce((s,v)=>s+(v||0), 0);
-  const todayVal = daily[today-1] || 0;
+  // Use RC today/mtd/ytd to populate the period cells
+  const todayVal = rcToday;
+  const mtdTotal = rcMtd;
+  const ytdTotal = rcYtd;
 
-  // YTD from monthly totals
-  let rcMonthly = [];
-  try { rcMonthly = JSON.parse(snap['rc_monthly']||'[]'); } catch(e) {}
-  const ytdTotal = Array.isArray(rcMonthly) ? rcMonthly.reduce((s,v)=>s+(v||0),0) : 0;
-
-  if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal  || '—';
-  if(el('calls-today')) el('calls-today').textContent = todayVal  || '—';
+  if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal || '—';
+  if(el('calls-today')) el('calls-today').textContent = todayVal || '—';
   if(el('calls-ytd'))   el('calls-ytd').textContent   = ytdTotal > 0 ? ytdTotal.toLocaleString() : '—';
 
   // RC Agent leaderboard — primary: RC_Agents tab, fallback: rc_leaderboard snap
@@ -3196,6 +3245,12 @@ async function updateS13() {
     }
 
     lbEl.innerHTML = html;
+
+    // Rotating call leader card — highlights top dispatcher with Today/MTD/YTD cycle
+    const topAgent = allDisp.length ? allDisp[0] : null;
+    if(topAgent && topAgent.answered > 0) {
+      startCallLeaderRotation(topAgent, todayVal, mtdTotal, ytdTotal);
+    }
   } else if(lbEl) {
     lbEl.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:11px;text-align:center;padding:16px 0;line-height:1.6">RC data not yet pushed<br><span style="font-size:9px">Pull report → Push to Companion</span></div>';
   }
@@ -3655,13 +3710,13 @@ function goScene(idx) {
     else { nextScene(); }
   }
   else if (sceneId==='s14') { updateS14(); scheduleNextScene('s14'); }
+  else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
   else if (sceneId==='s13') {
     // Merged scene: shows CallRail + RingCentral together
     if (state.snap['calls_total'] || state.snap['rc_answered'] || state.snap['rc_leaderboard'] || state.snap['calls_weekly_json']) {
       updateS13(); scheduleNextScene('s13');
     } else { nextScene(); }
   }
-  else if (sceneId==='s14') { nextScene(); } // merged into s13
 }
 
 function nextScene() {
