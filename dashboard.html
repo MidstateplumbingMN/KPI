@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.5</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.6</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.5</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.6</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.5</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.6</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1871,6 +1871,10 @@ function isJobPaid(j){
   // No invoice data — fall back to status + outstanding_balance
   return isJobComplete(j) && (parseFloat(j.outstanding_balance)||0) === 0;
 }
+function isJobRefunded(j){ const s=getRawStatus(j); return s.includes('refund')||s.includes('void'); }
+function isJobCanceled(j){ const s=getRawStatus(j); return s.includes('cancel')||s.includes('deleted'); }
+function isJobExcluded(j){ return isJobRefunded(j)||isJobCanceled(j); }
+
 // Job type ID → name lookup (populated during pull from /job_fields/job_types)
 // Needed because estimate_fields returns job_type_id only, not the name
 let _jobTypesMap = {};
@@ -2587,7 +2591,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.5
+  // ATTRIBUTION ENGINE — v24.6
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4644,7 +4648,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.5',  // dashboard version that generated this push
+    dash_version: 'v24.6',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4665,17 +4669,22 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       const toLD = d => { if(!d||isNaN(d.getTime())) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
       let total = 0;
       Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
-        const todayPmts = payments.filter(p => p.date === todayLocal && p.amount > 0); // positive only
+        const todayPmts = payments.filter(p => p.date === todayLocal && p.amount > 0);
         if(!todayPmts.length) return;
         const job = _jobs.find(j => j.id === jobId);
-        if(!job) return; // pre-Jan job → goes to pastJobs
+        if(!job) {
+          console.log(`[DailyRev] Inv#${todayPmts[0].number} jobId=${jobId} NOT IN _jobs → pastJobs`);
+          return;
+        }
         const jobDate = job.work_timestamps?.completed_at || job.completed_at
           || job.schedule?.scheduled_start || job.scheduled_start || '';
         const jobDateLocal = jobDate ? toLD(new Date(jobDate)) : '';
-        if(jobDateLocal !== todayLocal) return;
+        const match = jobDateLocal === todayLocal;
+        if(!match) console.log(`[DailyRev] Inv#${todayPmts[0].number} jobDate=${jobDateLocal} ≠ today=${todayLocal} → pastJobs`);
+        if(!match) return;
         todayPmts.forEach(p => { total += p.amount; });
       });
-      console.log(`[DailyRev] todayJobs=$${total.toFixed(2)} pastJobs=<see next>`);
+      console.log(`[DailyRev] todayJobs=$${total.toFixed(2)}`);
       return total;
     })(),
     rev_daily_past_jobs: (() => {
@@ -5180,7 +5189,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.5',
+        dash_version:        'v24.6',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
