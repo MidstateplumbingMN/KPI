@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9a</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9a</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9a</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1543,6 +1543,7 @@ let _holidays        = [];
 let _wbSettings      = {};
 let _tyCards         = {};       // jobId → {status, sentDate, note}
 let _isActivity      = {};
+let _isStatus        = {};       // inside sales status map
 let _crCallsRaw      = [];
 let _rcCallsRaw      = [];
 let _rcSnap          = null;
@@ -1552,6 +1553,19 @@ let _allYearJobs     = [];
 let _jobTypesMap     = {};       // job type id → name (fetched from /job_fields/job_types)
 let _orderQueue      = {};
 let _uploadedPlansCache = null;
+const DEFAULT_HOLIDAYS = [
+  { id:'newyear',      emoji:'🎆', name:"New Year's Day",        date:'01-01' },
+  { id:'mlk',          emoji:'✊', name:'MLK Day',               date:'01-15' },
+  { id:'presidents',   emoji:'🇺🇸', name:"Presidents' Day",      date:'02-19' },
+  { id:'memorial',     emoji:'🪖', name:'Memorial Day',          date:'05-27' },
+  { id:'juneteenth',   emoji:'✊', name:'Juneteenth',             date:'06-19' },
+  { id:'july4',        emoji:'🎆', name:'Independence Day',       date:'07-04' },
+  { id:'labor',        emoji:'🔨', name:'Labor Day',              date:'09-02' },
+  { id:'columbus',     emoji:'⚓', name:'Columbus Day',           date:'10-14' },
+  { id:'veterans',     emoji:'🎖️', name:"Veterans' Day",          date:'11-11' },
+  { id:'thanksgiving', emoji:'🦃', name:'Thanksgiving',           date:'11-28' },
+  { id:'christmas',    emoji:'🎄', name:'Christmas',              date:'12-25' },
+];
 // ──────────────────────────────────────────────────────────────
 
 // Authoritative department assignments
@@ -2648,7 +2662,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9
+  // ATTRIBUTION ENGINE — v24.9a
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4346,37 +4360,6 @@ function renderPlanRows(plans) {
   }).join('');
 }
 
-  // Compute date range and upload context
-  const isAggregate = plans.length > 0 && plans[0]?.source === 'upload_aggregate';
-  const uploadedAt  = plans.find(p=>p._uploadedAt)?._uploadedAt;
-  const uploadedStr = uploadedAt
-    ? new Date(uploadedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})
-    : '';
-
-  // Group aggregate plans by tech for the summary
-  let techSummary = '';
-  if(isAggregate){
-    const byTech = {};
-    plans.forEach(p => {
-      const name = p._soldByName || getPlanSoldBy(p);
-      byTech[name] = (byTech[name]||0) + 1;
-    });
-    techSummary = Object.entries(byTech)
-      .sort((a,b)=>b[1]-a[1])
-      .map(([name,cnt])=>`${name.split(' ')[0]}: ${cnt}`)
-      .join(' · ');
-  }
-
-  let dateRangeLabel = '';
-  if(!isAggregate){
-    const planDates = plans
-      .map(p => p.created_at||p.start_date||'')
-      .filter(Boolean).map(d=>new Date(d)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
-    if(planDates.length >= 2){
-      const fmt = d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-      dateRangeLabel = `${fmt(planDates[0])} — ${fmt(planDates[planDates.length-1])}`;
-    }
-  }
 
 // ============================================================
 // INSIDE SALES
@@ -4805,7 +4788,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9',  // dashboard version that generated this push
+    dash_version: 'v24.9a',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5346,7 +5329,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9',
+        dash_version:        'v24.9a',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -8628,20 +8611,7 @@ const RC_JWT_DEFAULT = 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIs
 // ============================================================
 // HOLIDAY MANAGEMENT
 // ============================================================
-const DEFAULT_HOLIDAYS = [
-  { id:'newyear',      emoji:'🎆', name:"New Year's Day",      date:`${new Date().getFullYear()}-01-01`, enabled:false, message:'Happy New Year!', photoUrl:'' },
-  { id:'mlk',          emoji:'✊', name:'MLK Day',              date:`${new Date().getFullYear()}-01-20`, enabled:false, message:'Honoring Dr. Martin Luther King Jr.', photoUrl:'' },
-  { id:'valentines',   emoji:'❤️', name:"Valentine's Day",     date:`${new Date().getFullYear()}-02-14`, enabled:false, message:'Happy Valentine\'s Day!', photoUrl:'' },
-  { id:'mothers',      emoji:'💐', name:"Mother's Day",        date:`${new Date().getFullYear()}-05-11`, enabled:false, message:"Happy Mother's Day!", photoUrl:'' },
-  { id:'memorial',     emoji:'🇺🇸', name:'Memorial Day',       date:`${new Date().getFullYear()}-05-26`, enabled:false, message:'We honor those who served.', photoUrl:'' },
-  { id:'fathers',      emoji:'👔', name:"Father's Day",         date:`${new Date().getFullYear()}-06-15`, enabled:false, message:"Happy Father's Day!", photoUrl:'' },
-  { id:'july4',        emoji:'🎆', name:'Independence Day',     date:`${new Date().getFullYear()}-07-04`, enabled:false, message:'Happy 4th of July!', photoUrl:'' },
-  { id:'labor',        emoji:'🛠️', name:'Labor Day',           date:`${new Date().getFullYear()}-09-01`, enabled:false, message:'Happy Labor Day!', photoUrl:'' },
-  { id:'halloween',    emoji:'🎃', name:'Halloween',            date:`${new Date().getFullYear()}-10-31`, enabled:false, message:'Happy Halloween!', photoUrl:'' },
-  { id:'thanksgiving', emoji:'🦃', name:'Thanksgiving',         date:`${new Date().getFullYear()}-11-27`, enabled:false, message:'Happy Thanksgiving!', photoUrl:'' },
-  { id:'christmas',    emoji:'🎄', name:'Christmas',            date:`${new Date().getFullYear()}-12-25`, enabled:false, message:'Merry Christmas!', photoUrl:'' },
-  { id:'newyeareve',   emoji:'🥂', name:"New Year's Eve",       date:`${new Date().getFullYear()}-12-31`, enabled:false, message:'Happy New Year\'s Eve!', photoUrl:'' },
-];
+// DEFAULT_HOLIDAYS moved to top-level declarations
 
 
 function loadHolidays(){
@@ -10441,7 +10411,7 @@ async function fullReset(){
 }
 
 const IS_PROXY_PLACEHOLDER = ''; // Uses _sheetsProxy from state
-let _isStatus   = {};
+// _isStatus moved to top-level declarations
 let _isConvertedBy = {};
 
 function loadIS(){
