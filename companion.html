@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.66</title>
+<title>Midstate — KPI Command Center v2.69</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1183,8 +1183,8 @@ html, body {
               <div id="calls-chart-dot-1" style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
             </div>
           </div>
-          <div style="flex:1;min-height:0;position:relative">
-            <svg id="calls-line-svg" style="width:100%;height:100%;display:block;overflow:visible"></svg>
+          <div style="flex:1;min-height:120px;position:relative;height:120px">
+            <svg id="calls-line-svg" style="position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible"></svg>
           </div>
         </div>
 
@@ -1331,11 +1331,11 @@ html, body {
           </div>
         </div>
 
-        <!-- Tech Call-ins -->
+        <!-- Callbacks Today -->
         <div class="card" style="display:flex;flex-direction:column;padding:16px 18px;gap:6px">
-          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--orange);margin-bottom:2px">🔧 Tech Call-ins Today</div>
-          <div id="wtd-tech-calls" style="flex:1;display:flex;flex-direction:column;gap:4px;overflow:hidden">
-            <div style="color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:16px 0">No tech calls today</div>
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#F87171;margin-bottom:2px">⚠️ Callbacks Today</div>
+          <div id="wtd-callbacks" style="flex:1;display:flex;flex-direction:column;gap:4px;overflow:hidden">
+            <div style="color:rgba(255,255,255,.4);font-size:11px;text-align:center;padding:16px 0">No callbacks today</div>
           </div>
         </div>
 
@@ -1538,7 +1538,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.66
+      v2.69
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1549,7 +1549,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.66';
+const COMPANION_VERSION = 'v2.69';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3331,11 +3331,17 @@ function renderCallsLineChart() {
     '| today:', today, '| daysInMonth:', daysInMonth,
     '| calls today:', daily[today-1]||0, '| total calls this month:', daily.slice(0,today).reduce((a,b)=>a+(b||0),0));
 
-  const W = svg.parentElement?.clientWidth  || svg.clientWidth  || 700;
-  const H = svg.parentElement?.clientHeight || svg.clientHeight || 120;
-  if(W < 50 || H < 30) {
-    console.warn('[CallsChart] SVG container too small:', W, 'x', H, '— retrying');
-    setTimeout(renderCallsLineChart, 250); return;
+  const W = (svg.parentElement?.clientWidth  || svg.clientWidth  || 600);
+  const H = (svg.parentElement?.clientHeight || svg.clientHeight || 120);
+  if(W < 50 || H < 20) {
+    // Container not yet laid out (scene hidden or first render) — retry once after layout
+    if(!renderCallsLineChart._retryTimer) {
+      renderCallsLineChart._retryTimer = setTimeout(() => {
+        renderCallsLineChart._retryTimer = null;
+        renderCallsLineChart();
+      }, 300);
+    }
+    return;
   }
 
   // If no data yet, poll every 5s for up to 2 minutes waiting for RC data to arrive
@@ -3519,22 +3525,27 @@ async function updateS6() {
       animatePaymentPops(payments);
     }
 
-    // Tech call-ins today
-    const techEl = el('wtd-tech-calls');
-    if(techEl) {
-      let techCalls = [];
-      try { techCalls = JSON.parse(snap['tech_calls_today']||'[]'); } catch(e) {}
-      if(techCalls.length) {
-        techEl.innerHTML = techCalls.map(t => {
-          const photo = getEmpPhoto(t.name, '');
-          return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-            ${photo?`<img src="${photo}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
-            <div style="flex:1;font-size:12px;font-weight:600;color:#fff">${t.name.split(' ')[0]}</div>
-            <div style="font-family:var(--font-mono);font-size:13px;color:var(--orange);font-weight:700">${t.calls}</div>
+
+    // Callbacks today — HCP jobs marked as callback scheduled today
+    const cbEl = el('wtd-callbacks');
+    if(cbEl) {
+      let callbacks = [];
+      try { callbacks = JSON.parse(snap['daily_callbacks']||'[]'); } catch(e) {}
+      if(callbacks.length) {
+        cbEl.innerHTML = callbacks.map(cb => {
+          const photo  = getEmpPhoto(cb.tech, '');
+          const isPaid = cb.paid;
+          return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+            ${photo?`<img src="${photo}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:22px;flex-shrink:0"></div>'}
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cb.cust}</div>
+              <div style="font-size:9px;color:rgba(255,255,255,.5)">${cb.tech.split(' ')[0]}</div>
+            </div>
+            <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;flex-shrink:0;${isPaid?'background:rgba(0,255,136,.15);color:var(--green)':'background:rgba(248,113,113,.15);color:#F87171'}">${isPaid?'✅ Resolved':'🔄 Open'}</span>
           </div>`;
         }).join('');
       } else {
-        techEl.innerHTML = '<div style="color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:16px 0">No tech calls today</div>';
+        cbEl.innerHTML = '<div style="color:rgba(0,255,136,.5);font-size:11px;text-align:center;padding:16px 0">✅ No callbacks today</div>';
       }
     }
 
@@ -3710,11 +3721,19 @@ function goScene(idx) {
     else { nextScene(); }
   }
   else if (sceneId==='s14') { updateS14(); scheduleNextScene('s14'); }
-  else if (sceneId==='s12') { updateS12(); scheduleNextScene('s12'); }
+  else if (sceneId==='s12') {
+    // Only show service plans scene if we have actual plan data
+    const hasPlanData = (state.kpi||[]).some(r => num(r[CONFIG.KPI_COLS.plans]||0) > 0);
+    if(hasPlanData) { updateS12(); scheduleNextScene('s12'); }
+    else { nextScene(); }
+  }
   else if (sceneId==='s13') {
-    // Merged scene: shows CallRail + RingCentral together
     if (state.snap['calls_total'] || state.snap['rc_answered'] || state.snap['rc_leaderboard'] || state.snap['calls_weekly_json']) {
-      updateS13(); scheduleNextScene('s13');
+      updateS13().then(() => {
+        // Re-render chart now that scene is visible and has real dimensions
+        requestAnimationFrame(() => setTimeout(renderCallsLineChart, 50));
+      });
+      scheduleNextScene('s13');
     } else { nextScene(); }
   }
 }
