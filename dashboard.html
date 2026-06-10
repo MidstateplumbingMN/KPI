@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v23.94</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.5</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v23.94</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.5</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v23.94</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.5</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1531,10 +1531,17 @@ const GITHUB_PHOTOS = {
   'Eric Stoffel':    'https://midstateplumbingmn.github.io/KPI/images/Eric.JPG',
   'Gannon Blaiser':  'https://midstateplumbingmn.github.io/KPI/images/Gannon.JPG',
   'Gordon Radant':   'https://midstateplumbingmn.github.io/KPI/images/Gordy.jpg',
-  'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg', // ensure lowercase
-  'Jeff Hohenauer':  '', // add Jeff.jpg to GitHub images folder when available
+  'Jon Glenn':       'https://midstateplumbingmn.github.io/KPI/images/Jon.jpg',
+  'Jeff Hohenauer':  '',
   'Lukas Schlosser': 'https://midstateplumbingmn.github.io/KPI/images/Lukas.JPG',
 };
+
+// Return photo URL for a tech name string
+function getEmpPhotoUrl(nameOrObj) {
+  const name = typeof nameOrObj === 'string' ? nameOrObj
+    : (((nameOrObj?.first_name||'')+' '+(nameOrObj?.last_name||'')).trim() || nameOrObj?.name || '');
+  return GITHUB_PHOTOS[name] || '';
+}
 // Gannon became an installer ~30 days ago — his pre-transition sales still count
 // Jobs/estimates BEFORE his transition date credit him as seller
 const GANNON_TRANSITION = new Date();
@@ -1864,20 +1871,56 @@ function isJobPaid(j){
   // No invoice data — fall back to status + outstanding_balance
   return isJobComplete(j) && (parseFloat(j.outstanding_balance)||0) === 0;
 }
-function isJobRefunded(j){const s=getRawStatus(j);return s.includes('refund')||s.includes('void');}
-function isJobCanceled(j){const s=getRawStatus(j);return s.includes('cancel')||s.includes('deleted');}
-function isJobExcluded(j){return isJobRefunded(j)||isJobCanceled(j);}
+// Job type ID → name lookup (populated during pull from /job_fields/job_types)
+// Needed because estimate_fields returns job_type_id only, not the name
+let _jobTypesMap = {};
 
-// Return visit / callback = $0 job — it's completing prior work, not a new sale
-// Revenue should only be counted on jobs where money actually changed hands
+// Get the job type name from the correct HCP field
+// Jobs return job_fields.job_type.name (full object)
+// Estimates return estimate_fields.job_type_id (ID only — resolve via _jobTypesMap)
+function getJobType(j) {
+  return (j?.job_fields?.job_type?.name || j?.job_fields?.job_type?.id || '').trim();
+}
+function getEstJobType(e) {
+  const id = e?.estimate_fields?.job_type_id || '';
+  return id ? (_jobTypesMap[id] || id) : '';
+}
+
+// Get all searchable text for a job — used for callback/warranty/type detection
+function getJobAllText(j) {
+  const fields = [
+    getJobType(j),
+    j.description, j.summary, j.lead_source,
+    j.invoice_number,
+    ...(j.notes||[]).map(n => n.content||''),
+    ...(j.tags||[]),
+  ];
+  return fields.map(f=>(f||'').toLowerCase()).join(' ');
+}
+
+// Get all searchable text for an estimate — includes resolved job type name
+function getEstAllText(e) {
+  const fields = [
+    e.name, e.work_status, e.lead_source,
+    getEstJobType(e),               // resolved job type name (e.g. "Call Back")
+    e.estimate_fields?.job_type_id, // raw ID as fallback text match
+    ...(e.options||[]).flatMap(o=>[
+      o.name, o.message_from_pro,
+      ...(o.tags||[]),
+      ...(o.notes||[]).map(n=>n.content||''),
+    ]),
+    ...(e.tags||[]),                // estimate-level tags (e.g. "Callback")
+  ];
+  return fields.map(f=>(f||'').toLowerCase()).join(' ');
+}
+
 function isReturnVisit(j){
-  const total=getJobTotal(j);
-  const desc=(j.description||j.job_type||'').toLowerCase();
-  // Zero-dollar job = return visit / no charge / callback
-  if(total===0) return true;
-  // Explicit return/callback language in description
-  if(desc.includes('return')&&(desc.includes('visit')||desc.includes('call')||desc.includes('trip'))) return true;
-  if(desc.includes('no charge')||desc.includes('warranty')||desc.includes('callback')) return true;
+  const total = getJobTotal(j);
+  const allText = getJobAllText(j);
+  if(total === 0) return true;
+  if(allText.includes('return visit') || allText.includes('no charge') ||
+     allText.includes('warranty') || allText.includes('callback') ||
+     allText.includes('call back')) return true;
   return false;
 }
 
@@ -2349,7 +2392,15 @@ async function loadAll(){
         fetchJobs(),
         fetchEstimates(),
         hcpGet('/employees?page_size=100'),
-        tryPlans()
+        tryPlans(),
+        // Fetch job types once — estimates return job_type_id, not name
+        // This builds a lookup: id → name (e.g. "abc123" → "Call Back")
+        hcpGet('/job_fields/job_types?page_size=200').then(r => {
+          const types = r?.job_types || r?.data || r?.results || [];
+          _jobTypesMap = {};
+          types.forEach(t => { if(t.id && t.name) _jobTypesMap[t.id] = t.name; });
+          console.log(`[JobTypes] Loaded ${Object.keys(_jobTypesMap).length} job types:`, Object.values(_jobTypesMap).join(', '));
+        }).catch(e => console.warn('[JobTypes] fetch failed:', e.message))
       ]),
       fetchConfirmedAttrFromSheets()   // runs in parallel, populates _attr
     ]);
@@ -2363,13 +2414,20 @@ async function loadAll(){
     }
 
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
-    _jobs=jobs;_estimates=estimates;_employees=employees;_plans=plans;
+    _jobs=jobs;_estimates=estimates;_employees=employees;
+    // _plans = uploaded CSV data if available (definitive source of truth)
+    //        = HCP API result if available and no upload exists
+    //        = HCP estimate scan if nothing else found
+    // The uploaded CSV is ALWAYS used when present — HCP scan never overrides it
+    _plans = _uploadedPlans.length > 0 ? _uploadedPlans : plans;
     populateSlEmpDropdown(); // keep spotlight dropdown fresh
 
     // HCP API doesn't expose service plans/agreements via any REST endpoint (all return 404)
     // Instead, scan SOLD estimate options for Home Club / service agreement sales
     // These show as approved options at $19.99 or with plan-related names
-    if(!_plans.length){
+    // HCP doesn't have a service plans API endpoint — scan estimate options as fallback
+    // ONLY run this scan if no uploaded CSV data exists (upload is always preferred)
+    if(!_uploadedPlans.length && !_plans.length){
       const planFromEsts=[];
       estimates.forEach(e=>{
         (e.options||[]).forEach(o=>{
@@ -2426,11 +2484,13 @@ async function loadAll(){
       });
 
       if(planFromEsts.length){
-        console.log('[Plans] Found',planFromEsts.length,'via estimate options + job scan');
-        _plans=planFromEsts;
+        console.log('[Plans] HCP scan found',planFromEsts.length,'via estimate options + job scan (no upload exists)');
+        _plans = planFromEsts;
       } else {
-        console.log('[Plans] None found in estimate options or jobs — service plans may need a wider date range');
+        console.log('[Plans] None found via HCP scan — upload service agreements CSV for accurate counts');
       }
+    } else if(_uploadedPlans.length) {
+      console.log('[Plans] Using',_uploadedPlans.length,'uploaded plans (CSV upload is definitive source)');
     }
 
     // Identify installer IDs
@@ -2468,7 +2528,7 @@ async function loadAll(){
     else if(activeTab==='attr')   renderAttr(jobs,estimates);
     else if(activeTab==='kpi')    renderKPI(jobs,estimates,employees,plans);
     else if(activeTab==='goals')  renderGoals();
-    else if(activeTab==='calendar') renderCalendar();
+    else if(activeTab==='cal'||activeTab==='calendar') renderCalendar();
     else renderJobs(jobs,estimates); // fallback
 
     // Show the UI immediately — user can start interacting
@@ -2480,7 +2540,9 @@ async function loadAll(){
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
 
     // Mark all other tabs as needing a render — they'll render on first click
-    _tabNeedsRender = new Set(['jobs','estimates','attr','kpi','goals','cal','is','unpaid','plans','contest','ty'].filter(t=>t!==activeTab));
+    // Normalize 'calendar' → 'cal' to match data-tab values
+    const activeTabKey = activeTab === 'calendar' ? 'cal' : activeTab;
+    _tabNeedsRender = new Set(['jobs','estimates','attr','kpi','goals','cal','is','unpaid','plans','contest','ty'].filter(t=>t!==activeTabKey));
 
     // Defer background work — sequence matters:
     // 1. Fetch full-year paid jobs → populates _allYearJobs → accurate period revenue
@@ -2492,7 +2554,9 @@ async function loadAll(){
 
       // Step 2 — now write snapshot with correct annual/quarterly/monthly revenue
       stepLog('📤 Syncing to Sheets...');
-      syncReportToSheets(jobs,estimates,employees,plans,from,to, {skipHealthCheck:true});
+      syncReportToSheets(jobs, estimates, employees,
+        _uploadedPlans.length > 0 ? _uploadedPlans : plans,  // upload is definitive
+        from, to, {skipHealthCheck:true});
 
       // Step 3 — everything else in parallel
       fetchTYCardsFromSheets();
@@ -2523,7 +2587,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v23.94
+  // ATTRIBUTION ENGINE — v24.5
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3826,14 +3890,18 @@ function renderKPI(jobs,estimates,employees,plans){
 
   // Use _uploadedPlans (from uploaded CSV) if available — more accurate than HCP API estimate scan
   // Fall back to _plans (from HCP estimates) when no upload exists
-  const planSource = _uploadedPlans && _uploadedPlans.length > 0
-    ? _uploadedPlans.filter(isPlanActive)
-    : plans.filter(isPlanActive);
+    // Use _uploadedPlans (from CSV upload) if available — these are the authoritative counts
+    // Fall back to _plans (from HCP estimate option scan) ONLY if no upload exists
+    // Note: HCP estimate scan finds ~60 plans from sold estimate options this year
+    //       Upload CSV has the complete historical count (226+)
+    const planSource = _uploadedPlans && _uploadedPlans.length > 0
+      ? _uploadedPlans.filter(isPlanActive)
+      : plans.filter(isPlanActive);
 
-  console.log(`[Plans] leaderboard source: ${_uploadedPlans.length > 0 ? '_uploadedPlans' : '_plans(HCP)'} — ${planSource.length} active plans`);
-  if(planSource.length === 0 && _uploadedPlans.length === 0) {
-    dashLog('warn','Plans: No uploaded plan data — upload service agreements CSV in Service Plans tab');
-  }
+    const sourceLabel = _uploadedPlans.length > 0
+      ? `_uploadedPlans (${_uploadedPlans.length} uploaded)`
+      : `_plans/HCP scan (${plans.length} found — upload CSV for full count)`;
+    console.log(`[Plans] leaderboard source: ${sourceLabel} — ${planSource.length} active plans`);
 
   const kpiPlans=planSource.filter(p=>{
     // Aggregate uploads have no real date — include always
@@ -4576,7 +4644,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v23.94',  // dashboard version that generated this push
+    dash_version: 'v24.5',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4817,39 +4885,83 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     // Callback leaderboard — jobs/estimates with "call back" type or tag
     callback_leaderboard: (() => {
       const cbMap = {};
-      // Check jobs with work_type containing 'callback' or 'call back'
       jobs.forEach(j => {
-        const wt = (j.work_type||j.job_type||'').toLowerCase();
-        const tags = (j.tags||[]).map(t=>t.toLowerCase());
-        const isCallback = wt.includes('call back') || wt.includes('callback')
-          || tags.some(t=>t.includes('call back')||t.includes('callback'));
-        if(!isCallback) return;
+        if(!/call.?back|callback/i.test(getJobAllText(j))) return;
         const tech = getAssigned(j);
         if(!tech) return;
         if(!cbMap[tech]) cbMap[tech]={name:tech,jobs:0,converted:0};
         cbMap[tech].jobs++;
         if(isJobPaid(j)) cbMap[tech].converted++;
       });
-      // Check estimates with callback tag/option
       estimates.forEach(e => {
-        const tags = (e.tags||[]).map(t=>t.toLowerCase());
-        const label = (e.label||e.work_type||e.title||'').toLowerCase();
-        const isCallback = tags.some(t=>t.includes('call back')||t.includes('callback'))
-          || label.includes('call back') || label.includes('callback');
-        if(!isCallback) return;
+        if(!/call.?back|callback/i.test(getEstAllText(e))) return;
         const emp = getAssignedList(e)[0];
         if(!emp) return;
         const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'';
         if(!tech) return;
         if(!cbMap[tech]) cbMap[tech]={name:tech,jobs:0,converted:0};
-        // Only count estimates not already counted as jobs
         if(isConv(e) && !cbMap[tech].jobs) cbMap[tech].converted++;
       });
-      return JSON.stringify(
-        Object.values(cbMap).sort((a,b)=>b.jobs-a.jobs)
-      );
+      return JSON.stringify(Object.values(cbMap).sort((a,b)=>b.jobs-a.jobs));
     })(),
-    // Falls back to published CSV tabs if these keys are empty
+
+    // Callbacks today — jobs marked callback (any field) scheduled or completed today
+    daily_callbacks: (() => {
+      const now_d = new Date();
+      const todayLocal = `${now_d.getFullYear()}-${String(now_d.getMonth()+1).padStart(2,'0')}-${String(now_d.getDate()).padStart(2,'0')}`;
+      const toLD = d => { if(!d) return ''; const dt=new Date(d); if(isNaN(dt)) return ''; return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; };
+      const cbs = [];
+      const todaysJobs = jobs.filter(j => {
+        const d = toLD(j.schedule?.scheduled_start || j.work_timestamps?.completed_at || j.completed_at);
+        return d === todayLocal;
+      });
+      // Diagnostic — log today's jobs and their type/description so we can tune detection
+      console.log(`[Callbacks] Today=${todayLocal} todaysJobs=${todaysJobs.length}`);
+      todaysJobs.forEach(j => {
+        const jType    = getJobType(j);
+        const allText  = getJobAllText(j);
+        const isCb     = /call.?back|callback/i.test(allText);
+        console.log(`  job#${j.job_number} type="${jType}" bu="${j.job_fields?.business_unit?.name||''}" desc="${(j.description||'').slice(0,40)}" tags=${JSON.stringify(j.tags||[])} notes=${(j.notes||[]).length} → isCallback=${isCb}`);
+        if(!isCb) return;
+        cbs.push({
+          tech:   getAssigned(j) || '—',
+          cust:   getCust(j)     || '—',
+          status: getNormStatus(j),
+          paid:   isJobPaid(j),
+          type:   jType,
+          desc:   (j.description || jType || '').slice(0, 60),
+        });
+      });
+
+      // Also check today's ESTIMATES — callback may be entered as estimate (e.g. #12523)
+      const todaysEsts = estimates.filter(e => {
+        const d = toLD(e.schedule?.scheduled_start || e.work_timestamps?.completed_at || e.created_at);
+        return d === todayLocal;
+      });
+      console.log(`[Callbacks] todaysEstimates=${todaysEsts.length}`);
+      todaysEsts.forEach(e => {
+        const estType = getEstJobType(e);
+        const allText = getEstAllText(e);
+        const isCb    = /call.?back|callback/i.test(allText);
+        console.log(`  est#${e.estimate_number} type="${estType}" tags=${JSON.stringify(e.tags||[])} → isCallback=${isCb}`);
+        if(!isCb) return;
+        const emp  = getAssignedList(e)[0];
+        const tech = emp ? ((emp.first_name||'')+' '+(emp.last_name||'')).trim() : '—';
+        const cust = e.customer ? ((e.customer.first_name||'')+' '+(e.customer.last_name||'')).trim() : '—';
+        if(!cbs.some(c => c.cust === cust)) {
+          cbs.push({
+            tech,
+            cust:   cust || '—',
+            status: e.work_status || 'Estimate',
+            paid:   false,
+            type:   estType || 'Callback Estimate',
+            desc:   `Est #${e.estimate_number}`,
+          });
+        }
+      });
+      console.log(`[Callbacks] Found ${cbs.length} callbacks today`);
+      return JSON.stringify(cbs);
+    })(),
     spotlights_json:     JSON.stringify(_spotlights||[]),
     promos_json:         JSON.stringify(_promos||[]),
     announcements_json:  JSON.stringify(_announcements||[]),
@@ -4863,7 +4975,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       const j = bigJobs[0];
       const emps = getAssignedList(j);
       const tech = emps.length ? ((emps[0].first_name||'')+' '+(emps[0].last_name||'')).trim() : '';
-      return { id:j.id, total:Math.round(getJobRevenue(j)), tech, type:j.work_type||j.job_type||'' };
+      return { id:j.id, total:Math.round(getJobRevenue(j)), tech, type:getJobType(j) };
     })(),
 
     // CallRail — populated if API key configured
@@ -4943,7 +5055,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       redirect:'follow',
       mode:'no-cors',
     });
-    $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
+    $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${_uploadedPlans.length > 0 ? _uploadedPlans.length+' plans (uploaded)' : plans.length+' plans (HCP scan — upload CSV for full count)'} · ${employees.length} employees · ${dateFrom} → ${dateTo} · Saved to Sheets ✅`;
     syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
 
     // Send estimates separately — large payload, non-blocking
@@ -5068,7 +5180,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v23.94',
+        dash_version:        'v24.5',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5145,6 +5257,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         spotlights_json:     dashboardSnapshot.spotlights_json,
         promos_json:         dashboardSnapshot.promos_json,
         callback_leaderboard: dashboardSnapshot.callback_leaderboard,
+        daily_callbacks:      dashboardSnapshot.daily_callbacks,
         tech_calls_today:    dashboardSnapshot.tech_calls_today,
         announcements_json:  dashboardSnapshot.announcements_json,
         big_win_job:         dashboardSnapshot.big_win_job,
@@ -7826,20 +7939,33 @@ function detectEquipmentSale(j, requirePaid=true){
   const allTexts = [...lineItemTexts, ...estOptionTexts];
 
   for(const text of allTexts){
-    if(!TY_ITEM_LOOKUP[text]) continue;
-    const key = TY_ITEM_LOOKUP[text];
-
-    if(key === 'water_heater'){
-      // Tankless: any dept, but job must be >= $3,000
-      if((getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
+    // First try exact pricebook lookup
+    if(TY_ITEM_LOOKUP[text]) {
+      const key = TY_ITEM_LOOKUP[text];
+      if(key === 'water_heater'){
+        if((getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
+        return {key, ...TY_ITEM_SETS[key], matchedItem:text};
+      }
+      if(isPlumbing) continue;
       return {key, ...TY_ITEM_SETS[key], matchedItem:text};
     }
 
-    // All other equipment: must be HVAC or Install dept
-    // If dept is indeterminate ("Other") and tech is unknown, allow it through
-    // so we don't silently miss jobs — the tech can always dismiss on the card
-    if(isPlumbing) continue; // Plumbing techs don't install HVAC equipment
-    return {key, ...TY_ITEM_SETS[key], matchedItem:text};
+    // Fuzzy fallback — catches slight naming variations in HCP line items
+    const t = text.toLowerCase();
+    let fuzzyKey = null;
+    if(/furnace|air.?handler|heat.?exchanger|80%|96%|97%|98%|stage.*(60k|80k|100k|120k)/i.test(text)) fuzzyKey = 'furnace';
+    else if(/air.?cond|a\/c\b|\bac\b|seer|condenser|compressor/i.test(text)) fuzzyKey = 'ac';
+    else if(/heat.?pump/i.test(text)) fuzzyKey = 'heat_pump';
+    else if(/boiler|navien|peerless|weil/i.test(text)) fuzzyKey = 'boiler';
+    else if(/mini.?split/i.test(text)) fuzzyKey = 'mini_split';
+    else if(/package|changeout|change.?out|full.?system/i.test(text)) fuzzyKey = 'package';
+    else if(/tankless|water.?heater|navien.*water/i.test(text)) fuzzyKey = 'water_heater';
+
+    if(fuzzyKey) {
+      if(fuzzyKey === 'water_heater' && (getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
+      if(isPlumbing && fuzzyKey !== 'water_heater') continue;
+      return {key:fuzzyKey, ...TY_ITEM_SETS[fuzzyKey], matchedItem:text, fuzzy:true};
+    }
   }
   return null;
 }
@@ -8229,15 +8355,31 @@ async function pushToCompanion(){
   if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); btn.textContent=orig; btn.disabled=false; return; }
   if(!_jobs.length){ showToast('Pull a report first','warn'); btn.textContent=orig; btn.disabled=false; return; }
 
-  // Remind if no service plan data uploaded
-  if(!_uploadedPlans || _uploadedPlans.length === 0) {
-    const go = confirm(
-      '⚠️ No Service Plan data uploaded.\n\n' +
-      'Service plan counts on the leaderboard will be empty.\n\n' +
-      'Upload the HCP service agreements CSV in the Service Plans tab before pushing.\n\n' +
-      'Push anyway? (OK = yes, Cancel = go upload plans first)'
-    );
-    if(!go){ btn.textContent=orig; btn.disabled=false; return; }
+  // Remind if plans haven't been uploaded this session
+  if(!_plansUploadedThisSession) {
+    // Check if data is stale (>7 days since last upload)
+    const uploadDate = _uploadedPlans?.[0]?._uploadedAt || '';
+    const isStale = !uploadDate || (Date.now() - new Date(uploadDate).getTime()) > 7 * 24 * 60 * 60 * 1000;
+    const hasSomePlans = _uploadedPlans && _uploadedPlans.length > 0;
+
+    if(!hasSomePlans) {
+      const go = confirm(
+        '⚠️ No Service Plan data uploaded.\n\n' +
+        'Service plan counts on the leaderboard will be empty.\n\n' +
+        'Go to the Service Plans tab and upload your HCP service agreements CSV first.\n\n' +
+        'Click OK to push anyway, or Cancel to upload plans first.'
+      );
+      if(!go){ btn.textContent=orig; btn.disabled=false; return; }
+    } else if(isStale) {
+      const uploadAgo = uploadDate ? formatRelativeTime(new Date(uploadDate)) : 'unknown';
+      const go = confirm(
+        `⚠️ Service Plan data was last uploaded ${uploadAgo}.\n\n` +
+        `You have ${_uploadedPlans.length} plan records from a previous upload.\n\n` +
+        `Consider uploading a fresh export from HCP before pushing to ensure accurate plan counts.\n\n` +
+        'Click OK to push with existing data, or Cancel to upload a fresh file first.'
+      );
+      if(!go){ btn.textContent=orig; btn.disabled=false; return; }
+    }
   }
 
   try{
@@ -9654,6 +9796,7 @@ function printUnpaidTicket(jobId){
 }
 
 let _uploadedPlans=[];
+let _plansUploadedThisSession = false; // true only when user uploads a file this session
 
 function loadUploadedPlans(){
   // plans loaded from Sheets on connect via loadPlansFromSheets()
@@ -9675,18 +9818,27 @@ async function loadPlansFromSheets(){
         created_at:   (() => {
           const raw = p.created_at;
           if(!raw) return new Date().toISOString();
-          // Already a full ISO string? Use it directly
           if(String(raw).includes('T') || String(raw).includes('Z')) return new Date(raw).toISOString();
-          // Date-only string like "2026-05-15"
           return new Date(raw + 'T12:00:00').toISOString();
         })(),
         status:       p.status||'Active',
         source:       'sheets',
+        _uploadedAt:  p._uploadedAt || data.lastUploadedAt || null,
       }));
       _uploadedPlans = plans;
       _plans = plans;
-      saveUploadedPlans();
+      // NOTE: do NOT call saveUploadedPlans() here — we just loaded FROM Sheets,
+      // saving back would overwrite the timestamp with now. Only save after user uploads.
       console.log('[Plans] Restored', plans.length, 'plans from Sheets');
+      // Show upload date in UI if available
+      const uploadDate = plans[0]?._uploadedAt || data.lastUploadedAt || '';
+      const statusEl = $$('planUploadStatus');
+      if(statusEl && uploadDate) {
+        const d = new Date(uploadDate);
+        const isStale = (Date.now() - d.getTime()) > 7 * 24 * 60 * 60 * 1000; // >7 days
+        const ago = formatRelativeTime(d);
+        statusEl.innerHTML = `<span style="color:${isStale?'#92400E':'#166534'}">${isStale?'⚠️':'✅'} Last upload: ${ago}${isStale?' — consider re-uploading':''}</span>`;
+      }
       // Show the plan data view if we have data
       const box=$$('planUploadBox');const view=$$('planDataView');
       if(box) box.style.display='none';
@@ -9695,8 +9847,24 @@ async function loadPlansFromSheets(){
     }
   } catch(e) { console.warn('[Plans] Sheets restore failed:', e.message); }
 }
+
+function formatRelativeTime(d){
+  const ms = Date.now() - d.getTime();
+  const days = Math.floor(ms / 86400000);
+  if(days === 0) return 'today';
+  if(days === 1) return 'yesterday';
+  if(days < 7)  return days + ' days ago';
+  if(days < 30) return Math.floor(days/7) + ' week' + (days>=14?'s':'') + ' ago';
+  return Math.floor(days/30) + ' month' + (days>=60?'s':'') + ' ago';
+}
 function saveUploadedPlans(){
-  try{saveSettingToSheets('hcp_uploaded_plans', JSON.stringify(_uploadedPlans));}catch(e){}
+  const now = new Date().toISOString();
+  // Stamp every plan with the upload date for freshness tracking
+  const stamped = _uploadedPlans.map(p => ({...p, _uploadedAt: now}));
+  try{ fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    body: JSON.stringify({ action:'syncPlans', plans: stamped, lastUploadedAt: now })
+  }); }catch(e){}
 }
 
 // Drag and drop support
@@ -9761,6 +9929,7 @@ async function processPlanFile(file){
 
       _uploadedPlans = [...kept, ...newPlans];
       _plans = _uploadedPlans;
+      _plansUploadedThisSession = true; // mark as freshly uploaded this session
 
       const totalNew = newPlans.length;
       const totalNow = _uploadedPlans.length;
@@ -9782,6 +9951,7 @@ async function processPlanFile(file){
         );
         _uploadedPlans = [...existingWithoutUpdated, ...newPlans];
         _plans = _uploadedPlans;
+        _plansUploadedThisSession = true;
         const updated = newPlans.filter(n => n.hcp_id && existingById.has(n.hcp_id)).length;
         const added   = newPlans.length - updated;
         if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${newPlans.length} active agreements from "${file.name}" — ${added} new, ${updated} updated — ${_uploadedPlans.length} total</span>`;
@@ -11695,6 +11865,12 @@ function renderCalendar(){
     const rev      = isReturnVisit(j) ? 0 : getJobRevenue(j);
 
     if(paid && !isReturnVisit(j)){
+      // Rich job detail for popup
+      const jAddr  = j.address ? [j.address.street, j.address.city, j.address.state].filter(Boolean).join(', ') : '';
+      const jPhone = j.customer?.mobile_number || j.customer?.home_number || j.customer?.work_number || '';
+      const jNotes = (j.description || j.work_description || j.notes || j.private_notes || '').trim();
+      const workDate = schedDate || toLD(j.work_timestamps?.started_at || j.work_timestamps?.on_my_way_at) || '';
+
       if(j._payments && j._payments.length > 0 && mode === 'collected'){
         // Each invoice payment lands on its own paid date
         j._payments.forEach(pmt => {
@@ -11707,7 +11883,14 @@ function renderCalendar(){
             type:'paid', date:pmtDate, schedDate,
             id:j.id, number:j.job_number,
             customer, dept, tech:techName, total:pmt.amount,
-            invoiceNum: pmt.number,
+            invoiceNum:  pmt.number,
+            method:      pmt.method || '',
+            // Extra detail for expandable popup
+            address:     jAddr,
+            phone:       jPhone,
+            notes:       jNotes,
+            workDate:    workDate,
+            isPast:      workDate && workDate !== pmtDate, // payment on different day than work
             status:'Paid'
           });
         });
@@ -11721,6 +11904,11 @@ function renderCalendar(){
             type:'paid', date:revDate, schedDate,
             id:j.id, number:j.job_number,
             customer, dept, tech:techName, total:rev,
+            address:  jAddr,
+            phone:    jPhone,
+            notes:    jNotes,
+            workDate: workDate,
+            isPast:   workDate && workDate !== revDate,
             status:'Paid'
           });
         }
@@ -11729,24 +11917,34 @@ function renderCalendar(){
 
     // Unpaid complete jobs — show on scheduled date as warning
     if(complete && !paid && schedDate){
+      const jAddr  = j.address ? [j.address.street, j.address.city, j.address.state].filter(Boolean).join(', ') : '';
+      const jPhone = j.customer?.mobile_number || j.customer?.home_number || j.customer?.work_number || '';
+      const jNotes = (j.description || j.work_description || j.notes || j.private_notes || '').trim();
       const day = getDay(schedDate);
       day.unpaidJobs++;
       day.items.push({
         type:'unpaid', date:schedDate,
         id:j.id, number:j.job_number,
         customer, dept, tech:techName, total,
+        address: jAddr, phone: jPhone, notes: jNotes,
+        workDate: schedDate,
         status:'Unpaid'
       });
     }
 
     // Scheduled/in-progress — show on scheduled date
     if(!complete && !paid && schedDate && total > 0){
+      const jAddr  = j.address ? [j.address.street, j.address.city, j.address.state].filter(Boolean).join(', ') : '';
+      const jPhone = j.customer?.mobile_number || j.customer?.home_number || j.customer?.work_number || '';
+      const jNotes = (j.description || j.work_description || j.notes || j.private_notes || '').trim();
       const day = getDay(schedDate);
       day.pendingJobs++;
       day.items.push({
         type:'scheduled', date:schedDate,
         id:j.id, number:j.job_number,
         customer, dept, tech:techName, total,
+        address: jAddr, phone: jPhone, notes: jNotes,
+        workDate: schedDate,
         status:'Scheduled'
       });
     }
@@ -11865,39 +12063,109 @@ function openCalDayPopup(ds){
   const dt = new Date(ds+'T12:00:00');
   const label = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 
-  const rows = data.items.map(item => {
-    const statusColor = item.type==='paid'?'#166534':item.type==='unpaid'?'#92400E':'#1d4ed8';
-    const statusBg    = item.type==='paid'?'#EAF3DE':item.type==='unpaid'?'#FEF3C7':'#DBEAFE';
-    const statusLabel = item.type==='paid'?'Paid':item.type==='unpaid'?'Unpaid':'Scheduled';
-    return `<div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:7px;margin-bottom:6px;background:#fff">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div>
-          <div style="font-weight:700;font-size:13px;color:#111">${escHtml(item.customer)}</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">${escHtml(item.dept)} · ${escHtml(item.tech)}</div>
-          <div style="font-size:10px;color:#9ca3af">#${item.number||item.id}</div>
+  // Sort items: paid first (by amount desc), then unpaid, then scheduled
+  const sortedItems = [...data.items].sort((a,b) => {
+    const order = {paid:0, unpaid:1, scheduled:2};
+    if(order[a.type] !== order[b.type]) return order[a.type] - order[b.type];
+    return (b.total||0) - (a.total||0);
+  });
+
+  const techPhoto = name => getEmpPhotoUrl(name || '');
+
+  let expandIdx = 0;
+  const rows = sortedItems.map((item, i) => {
+    const isPaid  = item.type === 'paid';
+    const isUnpaid= item.type === 'unpaid';
+    const isSched = item.type === 'scheduled';
+
+    const statusColor = isPaid?'#166534':isUnpaid?'#92400E':'#1d4ed8';
+    const statusBg    = isPaid?'#EAF3DE':isUnpaid?'#FEF3C7':'#DBEAFE';
+    const statusIcon  = isPaid?'✅':isUnpaid?'⚠️':'📅';
+    const borderColor = isPaid?'#16a34a':isUnpaid?'#d97706':'#3b82f6';
+
+    const uid = `calitem_${ds.replace(/-/g,'')}_${i}`;
+    const photo = techPhoto(item.tech);
+
+    // Past payment badge — work done on a different date
+    const pastBadge = (isPaid && item.isPast && item.workDate)
+      ? `<span style="font-size:9px;background:#F3E8FF;color:#7C3AED;padding:1px 6px;border-radius:99px;font-weight:600;margin-left:6px">work: ${item.workDate}</span>`
+      : '';
+
+    // Method badge
+    const methodBadge = item.method
+      ? `<span style="font-size:9px;background:#EFF6FF;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:4px">${item.method}</span>`
+      : '';
+
+    // Detail section (hidden by default, toggled)
+    const hasDetail = item.address || item.phone || item.notes;
+    const detailHtml = hasDetail ? `
+      <div id="${uid}_detail" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6">
+        ${item.address ? `<div style="font-size:12px;color:#374151;margin-bottom:5px">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(item.address)}" target="_blank" style="color:#2563EB;text-decoration:none">${escHtml(item.address)}</a></div>` : ''}
+        ${item.phone   ? `<div style="font-size:12px;color:#374151;margin-bottom:5px">📞 <a href="tel:${item.phone.replace(/\D/g,'')}" style="color:#2563EB;text-decoration:none">${escHtml(item.phone)}</a></div>` : ''}
+        ${item.notes   ? `<div style="font-size:12px;color:#374151;margin-bottom:3px;font-weight:600">📝 Notes:</div>
+                          <div style="font-size:12px;color:#374151;background:#f9fafb;border-radius:5px;padding:8px 10px;line-height:1.5;white-space:pre-wrap;max-height:120px;overflow-y:auto">${escHtml(item.notes)}</div>` : ''}
+      </div>
+      <button onclick="(function(btn,id){const d=document.getElementById(id);const show=d.style.display==='none';d.style.display=show?'block':'none';btn.textContent=show?'▲ Less':'▼ Details';})(this,'${uid}_detail')"
+        style="margin-top:8px;font-size:10px;color:#6b7280;background:none;border:1px solid #e5e7eb;border-radius:4px;padding:2px 8px;cursor:pointer">▼ Details</button>
+    ` : '';
+
+    return `<div style="padding:12px 14px;border:1px solid #e5e7eb;border-left:4px solid ${borderColor};border-radius:8px;margin-bottom:8px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            ${photo?`<img src="${photo}" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#111">${escHtml(item.customer)}</div>
+              <div style="font-size:11px;color:#6b7280">
+                ${escHtml(item.dept)} · ${escHtml(item.tech)}
+                ${pastBadge}
+              </div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:#9ca3af">
+            Job #${item.number||item.id}
+            ${item.invoiceNum?` · Invoice #${item.invoiceNum}`:''}
+            ${methodBadge}
+          </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:15px;font-weight:800;color:${statusColor}">${dollars(item.total)}</div>
-          <span style="font-size:10px;font-weight:600;background:${statusBg};color:${statusColor};padding:1px 7px;border-radius:99px">${statusLabel}</span>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:16px;font-weight:800;color:${statusColor}">${dollars(item.total)}</div>
+          <span style="font-size:10px;font-weight:600;background:${statusBg};color:${statusColor};padding:1px 7px;border-radius:99px">${statusIcon} ${item.status}</span>
         </div>
       </div>
+      ${detailHtml}
     </div>`;
   }).join('');
 
-  const totalRev = data.items.filter(i=>i.type==='paid').reduce((s,i)=>s+i.total,0);
+  const totalRev    = data.items.filter(i=>i.type==='paid').reduce((s,i)=>s+i.total,0);
+  const paidCount   = data.items.filter(i=>i.type==='paid').length;
+  const unpaidCount = data.items.filter(i=>i.type==='unpaid').length;
+  const schedCount  = data.items.filter(i=>i.type==='scheduled').length;
+
+  const summaryChips = [
+    paidCount  ? `<span style="font-size:11px;font-weight:600;background:#EAF3DE;color:#166534;padding:2px 10px;border-radius:99px">✅ ${paidCount} paid</span>` : '',
+    unpaidCount? `<span style="font-size:11px;font-weight:600;background:#FEF3C7;color:#92400E;padding:2px 10px;border-radius:99px">⚠️ ${unpaidCount} unpaid</span>` : '',
+    schedCount ? `<span style="font-size:11px;font-weight:600;background:#DBEAFE;color:#1d4ed8;padding:2px 10px;border-radius:99px">📅 ${schedCount} scheduled</span>` : '',
+  ].filter(Boolean).join(' ');
 
   const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  modal.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
-    <div style="padding:16px 18px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1">
-      <div>
-        <div style="font-weight:800;font-size:15px;color:#1A3A5C">${label}</div>
-        ${totalRev>0?`<div style="font-size:13px;font-weight:700;color:#166534;margin-top:2px">${dollars(totalRev)} collected</div>`:''}
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:85vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column">
+      <!-- Header -->
+      <div style="padding:16px 18px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;background:#1A3A5C;border-radius:12px 12px 0 0">
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#fff">${label}</div>
+          ${totalRev>0?`<div style="font-size:14px;font-weight:700;color:#6EE7B7;margin-top:2px">${dollars(totalRev)} collected</div>`:''}
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${summaryChips}</div>
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="width:30px;height:30px;border:none;border-radius:6px;background:rgba(255,255,255,.15);cursor:pointer;font-size:18px;color:#fff;flex-shrink:0">×</button>
       </div>
-      <button onclick="this.closest('[style*=fixed]').remove()" style="width:30px;height:30px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer;font-size:16px">×</button>
-    </div>
-    <div style="padding:14px 16px">${rows||'<div style="color:#9ca3af;text-align:center;padding:16px">No activity this day</div>'}</div>
-  </div>`;
+      <!-- Scrollable content -->
+      <div style="padding:14px 16px;overflow-y:auto;flex:1">
+        ${rows || '<div style="color:#9ca3af;text-align:center;padding:20px">No activity this day</div>'}
+      </div>
+    </div>`;
   modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
   document.body.appendChild(modal);
 }
