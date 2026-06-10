@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.69</title>
+<title>Midstate — KPI Command Center v2.70</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1131,19 +1131,19 @@ html, body {
           <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--blue);margin-bottom:8px;border-bottom:1px solid rgba(0,212,255,.15);padding-bottom:4px">📅 Last 30 Days</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--blue);font-weight:900;line-height:1" id="calls-total">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--blue);font-weight:900;line-height:1" id="calls-total">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Inbound Calls</div>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="calls-new">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="calls-new">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">New Callers</div>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="rc-answered">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="rc-answered">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">RC Answered</div>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--blue);font-weight:900;line-height:1" id="rc-rate">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--blue);font-weight:900;line-height:1" id="rc-rate">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Answer Rate</div>
             </div>
           </div>
@@ -1154,15 +1154,15 @@ html, body {
           <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--green);margin-bottom:8px;border-bottom:1px solid rgba(0,255,136,.15);padding-bottom:4px">📆 This Month</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="calls-mtd">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--green);font-weight:900;line-height:1" id="calls-mtd">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Calls MTD</div>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--gold);font-weight:900;line-height:1" id="calls-today">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(22px,3.5vw,42px);color:var(--gold);font-weight:900;line-height:1" id="calls-today">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Today</div>
             </div>
             <div style="text-align:center;grid-column:1/-1">
-              <div style="font-family:var(--font-display);font-size:clamp(18px,2.5vw,30px);color:var(--orange);font-weight:900;line-height:1" id="calls-ytd">—</div>
+              <div style="font-family:var(--font-display);font-size:clamp(18px,2.5vw,30px);color:var(--orange);font-weight:900;line-height:1" id="calls-ytd">0</div>
               <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px">Year to Date</div>
             </div>
           </div>
@@ -1538,7 +1538,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.69
+      v2.70
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1549,7 +1549,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.69';
+const COMPANION_VERSION = 'v2.70';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2149,7 +2149,7 @@ function refreshS6Data() {
   if(el('wtd-jobs'))      el('wtd-jobs').textContent     = dailyJobs;
   if(el('wtd-completed')) el('wtd-completed').textContent= dailyJobs;
   if(el('wtd-ests'))      el('wtd-ests').textContent     = dailyEsts;
-  if(el('wtd-conv'))      el('wtd-conv').textContent     = convPct !== null ? dailyConv+' / '+dailyEsts : '—';
+  if(el('wtd-conv'))      el('wtd-conv').textContent     = convPct !== null ? dailyConv+' / '+dailyEsts : 0;
   if(el('wtd-goal-pct'))  el('wtd-goal-pct').textContent = goalPct + '%';
   if(el('wtd-goal-fill')) el('wtd-goal-fill').style.width = goalPct + '%';
   if(el('wtd-daily-goal'))el('wtd-daily-goal').textContent = dollars(dailyGoal);
@@ -2722,7 +2722,7 @@ async function updateS4() {
   if(el('dept-hvac-ests'))   el('dept-hvac-ests').textContent   = hvacConv.total||0;
   if(el('dept-hvac-conv-n')) el('dept-hvac-conv-n').textContent = hvacConv.converted||0;
   if(el('dept-hvac-avg'))    el('dept-hvac-avg').textContent    = hvacConv.converted > 0
-    ? dollars(Math.round(hvacRev/(hvacConv.converted||1))) : '—';
+    ? dollars(Math.round(hvacRev/(hvacConv.converted||1))) : 0;
 
   // Plumbing
   if(el('dept-plmb-rev'))    el('dept-plmb-rev').textContent    = dollars(plmbRev);
@@ -2731,7 +2731,7 @@ async function updateS4() {
   if(el('dept-plmb-ests'))   el('dept-plmb-ests').textContent   = plmbConv.total||0;
   if(el('dept-plmb-conv-n')) el('dept-plmb-conv-n').textContent = plmbConv.converted||0;
   if(el('dept-plmb-avg'))    el('dept-plmb-avg').textContent    = plmbConv.converted > 0
-    ? dollars(Math.round(plmbRev/(plmbConv.converted||1))) : '—';
+    ? dollars(Math.round(plmbRev/(plmbConv.converted||1))) : 0;
 }
 
 // ---- SCENE 5: ANNOUNCEMENTS & MOTIVATION ----
@@ -2986,9 +2986,9 @@ function renderCallsTrend() {
   // YTD — use whichever source has more data
   const ytdTotal = Math.max(rcTotal, crTotal);
 
-  if(el('calls-total'))   el('calls-total').textContent   = crTotal  || rcTotal  || '—';
-  if(el('calls-new'))     el('calls-new').textContent     = crNew    || '—';
-  if(el('calls-ytd'))     el('calls-ytd').textContent     = ytdTotal || '—';
+  if(el('calls-total'))   el('calls-total').textContent   = crTotal  || rcTotal  || 0;
+  if(el('calls-new'))     el('calls-new').textContent     = crNew    || 0;
+  if(el('calls-ytd'))     el('calls-ytd').textContent     = ytdTotal > 0 ? ytdTotal.toLocaleString() : '0';
   if(el('calls-source')) {
     el('calls-source').textContent = rcTotal > crTotal ? 'Source: RingCentral' : 'Source: CallRail';
   }
@@ -3108,10 +3108,10 @@ async function updateS13() {
   const crTotal = parseInt(snap['calls_total']||0)||0;
   const crNew   = parseInt(snap['calls_new']||0)||0;
 
-  if(el('calls-total')) el('calls-total').textContent = crTotal || '—';
-  if(el('calls-new'))   el('calls-new').textContent   = crNew   || '—';
-  if(el('rc-answered')) el('rc-answered').textContent = rcAnswered || '—';
-  if(el('rc-rate'))     el('rc-rate').textContent     = rcRate > 0 ? rcRate+'%' : '—';
+  if(el('calls-total')) el('calls-total').textContent = crTotal || 0;
+  if(el('calls-new'))   el('calls-new').textContent   = crNew   || 0;
+  if(el('rc-answered')) el('rc-answered').textContent = rcAnswered || 0;
+  if(el('rc-rate'))     el('rc-rate').textContent     = rcRate > 0 ? rcRate+'%' : 0;
   if(el('calls-source'))el('calls-source').textContent= rcAnswered > 0 ? 'RC + CR' : 'CallRail';
 
   // This Month / MTD / Today / YTD — use pre-computed keys first, compute from arrays as fallback
@@ -3134,9 +3134,9 @@ async function updateS13() {
   const mtdTotal = rcMtd;
   const ytdTotal = rcYtd;
 
-  if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal || '—';
-  if(el('calls-today')) el('calls-today').textContent = todayVal || '—';
-  if(el('calls-ytd'))   el('calls-ytd').textContent   = ytdTotal > 0 ? ytdTotal.toLocaleString() : '—';
+  if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal > 0 ? mtdTotal.toLocaleString() : '0';
+  if(el('calls-today')) el('calls-today').textContent = todayVal > 0 ? todayVal.toLocaleString() : '0';
+  if(el('calls-ytd'))   el('calls-ytd').textContent   = ytdTotal > 0 ? ytdTotal.toLocaleString() : '0';
 
   // RC Agent leaderboard — primary: RC_Agents tab, fallback: rc_leaderboard snap
   const lbEl = el('rc-leaderboard');
@@ -3193,7 +3193,7 @@ async function updateS13() {
         const col    = colors[i] || '#6b7280';
         const avgMin = Math.floor((agent.avgDur||0)/60);
         const avgSec = String((agent.avgDur||0)%60).padStart(2,'0');
-        const avgStr = agent.avgDur > 0 ? `${avgMin}:${avgSec}` : '—';
+        const avgStr = agent.avgDur > 0 ? `${avgMin}:${avgSec}` : 0;
         const lookup = agent.name === 'Bob D.' ? 'Robert Danaher'
           : agent.name === 'Victoria' ? 'Victoria Ellsworth'
           : agent.name === 'Eric' ? 'Eric Stoffel'
@@ -3506,7 +3506,7 @@ async function updateS6() {
     if(el('wtd-jobs')) el('wtd-jobs').textContent = dailyJobs;
     if(el('wtd-completed')) el('wtd-completed').textContent = dailyJobs;
     if(el('wtd-ests'))      el('wtd-ests').textContent = dailyEsts;
-    if(el('wtd-conv'))      el('wtd-conv').textContent = convPct !== null ? dailyConv+' / '+dailyEsts : '—';
+    if(el('wtd-conv'))      el('wtd-conv').textContent = convPct !== null ? dailyConv+' / '+dailyEsts : 0;
     if(el('wtd-goal-pct'))  el('wtd-goal-pct').textContent = goalPct + '%';
     if(el('wtd-goal-fill')) el('wtd-goal-fill').style.width = goalPct + '%';
     if(el('wtd-daily-goal'))el('wtd-daily-goal').textContent = dollars(dailyGoal);
