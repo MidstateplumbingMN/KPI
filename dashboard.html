@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.8</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.8</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.8</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1524,12 +1524,35 @@ tr:hover td{background:#fafafa}
 let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BIEsRQu2qGLpk5xrF-vcUBSLhIyM2NPW2qmM/exec';
 let _selectedEmps=new Set(); // empty = all selected
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
-let _invoiceMap = {}; // job_id → [{date, amount, number}] — populated by invoice fetch, used by revenue calculations
-// attributions: jobId -> { techId, techName, confirmed }
-// stored in localStorage so they persist
+let _invoiceMap = {}; // job_id → [{date, amount, number}] — populated by invoice fetch
 let _attr = {};
-const INSTALLER_IDS = new Set(); // populated from employee list by name
+const INSTALLER_IDS = new Set();
 const INSTALLER_NAMES = ['Andy Mitchell','Gannon Blaiser'];
+
+// ── ALL STATE VARIABLES DECLARED HERE ────────────────────────
+// Must be declared before connect() and all init functions
+// (let has no hoisting — declaring late causes temporal dead zone errors)
+let _uploadedPlans   = [];       // service plan CSV upload — authoritative source
+let _plansUploadedThisSession = false;
+let _planAttributions = {};      // planKey → techName, loaded from SP_Attribution Sheets tab
+let _spotlights      = [];
+let _promos          = [];
+let _announcements   = [];
+let _bdayList        = [];
+let _holidays        = [];
+let _wbSettings      = {};
+let _tyCards         = {};       // jobId → {status, sentDate, note}
+let _isActivity      = {};
+let _crCallsRaw      = [];
+let _rcCallsRaw      = [];
+let _rcSnap          = null;
+let _callrailSnap    = null;
+let _jobAttribution  = {};
+let _allYearJobs     = [];
+let _jobTypesMap     = {};       // job type id → name (fetched from /job_fields/job_types)
+let _orderQueue      = {};
+let _uploadedPlansCache = null;
+// ──────────────────────────────────────────────────────────────
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -1913,7 +1936,6 @@ function isJobExcluded(j){ return isJobRefunded(j)||isJobCanceled(j); }
 
 // Job type ID → name lookup (populated during pull from /job_fields/job_types)
 // Needed because estimate_fields returns job_type_id only, not the name
-let _jobTypesMap = {};
 
 // Get the job type name from the correct HCP field
 // Jobs return job_fields.job_type.name (full object)
@@ -2621,13 +2643,12 @@ async function loadAll(){
 // ============================================================
 // Build a map: jobId -> { techId, techName, source }
 // source: 'linked' | 'customer_match' | 'manual' | 'unresolved'
-let _jobAttribution = {}; // jobId -> {techId, techName, dept, source, candidates}
 
 function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.8
+  // ATTRIBUTION ENGINE — v24.9
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4117,7 +4138,6 @@ function isPlanActive(p){
 
 // ── SERVICE PLAN ATTRIBUTION ──────────────────────────────────
 // _planAttributions: { planKey -> techName } loaded from Sheets SP_Attribution tab
-let _planAttributions = {};
 
 // Get plan's unique key for attribution lookup
 function getPlanKey(p) {
@@ -4785,7 +4805,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.8',  // dashboard version that generated this push
+    dash_version: 'v24.9',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5326,7 +5346,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.8',
+        dash_version:        'v24.9',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5754,9 +5774,6 @@ const RC_CLIENT_SECRET = 'efYzfoUTJkacmReRTjaQdyeWPvi73Nh5HeJZdejc08q1';
 const RC_SERVER        = 'https://platform.ringcentral.com';
 let _rcAccessToken  = null;
 let _rcTokenExpiry  = 0;
-let _rcSnap         = null;
-let _callrailSnap   = null;  // CallRail weekly data
-let _allYearJobs    = [];    // cached paid jobs for accurate YTD revenue // call log data
 
 
 // RC token via Apps Script proxy (fallback when direct fetch blocked by CORS)
@@ -6186,8 +6203,6 @@ async function fetchRCCallLog(jwt) {
 // ============================================================
 // CALLS TAB — test and inspect CallRail + RingCentral data
 // ============================================================
-let _crCallsRaw = [];
-let _rcCallsRaw = [];
 
 
 function setCallsDateRange(prefix, range) {
@@ -6638,7 +6653,6 @@ function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 // ============================================================
 // ORDER QUEUE — sold estimates with scheduled install jobs
 // ============================================================
-let _orderQueue = {}; // id -> { status, notes, orderedDate, orderedBy }
 
 function setOQRange(range) {
   const now = new Date();
@@ -8123,7 +8137,6 @@ function getEquipmentLabel(j){
 }
 
 // ---- TY CARD STATE ----
-let _tyCards={};
 
 function loadTYCards(){
   // TY card statuses load from Google Sheets only (not localStorage)
@@ -8599,8 +8612,6 @@ async function triggerWorkerPull(){
 // ============================================================
 // EMPLOYEE SPOTLIGHT & PROMOTIONS
 // ============================================================
-let _spotlights = [];
-let _promos = [];
 
 // ============================================================
 // SPOTLIGHT & PROMOTIONS — unified system
@@ -8608,14 +8619,11 @@ let _promos = [];
 // ============================================================
 // ANNOUNCEMENTS — motivation quotes with photos
 // ============================================================
-let _announcements = [];
 
 // ============================================================
 // WALLBOARD SETTINGS
 // ============================================================
 const RC_JWT_DEFAULT = 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
-let _wbSettings = {};
-let _bdayList = [];
 
 // ============================================================
 // HOLIDAY MANAGEMENT
@@ -8635,7 +8643,6 @@ const DEFAULT_HOLIDAYS = [
   { id:'newyeareve',   emoji:'🥂', name:"New Year's Eve",       date:`${new Date().getFullYear()}-12-31`, enabled:false, message:'Happy New Year\'s Eve!', photoUrl:'' },
 ];
 
-let _holidays = [];
 
 function loadHolidays(){
   try{
@@ -9941,8 +9948,6 @@ function printUnpaidTicket(jobId){
   win.document.close();
 }
 
-let _uploadedPlans=[];
-let _plansUploadedThisSession = false; // true only when user uploads a file this session
 
 function loadUploadedPlans(){
   // plans loaded from Sheets on connect via loadPlansFromSheets()
@@ -10436,7 +10441,6 @@ async function fullReset(){
 }
 
 const IS_PROXY_PLACEHOLDER = ''; // Uses _sheetsProxy from state
-let _isActivity = {};
 let _isStatus   = {};
 let _isConvertedBy = {};
 
