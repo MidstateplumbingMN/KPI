@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9s</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9u</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9s</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9u</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9s</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9u</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -858,7 +858,15 @@ tr:hover td{background:#fafafa}
       <div class="filter-bar">
         <label>Dept:</label><select id="unpaidDeptFilter" onchange="renderUnpaid()"><option value="">All</option></select>
         <label>Tech:</label><select id="unpaidEmpFilter" onchange="renderUnpaid()"><option value="">All</option></select>
-        <button class="clear-btn" onclick="$$('unpaidDeptFilter').value='';$$('unpaidEmpFilter').value='';renderUnpaid()">Clear</button>
+        <label>Sort:</label>
+        <select id="unpaidSort" onchange="renderUnpaid()" style="font-size:12px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px">
+          <option value="oldest">Oldest First</option>
+          <option value="newest">Newest First</option>
+          <option value="tech">By Tech (A→Z)</option>
+          <option value="amount_desc">Amount (High→Low)</option>
+          <option value="amount_asc">Amount (Low→High)</option>
+        </select>
+        <button class="clear-btn" onclick="$$('unpaidDeptFilter').value='';$$('unpaidEmpFilter').value='';$$('unpaidSort').value='oldest';renderUnpaid()">Clear</button>
       </div>
       <div id="unpaidList"></div>
       <!-- Unpaid Job Detail Popup -->
@@ -2712,7 +2720,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9s
+  // ATTRIBUTION ENGINE — v24.9u
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4862,7 +4870,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9s',  // dashboard version that generated this push
+    dash_version: 'v24.9u',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5403,7 +5411,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9s',
+        dash_version:        'v24.9u',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6843,7 +6851,7 @@ function getOrderQueueItems() {
   // Keywords that disqualify a job — service/maintenance/tune-up calls, not installs
   // Keywords that disqualify a job — service/maintenance/tune-up, cleaning, tank water heaters
   // Tank WH = plumbing service job, not an equipment order. Only TANKLESS qualifies.
-  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean.?out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional|dryer.?vent|vent.?clean|duct.?clean|camera|descale|descaling|blow.?out|flush|snake|jetting|hydro.?jet|soft.?start|capacitor|contactor|filter\b|belt\b|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|\b40.?gal\b|\b50.?gal\b|standard.*water.*heat|electric.*water.*heat/i;
+  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean.?out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional|dryer.?vent|vent.?clean|duct.?clean|camera|descale|descaling|blow.?out|flush|snake|jetting|hydro.?jet|soft.?start|capacitor|contactor|filter\b|belt\b|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|\b40.?gal\b|\b50.?gal\b|\b40 gal\b|\b50 gal\b|power.?vent|natural.?gas.*water|standard.*water.*heat|electric.*water.*heat|\d+.?gal.*water.?heat|water.?heat.*\d+.?gal/i;
 
   // Minimum job value to be an install (excludes accessory-only jobs)
   const MIN_INSTALL_VALUE = 800;
@@ -6858,12 +6866,20 @@ function getOrderQueueItems() {
     const jobValue  = getJobTotal(j);
 
     // Exclude service calls / tune-ups / cleaning jobs
-    // Check job text AND any linked estimate option names
+    // Check job text AND any linked estimate option names AND line item names/descriptions
     const linkedEstForExcl = estById[j.original_estimate_id || (j.original_estimate_uuids&&j.original_estimate_uuids[0])] || null;
     const estTextForExcl   = linkedEstForExcl
-      ? (linkedEstForExcl.options||[]).map(o=>o.name||'').join(' ')
+      ? (linkedEstForExcl.options||[]).map(o => [
+          o.name||'',
+          o.message_from_pro||'',
+          ...(o.line_items||[]).map(li => (li.name||'') + ' ' + (li.description||'')),
+          ...(o.notes||[]).map(n => n.content||'')
+        ].join(' ')).join(' ')
       : '';
-    if(EXCLUSION_RE.test(allText + ' ' + estTextForExcl)) { diag.tuneup++; return; }
+    // Also include job line item names directly
+    const jobLineItemText = (j.line_items||[]).map(li=>(li.name||'')+(li.description||'')).join(' ');
+    const fullExclText = allText + ' ' + estTextForExcl + ' ' + jobLineItemText;
+    if(EXCLUSION_RE.test(fullExclText)) { diag.tuneup++; return; }
 
     // Detect equipment
     const equip = detectEquipmentSale(j, false);
@@ -8206,10 +8222,12 @@ function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
 function detectEquipmentSale(j, requirePaid=true){
   if(requirePaid && !isJobPaid(j)) return null;
 
-  // Hard exclusion — service calls, maintenance, cleaning, and tank water heaters
-  // Tank water heaters are plumbing service jobs — only TANKLESS qualifies for order queue
-  const EQUIP_EXCLUSION = /dryer.?vent|vent.?clean|duct.?clean|tune.?up|maintenance|diagnostic|service.?call|cleaning|clean.?out|inspect|no.?charge|compliment|promotional|camera|descal|soft.?start|capacitor|contactor|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|hydro.?jet|jetting|snake\b|\b40.?gal|\b50.?gal|standard.*water.*heat|electric.*water.*heat/i;
-  const typeAndDesc = (getJobType(j) + ' ' + (j.description||'')).trim();
+  // Hard exclusion — service calls, maintenance, cleaning, and ALL tank water heaters
+  // Tank WH identifiers: power vent, gallon size, year warranty (6yr/12yr), storage tank
+  // IMPORTANT: check ALL job text including notes — option name may just be "Option #1"
+  const EQUIP_EXCLUSION = /dryer.?vent|vent.?clean|duct.?clean|tune.?up|maintenance|diagnostic|service.?call|cleaning|clean.?out|inspect|no.?charge|compliment|promotional|camera|descal|soft.?start|capacitor|contactor|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|hydro.?jet|jetting|snake\b|power.?vent|\b(30|40|50|75|80|100)\s*gal(lon)?|standard.*water.*heat|electric.*water.*heat|\b(6|9|12)\s*year.*water|water.*heater.*(storage|tank\b)/i;
+  const allJobText = getJobAllText(j);
+  const typeAndDesc = (getJobType(j) + ' ' + (j.description||'') + ' ' + allJobText).trim();
   if(EQUIP_EXCLUSION.test(typeAndDesc)) return null;
 
   // Department check via tech name — more reliable than getDept which can return "Other"
@@ -9845,38 +9863,88 @@ function renderUnpaid(){
     return;
   }
 
-  // Sort oldest first
-  const sorted=[...unpaid].sort((a,b)=>{
+  // Sort by user selection
+  const sortBy = $$('unpaidSort')?.value || 'oldest';
+  const sorted = [...unpaid].sort((a,b) => {
+    if(sortBy === 'tech') {
+      const ta = getAssigned(a)||''; const tb = getAssigned(b)||'';
+      return ta.localeCompare(tb) || new Date(a.work_timestamps?.completed_at||0) - new Date(b.work_timestamps?.completed_at||0);
+    }
+    if(sortBy === 'amount_desc') return getJobTotal(b) - getJobTotal(a);
+    if(sortBy === 'amount_asc')  return getJobTotal(a) - getJobTotal(b);
+    if(sortBy === 'newest') {
+      const da=a.work_timestamps?.completed_at||a.completed_at||'';
+      const db=b.work_timestamps?.completed_at||b.completed_at||'';
+      return new Date(db)-new Date(da);
+    }
+    // default: oldest first
     const da=a.work_timestamps?.completed_at||a.completed_at||'';
     const db=b.work_timestamps?.completed_at||b.completed_at||'';
     return new Date(da)-new Date(db);
   });
 
-  container.innerHTML=sorted.map(j=>{
-    const total=getJobTotal(j);
-    const completedAt=j.work_timestamps?.completed_at||j.completed_at||'';
-    const daysSince=completedAt?Math.floor((Date.now()-new Date(completedAt))/864e5):null;
-    const urgency=daysSince===null?'':daysSince<=3
-      ?'<span style="background:#EAF3DE;color:#166534;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">New</span>'
-      :daysSince<=14
-      ?`<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue</span>`
-      :`<span style="background:#FECACA;color:#DC2626;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue ⚠</span>`;
-    const notes=getJobNotes(j);
-    const cust=j.customer||{};
-    const phone=cust.mobile_number||cust.home_number||'';
-    return`<div class="unpaid-card" onclick="openUnpaidDetail('${j.id}')">
+  // When sorted by tech, show a divider between techs
+  let lastTech = null;
+
+  container.innerHTML = sorted.map(j => {
+    const total       = getJobTotal(j);
+    const completedAt = j.work_timestamps?.completed_at||j.completed_at||'';
+    const daysSince   = completedAt ? Math.floor((Date.now()-new Date(completedAt))/864e5) : null;
+    const urgency     = daysSince===null ? ''
+      : daysSince<=3   ? '<span style="background:#EAF3DE;color:#166534;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">New</span>'
+      : daysSince<=14  ? `<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue</span>`
+      : `<span style="background:#FECACA;color:#DC2626;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue ⚠</span>`;
+
+    const notes     = getJobNotes(j);
+    const cust      = j.customer||{};
+    const phone     = cust.mobile_number||cust.home_number||'';
+    const lineItems = (j.line_items||[]).map(li=>(li.name||li.description||'').trim()).filter(Boolean);
+    const tech      = getAssigned(j)||'Unassigned';
+
+    // Tech divider for "By Tech" sort
+    let divider = '';
+    if(sortBy === 'tech' && tech !== lastTech) {
+      const techTotal = sorted.filter(x=>(getAssigned(x)||'Unassigned')===tech).reduce((s,x)=>s+getJobTotal(x),0);
+      const techCount = sorted.filter(x=>(getAssigned(x)||'Unassigned')===tech).length;
+      divider = `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+        color:#1A3A5C;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;
+        padding:5px 12px;margin:8px 0 4px;display:flex;justify-content:space-between">
+        <span>👤 ${escHtml(tech)}</span>
+        <span style="color:#DC2626">${techCount} job${techCount!==1?'s':''} · ${dollars(techTotal)}</span>
+      </div>`;
+      lastTech = tech;
+    }
+
+    // Line items — up to 4, each on its own pill
+    const liHtml = lineItems.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+          ${lineItems.slice(0,4).map(li=>`<span style="font-size:10px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:4px;padding:1px 7px;color:#374151">${escHtml(li)}</span>`).join('')}
+          ${lineItems.length>4?`<span style="font-size:10px;color:#9ca3af">+${lineItems.length-4} more</span>`:''}
+        </div>`
+      : '';
+
+    // Notes — show up to 2, truncated to 160 chars each
+    const notesHtml = notes.length
+      ? `<div style="margin-top:5px;border-left:2px solid #E5E7EB;padding-left:8px">
+          ${notes.slice(0,2).map(n=>`<div class="unpaid-note-item" style="color:#6b7280;font-size:11px;margin-bottom:2px">${escHtml(n.slice(0,160))}${n.length>160?'…':''}</div>`).join('')}
+          ${notes.length>2?`<div style="font-size:10px;color:#9ca3af">${notes.length-2} more note${notes.length-2!==1?'s':''}…</div>`:''}
+        </div>`
+      : '';
+
+    return `${divider}<div class="unpaid-card" onclick="openUnpaidDetail('${j.id}')">
       <div class="unpaid-card-header">
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="unpaid-card-title">${getCust(j)} ${urgency}</div>
           <div class="unpaid-card-meta">
-            Job #${j.job_number||j.id||'—'} · ${getDept(j)} · ${getAssigned(j)}
-            ${j.address?.street?' · '+j.address.street+', '+j.address.city:''}
-            ${phone?' · 📞 '+phone:''}
+            Job #${escHtml(j.job_number||j.id||'—')} · ${getDept(j)} · <strong>${escHtml(tech)}</strong>
+            ${j.address?.street?' · '+escHtml(j.address.street+', '+j.address.city):''}
+            ${phone?' · 📞 '+escHtml(phone):''}
             ${completedAt?' · Completed '+fmtD(completedAt):''}
           </div>
-          ${notes.length?`<div class="unpaid-note-item" style="margin-top:5px">${escHtml(notes[0].slice(0,140))}${notes[0].length>140?'…':''}</div>`:''}
+          ${liHtml}
+          ${notesHtml}
         </div>
-        <div class="unpaid-card-amount">${dollars(total)}</div>
+        <div class="unpaid-card-amount" style="flex-shrink:0;margin-left:12px">${dollars(total)}</div>
       </div>
     </div>`;
   }).join('');
