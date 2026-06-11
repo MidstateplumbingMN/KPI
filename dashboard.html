@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9f</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9j</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9f</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9j</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9f</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9j</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1106,6 +1106,7 @@ tr:hover td{background:#fafafa}
             📁 Upload New Export
             <input type="file" id="planFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handlePlanUpload(this)">
           </label>
+          <button onclick="autoAttributePlans(_uploadedPlans,_jobs,_estimates);renderPlans(_uploadedPlans)" style="padding:7px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer" title="Re-run auto-matching against latest job data">🎯 Auto-Match</button>
           <button onclick="savePlanAttributions()" style="padding:7px 14px;background:#166534;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💾 Save Attributions</button>
           <button class="is-btn danger" style="font-size:11px" onclick="clearPlanUpload()">🗑 Clear</button>
         </div>
@@ -2602,6 +2603,10 @@ async function loadAll(){
       }
     } else if(_uploadedPlans.length) {
       console.log('[Plans] Using',_uploadedPlans.length,'uploaded plans (CSV upload is definitive source)');
+      // Run auto-attribution matching using fresh job/estimate data
+      if(_uploadedPlans.length > 0 && (jobs.length > 0 || estimates.length > 0)) {
+        autoAttributePlans(_uploadedPlans, jobs, estimates);
+      }
     }
 
     // Identify installer IDs
@@ -2698,7 +2703,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9f
+  // ATTRIBUTION ENGINE — v24.9j
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4368,16 +4373,34 @@ function renderPlanRows(plans) {
       : sv.includes('cancel') ? `<span class="badge br">${status}</span>`
       : `<span class="badge bgr">${status}</span>`;
 
-    // Attribution — saved value takes priority over uploaded sold_by
-    const currentSoldBy = _planAttributions[key] || p.sold_by || '';
-    const isAssigned = currentSoldBy && currentSoldBy !== 'Unknown' && currentSoldBy !== '—';
+    // Attribution — saved attribution takes priority, then auto-match, then suggestion
+    const currentSoldBy    = _planAttributions[key] || p._soldByName || '';
+    const suggestedTech    = p._suggestedTech || '';
+    const matchConf        = p._matchConf || 0;
+    const matchReason      = p._matchReason || p._suggestReason || '';
+    const isManual         = !!_planAttributions[key];
+    const isAutoMatched    = !isManual && !!p._soldByName && matchConf >= 80;
+    const isSuggested      = !isManual && !isAutoMatched && !!suggestedTech;
+    const isAssigned       = !!(currentSoldBy && currentSoldBy !== 'Unknown' && currentSoldBy !== '—');
+
+    // Confidence badge
+    const confBadge = matchConf >= 80 ? `<span title="${matchReason}" style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 5px;border-radius:99px;margin-left:4px;cursor:help">🟢 ${matchConf}%</span>`
+      : matchConf >= 50 ? `<span title="${matchReason}" style="font-size:9px;background:#fef9c3;color:#92400e;padding:1px 5px;border-radius:99px;margin-left:4px;cursor:help">🟡 ${matchConf}%</span>`
+      : '';
 
     const soldByOpts = TEAM.map(m =>
-      `<option value="${escHtml(m)}" ${(currentSoldBy===m||(!isAssigned&&m==='')?'selected':'')}>` +
-      `${m || '— unassigned —'}</option>`
+      `<option value="${escHtml(m)}" ${currentSoldBy===m?'selected':''}>${m || '— unassigned —'}</option>`
     ).join('');
 
-    return `<tr style="${!isAssigned?'background:#fffbeb':''}">
+    // Suggestion accept button for medium-confidence matches
+    const suggestRow = isSuggested ? `
+      <div style="margin-top:3px;padding:3px 6px;background:#fef9c3;border:1px solid #fde68a;border-radius:4px;font-size:10px;color:#92400e;display:flex;align-items:center;gap:6px">
+        <span title="${escHtml(matchReason)}">🟡 Suggested: <strong>${escHtml(suggestedTech)}</strong></span>
+        <button onclick="(function(sel,name,key){sel.value=name;_planAttributions[key]=name;sel.style.background='#f0fdf4';sel.style.borderColor='#86efac';})(this.closest('td').querySelector('select'),'${escHtml(suggestedTech)}','${escHtml(key)}')" style="font-size:9px;padding:1px 6px;background:#166534;color:#fff;border:none;border-radius:3px;cursor:pointer">✓ Accept</button>
+        <button onclick="this.parentElement.remove()" style="font-size:9px;padding:1px 6px;background:#dc2626;color:#fff;border:none;border-radius:3px;cursor:pointer">✗</button>
+      </div>` : '';
+
+    return `<tr style="${!isAssigned&&!isSuggested?'background:#fffbeb':isSuggested?'background:#fefce8':''}">
       <td style="color:#9ca3af;font-size:11px">${i+1}</td>
       <td style="font-weight:500">${escHtml(custName)}</td>
       <td style="color:#1A3A5C;font-size:12px;max-width:160px">${escHtml(planName)}</td>
@@ -4385,11 +4408,15 @@ function renderPlanRows(plans) {
       <td style="color:#6b7280;font-size:12px">${endStr}</td>
       <td>${badge}</td>
       <td>
-        <select data-plan-key="${escHtml(key)}" data-sold-by="${escHtml(currentSoldBy)}"
-          style="font-size:12px;padding:3px 6px;border:1px solid ${isAssigned?'#d1d5db':'#FDE68A'};border-radius:5px;width:100%;background:${isAssigned?'#fff':'#fffbeb'}"
-          onchange="_planAttributions['${escHtml(key)}']=this.value;this.dataset.soldBy=this.value;this.style.background=this.value?'#f0fdf4':'#fffbeb';this.style.borderColor=this.value?'#86efac':'#FDE68A'">
-          ${soldByOpts}
-        </select>
+        <div style="display:flex;align-items:center;gap:4px">
+          <select data-plan-key="${escHtml(key)}" data-sold-by="${escHtml(currentSoldBy)}"
+            style="font-size:12px;padding:3px 6px;border:1px solid ${isAssigned?'#d1d5db':'#FDE68A'};border-radius:5px;flex:1;background:${isAssigned?'#fff':'#fffbeb'}"
+            onchange="_planAttributions['${escHtml(key)}']=this.value;this.dataset.soldBy=this.value;this.style.background=this.value?'#f0fdf4':'#fffbeb';this.style.borderColor=this.value?'#86efac':'#FDE68A'">
+            ${soldByOpts}
+          </select>
+          ${isAutoMatched ? confBadge : ''}
+        </div>
+        ${suggestRow}
       </td>
       <td style="color:#6b7280;font-size:12px">${amount}</td>
     </tr>`;
@@ -4824,7 +4851,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9f',  // dashboard version that generated this push
+    dash_version: 'v24.9j',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5365,7 +5392,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9f',
+        dash_version:        'v24.9j',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6769,6 +6796,9 @@ function getOrderQueueItems() {
   const seenJobs = new Set();
   const items    = [];
 
+  // Diagnostic counters
+  const diag = { total:0, canceled:0, noEquip:0, noLineItem:0, wrongKey:0, dateFiltered:0, deptFiltered:0, passed:0 };
+
   // Build estimate lookup for fast access
   const estById = {};
   _estimates.forEach(e => {
@@ -6778,55 +6808,39 @@ function getOrderQueueItems() {
 
   _jobs.forEach(j => {
     if(seenJobs.has(j.id)) return;
-    if(isJobCanceled(j)) return;
+    diag.total++;
+    if(isJobCanceled(j)) { diag.canceled++; return; }
 
-    // TRIGGER: job has qualifying equipment line items
-    // Primary: job must have estimate link (converted sale — most reliable)
-    // Secondary: job has qualifying line items directly (catches manually created jobs)
     const linkedId = j.original_estimate_id
       || (j.original_estimate_uuids && j.original_estimate_uuids[0])
       || null;
-
-    // Find the linked estimate
     const linkedEst = linkedId ? (estById[linkedId] || null) : null;
-
-    // Detect equipment — check job line items AND estimate option names
     const equip = detectEquipmentSale(j, false);
 
-    // If no equipment detected via line items/estimate, check job description keywords
-    // as last resort for manually-created jobs
     if(!equip) {
-      // Must have at least one qualifying line item directly on the job
-      const hasLineItem = (j.line_items||[]).some(li => {
-        const name = (li.name||'').toLowerCase();
-        return ORDER_EQUIP_KEYS.size > 0 && (
-          name.includes('furnace') || name.includes('air conditioner') ||
-          name.includes(' ac ') || name.includes('boiler') ||
-          name.includes('heat pump') || name.includes('mini split') ||
-          name.includes('tankless') || name.includes('package unit')
-        );
-      });
-      if(!hasLineItem) return;
-    } else if(!isOrderEquip(equip.key)) return;
+      // Fallback: check job type name + description + line items for equipment keywords
+      const allJobText = getJobAllText(j).toLowerCase();
+      const jobType = getJobType(j).toLowerCase();
+      const installType = ['install','new con','commercial install','new construction'].includes(jobType);
+      const hasEquipKeyword = /furnace|air.?cond|\bac\b|heat.?pump|boiler|mini.?split|ductless|tankless|water.?heater|changeout|change.?out/i.test(allJobText);
+      const techName2 = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
+      const techDept2 = DEPT_MAP[techName2] || getDept(j);
+      const isHVAC2 = techDept2 === 'HVAC' || techDept2 === 'Install';
+      if(!(installType && isHVAC2) && !hasEquipKeyword) { diag.noEquip++; return; }
+    } else if(!isOrderEquip(equip.key)) { diag.wrongKey++; return; }
 
     seenJobs.add(j.id);
 
-    // Status — all non-canceled statuses qualify
-    const norm = getNormStatus(j);
-    const isComplete = norm === 'Paid' || norm === 'Unpaid';
-
-    // Date filter — uses install (scheduled_start) date
-    // Jobs with no scheduled date are kept (shown as TBD) unless date filter is active
     const installDate = j.schedule?.scheduled_start || j.scheduled_start || '';
     const d = fmtKey(installDate) || '';
     if(fromVal && toVal && d) {
-      // Only apply date filter when we have a scheduled date AND a filter is set
-      if(d < fromVal || d > toVal) return;
+      if(d < fromVal || d > toVal) { diag.dateFiltered++; return; }
     }
 
     const dept = getDept(j);
-    if(deptFil && dept !== deptFil) return;
+    if(deptFil && dept !== deptFil) { diag.deptFiltered++; return; }
 
+    diag.passed++;
     const cust      = j.customer || {};
     const name      = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
     const addr      = j.address
@@ -6835,47 +6849,35 @@ function getOrderQueueItems() {
     const phone     = cust.mobile_number || cust.home_number || '';
     const soldBy    = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
 
-    // Line items from job
     const allLineItems = (j.line_items||[]).map(li => li.name||li.description||'').filter(Boolean);
-
-    // Notes: estimate notes are the key ones — this is where the selling tech
-    // wrote down what the customer wants, special instructions, site conditions
     const estNotes  = linkedEst ? getEstNotes(linkedEst).join('\n') : '';
     const jobNotes  = getJobNotes(j).join('\n');
+    const norm      = getNormStatus(j);
+    const isComplete= norm === 'Paid' || norm === 'Unpaid';
 
-    // Equipment label: prefer estimate option name (most specific) then job line item
     const equipLabel = (equip ? getEquipmentLabel(j) : '')
       || (linkedEst ? getEquipLabelFromEst(linkedEst) : '')
       || equip?.label || 'Equipment';
 
-    // Get option-level line items from linked estimate for full detail
     const estLineItems = linkedEst
       ? (linkedEst.options||[]).flatMap(o => (o.line_items||[]).map(li => li.name||'').filter(Boolean))
       : [];
 
     items.push({
-      id:          j.id,
-      jobNum:      j.job_number || j.id,
-      estNum:      linkedEst?.estimate_number || '',
-      customer:    name,
-      address:     addr,
-      phone,
-      equipLabel,
-      equip:       equip || {key:'unknown',label:'Equipment',color:'#1A3A5C',icon:'🔧'},
-      dept,
-      soldBy,
+      id: j.id, jobNum: j.job_number||j.id, estNum: linkedEst?.estimate_number||'',
+      customer: name, address: addr, phone, equipLabel,
+      equip: equip || {key:'unknown',label:'Equipment',color:'#1A3A5C',icon:'🔧'},
+      dept, soldBy,
       installDate: installDate ? fmtDY(installDate) : 'TBD',
-      installRaw:  installDate,
-      jobNotes,
-      estNotes,
-      lineItems:   [...new Set([...allLineItems, ...estLineItems])],
-      value:       getJobTotal(j),
-      isComplete,
+      installRaw: installDate, jobNotes, estNotes,
+      lineItems: [...new Set([...allLineItems, ...estLineItems])],
+      value: getJobTotal(j), isComplete,
     });
   });
 
+  console.log(`[OrderQueue] ${diag.total} jobs scanned → ${diag.passed} passed | filtered out: ${diag.canceled} canceled, ${diag.noEquip} no equip detected, ${diag.wrongKey} wrong equip key, ${diag.dateFiltered} date range, ${diag.deptFiltered} dept`);
+
   return items.sort((a,b) => {
-    // Active first (upcoming installs by date), archived at bottom
     if(a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1;
     return new Date(a.installRaw||9e12) - new Date(b.installRaw||9e12);
   });
@@ -8115,7 +8117,18 @@ function detectEquipmentSale(j, requirePaid=true){
     ? (linkedEst.options||[]).map(o=>(o.name||'').trim()).filter(Boolean)
     : [];
 
+  // Also include job description, notes, and job type as text sources
+  // Install/New Con jobs often have the equipment in the description, not line items
+  const jobType = getJobType(j);
+  const descTexts = [
+    j.description || '',
+    j.summary || '',
+    ...(j.notes||[]).map(n=>n.content||''),
+    jobType,
+  ].map(t=>t.trim()).filter(Boolean);
+
   const allTexts = [...lineItemTexts, ...estOptionTexts];
+  const allTextsFull = [...allTexts, ...descTexts]; // includes description for fuzzy only
 
   for(const text of allTexts){
     // First try exact pricebook lookup
@@ -8128,17 +8141,19 @@ function detectEquipmentSale(j, requirePaid=true){
       if(isPlumbing) continue;
       return {key, ...TY_ITEM_SETS[key], matchedItem:text};
     }
+  }
 
-    // Fuzzy fallback — catches slight naming variations in HCP line items
+  // Fuzzy match — check ALL text sources including description/notes/type
+  for(const text of allTextsFull){
     const t = text.toLowerCase();
     let fuzzyKey = null;
-    if(/furnace|air.?handler|heat.?exchanger|80%|96%|97%|98%|stage.*(60k|80k|100k|120k)/i.test(text)) fuzzyKey = 'furnace';
-    else if(/air.?cond|a\/c\b|\bac\b|seer|condenser|compressor/i.test(text)) fuzzyKey = 'ac';
+    if(/furnace|air.?handler|heat.?exchanger|\b80%|\b96%|\b97%|\b98%|stage.*(60k|80k|100k|120k)/i.test(text)) fuzzyKey = 'furnace';
+    else if(/air.?cond|a\/c\b|\bac\b|\bseer\b|condenser|compressor/i.test(text)) fuzzyKey = 'ac';
     else if(/heat.?pump/i.test(text)) fuzzyKey = 'heat_pump';
     else if(/boiler|navien|peerless|weil/i.test(text)) fuzzyKey = 'boiler';
-    else if(/mini.?split/i.test(text)) fuzzyKey = 'mini_split';
+    else if(/mini.?split|ductless/i.test(text)) fuzzyKey = 'mini_split';
     else if(/package|changeout|change.?out|full.?system/i.test(text)) fuzzyKey = 'package';
-    else if(/tankless|water.?heater|navien.*water/i.test(text)) fuzzyKey = 'water_heater';
+    else if(/tankless|water.?heater/i.test(text)) fuzzyKey = 'water_heater';
 
     if(fuzzyKey) {
       if(fuzzyKey === 'water_heater' && (getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
@@ -8146,6 +8161,39 @@ function detectEquipmentSale(j, requirePaid=true){
       return {key:fuzzyKey, ...TY_ITEM_SETS[fuzzyKey], matchedItem:text, fuzzy:true};
     }
   }
+
+  // Strong signal: Andy Mitchell or Gannon Blaiser assigned = almost certainly an install
+  // These are the dedicated installers — if they're on a job it needs equipment ordered
+  const assignedTechs = (j.appointments||[]).flatMap(a => a.assigned_employees||[])
+    .map(e => ((e.first_name||'')+' '+(e.last_name||'')).trim())
+    .filter(Boolean);
+  // Also check primary assigned tech
+  const primaryTech = getAssigned(j);
+  if(primaryTech) assignedTechs.push(primaryTech);
+  const hasInstaller = assignedTechs.some(t => INSTALLER_NAMES.includes(t));
+
+  if(hasInstaller) {
+    // Installer on the job — try to identify equipment type from any text
+    const allJobText = getJobAllText(j);
+    let fuzzyKey = null;
+    if(/furnace|air.?handler|\b80%|\b96%|\b97%|\b98%/i.test(allJobText))       fuzzyKey = 'furnace';
+    else if(/air.?cond|a\/c\b|\bac\b|\bseer\b|condenser/i.test(allJobText))    fuzzyKey = 'ac';
+    else if(/heat.?pump/i.test(allJobText))                                      fuzzyKey = 'heat_pump';
+    else if(/boiler/i.test(allJobText))                                          fuzzyKey = 'boiler';
+    else if(/mini.?split|ductless/i.test(allJobText))                            fuzzyKey = 'mini_split';
+    else if(/tankless|water.?heater/i.test(allJobText))                          fuzzyKey = 'water_heater';
+    else if(/package|changeout|change.?out/i.test(allJobText))                   fuzzyKey = 'package';
+    else fuzzyKey = 'furnace'; // default for installer jobs — label will show description
+    return {key:fuzzyKey, ...TY_ITEM_SETS[fuzzyKey], matchedItem: primaryTech + ' (installer)', installer:true};
+  }
+
+  // Final signal: job type is "Install" or "New Con" AND dept is HVAC
+  // These are almost always equipment installs even if we can't identify the specific unit yet
+  const installTypes = new Set(['install','new con','commercial install','new construction']);
+  if(installTypes.has(jobType.toLowerCase()) && (isHVAC || isInstall)) {
+    return {key:'furnace', ...TY_ITEM_SETS['furnace'], matchedItem:jobType, inferred:true};
+  }
+
   return null;
 }
 
@@ -10421,7 +10469,208 @@ function clearPlanUpload(){
 }
 
 // ============================================================
-// DATA MANAGEMENT
+// SERVICE PLAN AUTO-ATTRIBUTION ENGINE
+// ============================================================
+// Runs after upload to pre-fill Sold By using job/estimate data.
+// Multiple signals combined into a confidence score:
+//   95 — exact estimate option match (home club line item, same customer)
+//   90 — job at same address within 7 days of plan start
+//   75 — job at same address within 30 days of plan start
+//   65 — only tech to ever serve this customer (any date)
+//   50 — closest job to plan start date for this customer (any time gap)
+//
+// Auto-assigns if confidence >= 80. Flags 50–79 for review.
+// Never overwrites an existing manual attribution.
+// ============================================================
+function autoAttributePlans(plans, jobs, estimates) {
+  if(!plans.length || (!jobs.length && !estimates.length)) return;
+
+  const now = Date.now();
+  console.log(`[PlanAttr] Auto-matching ${plans.length} plans against ${jobs.length} jobs, ${estimates.length} estimates...`);
+
+  // ── Build lookup structures ──────────────────────────────
+  // Street address → jobs (normalized to lower, digits only for zip)
+  const jobsByStreet  = {};
+  const jobsByZip     = {};
+  const jobsByCustomer= {};
+
+  jobs.forEach(j => {
+    const tech = getAssigned(j);
+    if(!tech) return;
+    const sched = j.schedule?.scheduled_start || j.work_timestamps?.completed_at || j.completed_at || '';
+    if(!sched) return;
+    const jobDate = new Date(sched);
+    if(isNaN(jobDate)) return;
+    const entry = { tech, date: jobDate, job: j };
+
+    // Street key — first word of street number + street name, lowercased
+    const street = (j.address?.street || '').toLowerCase().trim();
+    if(street) {
+      if(!jobsByStreet[street]) jobsByStreet[street] = [];
+      jobsByStreet[street].push(entry);
+    }
+
+    // Zip key
+    const zip = (j.address?.zip || '').replace(/\D/g,'').slice(0,5);
+    if(zip) {
+      if(!jobsByZip[zip]) jobsByZip[zip] = [];
+      jobsByZip[zip].push(entry);
+    }
+
+    // Customer ID key
+    const cid = j.customer?.id || '';
+    if(cid) {
+      if(!jobsByCustomer[cid]) jobsByCustomer[cid] = [];
+      jobsByCustomer[cid].push(entry);
+    }
+  });
+
+  // Estimate options — home club line items with assigned tech
+  const estOptions = [];
+  estimates.forEach(e => {
+    const emp = getAssignedList(e)[0];
+    if(!emp) return;
+    const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim();
+    if(!tech) return;
+    const custId   = e.customer?.id || '';
+    const custName = ((e.customer?.first_name||'')+' '+(e.customer?.last_name||'')).trim().toLowerCase();
+    const estDate  = new Date(e.schedule?.scheduled_start || e.created_at || '');
+    if(isNaN(estDate)) return;
+
+    // Look for home club plan in any option
+    (e.options||[]).forEach(o => {
+      const name  = (o.name||'').toLowerCase();
+      const price = parseFloat(o.total_amount||0);
+      const priceD= price > 100 ? price/100 : price;
+      const status= (o.approval_status||o.status||'').toLowerCase();
+      const isSold= status.includes('approved')||status.includes('converted')||status.includes('created job');
+      const isPlan= (Math.abs(priceD-19.99)<1.5) ||
+                    name.includes('home club') || name.includes('service plan') ||
+                    name.includes('service agreement') || name.includes('membership');
+      if(isPlan && isSold) {
+        estOptions.push({ tech, custId, custName, date: estDate });
+      }
+    });
+  });
+
+  // ── Match each plan ───────────────────────────────────────
+  let matched = 0, flagged = 0, skipped = 0;
+
+  plans.forEach(plan => {
+    const key = getPlanKey(plan);
+
+    // Never overwrite existing manual attribution
+    if(_planAttributions[key]) { skipped++; return; }
+
+    const planDate  = new Date(plan.created_at || plan.start_date || '');
+    if(isNaN(planDate)) return;
+    const planMs    = planDate.getTime();
+
+    const custName  = getPlanCust(plan).toLowerCase().trim();
+    const custFirst = (plan.customer?.first_name||'').toLowerCase().trim();
+    const custLast  = (plan.customer?.last_name||'').toLowerCase().trim();
+    const custPhone = (plan.customer?.phone || plan.customer?.mobile_number || plan.phone || '').replace(/\D/g,'');
+    const planStreet= (plan.customer?.address||plan.address||'').toLowerCase().split(',')[0].trim();
+    const planZip   = (plan.customer?.address||plan.address||'').match(/\b\d{5}\b/)?.[0] || '';
+    const planCustId= plan.hcp_id || plan.customer?.id || '';
+
+    let bestTech = null, bestConf = 0, bestReason = '';
+
+    // ── Signal 1: Estimate option match ──────────────────
+    // Customer name match + date within 60 days
+    estOptions.forEach(opt => {
+      if(Math.abs(opt.date - planDate) > 60*24*60*60*1000) return;
+      const nameMatch = custName && (
+        opt.custName.includes(custFirst) || custFirst && opt.custName.includes(custFirst) ||
+        (custLast && opt.custName.includes(custLast))
+      );
+      if(nameMatch || (planCustId && opt.custId === planCustId)) {
+        const conf = 95;
+        if(conf > bestConf) { bestConf = conf; bestTech = opt.tech; bestReason = 'Estimate option match'; }
+      }
+    });
+
+    // ── Signal 2: Job at same street address ─────────────
+    if(planStreet && planStreet.length > 4) {
+      const candidates = jobsByStreet[planStreet] || [];
+      candidates.forEach(c => {
+        const daysDiff = Math.abs(c.date - planDate) / (1000*60*60*24);
+        let conf = 0;
+        if(daysDiff <= 1)  conf = 92;
+        else if(daysDiff <= 7)  conf = 88;
+        else if(daysDiff <= 30) conf = 75;
+        else if(daysDiff <= 90) conf = 60;
+        if(conf > bestConf) { bestConf = conf; bestTech = c.tech; bestReason = `Job at address (${Math.round(daysDiff)}d gap)`; }
+      });
+    }
+
+    // ── Signal 3: Job in same zip, matching name ─────────
+    if(planZip && bestConf < 75) {
+      const candidates = (jobsByZip[planZip] || []).filter(c => {
+        const jName = ((c.job.customer?.first_name||'')+' '+(c.job.customer?.last_name||'')).trim().toLowerCase();
+        return jName && (jName.includes(custFirst) || custFirst && jName.includes(custFirst));
+      });
+      candidates.forEach(c => {
+        const daysDiff = Math.abs(c.date - planDate) / (1000*60*60*24);
+        let conf = 0;
+        if(daysDiff <= 7)  conf = 82;
+        else if(daysDiff <= 30) conf = 68;
+        else if(daysDiff <= 90) conf = 55;
+        if(conf > bestConf) { bestConf = conf; bestTech = c.tech; bestReason = `Job in zip ${planZip}, name match (${Math.round(daysDiff)}d gap)`; }
+      });
+    }
+
+    // ── Signal 4: Only one tech ever served this customer ─
+    if(planCustId && bestConf < 75) {
+      const cJobs = jobsByCustomer[planCustId] || [];
+      if(cJobs.length) {
+        const techs = [...new Set(cJobs.map(c => c.tech))];
+        if(techs.length === 1) {
+          // Only one tech — find closest job to plan date
+          const closest = cJobs.sort((a,b) => Math.abs(a.date-planDate) - Math.abs(b.date-planDate))[0];
+          const daysDiff = Math.abs(closest.date - planDate) / (1000*60*60*24);
+          const conf = daysDiff <= 30 ? 78 : daysDiff <= 180 ? 65 : 55;
+          if(conf > bestConf) { bestConf = conf; bestTech = techs[0]; bestReason = `Only tech for this customer (${Math.round(daysDiff)}d gap)`; }
+        } else if(techs.length > 1) {
+          // Multiple techs — find closest job to plan date
+          const closest = cJobs.sort((a,b) => Math.abs(a.date-planDate) - Math.abs(b.date-planDate))[0];
+          const daysDiff = Math.abs(closest.date - planDate) / (1000*60*60*24);
+          const conf = daysDiff <= 7 ? 72 : daysDiff <= 30 ? 58 : 45;
+          if(conf > bestConf) { bestConf = conf; bestTech = closest.tech; bestReason = `Closest job, ${techs.length} techs served customer (${Math.round(daysDiff)}d gap)`; }
+        }
+      }
+    }
+
+    // ── Apply result ─────────────────────────────────────
+    if(bestTech && bestConf >= 80) {
+      // Auto-assign
+      _planAttributions[key] = bestTech;
+      plan._soldByName      = bestTech;
+      plan._matchConf       = bestConf;
+      plan._matchReason     = bestReason;
+      plan.sold_by = { first_name: bestTech.split(' ')[0], last_name: bestTech.split(' ').slice(1).join(' '), id: 'auto_'+bestTech.replace(/\s/g,'_') };
+      matched++;
+    } else if(bestTech && bestConf >= 50) {
+      // Suggest but don't auto-assign — flag for review in UI
+      plan._suggestedTech   = bestTech;
+      plan._matchConf       = bestConf;
+      plan._matchReason     = bestReason;
+      flagged++;
+    }
+  });
+
+  console.log(`[PlanAttr] Auto-match complete: ${matched} auto-assigned (≥80%), ${flagged} flagged for review (50-79%), ${skipped} already attributed, ${plans.length-matched-flagged-skipped} unmatched`);
+
+  // Save auto-attributed results to Sheets
+  if(matched > 0) {
+    savePlanAttributions();
+    showToast(`🎯 Auto-matched ${matched} plans · ${flagged} need review · check Service Plans tab`, 'success');
+  } else if(flagged > 0) {
+    showToast(`🔍 ${flagged} plans need review in Service Plans tab`, 'info');
+  }
+
+  return { matched, flagged };
+}
 // ============================================================
 function showDataTools(){
   const attrCount=Object.keys(_attr||{}).length;
