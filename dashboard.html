@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9e</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9f</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9e</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9f</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9e</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9f</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2698,7 +2698,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9e
+  // ATTRIBUTION ENGINE — v24.9f
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4824,7 +4824,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9e',  // dashboard version that generated this push
+    dash_version: 'v24.9f',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5365,7 +5365,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9e',
+        dash_version:        'v24.9f',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10006,8 +10006,7 @@ async function loadPlansFromSheets(){
         statusEl.innerHTML = `<span style="color:${isStale?'#92400E':'#166534'}">${isStale?'⚠️':'✅'} Last upload: ${ago}${isStale?' — consider re-uploading':''}</span>`;
       }
       // Show the plan data view if we have data
-      const box=$$('planUploadBox');const view=$$('planDataView');
-      if(box) box.style.display='none';
+      const view=$$('planDataView');
       if(view) view.style.display='block';
       if(_jobs.length) renderPlans(plans);
     }
@@ -10191,7 +10190,7 @@ async function processPlanFile(file){
       }).catch(e => dashLog('warn','Plans Sheets sync failed: '+e.message));
     }
 
-    $$('planUploadBox').style.display='none';
+    ($$('planUploadBox') || {style:{}}).style.display='none';
     $$('planDataView').style.display='block';
     populateFilters(_jobs,_estimates,_uploadedPlans);
     renderPlans(_uploadedPlans);
@@ -10284,6 +10283,16 @@ function mapPlanRows(rows){
     return plans;
   }
 
+  // Normalize plan type names — HCP has several variants of the same plan
+  function normalizePlanName(raw) {
+    const n = (raw||'').trim().toLowerCase();
+    if(n.includes('diamond')) return 'Diamond Membership';
+    if(n.includes('first year free') || n.includes('home service plan')) return 'Home Service Plan (First Year Free)';
+    if(n.includes('home club') || n.includes('home maintenance club')) return 'Home Club Maintenance';
+    if(n.includes('commercial')) return 'Commercial HVAC Maintenance Agreement';
+    return raw.trim() || 'Home Club Maintenance';
+  }
+
   // ── Detailed HCP service agreement export format ────────────────────────────
   // Columns: Plan, Start Date, End Date, Status, First Name, Last Name,
   //          Display Name, Mobile, Home, Email, Company, ID, Address...
@@ -10317,7 +10326,7 @@ function mapPlanRows(rows){
       const status = String(r[statusCol2]||'').trim();
       if(!ACTIVE_STATUSES.has(status.toLowerCase())) continue; // skip Expired, Draft
 
-      const planName  = planCol2>=0  ? String(r[planCol2]||'').trim()||'Home Club Maintenance' : 'Home Club Maintenance';
+      const planName  = normalizePlanName(planCol2>=0 ? String(r[planCol2]||'') : 'Home Club Maintenance');
       const startDate = startCol>=0  ? String(r[startCol]||'').trim() : '';
       const endDate   = endCol>=0    ? String(r[endCol]||'').trim()   : '';
       const firstName = firstCol>=0  ? String(r[firstCol]||'').trim() : '';
@@ -10405,7 +10414,7 @@ function clearPlanUpload(){
   if(!confirm('Clear uploaded service plan data?')) return;
   _uploadedPlans=[];_plans=[];
   saveUploadedPlans();
-  $$('planUploadBox').style.display='';
+  ($$('planUploadBox') || {style:{}}).style.display='';
   $$('planDataView').style.display='none';
   const inp=$$('planFileInput');if(inp)inp.value='';
   renderPlans([]);
