@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9m</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9s</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9m</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9s</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9m</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9s</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -844,8 +844,17 @@ tr:hover td{background:#fafafa}
 
     <!-- UNPAID JOBS -->
     <div class="panel" id="tab-unpaid">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;color:#6b7280">Jobs complete but payment not yet collected</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="printUnpaid()" style="font-size:12px;padding:5px 14px;background:#1A3A5C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">🖨 Print Report</button>
+        </div>
+      </div>
       <div class="metrics" id="unpaidMetrics"></div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Jobs that are complete but payment has not been collected. Click any job for full details.</div>
+      <!-- Tech KPI breakdown -->
+      <div id="unpaidTechKPI" style="margin:10px 0 12px;display:flex;flex-wrap:wrap;gap:8px"></div>
       <div class="filter-bar">
         <label>Dept:</label><select id="unpaidDeptFilter" onchange="renderUnpaid()"><option value="">All</option></select>
         <label>Tech:</label><select id="unpaidEmpFilter" onchange="renderUnpaid()"><option value="">All</option></select>
@@ -2703,7 +2712,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9m
+  // ATTRIBUTION ENGINE — v24.9s
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4362,9 +4371,11 @@ function renderPlanRows(plans) {
     const planName = getPlanName(p) || '—';
     const status   = getPlanStatus(p) || 'Active';
     const startRaw = p.created_at || p.start_date || '';
-    const startStr = startRaw ? new Date(startRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
     const endRaw   = p.end_date || '';
-    const endStr   = endRaw   ? new Date(endRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+    const parseD   = d => { if(!d) return null; const s=String(d).trim(); const dt=new Date(s.includes('T')?s:s+'T12:00:00'); return isNaN(dt)?null:dt; };
+    const fmtD     = dt => dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+    const startStr = fmtD(parseD(startRaw));
+    const endStr   = fmtD(parseD(endRaw));
     const amount   = p.total_amount ? '$'+((p.total_amount/100).toFixed(2)) : p.amount ? '$'+(parseFloat(p.amount)||0).toFixed(2) : '—';
 
     const sv  = status.toLowerCase();
@@ -4851,7 +4862,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9m',  // dashboard version that generated this push
+    dash_version: 'v24.9s',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5392,7 +5403,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9m',
+        dash_version:        'v24.9s',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6830,7 +6841,9 @@ function getOrderQueueItems() {
   });
 
   // Keywords that disqualify a job — service/maintenance/tune-up calls, not installs
-  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional/i;
+  // Keywords that disqualify a job — service/maintenance/tune-up, cleaning, tank water heaters
+  // Tank WH = plumbing service job, not an equipment order. Only TANKLESS qualifies.
+  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean.?out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional|dryer.?vent|vent.?clean|duct.?clean|camera|descale|descaling|blow.?out|flush|snake|jetting|hydro.?jet|soft.?start|capacitor|contactor|filter\b|belt\b|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|\b40.?gal\b|\b50.?gal\b|standard.*water.*heat|electric.*water.*heat/i;
 
   // Minimum job value to be an install (excludes accessory-only jobs)
   const MIN_INSTALL_VALUE = 800;
@@ -6844,9 +6857,13 @@ function getOrderQueueItems() {
     const allText   = getJobAllText(j);
     const jobValue  = getJobTotal(j);
 
-    // Exclude obvious tune-ups / maintenance / service calls by job type OR description
-    const typeText  = (jobType + ' ' + (j.description||'')).toLowerCase();
-    if(EXCLUSION_RE.test(typeText)) { diag.tuneup++; return; }
+    // Exclude service calls / tune-ups / cleaning jobs
+    // Check job text AND any linked estimate option names
+    const linkedEstForExcl = estById[j.original_estimate_id || (j.original_estimate_uuids&&j.original_estimate_uuids[0])] || null;
+    const estTextForExcl   = linkedEstForExcl
+      ? (linkedEstForExcl.options||[]).map(o=>o.name||'').join(' ')
+      : '';
+    if(EXCLUSION_RE.test(allText + ' ' + estTextForExcl)) { diag.tuneup++; return; }
 
     // Detect equipment
     const equip = detectEquipmentSale(j, false);
@@ -6860,8 +6877,6 @@ function getOrderQueueItems() {
       const hasEquipKw = /furnace|air.?cond|heat.?pump|boiler|mini.?split|ductless|tankless|water.?heater|changeout|change.?out/i.test(allText);
       if(!installType && !hasEquipKw) { diag.noEquip++; return; }
       if(!isHVAC2 && !hasEquipKw) { diag.noEquip++; return; }
-      // Still exclude tune-ups even if keywords match
-      if(EXCLUSION_RE.test(allText)) { diag.tuneup++; return; }
     } else if(!isOrderEquip(equip.key)) { diag.wrongKey++; return; }
 
     // Value threshold — accessories and tune-ups under $800 aren't equipment installs
@@ -8191,6 +8206,12 @@ function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
 function detectEquipmentSale(j, requirePaid=true){
   if(requirePaid && !isJobPaid(j)) return null;
 
+  // Hard exclusion — service calls, maintenance, cleaning, and tank water heaters
+  // Tank water heaters are plumbing service jobs — only TANKLESS qualifies for order queue
+  const EQUIP_EXCLUSION = /dryer.?vent|vent.?clean|duct.?clean|tune.?up|maintenance|diagnostic|service.?call|cleaning|clean.?out|inspect|no.?charge|compliment|promotional|camera|descal|soft.?start|capacitor|contactor|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|hydro.?jet|jetting|snake\b|\b40.?gal|\b50.?gal|standard.*water.*heat|electric.*water.*heat/i;
+  const typeAndDesc = (getJobType(j) + ' ' + (j.description||'')).trim();
+  if(EQUIP_EXCLUSION.test(typeAndDesc)) return null;
+
   // Department check via tech name — more reliable than getDept which can return "Other"
   const techName = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
   const techDept = DEPT_MAP[techName] || getDept(j);
@@ -8240,17 +8261,16 @@ function detectEquipmentSale(j, requirePaid=true){
   for(const text of allTextsFull){
     const t = text.toLowerCase();
     let fuzzyKey = null;
-    if(/furnace|air.?handler|heat.?exchanger|\b80%|\b96%|\b97%|\b98%|stage.*(60k|80k|100k|120k)/i.test(text)) fuzzyKey = 'furnace';
+    if(/furnace|air.?handler|\b80%|\b96%|\b97%|\b98%|stage.*(60k|80k|100k|120k)/i.test(text)) fuzzyKey = 'furnace';
     else if(/air.?cond|a\/c\b|\bac\b|\bseer\b|condenser|compressor/i.test(text)) fuzzyKey = 'ac';
     else if(/heat.?pump/i.test(text)) fuzzyKey = 'heat_pump';
-    else if(/boiler|navien|peerless|weil/i.test(text)) fuzzyKey = 'boiler';
+    else if(/boiler|navien.*boiler|peerless|weil/i.test(text)) fuzzyKey = 'boiler';
     else if(/mini.?split|ductless/i.test(text)) fuzzyKey = 'mini_split';
     else if(/package|changeout|change.?out|full.?system/i.test(text)) fuzzyKey = 'package';
-    else if(/tankless|water.?heater/i.test(text)) fuzzyKey = 'water_heater';
+    else if(/tankless.*water|water.*tankless|navien.*npe|rinnai/i.test(text)) fuzzyKey = 'water_heater'; // tankless ONLY — not regular tank WH
 
     if(fuzzyKey) {
-      if(fuzzyKey === 'water_heater' && (getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
-      if(isPlumbing && fuzzyKey !== 'water_heater') continue;
+      if(isPlumbing && fuzzyKey !== 'water_heater') continue; // plumbing dept only does tankless
       return {key:fuzzyKey, ...TY_ITEM_SETS[fuzzyKey], matchedItem:text, fuzzy:true};
     }
   }
@@ -9748,40 +9768,99 @@ function renderUnpaid(){
     if(el) el.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af">Pull a report to load job data.</div>';
     return;
   }
-  const unpaid=getUnpaidJobs();
-  const totalOwed=unpaid.reduce((s,j)=>s+getJobTotal(j),0);
+  const allUnpaid=getUnpaidJobs(); // unfiltered — for KPIs and tech breakdown
+  const totalOwed=allUnpaid.reduce((s,j)=>s+getJobTotal(j),0);
+  const oldest=allUnpaid.reduce((mx,j)=>{
+    const d=j.work_timestamps?.completed_at||j.completed_at||'';
+    if(!d) return mx;
+    const days=Math.floor((Date.now()-new Date(d))/864e5);
+    return days>mx?days:mx;
+  },0);
 
-  // Metrics
+  // ── Summary metrics ──────────────────────────────────────────
   const metricsEl=$$('unpaidMetrics');
   if(metricsEl) metricsEl.innerHTML=`
-    <div class="metric" style="border-left:3px solid #DC2626"><div class="metric-label">Unpaid Jobs</div><div class="metric-value" style="color:#DC2626">${unpaid.length}</div><div class="metric-sub">Complete, not collected</div></div>
+    <div class="metric" style="border-left:3px solid #DC2626"><div class="metric-label">Unpaid Jobs</div><div class="metric-value" style="color:#DC2626">${allUnpaid.length}</div><div class="metric-sub">Complete, not collected</div></div>
     <div class="metric" style="border-left:3px solid #DC2626"><div class="metric-label">Total Outstanding</div><div class="metric-value" style="color:#DC2626">${dollars(totalOwed)}</div><div class="metric-sub">Revenue awaiting collection</div></div>
-    <div class="metric"><div class="metric-label">Avg Outstanding</div><div class="metric-value">${unpaid.length?dollars(totalOwed/unpaid.length):'—'}</div><div class="metric-sub">Per unpaid job</div></div>`;
+    <div class="metric"><div class="metric-label">Avg Outstanding</div><div class="metric-value">${allUnpaid.length?dollars(totalOwed/allUnpaid.length):'—'}</div><div class="metric-sub">Per unpaid job</div></div>
+    ${oldest>0?`<div class="metric" style="border-left:3px solid #F59E0B"><div class="metric-label">Oldest Open</div><div class="metric-value" style="color:#F59E0B">${oldest}d</div><div class="metric-sub">Days since completion</div></div>`:''}`;
 
-  // Populate filters
-  const depts=[...new Set(_jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)).map(getDept))].sort();
-  const emps=[...new Set(_jobs.filter(j=>isJobComplete(j)&&!isJobPaid(j)).map(getAssigned))].sort();
-  const deptSel=$$('unpaidDeptFilter');
-  const empSel=$$('unpaidEmpFilter');
+  // ── Tech KPI cards (clickable to filter) ─────────────────────
+  const techMap={};
+  allUnpaid.forEach(j=>{
+    const tech=getAssigned(j)||'Unassigned';
+    const dept=getDept(j)||'Other';
+    if(!techMap[tech]) techMap[tech]={tech,dept,count:0,total:0,oldest:0};
+    techMap[tech].count++;
+    techMap[tech].total+=getJobTotal(j);
+    const d=j.work_timestamps?.completed_at||j.completed_at||'';
+    if(d){const days=Math.floor((Date.now()-new Date(d))/864e5);if(days>techMap[tech].oldest)techMap[tech].oldest=days;}
+  });
+  const techRows=Object.values(techMap).sort((a,b)=>b.total-a.total);
+  const kpiEl=$$('unpaidTechKPI');
+  if(kpiEl){
+    kpiEl.innerHTML=techRows.length?`
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;width:100%;margin-bottom:4px">Outstanding by Technician — click to filter</div>
+      ${techRows.map(t=>{
+        const urg=t.oldest>14?{c:'#DC2626',bg:'#FEF2F2'}:t.oldest>7?{c:'#D97706',bg:'#FFFBEB'}:{c:'#166534',bg:'#F0FDF4'};
+        const active=$$('unpaidEmpFilter')?.value===t.tech;
+        return`<div onclick="$$('unpaidEmpFilter').value=active?'':'${escHtml(t.tech)}';renderUnpaid()"
+          style="display:flex;align-items:center;gap:10px;padding:7px 13px;background:${active?'#EFF6FF':'#fff'};border:1.5px solid ${active?'#3B82F6':'#e5e7eb'};border-radius:8px;cursor:pointer;min-width:160px;transition:border .15s">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:13px;color:#111;white-space:nowrap">${escHtml(t.tech)}</div>
+            <div style="font-size:10px;color:#6b7280">${escHtml(t.dept)} · ${t.count} job${t.count!==1?'s':''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-weight:800;font-size:14px;color:#DC2626">${dollars(t.total)}</div>
+            <div style="font-size:10px;font-weight:600;color:${urg.c};background:${urg.bg};padding:1px 6px;border-radius:99px">oldest ${t.oldest}d</div>
+          </div>
+        </div>`;
+      }).join('')}`:'';
+  }
+
+  // ── Filters ───────────────────────────────────────────────────
+  const depts=[...new Set(allUnpaid.map(getDept))].sort();
+  const emps=[...new Set(allUnpaid.map(j=>getAssigned(j)||'Unassigned'))].sort();
+  const deptSel=$$('unpaidDeptFilter'), empSel=$$('unpaidEmpFilter');
   if(deptSel){const cur=deptSel.value;deptSel.innerHTML='<option value="">All Depts</option>'+depts.map(d=>`<option ${d===cur?'selected':''}>${d}</option>`).join('');deptSel.value=cur;}
-  if(empSel){const cur=empSel.value;empSel.innerHTML='<option value="">All Techs</option>'+emps.map(e=>`<option ${e===cur?'selected':''}>${e}</option>`).join('');empSel.value=cur;}
+  if(empSel){const cur=empSel.value;empSel.innerHTML='<option value="">All Techs</option>'+emps.map(e=>`<option ${e===cur?'selected':''}>${escHtml(e)}</option>`).join('');empSel.value=cur;}
 
-  // Update badge
+  // Update tab badge
   const tab=$$('unpaidTab');
-  if(tab) tab.innerHTML=unpaid.length>0?`⚠ Unpaid Jobs <span class="badge-count">${unpaid.length}</span>`:'⚠ Unpaid Jobs';
+  if(tab) tab.innerHTML=allUnpaid.length>0?`⚠ Unpaid Jobs <span class="badge-count">${allUnpaid.length}</span>`:'⚠ Unpaid Jobs';
+
+  // ── Filtered job list ─────────────────────────────────────────
+  const deptF=$$('unpaidDeptFilter')?.value||'';
+  const empF =$$('unpaidEmpFilter')?.value||'';
+  const unpaid=allUnpaid.filter(j=>{
+    if(deptF && getDept(j)!==deptF) return false;
+    if(empF  && (getAssigned(j)||'Unassigned')!==empF) return false;
+    return true;
+  });
 
   const container=$$('unpaidList');
   if(!container) return;
   if(!unpaid.length){
-    container.innerHTML='<div style="text-align:center;padding:2rem;color:#22c55e;font-size:14px;font-weight:600">✅ No unpaid jobs in this date range!</div>';
+    container.innerHTML='<div style="text-align:center;padding:2rem;color:#22c55e;font-size:14px;font-weight:600">✅ No unpaid jobs match current filters!</div>';
     return;
   }
 
-  container.innerHTML=unpaid.map(j=>{
+  // Sort oldest first
+  const sorted=[...unpaid].sort((a,b)=>{
+    const da=a.work_timestamps?.completed_at||a.completed_at||'';
+    const db=b.work_timestamps?.completed_at||b.completed_at||'';
+    return new Date(da)-new Date(db);
+  });
+
+  container.innerHTML=sorted.map(j=>{
     const total=getJobTotal(j);
     const completedAt=j.work_timestamps?.completed_at||j.completed_at||'';
-    const daysSince=completedAt?Math.floor((Date.now()-new Date(completedAt))/(1000*60*60*24)):null;
-    const urgency=daysSince===null?'':daysSince<=3?'<span style="background:#EAF3DE;color:#166534;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">New</span>':daysSince<=14?`<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue</span>`:`<span style="background:#FECACA;color:#DC2626;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue ⚠</span>`;
+    const daysSince=completedAt?Math.floor((Date.now()-new Date(completedAt))/864e5):null;
+    const urgency=daysSince===null?'':daysSince<=3
+      ?'<span style="background:#EAF3DE;color:#166534;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">New</span>'
+      :daysSince<=14
+      ?`<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue</span>`
+      :`<span style="background:#FECACA;color:#DC2626;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600">${daysSince}d overdue ⚠</span>`;
     const notes=getJobNotes(j);
     const cust=j.customer||{};
     const phone=cust.mobile_number||cust.home_number||'';
@@ -9790,18 +9869,146 @@ function renderUnpaid(){
         <div>
           <div class="unpaid-card-title">${getCust(j)} ${urgency}</div>
           <div class="unpaid-card-meta">
-            Job #${j.job_number||j.id||'—'} · ${getDept(j)} · ${getAssigned(j)}<br>
-            ${j.address?.street?j.address.street+', '+j.address.city:''}
-            ${phone?` · 📞 ${phone}`:''}
-            ${completedAt?` · Completed ${fmtD(completedAt)}`:''}
+            Job #${j.job_number||j.id||'—'} · ${getDept(j)} · ${getAssigned(j)}
+            ${j.address?.street?' · '+j.address.street+', '+j.address.city:''}
+            ${phone?' · 📞 '+phone:''}
+            ${completedAt?' · Completed '+fmtD(completedAt):''}
           </div>
-          ${notes.length?`<div class="unpaid-note-item" style="margin-top:6px">${notes[0].slice(0,140)}${notes[0].length>140?'…':''}</div>`:''}
+          ${notes.length?`<div class="unpaid-note-item" style="margin-top:5px">${escHtml(notes[0].slice(0,140))}${notes[0].length>140?'…':''}</div>`:''}
         </div>
         <div class="unpaid-card-amount">${dollars(total)}</div>
       </div>
     </div>`;
   }).join('');
 }
+
+function printUnpaid(){
+  const allUnpaid=getUnpaidJobs();
+  if(!allUnpaid.length){ alert('No unpaid jobs to print.'); return; }
+
+  const totalOwed=allUnpaid.reduce((s,j)=>s+getJobTotal(j),0);
+  const dateStr=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const esc2=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Tech summary
+  const techMap={};
+  allUnpaid.forEach(j=>{
+    const tech=getAssigned(j)||'Unassigned';
+    const dept=getDept(j)||'Other';
+    if(!techMap[tech]) techMap[tech]={tech,dept,count:0,total:0,oldest:0};
+    techMap[tech].count++;
+    techMap[tech].total+=getJobTotal(j);
+    const d=j.work_timestamps?.completed_at||j.completed_at||'';
+    if(d){const days=Math.floor((Date.now()-new Date(d))/864e5);if(days>techMap[tech].oldest)techMap[tech].oldest=days;}
+  });
+  const techRows=Object.values(techMap).sort((a,b)=>b.total-a.total);
+
+  // Jobs sorted oldest first
+  const sorted=[...allUnpaid].sort((a,b)=>{
+    const da=a.work_timestamps?.completed_at||a.completed_at||'';
+    const db=b.work_timestamps?.completed_at||b.completed_at||'';
+    return new Date(da)-new Date(db);
+  });
+
+  const win=window.open('','_blank','width=960,height=750');
+  win.document.write(`<!DOCTYPE html><html><head><title>Unpaid Jobs Report</title>
+  <style>
+    @page{size:letter;margin:.45in}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:10.5px;color:#1f2937}
+    /* Header */
+    .hdr{background:#1A3A5C;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-radius:4px}
+    .hdr h1{font-size:17px;font-weight:800;margin-bottom:2px}
+    .hdr .sub{font-size:9px;opacity:.7}
+    .total-box{background:#DC2626;color:#fff;padding:7px 14px;border-radius:6px;text-align:right}
+    .total-box .amt{font-size:20px;font-weight:800;line-height:1}
+    .total-box .lbl{font-size:9px;opacity:.85;margin-bottom:1px}
+    /* KPI grid */
+    .section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;margin-bottom:14px}
+    .kpi-card{border:1.5px solid #e5e7eb;border-radius:6px;padding:7px 10px}
+    .kpi-name{font-weight:700;font-size:12px}
+    .kpi-dept{font-size:9px;color:#6b7280;margin-bottom:3px}
+    .kpi-amt{font-size:17px;font-weight:800;color:#DC2626;line-height:1}
+    .kpi-meta{font-size:9px;color:#6b7280;margin-top:2px}
+    .badge{display:inline-block;padding:1px 5px;border-radius:99px;font-size:8px;font-weight:700}
+    .badge-warn{background:#FECACA;color:#DC2626}
+    .badge-med{background:#FEF3C7;color:#92400E}
+    .badge-ok{background:#EAF3DE;color:#166534}
+    /* Job table */
+    table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:8px}
+    th{background:#1A3A5C;color:#fff;padding:4px 7px;text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+    td{padding:5px 7px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+    tr:nth-child(even) td{background:#fafafa}
+    .note{font-size:8.5px;color:#6b7280;font-style:italic}
+    tfoot td{font-weight:800;background:#f3f4f6;border-top:2px solid #e5e7eb}
+    .red{color:#DC2626;font-weight:800}
+  </style></head><body>
+  <div class="hdr">
+    <div>
+      <h1>⚠ Unpaid Jobs Report</h1>
+      <div class="sub">Midstate Plumbing, Heating &amp; Cooling &nbsp;·&nbsp; ${esc2(dateStr)}</div>
+      <div class="sub">${allUnpaid.length} jobs &nbsp;·&nbsp; Sorted oldest first</div>
+    </div>
+    <div class="total-box">
+      <div class="lbl">Total Outstanding</div>
+      <div class="amt">${dollars(totalOwed)}</div>
+    </div>
+  </div>
+
+  <div class="section-title">Outstanding by Technician</div>
+  <div class="kpi-grid">
+    ${techRows.map(t=>{
+      const badgeClass=t.oldest>14?'badge-warn':t.oldest>7?'badge-med':'badge-ok';
+      return`<div class="kpi-card">
+        <div class="kpi-dept">${esc2(t.dept)}</div>
+        <div class="kpi-name">${esc2(t.tech)}</div>
+        <div class="kpi-amt">${dollars(t.total)}</div>
+        <div class="kpi-meta">${t.count} job${t.count!==1?'s':''} &nbsp;<span class="badge ${badgeClass}">oldest ${t.oldest}d</span></div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="section-title">All Unpaid Jobs</div>
+  <table>
+    <thead><tr>
+      <th>Customer</th><th>Phone</th><th>Job #</th><th>Tech</th><th>Dept</th>
+      <th>Completed</th><th>Age</th><th>Amount</th><th>Notes</th>
+    </tr></thead>
+    <tbody>
+    ${sorted.map(j=>{
+      const completedAt=j.work_timestamps?.completed_at||j.completed_at||'';
+      const daysSince=completedAt?Math.floor((Date.now()-new Date(completedAt))/864e5):null;
+      const badgeClass=daysSince===null?'':daysSince<=3?'badge-ok':daysSince<=14?'badge-med':'badge-warn';
+      const ageChip=daysSince!==null?`<span class="badge ${badgeClass}">${daysSince}d</span>`:'—';
+      const notes=getJobNotes(j);
+      const cust=j.customer||{};
+      const phone=cust.mobile_number||cust.home_number||'';
+      return`<tr>
+        <td><strong>${esc2(getCust(j))}</strong><br><span class="note">${esc2(j.address?.street||'')}</span></td>
+        <td>${esc2(phone)}</td>
+        <td>${esc2(j.job_number||j.id||'—')}</td>
+        <td>${esc2(getAssigned(j)||'—')}</td>
+        <td>${esc2(getDept(j)||'—')}</td>
+        <td style="white-space:nowrap">${completedAt?fmtD(completedAt):'—'}</td>
+        <td>${ageChip}</td>
+        <td class="red" style="white-space:nowrap">${dollars(getJobTotal(j))}</td>
+        <td class="note">${esc2((notes[0]||'').slice(0,80))}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+    <tfoot><tr>
+      <td colspan="7"><strong>Total — ${allUnpaid.length} unpaid jobs</strong></td>
+      <td class="red">${dollars(totalOwed)}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>
+  </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),400);
+}
+
+
 
 function openUnpaidDetail(jobId){
   const j=_jobs.find(x=>x.id===jobId);
@@ -10271,22 +10478,22 @@ async function processPlanFile(file){
       const isDetailedAgreement = newPlans.length > 0 && newPlans[0].source === 'upload_detailed';
 
       if(isDetailedAgreement){
-        // Dedup by HCP customer ID — stable across re-exports
-        const existingById = new Map(
-          (_uploadedPlans||[])
-            .filter(p => p.hcp_id)
-            .map(p => [p.hcp_id, p])
-        );
-        // Replace existing records with same HCP ID, append new ones
-        const existingWithoutUpdated = (_uploadedPlans||[]).filter(p =>
-          !p.hcp_id || !newPlans.find(n => n.hcp_id && n.hcp_id === p.hcp_id)
-        );
-        _uploadedPlans = [...existingWithoutUpdated, ...newPlans];
+        // HCP service agreement export = complete list of ALL active plans
+        // Always replace entirely — no merging needed.
+        // Preserve existing attributions (_planAttributions) so sold-by assignments survive.
+        // Apply existing attributions to new plans so they carry over.
+        newPlans.forEach(p => {
+          const key = getPlanKey(p);
+          if(_planAttributions[key]) {
+            p._soldByName = _planAttributions[key];
+            p.sold_by = { first_name: _planAttributions[key].split(' ')[0], last_name: _planAttributions[key].split(' ').slice(1).join(' ') };
+          }
+        });
+        _uploadedPlans = newPlans;
         _plans = _uploadedPlans;
         _plansUploadedThisSession = true;
-        const updated = newPlans.filter(n => n.hcp_id && existingById.has(n.hcp_id)).length;
-        const added   = newPlans.length - updated;
-        if(status) status.innerHTML=`<span style="color:#166534">✅ Loaded ${newPlans.length} active agreements from "${file.name}" — ${added} new, ${updated} updated — ${_uploadedPlans.length} total</span>`;
+        const attributed = newPlans.filter(p => p._soldByName).length;
+        if(status) status.innerHTML = `<span style="color:#166534">✅ Loaded ${newPlans.length} active agreements from "${file.name}" — ${attributed} already attributed</span>`;
       } else {
         const existingKeys = new Set((_uploadedPlans||[]).map(p => {
           const soldBy = getPlanSoldBy(p);
