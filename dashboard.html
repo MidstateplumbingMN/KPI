@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9d</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9e</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9d</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9e</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9d</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9e</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2698,7 +2698,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9d
+  // ATTRIBUTION ENGINE — v24.9e
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4824,7 +4824,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9d',  // dashboard version that generated this push
+    dash_version: 'v24.9e',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5365,7 +5365,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9d',
+        dash_version:        'v24.9e',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9967,18 +9967,27 @@ async function loadPlansFromSheets(){
     if(data.success && data.plans && data.plans.length > 0){
       // Convert Sheets records back to plan objects the dashboard understands
       const plans = data.plans.map((p, i) => ({
-        id:           'sheets_plan_'+i,
-        customer:     { first_name: p.customer_name||'Home Club Member', last_name:'', id:'sheets_cust_'+i },
-        name:         p.plan_name||'Home Club Maintenance',
-        total_amount: Math.round((parseFloat(p.amount)||19.99)*100),
-        sold_by:      { first_name: p.sold_by_name||'Unknown', last_name:'', id:'sheets_emp_'+p.sold_by_name?.replace(/\s/g,'_') },
-        created_at:   (() => {
-          const raw = p.created_at;
-          if(!raw) return new Date().toISOString();
-          if(String(raw).includes('T') || String(raw).includes('Z')) return new Date(raw).toISOString();
-          return new Date(raw + 'T12:00:00').toISOString();
-        })(),
-        status:       p.status||'Active',
+        id:           'sheets_plan_' + (p.hcp_id || i),
+        customer: {
+          first_name:  p.customer_name ? p.customer_name.split(' ')[0] : '—',
+          last_name:   p.customer_name ? p.customer_name.split(' ').slice(1).join(' ') : '',
+          id:          'sheets_cust_' + (p.hcp_id || i),
+          display_name: p.customer_name || '',
+          mobile_number: p.phone || '',
+          email:        p.email || '',
+          address:      p.address || '',
+        },
+        name:         p.plan_name || 'Home Club Maintenance',
+        total_amount: 1999, // $19.99 — plans don't store amount yet
+        sold_by:      p.sold_by_name ? { first_name: p.sold_by_name.split(' ')[0]||p.sold_by_name, last_name: p.sold_by_name.split(' ').slice(1).join(' ') } : null,
+        created_at:   p.created_at ? p.created_at + 'T12:00:00.000Z' : new Date().toISOString(),
+        end_date:     p.end_date   || '',
+        start_date:   p.created_at || '',
+        status:       p.status     || 'Active',
+        hcp_id:       p.hcp_id     || '',
+        phone:        p.phone      || '',
+        email:        p.email      || '',
+        address:      p.address    || '',
         source:       'sheets',
         _uploadedAt:  p._uploadedAt || data.lastUploadedAt || null,
       }));
@@ -10016,12 +10025,38 @@ function formatRelativeTime(d){
 }
 function saveUploadedPlans(){
   const now = new Date().toISOString();
-  // Stamp every plan with the upload date for freshness tracking
-  const stamped = _uploadedPlans.map(p => ({...p, _uploadedAt: now}));
-  try{ fetch(_sheetsProxy, {
-    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
-    body: JSON.stringify({ action:'syncPlans', plans: stamped, lastUploadedAt: now })
-  }); }catch(e){}
+  // Flatten plan objects into the format syncPlansTab expects
+  const flattened = _uploadedPlans.map(p => ({
+    customer_name: getPlanCust(p),
+    plan_name:     getPlanName(p) || 'Home Club Maintenance',
+    sold_by_name:  (() => {
+      // Check attribution first, then sold_by field
+      const key = getPlanKey(p);
+      if(_planAttributions[key]) return _planAttributions[key];
+      const sb = p.sold_by;
+      if(!sb) return '';
+      if(typeof sb === 'string') return sb;
+      return ((sb.first_name||'')+' '+(sb.last_name||'')).trim() || sb.name || '';
+    })(),
+    created_at:    p.created_at || p.start_date || '',
+    end_date:      p.end_date   || '',
+    status:        getPlanStatus(p) || 'Active',
+    phone:         p.customer?.mobile_number || p.customer?.home_number || p.phone || '',
+    email:         p.customer?.email || p.email || '',
+    address:       p.customer?.address || p.address || '',
+    hcp_id:        p.hcp_id || p.customer?.id || '',
+    _uploadedAt:   p._uploadedAt || now,
+    amount:        p.total_amount ? (p.total_amount/100).toFixed(2)
+                 : p.amount      ? String(p.amount)
+                 : '19.99',
+  }));
+  try {
+    fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      redirect:'follow', mode:'no-cors',
+      body: JSON.stringify({ action:'syncPlans', plans: flattened, lastUploadedAt: now })
+    });
+  } catch(e) { console.warn('[Plans] save failed:', e.message); }
 }
 
 // Drag and drop support
