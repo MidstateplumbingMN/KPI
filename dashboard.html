@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9b</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9d</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9b</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9d</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9b</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9d</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2293,7 +2293,7 @@ async function hcpGet(path){
   if(!res.ok){const txt=await res.text().catch(()=>'');throw new Error('HTTP '+res.status+' on '+path+(txt?' → '+txt.slice(0,200):''));}
   return res.json();
 }
-async function fetchAll(path, keys) {
+async function fetchAll(path, keys, opts={}) {
   const PAGE_SIZE = 200; // HCP max page size
   const sep = path.includes('?') ? '&' : '?';
 
@@ -2312,12 +2312,26 @@ async function fetchAll(path, keys) {
 
   console.log('[fetchAll]', path.split('?')[0], '→', total, 'records,', totalPages, 'pages — fetching in parallel');
 
-  // Fire all remaining pages simultaneously in batches of 15
+  // For very large fetches (estimates 63 pages), log progress so UI doesn't look frozen
+  const isLarge = totalPages > 20;
+  const label   = path.split('?')[0].split('/').pop() || 'records';
+
+  // Fire remaining pages in batches — smaller batches for large fetches to avoid timeouts
   const pageNums = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-  const BATCH = 15;
+  const BATCH = isLarge ? 10 : 15;  // smaller batches for large datasets
   let all = [...items];
+
   for (let b = 0; b < pageNums.length; b += BATCH) {
-    const batch = pageNums.slice(b, b + BATCH);
+    const batch     = pageNums.slice(b, b + BATCH);
+    const fetched   = all.length;
+    const pct       = Math.round(fetched / total * 100);
+
+    // Update step log so user sees progress (not a freeze)
+    const stepEl = $$('pullStep');
+    if(stepEl && isLarge) {
+      stepEl.textContent = `📋 Fetching ${label}… ${fetched.toLocaleString()} of ${total.toLocaleString()} (${pct}%)`;
+    }
+
     const results = await Promise.all(batch.map(async pg => {
       const d = await hcpGet(path + sep + 'page=' + pg + '&page_size=' + PAGE_SIZE);
       let rows = Array.isArray(d) ? d : null;
@@ -2330,6 +2344,7 @@ async function fetchAll(path, keys) {
     results.forEach(rows => { all = [...all, ...rows]; });
   }
 
+  if(isLarge) console.log('[fetchAll]', path.split('?')[0], '→ complete,', all.length, 'records loaded');
   return all;
 }
 
@@ -2346,6 +2361,14 @@ function stepLog(msg) {
   console.log('[Pull]', msg);
 }
 
+function cancelPull() {
+  window._pullCanceled = true;
+  showToast('Pull canceled — you can try a shorter date range','warn');
+  $$('loadBtn').textContent='Pull report ↗';
+  $$('loadBtn').disabled=false;
+  $$('statusBar').textContent='Pull canceled.';
+}
+
 async function loadAll(){
   const from=$$('dateFrom').value,to=$$('dateTo').value;
   showErr('');
@@ -2353,9 +2376,18 @@ async function loadAll(){
   $$('loadBtn').textContent='Loading...';$$('loadBtn').disabled=true;
   $$('main').style.display='none';
   _pullStepStart = Date.now();
-  $$('statusBar').innerHTML = `<span id='pullStep'>⏳ Connecting...</span> <span id='pullStepTime' style='color:#9ca3af;font-size:10px'></span>`;
+  $$('statusBar').innerHTML = `<span id='pullStep'>⏳ Connecting...</span> <span id='pullStepTime' style='color:#9ca3af;font-size:10px'></span>
+    <button onclick="cancelPull()" style="margin-left:12px;font-size:11px;padding:2px 8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;cursor:pointer">✕ Cancel</button>`;
+  let _pullCanceled = false;
+  window._cancelPull = () => { _pullCanceled = true; };
   stepLog('⏳ Starting pull...');
   try{
+    // Pull timeout — warn user if still running after 45s (estimates fetch is slow for large orgs)
+    window._pullTimeoutId = setTimeout(() => {
+      if(!_pullCanceled) {
+        showToast('⏱ Pull is taking a while — fetching 12k+ estimates. Hang tight, or cancel and try a shorter date range.', 'warn');
+      }
+    }, 45000);
     const jSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
     // HCP estimates endpoint does NOT support scheduled_start_min/max — use created_at only
     const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
@@ -2651,6 +2683,7 @@ async function loadAll(){
   }catch(e){
     showErr('Error: '+e.message);$$('statusBar').textContent='';
   }finally{
+    clearTimeout(window._pullTimeoutId);
     $$('loadBtn').textContent='Pull report ↗';$$('loadBtn').disabled=false;
   }
 }
@@ -2665,7 +2698,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9b
+  // ATTRIBUTION ENGINE — v24.9d
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3407,8 +3440,8 @@ function populateFilters(jobs,estimates,plans){
   // Estimates use display statuses
   fill('estStatusFilter',estimates.map(e=>getEstDisplayStatus(e)));
   fill('estEmpFilter',estimates.map(e=>getAssigned(e)));
-  fill('planEmpFilter',plans.map(p=>getPlanSoldBy(p)));
-  fill('planTypeFilter',plans.map(p=>getPlanName(p)));
+  if($$('planEmpFilter')) fill('planEmpFilter',plans.map(p=>getPlanSoldBy(p)));
+  if($$('planTypeFilter')) fill('planTypeFilter',plans.map(p=>getPlanName(p)));
 }
 
 function getJobFiltered(){
@@ -4144,7 +4177,7 @@ function getPlanCust(p){
 }
 function getPlanStatus(p){return p.status||p.membership_status||'';}
 function getPlanTotal(p){const raw=p.price??p.total_amount??p.amount??p.value??null;if(raw===null)return 0;const n=parseFloat(raw)||0;return n>500?n/100:n;}
-function getPlanFiltered(source){const pool=source||_plans.filter(isPlanActive);const ef=$$('planEmpFilter').value,tf=$$('planTypeFilter').value;return pool.filter(p=>{if(ef&&getPlanSoldBy(p)!==ef)return false;if(tf&&getPlanName(p)!==tf)return false;return true;});}
+function getPlanFiltered(source){const pool=source||_plans.filter(isPlanActive);const ef=$$('planEmpFilter')?.value||'',tf=$$('planTypeFilter')?.value||'';return pool.filter(p=>{if(ef&&getPlanSoldBy(p)!==ef)return false;if(tf&&getPlanName(p)!==tf)return false;return true;});}
 // Plan filter/render functions defined in Service Plan Manager section above
 
 function isPlanActive(p){
@@ -4791,7 +4824,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9b',  // dashboard version that generated this push
+    dash_version: 'v24.9d',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5332,7 +5365,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9b',
+        dash_version:        'v24.9d',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
