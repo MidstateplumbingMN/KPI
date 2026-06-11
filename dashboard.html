@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9k</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9m</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9k</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9m</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9k</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9m</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2703,7 +2703,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9k
+  // ATTRIBUTION ENGINE — v24.9m
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4851,7 +4851,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9k',  // dashboard version that generated this push
+    dash_version: 'v24.9m',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5392,7 +5392,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9k',
+        dash_version:        'v24.9m',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6739,7 +6739,13 @@ async function fetchOrderQueueFromSheets() {
     const data = await res.json();
     if(data.success && data.orders) {
       data.orders.forEach(o => {
-        _orderQueue[o.id] = { status:o.status||'pending', notes:o.notes||'', orderedDate:o.ordered_date||'', orderedBy:o.ordered_by||'' };
+        _orderQueue[o.id] = {
+          status:            o.status||'pending',
+          notes:             o.notes||'',
+          orderedDate:       o.ordered_date||'',
+          orderedBy:         o.ordered_by||'',
+          warrantyPurchased: !!o.warrantyPurchased,
+        };
       });
       saveOrderQueueLocal();
       renderOrderQueue();
@@ -6771,6 +6777,18 @@ async function saveOrderQueueToSheets() {
     body:JSON.stringify({action:'syncOrderQueue',orders:payload})
   }).then(()=>showToast(`✅ ${payload.length} orders saved to Sheets`,'success'))
     .catch(e=>showToast('Save failed: '+e.message,'error'));
+}
+
+function setOrderWarranty(id, purchased) {
+  if(!_orderQueue[id]) _orderQueue[id] = {};
+  _orderQueue[id].warrantyPurchased = purchased;
+  // Push to Sheets
+  if(_sheetsProxy) {
+    fetch(_sheetsProxy, {method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+      body: JSON.stringify({action:'updateOrderStatus', id, warrantyPurchased: purchased})
+    }).catch(()=>{});
+  }
+  renderOrderQueue();
 }
 
 function setOrderStatus(id, status) {
@@ -7017,9 +7035,10 @@ function renderOrderQueue() {
 }
 
 function orderCard(item, isArchived=false) {
-  const st  = _orderQueue[item.id]?.status || 'pending';
-  const oBy = _orderQueue[item.id]?.orderedBy || '';
-  const oDate= _orderQueue[item.id]?.orderedDate || '';
+  const st               = _orderQueue[item.id]?.status || 'pending';
+  const oBy              = _orderQueue[item.id]?.orderedBy || '';
+  const oDate            = _orderQueue[item.id]?.orderedDate || '';
+  const warrantyPurchased= !!_orderQueue[item.id]?.warrantyPurchased;
   const borderColors = {pending:'#E8640A',ordered:'#3B82F6',received:'#10B981',complete:'#D1D5DB'};
   const bgColors     = {pending:'#FFFBEB',ordered:'#EFF6FF',received:'#F0FDF4',complete:'#F9FAFB'};
   const statusLabels = {pending:'⬜ Needs Order',ordered:'🔵 Ordered',received:'🟢 Received',complete:'✅ Complete'};
@@ -7062,14 +7081,21 @@ function orderCard(item, isArchived=false) {
     </div>`:''}
 
     <!-- Status controls (hide for archived) -->
-    ${!isArchived?`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      ${['pending','ordered','received','complete'].map(s=>
-        `<button onclick="setOrderStatus('${item.id}','${s}')"
-          style="font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1.5px solid ${s===st?borderColors[s]:'#e5e7eb'};background:${s===st?borderColors[s]:'#fff'};color:${s===st?'#fff':'#374151'};font-weight:${s===st?'700':'400'}">
-          ${statusLabels[s]}
-        </button>`
-      ).join('')}
-      ${oDate?`<span style="font-size:10px;color:#6b7280;margin-left:4px">Ordered ${oDate}${oBy?' by '+oBy:''}</span>`:''}
+    ${!isArchived?`<div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        ${['pending','ordered','received','complete'].map(s=>
+          `<button onclick="setOrderStatus('${item.id}','${s}')"
+            style="font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1.5px solid ${s===st?borderColors[s]:'#e5e7eb'};background:${s===st?borderColors[s]:'#fff'};color:${s===st?'#fff':'#374151'};font-weight:${s===st?'700':'400'}">
+            ${statusLabels[s]}
+          </button>`
+        ).join('')}
+        ${oDate?`<span style="font-size:10px;color:#6b7280;margin-left:4px">Ordered ${oDate}${oBy?' by '+oBy:''}</span>`:''}
+      </div>
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;font-weight:600;color:#1f2937;user-select:none;padding:5px 10px;border:1.5px solid ${warrantyPurchased?'#7c3aed':'#e5e7eb'};border-radius:7px;background:${warrantyPurchased?'#ede9fe':'#fff'};width:fit-content">
+        <input type="checkbox" ${warrantyPurchased?'checked':''} onchange="setOrderWarranty('${item.id}',this.checked)"
+          style="width:15px;height:15px;accent-color:#7c3aed;cursor:pointer">
+        🛡️ Warranty Purchased
+      </label>
     </div>`
     :`<div style="font-size:11px;color:#6b7280;font-weight:600">📦 Work complete — archived</div>`}
   </div>`;
@@ -7079,9 +7105,23 @@ function orderCard(item, isArchived=false) {
 // PRINT
 // ============================================================
 function printOrderQueue() {
-  const items   = getOrderQueueItems();
-  const statusF = $$('oqStatus')?.value||'';
-  const filtered = statusF ? items.filter(i=>(_orderQueue[i.id]?.status||'pending')===statusF) : items.filter(i=>(_orderQueue[i.id]?.status||'pending')!=='complete');
+  // Get items using exact same filters as the screen display
+  const allItems = getOrderQueueItems();
+  const statusF  = $$('oqStatus')?.value || '';
+
+  // Apply status filter — same logic as renderOrderQueue
+  const filtered = statusF
+    ? allItems.filter(i => (_orderQueue[i.id]?.status||'pending') === statusF)
+    : allItems.filter(i => (_orderQueue[i.id]?.status||'pending') !== 'complete');
+
+  // Show what's currently on screen — respect active/complete toggle
+  const showActive = !$$('oqShowComplete')?.checked;
+  const forPrint   = showActive ? filtered.filter(i => !i.isComplete) : filtered;
+
+  if(!forPrint.length) {
+    alert('No items to print with current filters.');
+    return;
+  }
 
   const printWin = window.open('','_blank','width=900,height=700');
   printWin.document.write(`<!DOCTYPE html><html><head><title>Install Order Queue — Midstate</title>
@@ -7111,10 +7151,10 @@ function printOrderQueue() {
   </head><body>
   <div class="header">
     <div><h1>📋 Install Order Queue</h1><div class="sub">Midstate Plumbing, Heating &amp; Cooling · Printed ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div></div>
-    <div style="text-align:right;font-size:10px;opacity:.7">${filtered.length} orders · ${statusF||'All active'}</div>
+    <div style="text-align:right;font-size:10px;opacity:.7">${forPrint.length} orders · ${statusF||'All active'}</div>
   </div>
   <div class="cards">
-  ${filtered.map(item=>`
+  ${forPrint.map(item=>`
     <div class="card">
       <div class="card-header">
         <div>
@@ -7139,6 +7179,7 @@ function printOrderQueue() {
         <div class="cb-item"><div class="cb-box"></div> Parts Ordered</div>
         <div class="cb-item"><div class="cb-box"></div> Parts Received</div>
         <div class="cb-item"><div class="cb-box"></div> Ready for Install</div>
+        <div class="cb-item"><div class="cb-box" style="border-color:#7c3aed"></div> <span style="color:#7c3aed">Warranty Purchased</span></div>
       </div>
     </div>`).join('')}
   </div>
