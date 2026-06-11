@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9j</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9k</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9j</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9k</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9j</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9k</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2703,7 +2703,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9j
+  // ATTRIBUTION ENGINE — v24.9k
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4851,7 +4851,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9j',  // dashboard version that generated this push
+    dash_version: 'v24.9k',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5392,7 +5392,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9j',
+        dash_version:        'v24.9k',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6796,38 +6796,58 @@ function getOrderQueueItems() {
   const seenJobs = new Set();
   const items    = [];
 
-  // Diagnostic counters
-  const diag = { total:0, canceled:0, noEquip:0, noLineItem:0, wrongKey:0, dateFiltered:0, deptFiltered:0, passed:0 };
+  const diag = { total:0, canceled:0, tuneup:0, noEquip:0, lowValue:0, wrongKey:0, dateFiltered:0, deptFiltered:0, passed:0 };
 
-  // Build estimate lookup for fast access
-  const estById = {};
+  // Estimate lookup by ID and by customer for fallback matching
+  const estById      = {};
+  const estByCustomer= {};
   _estimates.forEach(e => {
     estById[e.id] = e;
     (e.options||[]).forEach(o => { estById[o.id] = e; });
+    const cid = e.customer?.id || '';
+    if(cid) {
+      if(!estByCustomer[cid]) estByCustomer[cid] = [];
+      estByCustomer[cid].push(e);
+    }
   });
+
+  // Keywords that disqualify a job — service/maintenance/tune-up calls, not installs
+  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional/i;
+
+  // Minimum job value to be an install (excludes accessory-only jobs)
+  const MIN_INSTALL_VALUE = 800;
 
   _jobs.forEach(j => {
     if(seenJobs.has(j.id)) return;
     diag.total++;
     if(isJobCanceled(j)) { diag.canceled++; return; }
 
-    const linkedId = j.original_estimate_id
-      || (j.original_estimate_uuids && j.original_estimate_uuids[0])
-      || null;
-    const linkedEst = linkedId ? (estById[linkedId] || null) : null;
+    const jobType   = getJobType(j);
+    const allText   = getJobAllText(j);
+    const jobValue  = getJobTotal(j);
+
+    // Exclude obvious tune-ups / maintenance / service calls by job type OR description
+    const typeText  = (jobType + ' ' + (j.description||'')).toLowerCase();
+    if(EXCLUSION_RE.test(typeText)) { diag.tuneup++; return; }
+
+    // Detect equipment
     const equip = detectEquipmentSale(j, false);
 
     if(!equip) {
-      // Fallback: check job type name + description + line items for equipment keywords
-      const allJobText = getJobAllText(j).toLowerCase();
-      const jobType = getJobType(j).toLowerCase();
-      const installType = ['install','new con','commercial install','new construction'].includes(jobType);
-      const hasEquipKeyword = /furnace|air.?cond|\bac\b|heat.?pump|boiler|mini.?split|ductless|tankless|water.?heater|changeout|change.?out/i.test(allJobText);
-      const techName2 = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
-      const techDept2 = DEPT_MAP[techName2] || getDept(j);
-      const isHVAC2 = techDept2 === 'HVAC' || techDept2 === 'Install';
-      if(!(installType && isHVAC2) && !hasEquipKeyword) { diag.noEquip++; return; }
+      // Fallback: installer on job OR install job type on HVAC tech
+      const techName2  = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
+      const techDept2  = DEPT_MAP[techName2] || getDept(j);
+      const isHVAC2    = techDept2 === 'HVAC' || techDept2 === 'Install';
+      const installType= /^(install|new con|commercial install|new construction)$/i.test(jobType.trim());
+      const hasEquipKw = /furnace|air.?cond|heat.?pump|boiler|mini.?split|ductless|tankless|water.?heater|changeout|change.?out/i.test(allText);
+      if(!installType && !hasEquipKw) { diag.noEquip++; return; }
+      if(!isHVAC2 && !hasEquipKw) { diag.noEquip++; return; }
+      // Still exclude tune-ups even if keywords match
+      if(EXCLUSION_RE.test(allText)) { diag.tuneup++; return; }
     } else if(!isOrderEquip(equip.key)) { diag.wrongKey++; return; }
+
+    // Value threshold — accessories and tune-ups under $800 aren't equipment installs
+    if(jobValue > 0 && jobValue < MIN_INSTALL_VALUE) { diag.lowValue++; return; }
 
     seenJobs.add(j.id);
 
@@ -6841,27 +6861,59 @@ function getOrderQueueItems() {
     if(deptFil && dept !== deptFil) { diag.deptFiltered++; return; }
 
     diag.passed++;
-    const cust      = j.customer || {};
-    const name      = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
-    const addr      = j.address
+
+    // Find linked estimate — try direct link first, then customer+date match
+    const linkedId  = j.original_estimate_id
+      || (j.original_estimate_uuids && j.original_estimate_uuids[0])
+      || null;
+    let linkedEst = linkedId ? (estById[linkedId] || null) : null;
+
+    // Fallback: find most recent approved estimate for this customer near install date
+    if(!linkedEst && j.customer?.id) {
+      const custEsts = (estByCustomer[j.customer.id] || [])
+        .filter(e => isConv(e))
+        .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+      if(custEsts.length) linkedEst = custEsts[0];
+    }
+
+    const cust = j.customer || {};
+    const name = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
+    const addr = j.address
       ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ')
       : '';
-    const phone     = cust.mobile_number || cust.home_number || '';
-    const soldBy    = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
+    const phone  = cust.mobile_number || cust.home_number || '';
+    const soldBy = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
 
-    const allLineItems = (j.line_items||[]).map(li => li.name||li.description||'').filter(Boolean);
-    const estNotes  = linkedEst ? getEstNotes(linkedEst).join('\n') : '';
-    const jobNotes  = getJobNotes(j).join('\n');
-    const norm      = getNormStatus(j);
-    const isComplete= norm === 'Paid' || norm === 'Unpaid';
+    // Deduplicated notes
+    const notesSeen = new Set();
+    const dedupedNotes = (notes) => notes.filter(n => {
+      const k = n.trim().slice(0, 80);
+      if(notesSeen.has(k)) return false;
+      notesSeen.add(k); return true;
+    });
+
+    const rawJobNotes = getJobNotes(j);
+    const rawEstNotes = linkedEst ? getEstNotes(linkedEst) : [];
+    // Est notes first — more relevant for ordering, then job notes for non-duplicate content
+    rawEstNotes.forEach(n => notesSeen.add(n.trim().slice(0,80)));
+    const jobNotes = dedupedNotes(rawJobNotes).join('\n');
+    const estNotes = rawEstNotes.slice(0,3).join('\n'); // cap at 3 est notes
+
+    // Line items — job first, then linked estimate options
+    const jobLineItems = (j.line_items||[]).map(li=>(li.name||li.description||'').trim()).filter(Boolean);
+    const estLineItems = linkedEst
+      ? (linkedEst.options||[]).flatMap(o=>[
+          o.name,
+          ...(o.line_items||[]).map(li=>li.name||'')
+        ]).map(s=>(s||'').trim()).filter(Boolean)
+      : [];
+    const allLineItems = [...new Set([...jobLineItems, ...estLineItems])].slice(0, 12);
 
     const equipLabel = (equip ? getEquipmentLabel(j) : '')
       || (linkedEst ? getEquipLabelFromEst(linkedEst) : '')
       || equip?.label || 'Equipment';
-
-    const estLineItems = linkedEst
-      ? (linkedEst.options||[]).flatMap(o => (o.line_items||[]).map(li => li.name||'').filter(Boolean))
-      : [];
+    const norm      = getNormStatus(j);
+    const isComplete= norm === 'Paid' || norm === 'Unpaid';
 
     items.push({
       id: j.id, jobNum: j.job_number||j.id, estNum: linkedEst?.estimate_number||'',
@@ -6870,12 +6922,12 @@ function getOrderQueueItems() {
       dept, soldBy,
       installDate: installDate ? fmtDY(installDate) : 'TBD',
       installRaw: installDate, jobNotes, estNotes,
-      lineItems: [...new Set([...allLineItems, ...estLineItems])],
-      value: getJobTotal(j), isComplete,
+      lineItems: allLineItems,
+      value: jobValue, isComplete,
     });
   });
 
-  console.log(`[OrderQueue] ${diag.total} jobs scanned → ${diag.passed} passed | filtered out: ${diag.canceled} canceled, ${diag.noEquip} no equip detected, ${diag.wrongKey} wrong equip key, ${diag.dateFiltered} date range, ${diag.deptFiltered} dept`);
+  console.log(`[OrderQueue] ${diag.total} jobs → ${diag.passed} passed | excluded: ${diag.canceled} canceled, ${diag.tuneup} tune-ups, ${diag.noEquip} no equip, ${diag.lowValue} low value (<$${MIN_INSTALL_VALUE}), ${diag.wrongKey} wrong key, ${diag.dateFiltered} date, ${diag.deptFiltered} dept`);
 
   return items.sort((a,b) => {
     if(a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1;
