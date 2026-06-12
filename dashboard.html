@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.14</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.16</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.14</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.16</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.14</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.16</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2745,7 +2745,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.14
+  // ATTRIBUTION ENGINE — v24.16
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4895,7 +4895,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.14',  // dashboard version that generated this push
+    dash_version: 'v24.16',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5525,7 +5525,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.14',
+        dash_version:        'v24.16',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6593,15 +6593,16 @@ async function testRingCentral() {
       setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
       const rcPath = nextUri ? nextUri.replace(RC_SERVER,'') : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
 
-      // Fetch with exponential backoff retry on 429 — up to 4 attempts
+      // Fetch with exponential backoff retry on 429 — up to 5 attempts, longer waits
       let data = await rcGet(rcPath, jwt);
       let attempt = 0;
-      while(data.errorCode && attempt < 4) {
+      while(data.errorCode && attempt < 5) {
         const isRateLimit = data.errorCode === 'CMN-301' || data.status === 429 || data.message?.toLowerCase().includes('rate');
         if(!isRateLimit) break; // non-rate-limit error — bail out of retry loop
         attempt++;
-        const waitMs = 2000 * Math.pow(2, attempt-1); // 2s, 4s, 8s, 16s
-        setCallsProgress('rc', `⏳ Rate limit hit on page ${page} — waiting ${waitMs/1000}s (attempt ${attempt}/4)...`);
+        // 5s, 10s, 20s, 40s, 60s — RC's rate window appears to be ~60s
+        const waitMs = attempt < 5 ? 5000 * Math.pow(2, attempt-1) : 60000;
+        setCallsProgress('rc', `⏳ Rate limit hit on page ${page} — waiting ${waitMs/1000}s (attempt ${attempt}/5)...`);
         await new Promise(r => setTimeout(r, waitMs));
         data = await rcGet(rcPath, jwt);
       }
@@ -6617,9 +6618,9 @@ async function testRingCentral() {
       allCalls = [...allCalls, ...(data.records||[])];
       nextUri = data.navigation?.nextPage?.uri || null;
       page++;
-      // Throttle between pages — RC allows ~40 req/min for this endpoint;
-      // 1.5s gap keeps us comfortably under that even with retries
-      if(nextUri) await new Promise(r => setTimeout(r, 1500));
+      // Throttle between pages — 2.5s gap keeps cumulative request rate well under
+      // RC's limit even across a long pagination run (Jan-Jun = many pages)
+      if(nextUri) await new Promise(r => setTimeout(r, 2500));
     } while(nextUri && page <= 50);
 
     console.log('[RC] Fetched', allCalls.length, 'raw inbound records');
@@ -6794,8 +6795,8 @@ async function saveCallsToSheets(source) {
       daily:        JSON.stringify(daily),
     };
 
-    const res  = await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',body:JSON.stringify(payload)});
-    const data = await res.json();
+    const res  = await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',body:JSON.stringify(payload)});
+    const data = await res.json().catch(()=>({success:false,error:`Sheets returned status ${res.status} (no JSON body)`}));
     if(data.success) {
       showToast(`✅ ${calls.length} calls saved to Sheets (${source==='callrail'?'CallRail':'RingCentral'} tab)`,'success');
       dashLog('success',`${calls.length} calls saved to Sheets`);
@@ -10568,6 +10569,20 @@ async function loadPlansFromSheets(){
       // NOTE: do NOT call saveUploadedPlans() here — we just loaded FROM Sheets,
       // saving back would overwrite the timestamp with now. Only save after user uploads.
       console.log('[Plans] Restored', plans.length, 'plans from Sheets');
+
+      // Sanity check — if this looks like stale pre-fix data (duplicated records
+      // from before the full-replace upload logic), surface a hint to re-upload
+      if(plans.length > 500) {
+        console.warn(`[Plans] ${plans.length} plans restored — this is unusually high. ` +
+          `If your HCP service agreement export has ~300-400 active plans, this Sheets data ` +
+          `may be stale from before the full-replace upload fix. Re-upload the CSV in the ` +
+          `Service Plans tab to overwrite with a clean count.`);
+        const statusEl2 = $$('planUploadStatus');
+        if(statusEl2) {
+          statusEl2.innerHTML += `<br><span style="color:#D97706;font-weight:600">⚠ ${plans.length} plans loaded — if this seems too high, re-upload your CSV to refresh Sheets data.</span>`;
+        }
+      }
+
       // Show upload date in UI if available
       const uploadDate = plans[0]?._uploadedAt || data.lastUploadedAt || '';
       const statusEl = $$('planUploadStatus');
