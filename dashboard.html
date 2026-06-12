@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9y</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9z</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9y</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9z</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9y</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9z</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2745,7 +2745,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9y
+  // ATTRIBUTION ENGINE — v24.9z
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4895,7 +4895,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9y',  // dashboard version that generated this push
+    dash_version: 'v24.9z',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4950,6 +4950,33 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         payments.forEach(p => { if(p.date === todayLocal && p.amount > 0) total += p.amount; }); // positive only
       });
       return total;
+    })(),
+    // Individual payment records for today's "Collected Past" pops — customer name + amount
+    daily_past_payments_json: (() => {
+      if(!_invoiceMap || !Object.keys(_invoiceMap).length) return '[]';
+      const now_d = new Date();
+      const todayLocal = `${now_d.getFullYear()}-${String(now_d.getMonth()+1).padStart(2,'0')}-${String(now_d.getDate()).padStart(2,'0')}`;
+      const toLD = d => { if(!d||isNaN(d.getTime())) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+      const payments = [];
+      Object.entries(_invoiceMap).forEach(([jobId, pmts]) => {
+        const job = _jobs.find(j => j.id === jobId);
+        const jobDate = job
+          ? (job.work_timestamps?.completed_at || job.completed_at || job.schedule?.scheduled_start || job.scheduled_start || '')
+          : '';
+        const jobDateLocal = jobDate ? toLD(new Date(jobDate)) : '';
+        if(jobDateLocal === todayLocal) return; // only "past job" payments
+        pmts.forEach(p => {
+          if(p.date === todayLocal && p.amount > 0) {
+            payments.push({
+              customer: job ? getCust(job) : 'Customer',
+              amount: p.amount,
+            });
+          }
+        });
+      });
+      // Largest payments first — most impressive pops show first
+      payments.sort((a,b) => b.amount - a.amount);
+      return JSON.stringify(payments.slice(0, 12));
     })(),
 
     // Jobs completed today (scheduled/completed_at date = today)
@@ -5471,7 +5498,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9y',
+        dash_version:        'v24.9z',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5484,6 +5511,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         rev_daily:           dashboardSnapshot.rev_daily,
         rev_daily_today_jobs:dashboardSnapshot.rev_daily_today_jobs,
         rev_daily_past_jobs: dashboardSnapshot.rev_daily_past_jobs,
+        daily_past_payments_json: dashboardSnapshot.daily_past_payments_json,
         total_revenue:       dashboardSnapshot.total_revenue,
         // Jobs / estimates
         total_jobs:          dashboardSnapshot.total_jobs,
