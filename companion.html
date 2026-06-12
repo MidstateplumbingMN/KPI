@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.79</title>
+<title>Midstate — KPI Command Center v2.80</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1509,7 +1509,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.79
+      v2.80
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1520,7 +1520,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.79';
+const COMPANION_VERSION = 'v2.80';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3500,24 +3500,31 @@ function animatePaymentPops(payments) {
       const pop = document.createElement('div');
       const icon = icons[i % icons.length];
       const amt  = dollars(pmt.amount||0);
-      const x    = 10 + Math.random() * 70;
+      const name = (pmt.customer||'').trim();
+      const x    = 6 + Math.random() * 55; // keep room for longer text
       pop.style.cssText = `
         position:absolute;
         left:${x}%;bottom:10%;
-        font-size:17px;font-weight:800;
-        color:var(--blue);
         font-family:var(--font-mono);
         white-space:nowrap;
         pointer-events:none;
         opacity:0;
         animation:paymentPop 2.5s ease-out forwards;
         text-shadow:0 0 10px rgba(0,212,255,.5);
+        display:flex;align-items:baseline;gap:6px;
       `;
-      pop.textContent = `${icon} +${amt}`;
+      pop.innerHTML = name
+        ? `<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.85)">${icon} ${escHtmlCompanion(name)}</span><span style="font-size:17px;font-weight:800;color:var(--blue)">+${amt}</span>`
+        : `<span style="font-size:17px;font-weight:800;color:var(--blue)">${icon} +${amt}</span>`;
       container.appendChild(pop);
       setTimeout(() => pop.remove(), 3000);
-    }, i * 400);
+    }, i * 600);
   });
+}
+
+// Local HTML-escape helper for companion (avoids name collision with dashboard's escHtml)
+function escHtmlCompanion(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // Add keyframes for payment pop animation if not already present
