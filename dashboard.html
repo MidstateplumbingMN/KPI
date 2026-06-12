@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9x</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9y</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9x</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9y</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9x</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9y</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1573,18 +1573,43 @@ let _orderQueue      = {};
 let _uploadedPlansCache = null;
 const DEFAULT_HOLIDAYS = (() => {
   const y = new Date().getFullYear();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = (m,d) => `${y}-${pad(m)}-${pad(d)}`;
+
+  // Find the Nth occurrence of a weekday in a given month (1=Sun...6=Sat)
+  // n=1..4 for 1st-4th, n=-1 for last
+  function nthWeekday(month, weekday, n) {
+    if(n > 0) {
+      const first = new Date(y, month-1, 1);
+      const offset = (weekday - first.getDay() + 7) % 7;
+      const day = 1 + offset + (n-1)*7;
+      return day;
+    } else {
+      const last = new Date(y, month, 0); // last day of month
+      const offset = (last.getDay() - weekday + 7) % 7;
+      return last.getDate() - offset;
+    }
+  }
+
+  const mlkDay        = nthWeekday(1, 1, 3);   // 3rd Monday of January
+  const presidentsDay = nthWeekday(2, 1, 3);   // 3rd Monday of February
+  const memorialDay   = nthWeekday(5, 1, -1);  // Last Monday of May
+  const laborDay      = nthWeekday(9, 1, 1);   // 1st Monday of September
+  const columbusDay   = nthWeekday(10, 1, 2);  // 2nd Monday of October
+  const thanksgiving  = nthWeekday(11, 4, 4);  // 4th Thursday of November
+
   return [
-    { id:'newyear',      emoji:'🎆', name:"New Year's Day",     date:`${y}-01-01`, enabled:true },
-    { id:'mlk',          emoji:'✊', name:'MLK Day',             date:`${y}-01-20`, enabled:true },
-    { id:'presidents',   emoji:'🇺🇸', name:"Presidents' Day",   date:`${y}-02-17`, enabled:true },
-    { id:'memorial',     emoji:'🪖', name:'Memorial Day',        date:`${y}-05-26`, enabled:true },
-    { id:'juneteenth',   emoji:'✊', name:'Juneteenth',           date:`${y}-06-19`, enabled:true },
-    { id:'july4',        emoji:'🎆', name:'Independence Day',     date:`${y}-07-04`, enabled:true },
-    { id:'labor',        emoji:'🔨', name:'Labor Day',            date:`${y}-09-01`, enabled:true },
-    { id:'columbus',     emoji:'⚓', name:'Columbus Day',         date:`${y}-10-13`, enabled:false },
-    { id:'veterans',     emoji:'🎖️', name:"Veterans' Day",       date:`${y}-11-11`, enabled:true },
-    { id:'thanksgiving', emoji:'🦃', name:'Thanksgiving',         date:`${y}-11-27`, enabled:true },
-    { id:'christmas',    emoji:'🎄', name:'Christmas',            date:`${y}-12-25`, enabled:true },
+    { id:'newyear',      emoji:'🎆', name:"New Year's Day",     date:fmt(1,1),                enabled:true },
+    { id:'mlk',          emoji:'✊', name:'MLK Day',             date:fmt(1,mlkDay),           enabled:true },
+    { id:'presidents',   emoji:'🇺🇸', name:"Presidents' Day",   date:fmt(2,presidentsDay),    enabled:true },
+    { id:'memorial',     emoji:'🪖', name:'Memorial Day',        date:fmt(5,memorialDay),      enabled:true },
+    { id:'juneteenth',   emoji:'✊', name:'Juneteenth',           date:fmt(6,19),               enabled:true },
+    { id:'july4',        emoji:'🎆', name:'Independence Day',     date:fmt(7,4),                enabled:true },
+    { id:'labor',        emoji:'🔨', name:'Labor Day',            date:fmt(9,laborDay),         enabled:true },
+    { id:'columbus',     emoji:'⚓', name:'Columbus Day',         date:fmt(10,columbusDay),     enabled:false },
+    { id:'veterans',     emoji:'🎖️', name:"Veterans' Day",       date:fmt(11,11),              enabled:true },
+    { id:'thanksgiving', emoji:'🦃', name:'Thanksgiving',         date:fmt(11,thanksgiving),    enabled:true },
+    { id:'christmas',    emoji:'🎄', name:'Christmas',            date:fmt(12,25),              enabled:true },
   ];
 })();
 // ──────────────────────────────────────────────────────────────
@@ -2720,7 +2745,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9x
+  // ATTRIBUTION ENGINE — v24.9y
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4870,7 +4895,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9x',  // dashboard version that generated this push
+    dash_version: 'v24.9y',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5446,7 +5471,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9x',
+        dash_version:        'v24.9y',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
