@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9z</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.14</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9z</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.14</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9z</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.14</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2745,7 +2745,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9z
+  // ATTRIBUTION ENGINE — v24.14
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4895,7 +4895,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9z',  // dashboard version that generated this push
+    dash_version: 'v24.14',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5070,30 +5070,34 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     monthly_revenue: (() => {
       const months = new Array(12).fill(0);
       const yr = now_snap.getFullYear();
-      // Prefer _allYearJobs (fetched specifically for full-year accuracy) over _jobs
-      // _jobs may have a narrower date range depending on user's pull settings
-      const source = (_allYearJobs && _allYearJobs.length)
-        ? _allYearJobs
-        : _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j));
-      source.forEach(j => {
-        if(j._payments && j._payments.length > 0){
-          j._payments.forEach(p => {
+
+      // Use _invoiceMap as the single source of truth — same as rev_monthly/rev_annual/etc.
+      // This is the complete set of invoices/payments, not bounded by job fetch date ranges.
+      if(_invoiceMap && Object.keys(_invoiceMap).length > 0){
+        Object.values(_invoiceMap).forEach(payments => {
+          payments.forEach(p => {
+            if(!p.date || p.amount <= 0) return;
             const d = new Date(p.date + 'T12:00:00');
             if(!isNaN(d) && d.getFullYear() === yr){
               months[d.getMonth()] += p.amount;
             }
           });
-        } else {
-          // No invoice data — use completed_at
+        });
+      } else {
+        // Fallback: no invoice map — use job completion dates from _allYearJobs/_jobs
+        const source = (_allYearJobs && _allYearJobs.length)
+          ? _allYearJobs
+          : _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j));
+        source.forEach(j => {
           const ts = j.work_timestamps?.completed_at || j.completed_at;
           if(!ts) return;
           const d = new Date(ts);
           if(isNaN(d) || d.getFullYear() !== yr) return;
           months[d.getMonth()] += getJobRevenue(j);
-        }
-      });
+        });
+      }
       const result = months.map(Math.round);
-      console.log('[Monthly] Built from', source.length, source===_allYearJobs?'_allYearJobs':'_jobs', '(paid jobs). Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
+      console.log('[Monthly] Built from _invoiceMap (single source of truth with rev_monthly/rev_annual). Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
       return result;
     })(),
 
@@ -5343,52 +5347,75 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
     let syncOk = false;
     try {
-      const res = await fetch(PROXY, {
+      let res = await fetch(PROXY, {
         method:'POST',
         headers:{'Content-Type':'text/plain'},
         body: payload,
         redirect: 'follow',
       });
+      // Retry on 429 (Apps Script execution quota) with backoff
+      let attempt = 0;
+      while(res.status === 429 && attempt < 3) {
+        attempt++;
+        const waitMs = 3000 * attempt; // 3s, 6s, 9s
+        console.warn(`[Sheets sync] 429 rate limited — retry ${attempt}/3 in ${waitMs/1000}s`);
+        $$('statusBar').textContent = `⏳ Sheets rate limited — retrying in ${waitMs/1000}s (${attempt}/3)...`;
+        await new Promise(r => setTimeout(r, waitMs));
+        res = await fetch(PROXY, {
+          method:'POST',
+          headers:{'Content-Type':'text/plain'},
+          body: payload,
+          redirect: 'follow',
+        });
+      }
       const d = await res.json().catch(()=>({}));
-      syncOk = d.success !== false;
-      if(!syncOk) console.warn('[Sheets sync] Server reported failure:', d);
+      syncOk = res.status !== 429 && d.success !== false;
+      if(!syncOk) console.warn('[Sheets sync] Server reported failure:', d, 'status:', res.status);
     } catch(fetchErr) {
       console.warn('[Sheets sync] Fetch error:', fetchErr.message);
       syncOk = false;
     }
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${_uploadedPlans.length > 0 ? _uploadedPlans.length+' plans (uploaded)' : plans.length+' plans'} · ${employees.length} employees · ${dateFrom} → ${dateTo} · ${syncOk ? 'Saved to Sheets ✅' : '⚠ Sheets sync failed — check Apps Script logs'}`;
+
+    // Stagger background syncs (jobs, estimates, monthly revenue, etc.) below to avoid
+    // hitting Apps Script execution quota when fired back-to-back
+    await new Promise(r => setTimeout(r, 1000));
     syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
 
     // Send jobs separately — medium payload, non-blocking
     if(jobsPayload.length && PROXY) {
-      fetch(PROXY, {
-        method:'POST', headers:{'Content-Type':'text/plain'},
-        redirect:'follow',
-        body: JSON.stringify({
-          action:'syncReport',
-          dateFrom, dateTo,
-          jobs: jobsPayload, estimates:[], invoices:[], kpi:[],
-          attribution:[], summary:{}, dashboardSnapshot:null,
-        })
-      }).then(r=>r.json()).then(d=>{
-        if(d.success) console.log('[Sheets] Jobs tab synced:', jobsPayload.length, 'rows');
-        else console.warn('[Sheets] Jobs sync failed:', d.error);
-      }).catch(e=>console.warn('[Sheets] Jobs send error:', e.message));
+      setTimeout(() => {
+        fetch(PROXY, {
+          method:'POST', headers:{'Content-Type':'text/plain'},
+          redirect:'follow',
+          body: JSON.stringify({
+            action:'syncReport',
+            dateFrom, dateTo,
+            jobs: jobsPayload, estimates:[], invoices:[], kpi:[],
+            attribution:[], summary:{}, dashboardSnapshot:null,
+          })
+        }).then(r=>r.json()).then(d=>{
+          if(d.success) console.log('[Sheets] Jobs tab synced:', jobsPayload.length, 'rows');
+          else console.warn('[Sheets] Jobs sync failed:', d.error);
+        }).catch(e=>console.warn('[Sheets] Jobs send error:', e.message));
+      }, 2000);
     }
 
     // Send estimates separately — large payload, non-blocking
     // Estimates tab is for historical records; not needed by companion
     if(estsPayload.length && PROXY) {
-      fetch(PROXY, {
-        method:'POST', headers:{'Content-Type':'text/plain'},
-        redirect:'follow',
-        body: JSON.stringify({
-          action:'syncReport',
-          dateFrom, dateTo,
-          jobs:[], estimates:estsPayload, invoices:[], kpi:[],
-          attribution:[], summary:{}, dashboardSnapshot:null,
-        })
-      }).catch(()=>{});
+      setTimeout(() => {
+        fetch(PROXY, {
+          method:'POST', headers:{'Content-Type':'text/plain'},
+          redirect:'follow',
+          body: JSON.stringify({
+            action:'syncReport',
+            dateFrom, dateTo,
+            jobs:[], estimates:estsPayload, invoices:[], kpi:[],
+            attribution:[], summary:{}, dashboardSnapshot:null,
+          })
+        }).catch(()=>{});
+      }, 4000);
     }
 
     // Compute dept performance entirely client-side from _jobs + _estimates + _invoiceMap
@@ -5498,7 +5525,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9z',
+        dash_version:        'v24.14',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6565,26 +6592,34 @@ async function testRingCentral() {
     do {
       setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
       const rcPath = nextUri ? nextUri.replace(RC_SERVER,'') : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
-      const data = await rcGet(rcPath, jwt);
-      if(data.errorCode){
-        if(data.errorCode === 'CMN-301' || (data.status===429) || data.message?.includes('rate')){
-          // 429 rate limit — wait 2s and retry once
-          setCallsProgress('rc', `⏳ Rate limit hit — waiting 2s before retry...`);
-          await new Promise(r => setTimeout(r, 2000));
-          const retry = await rcGet(rcPath, jwt);
-          if(retry.errorCode) throw new Error(retry.message || JSON.stringify(retry).slice(0,200));
-          allCalls = [...allCalls, ...(retry.records||[])];
-          nextUri = retry.navigation?.nextPage?.uri || null;
-        } else {
-          throw new Error(data.message || JSON.stringify(data).slice(0,200));
-        }
-      } else {
-        allCalls = [...allCalls, ...(data.records||[])];
-        nextUri = data.navigation?.nextPage?.uri || null;
+
+      // Fetch with exponential backoff retry on 429 — up to 4 attempts
+      let data = await rcGet(rcPath, jwt);
+      let attempt = 0;
+      while(data.errorCode && attempt < 4) {
+        const isRateLimit = data.errorCode === 'CMN-301' || data.status === 429 || data.message?.toLowerCase().includes('rate');
+        if(!isRateLimit) break; // non-rate-limit error — bail out of retry loop
+        attempt++;
+        const waitMs = 2000 * Math.pow(2, attempt-1); // 2s, 4s, 8s, 16s
+        setCallsProgress('rc', `⏳ Rate limit hit on page ${page} — waiting ${waitMs/1000}s (attempt ${attempt}/4)...`);
+        await new Promise(r => setTimeout(r, waitMs));
+        data = await rcGet(rcPath, jwt);
       }
+
+      if(data.errorCode) {
+        // Still failing after retries — stop here but KEEP what we've already fetched
+        console.warn(`[RC] Page ${page} failed after retries:`, data.message || data.errorCode);
+        setCallsProgress('rc', `⚠ Stopped at page ${page} (rate limited) — keeping ${allCalls.length} calls fetched so far`);
+        nextUri = null; // exit loop, proceed with partial data
+        break;
+      }
+
+      allCalls = [...allCalls, ...(data.records||[])];
+      nextUri = data.navigation?.nextPage?.uri || null;
       page++;
-      // Throttle — RC allows ~40 req/min, 300ms gap keeps us well under
-      if(nextUri) await new Promise(r => setTimeout(r, 300));
+      // Throttle between pages — RC allows ~40 req/min for this endpoint;
+      // 1.5s gap keeps us comfortably under that even with retries
+      if(nextUri) await new Promise(r => setTimeout(r, 1500));
     } while(nextUri && page <= 50);
 
     console.log('[RC] Fetched', allCalls.length, 'raw inbound records');
@@ -6933,7 +6968,7 @@ function getOrderQueueItems() {
   // Keywords that disqualify a job — service/maintenance/tune-up calls, not installs
   // Keywords that disqualify a job — service/maintenance/tune-up, cleaning, tank water heaters
   // Tank WH = plumbing service job, not an equipment order. Only TANKLESS qualifies.
-  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean.?out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional|dryer.?vent|vent.?clean|duct.?clean|camera|descale|descaling|blow.?out|flush|snake|jetting|hydro.?jet|soft.?start|capacitor|contactor|filter\b|belt\b|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|\b40.?gal\b|\b50.?gal\b|\b40 gal\b|\b50 gal\b|power.?vent|natural.?gas.*water|standard.*water.*heat|electric.*water.*heat|\d+.?gal.*water.?heat|water.?heat.*\d+.?gal/i;
+  const EXCLUSION_RE = /tune.?up|tune up|maintenance|diagnostic|diag\b|service.?call|service call|repair\b|cleaning|clean.?out|inspect|check.?up|check up|no.?charge|warranty|compliment|promotional|dryer.?vent|vent.?clean|duct.?clean|camera|descale|descaling|blow.?out|flush|snake|jetting|hydro.?jet|soft.?start|capacitor|contactor|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|\b40.?gal\b|\b50.?gal\b|\b40 gal\b|\b50 gal\b|power.?vent|natural.?gas.*water|standard.*water.*heat|electric.*water.*heat|\d+.?gal.*water.?heat|water.?heat.*\d+.?gal/i;
 
   // Minimum job value to be an install (excludes accessory-only jobs)
   const MIN_INSTALL_VALUE = 800;
@@ -6947,21 +6982,24 @@ function getOrderQueueItems() {
     const allText   = getJobAllText(j);
     const jobValue  = getJobTotal(j);
 
-    // Exclude service calls / tune-ups / cleaning jobs
-    // Check job text AND any linked estimate option names AND line item names/descriptions
+    // Exclude service calls / tune-ups / cleaning jobs — but ONLY based on
+    // equipment-identifying text (line items, estimate option names/line items),
+    // NOT the full job notes/tags/description soup. Generic words like "filter",
+    // "inspect", "warranty", "repair", "maintenance" appear constantly in
+    // unrelated boilerplate notes/tags and would otherwise exclude 80%+ of jobs.
     const linkedEstForExcl = estById[j.original_estimate_id || (j.original_estimate_uuids&&j.original_estimate_uuids[0])] || null;
     const estTextForExcl   = linkedEstForExcl
       ? (linkedEstForExcl.options||[]).map(o => [
           o.name||'',
           o.message_from_pro||'',
           ...(o.line_items||[]).map(li => (li.name||'') + ' ' + (li.description||'')),
-          ...(o.notes||[]).map(n => n.content||'')
         ].join(' ')).join(' ')
       : '';
-    // Also include job line item names directly
-    const jobLineItemText = (j.line_items||[]).map(li=>(li.name||'')+(li.description||'')).join(' ');
-    const fullExclText = allText + ' ' + estTextForExcl + ' ' + jobLineItemText;
-    if(EXCLUSION_RE.test(fullExclText)) { diag.tuneup++; return; }
+    const jobLineItemText = (j.line_items||[]).map(li=>(li.name||'')+' '+(li.description||'')).join(' ');
+    // Job type alone is also checked — "Tune-Up", "Maintenance", "Repair" as the actual
+    // job type are strong signals; but generic notes/tags are not.
+    const narrowExclText = jobType + ' ' + estTextForExcl + ' ' + jobLineItemText;
+    if(EXCLUSION_RE.test(narrowExclText)) { diag.tuneup++; return; }
 
     // Detect equipment
     const equip = detectEquipmentSale(j, false);
@@ -7060,10 +7098,12 @@ function getOrderQueueItems() {
 
   console.log(`[OrderQueue] ${diag.total} jobs → ${diag.passed} passed | excluded: ${diag.canceled} canceled, ${diag.tuneup} tune-ups, ${diag.noEquip} no equip, ${diag.lowValue} low value (<$${MIN_INSTALL_VALUE}), ${diag.wrongKey} wrong key, ${diag.dateFiltered} date, ${diag.deptFiltered} dept`);
 
-  return items.sort((a,b) => {
+  const result = items.sort((a,b) => {
     if(a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1;
     return new Date(a.installRaw||9e12) - new Date(b.installRaw||9e12);
   });
+  result._diag = diag; // expose for empty-state messaging
+  return result;
 }
 
 function detectEquipFromEstimate(est) {
@@ -7118,11 +7158,20 @@ function renderOrderQueue() {
   let html = '';
 
   if(!filtered.length && !archived.length){
-    html=`<div style="text-align:center;padding:32px;color:#9ca3af">
-      ${allItems.length===0
-        ?(_jobs.length===0?'Pull a report first — use This Year or YTD date range.':'No scheduled equipment installs found. Make sure HVAC jobs have AC, Furnace, Boiler, or Tankless Water Heater line items in HCP.')
-        :'No orders match the selected filter'}
-    </div>`;
+    const fromVal = $$('oqFrom')?.value || '';
+    const toVal   = $$('oqTo')?.value   || '';
+    const diag    = allItems._diag || {};
+    let hint = '';
+    if(_jobs.length === 0) {
+      hint = 'Pull a report first — use This Year or YTD date range.';
+    } else if(allItems.length === 0 && diag.dateFiltered > 0) {
+      hint = `${diag.dateFiltered} install job${diag.dateFiltered!==1?'s':''} found, but none fall within ${fromVal||'(no start)'} → ${toVal||'(no end)'}.<br><span style="font-size:11px;color:#9ca3af;margin-top:6px;display:block">Try widening the date range or clicking "This Month" / "Next 90 Days".</span>`;
+    } else if(allItems.length === 0) {
+      hint = `No scheduled equipment installs found in ${_jobs.length} jobs. Make sure HVAC jobs have AC, Furnace, Boiler, Heat Pump, Mini Split, or Tankless Water Heater identified (job type "Install"/"New Con", or Andy Mitchell/Gannon Blaiser assigned).<br><span style="font-size:11px;color:#9ca3af;margin-top:6px;display:block">Check the browser console for [OrderQueue] diagnostic — it shows why each job was excluded.</span>`;
+    } else {
+      hint = 'No orders match the selected filter';
+    }
+    html=`<div style="text-align:center;padding:32px;color:#9ca3af">${hint}</div>`;
     el.innerHTML=html;
     return;
   }
@@ -8306,10 +8355,11 @@ function detectEquipmentSale(j, requirePaid=true){
 
   // Hard exclusion — service calls, maintenance, cleaning, and ALL tank water heaters
   // Tank WH identifiers: power vent, gallon size, year warranty (6yr/12yr), storage tank
-  // IMPORTANT: check ALL job text including notes — option name may just be "Option #1"
+  // IMPORTANT: only check job TYPE + DESCRIPTION — not notes/tags, which contain
+  // unrelated boilerplate ("inspect filter annually", "maintenance plan customer", etc.)
+  // that would otherwise wrongly exclude legitimate install jobs.
   const EQUIP_EXCLUSION = /dryer.?vent|vent.?clean|duct.?clean|tune.?up|maintenance|diagnostic|service.?call|cleaning|clean.?out|inspect|no.?charge|compliment|promotional|camera|descal|soft.?start|capacitor|contactor|refrigerant|freon|recharge|leak.?check|coil.?clean|drain.?clean|hydro.?jet|jetting|snake\b|power.?vent|\b(30|40|50|75|80|100)\s*gal(lon)?|standard.*water.*heat|electric.*water.*heat|\b(6|9|12)\s*year.*water|water.*heater.*(storage|tank\b)/i;
-  const allJobText = getJobAllText(j);
-  const typeAndDesc = (getJobType(j) + ' ' + (j.description||'') + ' ' + allJobText).trim();
+  const typeAndDesc = (getJobType(j) + ' ' + (j.description||'')).trim();
   if(EQUIP_EXCLUSION.test(typeAndDesc)) return null;
 
   // Department check via tech name — more reliable than getDept which can return "Other"
@@ -8479,7 +8529,10 @@ async function fetchTYCardsFromSheets(){
 
 async function saveTYCard(jobId,update){
   _tyCards[jobId]={..._tyCards[jobId]||{},...update};
-  // Statuses stored in Sheets — no localStorage write
+
+  // Re-render immediately — instant button feedback, don't wait on network
+  renderTYCards();
+
   // Enrich with job data for Sheets storage
   const job=_jobs.find(j=>j.id===jobId);
   const equip=job?detectEquipmentSale(job):null;
@@ -8491,12 +8544,13 @@ async function saveTYCard(jobId,update){
   const installDate=job?fmtDY(job.work_timestamps?.completed_at||job.schedule?.scheduled_start||job.created_at):'';
   const equipLabel=job?getEquipmentLabel(job):'';
   const amt=job?getJobRevenue(job):0;
-  try{
-    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
+
+  // Sync to Sheets in background — don't block UI
+  if(_sheetsProxy) {
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
       body:JSON.stringify({
         action:'saveTYCard',jobId,
         data:_tyCards[jobId],
-        // Rich data for Sheets columns
         customerName:name,
         address:addr,
         phone,email,
@@ -8505,9 +8559,9 @@ async function saveTYCard(jobId,update){
         installDate,
         amount:amt,
         jobNumber:job?.job_number||jobId
-      })});
-  }catch(e){}
-  renderTYCards();
+      })
+    }).catch(e=>console.warn('[TY Card] Sheets sync failed:', e.message));
+  }
 }
 
 function getTYSales(){
