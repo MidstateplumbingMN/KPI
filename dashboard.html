@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.9w</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.9x</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9w</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.9x</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9w</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.9x</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2720,7 +2720,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.9w
+  // ATTRIBUTION ENGINE — v24.9x
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4870,7 +4870,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.9w',  // dashboard version that generated this push
+    dash_version: 'v24.9x',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5018,7 +5018,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     monthly_revenue: (() => {
       const months = new Array(12).fill(0);
       const yr = now_snap.getFullYear();
-      const source = _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j));
+      // Prefer _allYearJobs (fetched specifically for full-year accuracy) over _jobs
+      // _jobs may have a narrower date range depending on user's pull settings
+      const source = (_allYearJobs && _allYearJobs.length)
+        ? _allYearJobs
+        : _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j));
       source.forEach(j => {
         if(j._payments && j._payments.length > 0){
           j._payments.forEach(p => {
@@ -5037,7 +5041,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         }
       });
       const result = months.map(Math.round);
-      console.log('[Monthly] Built from', source.length, 'paid jobs (from _jobs). Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
+      console.log('[Monthly] Built from', source.length, source===_allYearJobs?'_allYearJobs':'_jobs', '(paid jobs). Non-zero months:', result.filter(v=>v>0).length, result.map((v,i)=>v>0?i+1+':$'+Math.round(v/1000)+'K':'').filter(Boolean).join(', '));
       return result;
     })(),
 
@@ -5442,7 +5446,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.9w',
+        dash_version:        'v24.9x',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5642,15 +5646,9 @@ async function fetchYTDMonthlyRevenue() {
     // Re-render Goals now that _allYearJobs is populated — gets accurate annual/quarterly/monthly numbers
     renderGoals();
 
-    // Push monthly breakdown to Sheets for companion bar chart
-    if(_sheetsProxy){
-      fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
-        body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
-      }).then(()=>{
-        console.log('[YTD] Monthly revenue synced to Sheets');
-      }).catch(e => console.warn('[YTD] Sheets sync failed:', e.message));
-    }
+    // Note: monthly revenue sync to Sheets happens once, later, in syncReportToSheets
+    // using dashboardSnapshot.monthly_revenue (which now also uses _allYearJobs) —
+    // avoids the two competing writes that caused dashboard/companion to disagree.
   } catch(e) {
     console.warn('[YTD] Background fetch failed:', e.message);
     dashLog('warn','YTD: '+e.message);
