@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.16</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.17</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.16</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.17</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.16</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.17</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2745,7 +2745,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.16
+  // ATTRIBUTION ENGINE — v24.17
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4895,7 +4895,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.16',  // dashboard version that generated this push
+    dash_version: 'v24.17',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5525,7 +5525,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.16',
+        dash_version:        'v24.17',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6750,14 +6750,26 @@ async function saveCallsToSheets(source) {
 
   // Build monthly/daily/weekly aggregates
   const monthly = new Array(12).fill(0);
-  const daily   = new Array(31).fill(0);
+  const daily   = new Array(31).fill(0); // day-of-month counts for CURRENT month only
   const weekly  = new Array(7).fill(0);
-  const curM    = new Date().getMonth();
+  const now     = new Date();
+  const curY    = now.getFullYear();
+  const curM    = now.getMonth();
+  const todayDate = now.getDate();
+
+  let todayCount = 0, mtdCount = 0, ytdCount = 0;
+
   calls.forEach(c => {
     if(!c._time) return;
     const d = new Date(c._time);
+    if(d.getFullYear() !== curY) return; // only count this year for monthly/today/mtd/ytd
     monthly[d.getMonth()]++;
-    if(d.getMonth()===curM) daily[d.getDate()-1]++;
+    ytdCount++;
+    if(d.getMonth()===curM) {
+      daily[d.getDate()-1]++;
+      mtdCount++;
+      if(d.getDate()===todayDate) todayCount++;
+    }
     weekly[d.getDay()]++;
   });
 
@@ -6785,11 +6797,13 @@ async function saveCallsToSheets(source) {
   try {
     const payload = source==='callrail' ? {
       action, total, new_callers:newCalls, answered, missed, answer_rate:ansRate,
+      today: todayCount, mtd: mtdCount, ytd: ytdCount,
       weekly_json:  JSON.stringify(weekly.map((count,day)=>({day,count}))),
       monthly_json: JSON.stringify(monthly),
       daily_json:   JSON.stringify(daily),
     } : {
       action, total, answered, missed, answer_rate:ansRate,
+      today: todayCount, mtd: mtdCount, ytd: ytdCount,
       leaderboard:  JSON.stringify(leaderboard),
       monthly:      JSON.stringify(monthly),
       daily:        JSON.stringify(daily),
