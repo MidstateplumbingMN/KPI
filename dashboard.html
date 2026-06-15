@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.17</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.23</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.17</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.23</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.17</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.23</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1431,6 +1431,7 @@ tr:hover td{background:#fafafa}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button onclick="testCallRail()" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
             <button onclick="saveCallsToSheets('callrail')" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
+            <button onclick="saveTranscriptsToSheets()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">📝 Save Transcripts</button>
             <button onclick="clearCallsResult('cr')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
           </div>
           <div id="cr-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
@@ -1486,7 +1487,38 @@ tr:hover td{background:#fafafa}
             <button onclick="exportCallsCSV()" style="padding:5px 12px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer">⬇ CSV</button>
           </div>
         </div>
-        <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+        <!-- Agent Summary Breakdown — collapses/expands, shows all RC agents -->
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0;margin-bottom:16px;overflow:hidden">
+          <div onclick="toggleAgentSummary()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;background:#f9fafb">
+            <div style="font-size:13px;font-weight:700;color:#1f2937">📊 Agent Call Breakdown — RingCentral</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span id="agent-summary-badge" style="font-size:11px;color:#6b7280">Fetch RC calls to populate</span>
+              <span id="agent-summary-toggle" style="font-size:14px;color:#6b7280">▼</span>
+            </div>
+          </div>
+          <div id="agent-summary-body" style="display:none;overflow-x:auto">
+            <table id="agent-summary-table" style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead>
+                <tr style="background:#f3f4f6">
+                  <th onclick="sortAgentTable('name')"     style="padding:8px 12px;text-align:left;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Agent ↕</th>
+                  <th onclick="sortAgentTable('answered')" style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Answered ↕</th>
+                  <th onclick="sortAgentTable('missed')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Missed ↕</th>
+                  <th onclick="sortAgentTable('total')"    style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Total ↕</th>
+                  <th onclick="sortAgentTable('ansRate')"  style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Ans Rate ↕</th>
+                  <th onclick="sortAgentTable('avgDur')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Avg Dur ↕</th>
+                  <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;color:#374151">Type</th>
+                </tr>
+              </thead>
+              <tbody id="agent-summary-tbody">
+                <tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">Fetch RingCentral calls to see agent breakdown</td></tr>
+              </tbody>
+            </table>
+            <div id="agent-summary-footer" style="padding:8px 12px;font-size:11px;color:#6b7280;background:#f9fafb;border-top:1px solid #e5e7eb"></div>
+          </div>
+        </div>
+
+        <!-- Call Records -->
+
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead style="position:sticky;top:0;background:#f9fafb;z-index:1">
               <tr>
@@ -2745,7 +2777,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.17
+  // ATTRIBUTION ENGINE — v24.23
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4895,7 +4927,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.17',  // dashboard version that generated this push
+    dash_version: 'v24.23',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -4982,10 +5014,17 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     // Jobs completed today (scheduled/completed_at date = today)
     // NOT payment date — "Win the Day" shows work done today, not invoices cleared
     daily_jobs: (() => {
+      // Count jobs with at least one payment dated today — aligns with rev_daily_today_jobs
+      // so "N paid jobs" and "$X revenue" always refer to the same set of jobs
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
+      if(_invoiceMap && Object.keys(_invoiceMap).length > 0){
+        return Object.entries(_invoiceMap).filter(([jobId, payments]) =>
+          payments.some(p => p.date === todayLocal && p.amount > 0)
+        ).length;
+      }
+      // Fallback: no invoice map — use completion date
       return _jobs.filter(j => {
         if(!isJobPaid(j)) return false;
-        // Use completed_at as the job completion date
         const ts = j.work_timestamps?.completed_at || j.completed_at || j.schedule?.scheduled_start || '';
         if(!ts) return false;
         const d = new Date(ts);
@@ -5525,7 +5564,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.17',
+        dash_version:        'v24.23',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6511,7 +6550,7 @@ async function testCallRail() {
           per_page:            '250',
           relative_pagination: 'true',  // recommended for large datasets
           company_id:          CR_CO,
-          fields:              'id,start_time,customer_name,customer_phone_number,tracking_phone_number,duration,answered,first_call,direction,source_name,agent_email',
+          fields:              'id,start_time,customer_name,customer_phone_number,tracking_phone_number,duration,answered,first_call,direction,source_name,agent_email,transcription,recording,note,call_disposition',
         });
         if(filter==='inbound')  params.set('direction','inbound');
         if(filter==='outbound') params.set('direction','outbound');
@@ -6535,26 +6574,38 @@ async function testCallRail() {
     } while(nextPageUrl && pageNum <= maxPages);
 
     // Normalize to common schema
-    _crCallsRaw = allCalls.map(c => ({
-      _source:    'CallRail',
-      _id:        c.id,
-      _time:      c.start_time,
-      _caller:    c.customer_name || 'Unknown',
-      _number:    c.customer_phone_number || '',
-      _direction: c.direction || 'inbound',
-      _agent:     c.agent_email || c.agent?.name || c.agent?.email || '',
-      _duration:  parseInt(c.duration)||0,
-      _answered:  c.answered === true,
-      _missed:    c.answered === false || c.duration === 0,
-      _status:    c.answered ? 'Answered' : 'Missed',
-      _firstCall: c.first_call,
-      _raw:       c,
-    }));
+    _crCallsRaw = allCalls.map(c => {
+      const transcript  = c.transcription || '';
+      const agentFromCR = c.agent_email || c.agent?.name || c.agent?.email || '';
+      const agentFromTx = attributeAgentFromTranscript(transcript);
+      return {
+        _source:      'CallRail',
+        _id:          c.id,
+        _time:        c.start_time,
+        _caller:      c.customer_name || 'Unknown',
+        _number:      c.customer_phone_number || '',
+        _direction:   c.direction || 'inbound',
+        _agent:       agentFromTx || agentFromCR || '',  // transcript attribution wins
+        _agentCR:     agentFromCR,                       // original CR agent field
+        _agentTx:     agentFromTx,                       // transcript-derived agent
+        _duration:    parseInt(c.duration)||0,
+        _answered:    c.answered === true,
+        _missed:      c.answered === false || c.duration === 0,
+        _status:      c.answered ? 'Answered' : 'Missed',
+        _firstCall:   c.first_call,
+        _transcript:  transcript,
+        _recording:   c.recording  || '',
+        _note:        c.note       || '',
+        _disposition: c.call_disposition || '',
+        _raw:         c,
+      };
+    });
 
     setCallsStatus('cr', true, `✅ ${_crCallsRaw.length} calls`);
     setCallsProgress('cr', `✅ ${_crCallsRaw.length} calls loaded · ${from} → ${to}`);
     renderCallMetrics('cr', _crCallsRaw);
     renderCallsTable();
+    buildCRAgentLeaderboard(); // attribute agents from transcripts → RC_Agents tab
     dashLog('success', `CallRail: ${_crCallsRaw.length} calls fetched`);
   } catch(e) {
     showCallsError('cr', e.message);
@@ -6563,8 +6614,175 @@ async function testCallRail() {
 }
 
 // ============================================================
-// RINGCENTRAL FETCH
+// TRANSCRIPT AGENT ATTRIBUTION
+// Scans call transcripts to identify which dispatcher answered
+// based on self-introduction phrases in the opening of the call.
 // ============================================================
+const CR_AGENT_PATTERNS = [
+  // Bob / Robert Danaher
+  { agent: 'Bob Danaher',      names: ['bob', 'robert danaher', 'robert'] },
+  // Victoria Ellsworth
+  { agent: 'Victoria Ellsworth', names: ['victoria', 'vicky'] },
+  // Eric Stoffel
+  { agent: 'Eric Stoffel',     names: ['eric'] },
+];
+
+// Introduction phrases that precede a name — "this is Bob", "my name is Victoria"
+const INTRO_PATTERNS = [
+  /\bthis is (\w+)/i,
+  /\bmy name is (\w+)/i,
+  /\bspeaking with (\w+)/i,
+  /\byou(?:'re| are) (?:speaking )?(?:with )?(\w+)/i,
+  /\b(\w+) speaking\b/i,
+  /\bhi,?\s+(?:this is\s+)?(\w+)/i,
+  /\bhello,?\s+(?:this is\s+)?(\w+)/i,
+  /\bthank you for calling midstate[,\s]+(?:this is\s+)?(\w+)/i,
+  /\bmidstate [^,]+,\s*(?:this is\s+)?(\w+)/i,
+];
+
+function attributeAgentFromTranscript(transcript) {
+  if(!transcript || transcript.length < 10) return '';
+
+  // Only scan the first ~500 chars — introductions happen at the start
+  const opening = transcript.slice(0, 500).toLowerCase();
+
+  // Try each introduction pattern
+  for(const pat of INTRO_PATTERNS) {
+    const m = opening.match(pat);
+    if(!m) continue;
+    const name = (m[1]||'').toLowerCase().trim();
+    if(!name) continue;
+
+    // Match against known agents
+    for(const agent of CR_AGENT_PATTERNS) {
+      if(agent.names.some(n => n === name || name.includes(n) || n.includes(name))) {
+        return agent.agent;
+      }
+    }
+  }
+
+  // Fallback: check if any agent name appears anywhere in the opening
+  // (handles less structured introductions)
+  for(const agent of CR_AGENT_PATTERNS) {
+    for(const name of agent.names) {
+      // Only match whole words to avoid false positives
+      const re = new RegExp(`\\b${name}\\b`, 'i');
+      if(re.test(opening)) return agent.agent;
+    }
+  }
+
+  return ''; // unattributed — no introduction found
+}
+
+
+// Build agent call leaderboard from CallRail transcript attribution
+// Writes to RC_Agents Sheets tab — same tab the companion reads
+// This gives accurate per-agent answered counts without needing RC leg data
+function buildCRAgentLeaderboard() {
+  if(!_crCallsRaw.length) return;
+
+  const SPAM_SEC = 10; // ignore calls under 10s (hangups/robocalls)
+
+  // Tally per agent from CR transcript attribution
+  const byAgent = {};
+  const ensure = name => {
+    if(!byAgent[name]) byAgent[name] = { name, answered:0, missed:0, total:0, totalDur:0 };
+  };
+
+  let spamCount = 0;
+
+  _crCallsRaw.forEach(c => {
+    if(c._duration < SPAM_SEC) { spamCount++; return; } // skip spam
+    if(c._direction !== 'inbound') return; // inbound only
+
+    const agent = c._agentTx || c._agentCR || ''; // transcript attribution first
+    if(!agent) return; // unattributed — skip for now
+
+    // Normalize to display name
+    const displayName = normalizeAgentDisplay(agent);
+    ensure(displayName);
+    byAgent[displayName].total++;
+    if(c._answered) {
+      byAgent[displayName].answered++;
+      byAgent[displayName].totalDur += c._duration || 0;
+    } else {
+      byAgent[displayName].missed++;
+    }
+  });
+
+  const agentList = Object.values(byAgent).map(a => ({
+    ...a,
+    avgDur:  a.answered > 0 ? Math.round(a.totalDur / a.answered) : 0,
+    ansRate: a.total > 0 ? Math.round(a.answered / a.total * 100) : 0,
+  })).sort((a,b) => b.answered - a.answered);
+
+  // Always include pinned agents even if 0 calls attributed
+  const PINNED = [
+    { name:'Bob Danaher',       display:'Bob D.' },
+    { name:'Victoria Ellsworth',display:'Victoria' },
+    { name:'Eric Stoffel',      display:'Eric' },
+  ];
+  const pinnedDisplayNames = new Set(PINNED.map(p => p.display));
+  const agentsForTab = [];
+
+  PINNED.forEach(pin => {
+    const live = agentList.find(a => a.name === pin.display || a.name === pin.name);
+    agentsForTab.push({
+      name:        pin.display,
+      answered:    live?.answered    || 0,
+      total:       live?.total       || 0,
+      ans_rate:    live?.ansRate     || 0,
+      avg_dur_sec: live?.avgDur      || 0,
+      pinned:      true,
+      category:    'dispatch',
+    });
+  });
+
+  // Non-pinned agents
+  agentList
+    .filter(a => !pinnedDisplayNames.has(a.name))
+    .forEach(a => agentsForTab.push({
+      name:        a.name,
+      answered:    a.answered,
+      total:       a.total,
+      ans_rate:    a.ansRate,
+      avg_dur_sec: a.avgDur,
+      pinned:      false,
+      category:    'dispatch',
+    }));
+
+  // Spam row
+  if(spamCount > 0) {
+    agentsForTab.push({ name:'Spam/Hangup', answered:0, total:spamCount, ans_rate:0, avg_dur_sec:0, pinned:false, category:'spam' });
+  }
+
+  const attributed = agentList.reduce((s,a) => s + a.total, 0);
+  const total = _crCallsRaw.filter(c => c._duration >= SPAM_SEC && c._direction === 'inbound').length;
+  console.log(`[CR Agents] ${agentList.length} agents | ${attributed}/${total} attributed from transcripts | ${spamCount} spam`);
+  dashLog('info', `CR agent attribution: ${attributed}/${total} calls attributed from ${_crCallsRaw.filter(c=>c._agentTx).length} transcripts`);
+
+  // Write to RC_Agents tab — companion reads this
+  if(_sheetsProxy && agentsForTab.length) {
+    fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncRCAgents', agents: agentsForTab, source:'CallRail-Transcript' })
+    }).then(r=>r.json())
+      .then(d => { if(d.success) dashLog('info','CR transcript agents → RC_Agents tab ✅'); })
+      .catch(e => console.warn('[CR Agents] Sheets write failed:', e.message));
+  }
+}
+
+// Normalize agent name to display name used in companion
+function normalizeAgentDisplay(name) {
+  if(!name) return '';
+  const n = name.toLowerCase();
+  if(n.includes('danaher') || n === 'bob')       return 'Bob D.';
+  if(n.includes('ellsworth') || n === 'victoria') return 'Victoria';
+  if(n.includes('stoffel') || n === 'eric')       return 'Eric';
+  // Capitalize first letter of each word for unknown agents
+  return name.replace(/\b\w/g, l => l.toUpperCase());
+}
+
 async function testRingCentral() {
   const from = $$('rc-from')?.value; if(!from){alert('Select date range');return;}
   const to   = $$('rc-to')?.value || new Date().toISOString().split('T')[0];
@@ -6673,6 +6891,7 @@ async function testRingCentral() {
     setCallsProgress('rc', `✅ ${_rcCallsRaw.length} calls loaded · ${from} → ${to}`);
     renderCallMetrics('rc', _rcCallsRaw);
     renderCallsTable();
+    renderAgentSummary();
     dashLog('success', `RingCentral: ${_rcCallsRaw.length} calls fetched`);
   } catch(e) {
     showCallsError('rc', e.message);
@@ -6681,8 +6900,79 @@ async function testRingCentral() {
 }
 
 // ============================================================
-// TABLE RENDERING
+// AGENT SUMMARY BREAKDOWN TABLE
 // ============================================================
+let _agentSortCol = 'answered';
+let _agentSortAsc = false;
+
+function toggleAgentSummary() {
+  const body   = $$('agent-summary-body');
+  const toggle = $$('agent-summary-toggle');
+  if(!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display   = open ? 'none' : 'block';
+  if(toggle) toggle.textContent = open ? '▼' : '▲';
+}
+
+function sortAgentTable(col) {
+  if(_agentSortCol === col) _agentSortAsc = !_agentSortAsc;
+  else { _agentSortCol = col; _agentSortAsc = col === 'name'; }
+  renderAgentSummary();
+  // Auto-expand when sorted
+  const body = $$('agent-summary-body');
+  const toggle = $$('agent-summary-toggle');
+  if(body) body.style.display = 'block';
+  if(toggle) toggle.textContent = '▲';
+}
+
+function renderAgentSummary() {
+  const tbody  = $$('agent-summary-tbody');
+  const badge  = $$('agent-summary-badge');
+  const footer = $$('agent-summary-footer');
+  if(!tbody) return;
+
+  // Use full leaderboard from _rcSnap — includes ALL agents, even phantom/queue
+  const lb = _rcSnap?.leaderboard || [];
+  if(!lb.length) return;
+
+  // Sort
+  const sorted = [...lb].sort((a,b) => {
+    const av = a[_agentSortCol] ?? 0;
+    const bv = b[_agentSortCol] ?? 0;
+    if(_agentSortCol === 'name') return _agentSortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    return _agentSortAsc ? av - bv : bv - av;
+  });
+
+  const fmtDur = s => { const m=Math.floor(s/60),sec=s%60; return m>0?`${m}m ${String(sec).padStart(2,'0')}s`:`${s}s`; };
+  const DISPATCH = new Set(['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Bob D.','Victoria','Eric']);
+
+  tbody.innerHTML = sorted.map(a => {
+    const isDispatch = DISPATCH.has(a.name) || a.isDispatch;
+    const typeLabel  = isDispatch ? '🎧 Dispatch' : a.name.toLowerCase().includes('voicemail') ? '📬 Voicemail' : '👤 Agent';
+    const rateColor  = a.ansRate >= 90 ? '#166534' : a.ansRate >= 70 ? '#92400E' : '#991B1B';
+    const rateBg     = a.ansRate >= 90 ? '#F0FDF4' : a.ansRate >= 70 ? '#FFFBEB' : '#FEF2F2';
+    return `<tr style="border-bottom:1px solid #f3f4f6;${isDispatch?'background:#eff6ff':''}">
+      <td style="padding:7px 12px;font-weight:${isDispatch?'700':'400'};color:#111827">${escHtml(a.name)}</td>
+      <td style="padding:7px 12px;text-align:right;font-weight:700;color:#059669">${a.answered}</td>
+      <td style="padding:7px 12px;text-align:right;color:${a.missed>0?'#DC2626':'#6b7280'}">${a.missed}</td>
+      <td style="padding:7px 12px;text-align:right;color:#374151">${a.total}</td>
+      <td style="padding:7px 12px;text-align:right">
+        <span style="background:${rateBg};color:${rateColor};padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700">${a.ansRate}%</span>
+      </td>
+      <td style="padding:7px 12px;text-align:right;color:#6b7280">${a.avgDur>0?fmtDur(a.avgDur):'—'}</td>
+      <td style="padding:7px 12px;font-size:11px;color:#6b7280">${typeLabel}</td>
+    </tr>`;
+  }).join('');
+
+  // Totals footer
+  const totalAnswered = lb.reduce((s,a)=>s+a.answered,0);
+  const totalMissed   = lb.reduce((s,a)=>s+a.missed,0);
+  const totalTotal    = lb.reduce((s,a)=>s+a.total,0);
+  if(footer) footer.textContent = `${lb.length} agents · ${totalAnswered.toLocaleString()} answered · ${totalMissed.toLocaleString()} missed · ${totalTotal.toLocaleString()} total`;
+  if(badge) badge.textContent = `${lb.length} agents · ${totalTotal.toLocaleString()} calls`;
+}
+
+
 let _callsTableData = [];
 
 function renderCallsTable() {
@@ -6717,23 +7007,129 @@ function filterCallsTable() {
     const ts  = dt ? dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
     const col = srcColors[c._source]||'#6b7280';
     const statusCol = c._answered ? '#10B981' : '#EF4444';
-    return `<tr style="border-bottom:1px solid #f3f4f6;transition:background .1s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+    // Agent display — purple badge if from transcript, plain text otherwise
+    const agentDisplay = c._agentTx
+      ? `<span style="color:#7C3AED;font-weight:700" title="Attributed from transcript">📝 ${escHtml(c._agentTx.split(' ')[0])}</span>`
+      : `<span style="color:#1e293b">${escHtml(c._agent||'—')}</span>`;
+
+    // Transcript toggle — only show button for CR calls with a transcript
+    const txId       = `tx-${c._id}`;
+    const hasTx      = c._source === 'CallRail' && !!c._transcript;
+    const txBtn      = hasTx
+      ? `<button onclick="toggleTranscriptRow('${txId}')" style="font-size:10px;padding:2px 7px;border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;color:#374151;cursor:pointer;white-space:nowrap">📄 Transcript</button>`
+      : '';
+
+    // Format transcript with speaker turns
+    const fmtTx = (tx) => escHtml(tx)
+      .replace(/\b(Customer|Caller|Speaker 1|S1):\s*/gi,  '<br><strong style="color:#1d4ed8">Customer:</strong> ')
+      .replace(/\b(Agent|Speaker 2|S2|Operator|Rep):\s*/gi,'<br><strong style="color:#059669">Agent:</strong> ')
+      .replace(/\n/g, '<br>');
+
+    // Manual attribution dropdown for calls without transcript attribution
+    const manualAttr = !c._agentTx && hasTx
+      ? `<div style="margin-top:8px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:#6b7280">Assign agent:</span>
+          <select onchange="manuallyAssignAgent('${c._id}',this.value)" style="font-size:11px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px">
+            <option value="">— select —</option>
+            <option value="Bob Danaher">Bob D.</option>
+            <option value="Victoria Ellsworth">Victoria</option>
+            <option value="Eric Stoffel">Eric</option>
+            <option value="other">Other</option>
+          </select>
+          <span style="font-size:10px;color:#9ca3af">(no intro detected)</span>
+        </div>`
+      : '';
+
+    const txRow = hasTx
+      ? `<tr id="${txId}" style="display:none;background:#f8f7ff;border-bottom:1px solid #ede9fe">
+          <td colspan="9" style="padding:10px 16px">
+            <div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between">
+              <span>📝 Transcript${c._agentTx?' — attributed to '+escHtml(c._agentTx):' — agent not detected'}</span>
+              ${c._recording?`<a href="${escHtml(c._recording)}" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;font-weight:400">🎧 Recording</a>`:''}
+            </div>
+            <div style="font-size:11px;line-height:1.7;color:#374151;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #ede9fe;border-radius:6px;padding:8px 10px">${fmtTx(c._transcript)}</div>
+            ${manualAttr}
+          </td>
+        </tr>`
+      : '';
+
+    return `<tr style="border-bottom:${hasTx?'none':'1px solid #f3f4f6'};transition:background .1s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
       <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${col}22;color:${col};font-weight:600">${c._source}</span></td>
       <td style="padding:7px 12px;white-space:nowrap"><div style="font-weight:500">${ds}</div><div style="font-size:10px;color:#6b7280">${ts}</div></td>
       <td style="padding:7px 12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c._caller)}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._number)}</td>
       <td style="padding:7px 12px;font-size:11px;text-transform:capitalize">${c._direction||'—'}</td>
-      <td style="padding:7px 12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1e293b">${escHtml(c._agent||'—')}</td>
+      <td style="padding:7px 12px;max-width:130px">${agentDisplay}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._agentExt||'—')}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px">${c._duration>0?fmtDuration(c._duration):'—'}</td>
-      <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span></td>
-    </tr>`;
+      <td style="padding:7px 12px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span>
+        ${txBtn}
+      </td>
+    </tr>${txRow}`;
   }).join('');
 }
 
-// ============================================================
-// SAVE TO SHEETS
-// ============================================================
+
+// Toggle inline transcript row visibility
+function toggleTranscriptRow(txId) {
+  const row = document.getElementById(txId);
+  if(!row) return;
+  const open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : 'table-row';
+}
+
+// Manual agent assignment from transcript review
+function manuallyAssignAgent(callId, agentName) {
+  if(!agentName) return;
+  const call = _crCallsRaw.find(c => c._id === callId);
+  if(!call) return;
+  const displayName = normalizeAgentDisplay(agentName);
+  call._agentTx = agentName;
+  call._agent   = displayName;
+  showToast(`✅ Assigned ${displayName} to ${call._caller}`, 'success');
+  // Rebuild leaderboard with updated attribution
+  buildCRAgentLeaderboard();
+  // Re-render just this row's agent display
+  renderCallsTable();
+}
+
+// Save transcripts to Sheets CR_Transcripts tab
+async function saveTranscriptsToSheets() {
+  if(!_sheetsProxy) { showToast('Connect to Sheets first','error'); return; }
+  const withTx = _crCallsRaw.filter(c => c._transcript);
+  if(!withTx.length) { showToast('No transcripts in current CR data — fetch calls first','warn'); return; }
+
+  showToast(`Saving ${withTx.length} transcripts to Sheets...`, 'info');
+  try {
+    const payload = withTx.map(c => ({
+      id:          c._id,
+      datetime:    c._time,
+      caller:      c._caller,
+      phone:       c._number,
+      duration:    c._duration,
+      answered:    c._answered,
+      agent_cr:    c._agentCR || '',
+      agent_tx:    c._agentTx || '',
+      agent:       c._agent   || '',
+      transcript:  c._transcript,
+      recording:   c._recording || '',
+      note:        c._note       || '',
+      disposition: c._disposition|| '',
+    }));
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'saveTranscripts', transcripts: payload })
+    });
+    const d = await res.json().catch(()=>({}));
+    if(d.success) showToast(`✅ ${withTx.length} transcripts saved to CR_Transcripts tab`,'success');
+    else throw new Error(d.error||'Unknown error');
+  } catch(e) {
+    showToast('Save failed: '+e.message,'error');
+  }
+}
+
+
 async function saveCallsToSheets(source) {
   if(!_sheetsProxy) { showToast('Connect to Sheets first','error'); return; }
   const calls = source==='callrail' ? _crCallsRaw : _rcCallsRaw;
@@ -7747,12 +8143,23 @@ function renderMonthlyBars(){
   const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthlyTarget=250000;
 
-  // Aggregate paid jobs by month
+  // Aggregate by payment date (invoice map) — same source as rev_monthly/rev_annual
   const byMonth=new Array(12).fill(0);
-  _jobs.filter(isJobPaid).forEach(j=>{
-    const d=new Date(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
-    if(d.getFullYear()===currentYear) byMonth[d.getMonth()]+=getJobTotal(j);
-  });
+  if(_invoiceMap && Object.keys(_invoiceMap).length > 0){
+    Object.values(_invoiceMap).forEach(payments => {
+      payments.forEach(p => {
+        if(!p.date || p.amount <= 0) return;
+        const d = new Date(p.date + 'T12:00:00');
+        if(d.getFullYear()===currentYear) byMonth[d.getMonth()]+=p.amount;
+      });
+    });
+  } else {
+    // Fallback: no invoice map — use job completion dates
+    _jobs.filter(isJobPaid).forEach(j=>{
+      const d=new Date(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at);
+      if(d.getFullYear()===currentYear) byMonth[d.getMonth()]+=getJobTotal(j);
+    });
+  }
 
   const maxVal=Math.max(...byMonth,monthlyTarget)*1.1;
   const bars=byMonth.map((v,i)=>{
@@ -9226,13 +9633,20 @@ function renderBdayList(){
 
 function loadAnnouncements(){
   _announcements = _announcements || [];
-  renderAnnList();
-  if(_sheetsProxy){
-    fetch(_sheetsProxy+'?action=getAnnouncements',{redirect:'follow'})
-      .then(r=>r.json())
-      .then(d=>{ if(d.success&&d.announcements){ _announcements=d.announcements; renderAnnList(); }})
-      .catch(()=>{});
-  }
+  renderAnnList(); // render whatever is in memory immediately
+  if(!_sheetsProxy) return;
+  fetch(_sheetsProxy+'?action=getAnnouncements', {redirect:'follow'})
+    .then(r => r.json())
+    .then(d => {
+      if(d.success && d.announcements) {
+        _announcements = d.announcements;
+        renderAnnList();
+        console.log('[Announcements] Loaded', d.announcements.length, 'from Sheets');
+      } else {
+        console.warn('[Announcements] getAnnouncements returned:', JSON.stringify(d).slice(0,200));
+      }
+    })
+    .catch(e => console.warn('[Announcements] Fetch failed:', e.message));
 }
 
 function saveAnnouncements(){
@@ -9472,26 +9886,25 @@ function moveAnnouncement(id, direction) {
 }
 
 function loadSpotlights(){
-  // Load from localStorage first (instant)
   _spotlights = _spotlights || [];
   _promos = _promos || [];
-  renderSpotlightList();
+  renderSpotlightList(); // render whatever is in memory immediately
   renderPromoList();
-  // Then fetch from Sheets (source of truth — persists across browsers/sessions)
-  if(_sheetsProxy){
-    fetch(_sheetsProxy+'?action=getSpotlights',{redirect:'follow',mode:'cors'})
-      .then(r=>r.json())
-      .then(data=>{
-        if(data.success){
-          if(data.spotlights) _spotlights=data.spotlights;
-          if(data.promos)     _promos=data.promos;
-          // Spotlights/promos live in their dedicated Sheets tabs — don't copy to Settings
-          renderSpotlightList();
-          renderPromoList();
-        }
-      })
-      .catch(()=>{}); // silently fail — localStorage already shown
-  }
+  if(!_sheetsProxy) return;
+  fetch(_sheetsProxy+'?action=getSpotlights', {redirect:'follow'})
+    .then(r => r.json())
+    .then(data => {
+      if(data.success) {
+        if(data.spotlights) _spotlights = data.spotlights;
+        if(data.promos)     _promos     = data.promos;
+        renderSpotlightList();
+        renderPromoList();
+        console.log('[Spotlights] Loaded', _spotlights.length, 'spotlights,', _promos.length, 'promos from Sheets');
+      } else {
+        console.warn('[Spotlights] getSpotlights returned:', JSON.stringify(data).slice(0,200));
+      }
+    })
+    .catch(e => console.warn('[Spotlights] Fetch failed:', e.message));
 }
 
 // Alias for missing function calls
