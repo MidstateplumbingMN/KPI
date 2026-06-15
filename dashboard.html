@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.23</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.30</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.23</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.30</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.23</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.30</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1432,6 +1432,10 @@ tr:hover td{background:#fafafa}
             <button onclick="testCallRail()" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
             <button onclick="saveCallsToSheets('callrail')" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
             <button onclick="saveTranscriptsToSheets()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">📝 Save Transcripts</button>
+            <label style="padding:6px 12px;background:#F59E0B;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload CallRail Analytics Export (.xlsx) to improve agent attribution">
+              📊 Upload CR Export
+              <input type="file" accept=".xlsx" style="display:none" onchange="loadCRExcel(this.files[0])">
+            </label>
             <button onclick="clearCallsResult('cr')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
           </div>
           <div id="cr-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
@@ -1464,6 +1468,10 @@ tr:hover td{background:#fafafa}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button onclick="testRingCentral()" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
             <button onclick="saveCallsToSheets('rc')" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
+            <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload RC Analytics → Performance Reports → Users export (.xlsx) for accurate per-agent counts">
+              📊 Upload RC Report
+              <input type="file" accept=".xlsx" style="display:none" onchange="loadRCExcel(this.files[0])">
+            </label>
             <button onclick="clearCallsResult('rc')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
           </div>
           <div id="rc-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
@@ -1506,6 +1514,7 @@ tr:hover td{background:#fafafa}
                   <th onclick="sortAgentTable('total')"    style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Total ↕</th>
                   <th onclick="sortAgentTable('ansRate')"  style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Ans Rate ↕</th>
                   <th onclick="sortAgentTable('avgDur')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Avg Dur ↕</th>
+                  <th style="padding:8px 12px;text-align:right;border-bottom:1px solid #e5e7eb;color:#374151" title="Estimates booked ÷ filtered bookable customer calls. Excludes: spam/hangups (<10s), tech call-ins, dispatcher personal phones, vendors, generic area caller IDs. Upload CallRail export for accurate filtering. ~ = proportional estimate by call share.">Booking Rate 📅</th>
                   <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;color:#374151">Type</th>
                 </tr>
               </thead>
@@ -2777,7 +2786,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.23
+  // ATTRIBUTION ENGINE — v24.30
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4927,7 +4936,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.23',  // dashboard version that generated this push
+    dash_version: 'v24.30',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5564,7 +5573,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.23',
+        dash_version:        'v24.30',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6577,17 +6586,16 @@ async function testCallRail() {
     _crCallsRaw = allCalls.map(c => {
       const transcript  = c.transcription || '';
       const agentFromCR = c.agent_email || c.agent?.name || c.agent?.email || '';
-      const agentFromTx = attributeAgentFromTranscript(transcript);
-      return {
+      const callObj = {
         _source:      'CallRail',
         _id:          c.id,
         _time:        c.start_time,
         _caller:      c.customer_name || 'Unknown',
         _number:      c.customer_phone_number || '',
         _direction:   c.direction || 'inbound',
-        _agent:       agentFromTx || agentFromCR || '',  // transcript attribution wins
-        _agentCR:     agentFromCR,                       // original CR agent field
-        _agentTx:     agentFromTx,                       // transcript-derived agent
+        _agentCR:     agentFromCR,
+        _agentTx:     '',  // populated after full object created
+        _agent:       agentFromCR || '',
         _duration:    parseInt(c.duration)||0,
         _answered:    c.answered === true,
         _missed:      c.answered === false || c.duration === 0,
@@ -6599,13 +6607,27 @@ async function testCallRail() {
         _disposition: c.call_disposition || '',
         _raw:         c,
       };
+      // Attribute agent using all available signals
+      callObj._agentTx = attributeAgent(callObj);
+      if(callObj._agentTx) callObj._agent = normalizeAgentDisplay(callObj._agentTx);
+      return callObj;
     });
 
     setCallsStatus('cr', true, `✅ ${_crCallsRaw.length} calls`);
     setCallsProgress('cr', `✅ ${_crCallsRaw.length} calls loaded · ${from} → ${to}`);
     renderCallMetrics('cr', _crCallsRaw);
     renderCallsTable();
-    buildCRAgentLeaderboard(); // attribute agents from transcripts → RC_Agents tab
+    buildCRAgentLeaderboard();
+    // Re-render agent summary with booking rates now that CR data is loaded
+    if(_estimates.length) {
+      const br = computeBookingRates();
+      if(br['__company__']) {
+        const c = br['__company__'];
+        dashLog('info', `📅 Booking rate: ${c.rate}% (${c.estimates} booked / ${c.calls} bookable calls — phone+date match)`);
+        renderAgentSummary();
+        renderCallsTable(); // re-render table to show 📅 Booked badges
+      }
+    }
     dashLog('success', `CallRail: ${_crCallsRaw.length} calls fetched`);
   } catch(e) {
     showCallsError('cr', e.message);
@@ -6614,66 +6636,378 @@ async function testCallRail() {
 }
 
 // ============================================================
-// TRANSCRIPT AGENT ATTRIBUTION
-// Scans call transcripts to identify which dispatcher answered
-// based on self-introduction phrases in the opening of the call.
+// CALLRAIL AGENT ATTRIBUTION
+// 
+// HOW THIS WORKS:
+// The CallRail Excel export "Caller Name" = CUSTOMER name (not agent).
+// However, the export reveals dispatcher PERSONAL phone numbers when they
+// appear as callers themselves. These are now hardcoded below.
+//
+// For INBOUND calls: CR API's agent_email field is the primary source.
+// For OUTBOUND calls: the dispatcher's personal phone = the caller number.
+// For inbound calls where agent_email is missing: we match by Call ID to
+// the Excel lookup table (_crExcelLookup) if the user has uploaded it.
+//
+// Confirmed dispatcher phone numbers (from CallRail export analysis):
 // ============================================================
-const CR_AGENT_PATTERNS = [
-  // Bob / Robert Danaher
-  { agent: 'Bob Danaher',      names: ['bob', 'robert danaher', 'robert'] },
-  // Victoria Ellsworth
-  { agent: 'Victoria Ellsworth', names: ['victoria', 'vicky'] },
-  // Eric Stoffel
-  { agent: 'Eric Stoffel',     names: ['eric'] },
-];
 
-// Introduction phrases that precede a name — "this is Bob", "my name is Victoria"
-const INTRO_PATTERNS = [
-  /\bthis is (\w+)/i,
-  /\bmy name is (\w+)/i,
-  /\bspeaking with (\w+)/i,
-  /\byou(?:'re| are) (?:speaking )?(?:with )?(\w+)/i,
-  /\b(\w+) speaking\b/i,
-  /\bhi,?\s+(?:this is\s+)?(\w+)/i,
-  /\bhello,?\s+(?:this is\s+)?(\w+)/i,
-  /\bthank you for calling midstate[,\s]+(?:this is\s+)?(\w+)/i,
-  /\bmidstate [^,]+,\s*(?:this is\s+)?(\w+)/i,
-];
+const DISPATCHER_PHONES = {
+  '6512762506': 'Bob Danaher',        // Robert Danaher personal cell
+  '6127705509': 'Victoria Ellsworth', // Victoria Ellsworth personal cell
+  '6512393697': 'Eric Stoffel',       // Eric Stoffel phone 1
+  '6513070621': 'Eric Stoffel',       // Eric Stoffel phone 2
+};
 
-function attributeAgentFromTranscript(transcript) {
-  if(!transcript || transcript.length < 10) return '';
+// Agent email → display name mapping from CR API
+const AGENT_EMAIL_MAP = {
+  'robert.danaher':  'Bob Danaher',
+  'bob':             'Bob Danaher',
+  'rdanaher':        'Bob Danaher',
+  'victoria':        'Victoria Ellsworth',
+  'vellsworth':      'Victoria Ellsworth',
+  'ellsworth':       'Victoria Ellsworth',
+  'eric':            'Eric Stoffel',
+  'estoffel':        'Eric Stoffel',
+  'stoffel':         'Eric Stoffel',
+};
 
-  // Only scan the first ~500 chars — introductions happen at the start
-  const opening = transcript.slice(0, 500).toLowerCase();
+// Lookup table populated from uploaded Excel — Call_ID → call metadata
+let _crExcelLookup = {}; // populated by loadCRExcel()
 
-  // Try each introduction pattern
-  for(const pat of INTRO_PATTERNS) {
-    const m = opening.match(pat);
-    if(!m) continue;
-    const name = (m[1]||'').toLowerCase().trim();
-    if(!name) continue;
-
-    // Match against known agents
-    for(const agent of CR_AGENT_PATTERNS) {
-      if(agent.names.some(n => n === name || name.includes(n) || n.includes(name))) {
-        return agent.agent;
-      }
-    }
+// Attribute agent from all available signals — priority order:
+// 1. Dispatcher's personal phone is the caller (outbound or field call)
+// 2. CR API agent_email field
+// 3. Excel lookup cross-reference (if user uploaded export)
+function attributeAgent(call) {
+  // 1. Dispatcher phone as caller (outbound calls, field callbacks)
+  const callerPhoneClean = (call._number||'').replace(/\D/g,'');
+  if(callerPhoneClean && DISPATCHER_PHONES[callerPhoneClean]) {
+    return DISPATCHER_PHONES[callerPhoneClean];
   }
 
-  // Fallback: check if any agent name appears anywhere in the opening
-  // (handles less structured introductions)
-  for(const agent of CR_AGENT_PATTERNS) {
-    for(const name of agent.names) {
-      // Only match whole words to avoid false positives
-      const re = new RegExp(`\\b${name}\\b`, 'i');
-      if(re.test(opening)) return agent.agent;
+  // 2. CR API agent_email field
+  const email = (call._agentCR||'').toLowerCase();
+  if(email) {
+    const local = email.split('@')[0]; // take local part of email
+    for(const [key, name] of Object.entries(AGENT_EMAIL_MAP)) {
+      if(local.includes(key)) return name;
     }
+    // If email present but unrecognized, return a cleaned version
+    if(email.includes('@')) return email.split('@')[0];
   }
 
-  return ''; // unattributed — no introduction found
+  // 3. Excel lookup — if user uploaded the CallRail export
+  if(call._id && _crExcelLookup[call._id]) {
+    return _crExcelLookup[call._id].agent || '';
+  }
+
+  return ''; // unattributed
 }
 
+// Keep transcript function for future use if Premium plan is added
+function attributeAgentFromTranscript(transcript) {
+  if(!transcript || transcript.length < 10) return '';
+  // Transcripts require Premium Conversation Intelligence plan
+  // Currently not available — returns empty string
+  return '';
+}
+
+// Load CallRail Excel export and build call ID → agent lookup
+// Users upload their periodic export from CallRail → Analytics → Calls
+function loadCRExcel(file) {
+  if(!window.XLSX) { showToast('Loading Excel parser...','info'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets['Calls'] || wb.Sheets[wb.SheetNames[1]] || wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+
+      // Find header row
+      let headerIdx = -1;
+      for(let i=0; i<Math.min(10,rows.length); i++) {
+        if(rows[i].some(v => String(v||'').toLowerCase().includes('call status'))) {
+          headerIdx = i; break;
+        }
+      }
+      if(headerIdx < 0) { showToast('Could not find header row in Excel','error'); return; }
+
+      const headers = rows[headerIdx].map(h => String(h||'').toLowerCase().trim());
+      const iStatus   = headers.indexOf('call status');
+      const iDur      = headers.findIndex(h => h.includes('duration'));
+      const iCaller   = headers.findIndex(h => h === 'name');
+      const iPhone    = headers.findIndex(h => h.includes('phone'));
+      const iTracking = headers.findIndex(h => h.includes('tracking'));
+      const iRec      = headers.findIndex(h => h.includes('recording'));
+      const iTime     = headers.findIndex(h => h.includes('start'));
+
+      let count = 0;
+      _crExcelLookup = {};
+
+      for(let r = headerIdx+1; r < rows.length; r++) {
+        const row = rows[r];
+        if(!row || !row[iRec]) continue;
+        const recUrl = String(row[iRec]||'');
+        const m = recUrl.match(/\/calls\/(CAL[a-f0-9]+)\//);
+        if(!m) continue;
+        const callId = m[1];
+
+        // Determine agent from phone number
+        const phoneRaw = String(row[iPhone]||'').replace(/\D/g,'');
+        const agentFromPhone = DISPATCHER_PHONES[phoneRaw] || '';
+
+        _crExcelLookup[callId] = {
+          status:    row[iStatus],
+          dur:       parseInt(row[iDur])||0,
+          caller:    row[iCaller],
+          phone:     row[iPhone],
+          tracking:  row[iTracking],
+          dt:        row[iTime],
+          agent:     agentFromPhone, // only set if dispatcher's own number called
+        };
+        count++;
+      }
+
+      const agentMatches = Object.values(_crExcelLookup).filter(v=>v.agent).length;
+      showToast(`✅ CallRail Excel loaded: ${count} calls indexed, ${agentMatches} dispatcher phone matches`, 'success');
+      console.log(`[CR Excel] Loaded ${count} call IDs. Agent matches from phone: ${agentMatches}`);
+      dashLog('info', `CR Excel: ${count} calls loaded, ${agentMatches} dispatcher phone matches`);
+
+      // Re-attribute any already-fetched calls
+      if(_crCallsRaw.length) {
+        _crCallsRaw = _crCallsRaw.map(c => ({
+          ...c,
+          _agentTx: attributeAgent(c),
+          _agent:   normalizeAgentDisplay(attributeAgent(c)) || c._agent,
+        }));
+        buildCRAgentLeaderboard();
+        renderCallsTable();
+        showToast('Leaderboard updated with Excel attribution', 'success');
+      }
+    } catch(err) {
+      console.error('[CR Excel] Parse error:', err);
+      showToast('Excel parse error: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+
+// Load RingCentral per-user call report Excel
+// Export from RC Analytics → Performance Reports → Users → Export
+// This is the AUTHORITATIVE source for per-agent call counts
+function loadRCExcel(file) {
+  if(!window.XLSX) {
+    // Load SheetJS first then retry
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => loadRCExcel(file);
+    document.head.appendChild(s);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, {type:'array'});
+      const ws   = wb.Sheets['Users'] || wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+
+      // Find header row
+      let headerIdx = -1;
+      for(let i = 0; i < Math.min(5, rows.length); i++) {
+        if(rows[i].some(v => String(v||'').toLowerCase() === 'name')) {
+          headerIdx = i; break;
+        }
+      }
+      if(headerIdx < 0) { showToast('Could not find header row in RC report','error'); return; }
+
+      const h    = rows[headerIdx].map(v => String(v||'').toLowerCase().trim());
+      const iName  = h.findIndex(v => v === 'name');
+      const iExt   = h.findIndex(v => v === 'ext' || v.includes('ext'));
+      const iTotal = h.findIndex(v => v.includes('total'));
+      const iIn    = h.findIndex(v => v.includes('inbound'));
+      const iOut   = h.findIndex(v => v.includes('outbound'));
+      const iMiss  = h.findIndex(v => v.includes('missed'));
+      const iDur   = h.findIndex(v => v.includes('handle') || v.includes('duration'));
+
+      const agents = [];
+      for(let r = headerIdx+1; r < rows.length; r++) {
+        const row = rows[r];
+        if(!row || !row[iName]) continue;
+        const name    = String(row[iName]||'').trim();
+        if(!name) continue;
+        const inbound  = parseInt(row[iIn])  || 0;
+        const outbound = parseInt(row[iOut]) || 0;
+        const total    = parseInt(row[iTotal]) || (inbound + outbound);
+        const missedPct = parseFloat(row[iMiss]) || 0;
+        const missed   = Math.round(total * missedPct / 100);
+        const answered = inbound - missed;
+        const ext      = String(row[iExt]||'').trim();
+
+        // Parse avg handle time — could be "0:02:28" or "0 days 00:02:28"
+        let avgDurSec = 0;
+        const durRaw = String(row[iDur]||'');
+        const durM = durRaw.match(/(\d+):(\d+):(\d+)\s*$/);
+        if(durM) avgDurSec = parseInt(durM[1])*3600 + parseInt(durM[2])*60 + parseInt(durM[3]);
+
+        const ansRate = total > 0 ? Math.round(answered/inbound*100) : 0;
+
+        agents.push({ name, ext, total, inbound, outbound, missed, answered, ansRate, avgDur: avgDurSec, missedPct });
+      }
+
+      if(!agents.length) { showToast('No user rows found in RC report','error'); return; }
+
+      // Map to RC_Agents format — same schema the companion reads
+      const DISPATCH_EXTS = new Set(['102','103','105','106','107']); // Bob, Victoria, Eric, Jody, Jason
+      const reportDate = new Date().toISOString().split('T')[0];
+      const reportPeriod = 'Jan 1 – Jun 14, 2026'; // from Filters sheet if parseable
+
+      // Compute booking rates against current _estimates
+      const validEsts = (_estimates||[]).filter(e => {
+        const s = (e.work_status||e.status||'').toLowerCase();
+        return s !== 'canceled' && s !== 'draft';
+      });
+
+      // Use filtered CallRail bookable calls if available, else fall back to RC answered
+      // This avoids inflating denominator with spam/staff/vendor calls
+      let bookableCallCount = 0;
+      let bookableSource = 'RC answered (unfiltered)';
+      if(_crCallsRaw.length > 0) {
+        // Re-use the same filter logic as computeBookingRates()
+        bookableCallCount = computeBookingRates()['__company__']?.calls || 0;
+        bookableSource = 'CallRail filtered';
+      }
+      if(!bookableCallCount) {
+        // Fallback: RC answered inbound across dispatchers
+        bookableCallCount = agents.reduce((s,a) => s+Math.round((a.inbound||0)*(1-(a.missedPct||0)/100)), 0);
+        bookableSource = 'RC answered (unfiltered)';
+      }
+
+      const dispatchers = agents.filter(a => DISPATCH_EXTS.has(String(a.ext)));
+      const dispTotalInbound = dispatchers.reduce((s,a)=>s+(a.inbound||0),0);
+      const companyAnswered = agents.reduce((s,a)=>s+Math.round((a.inbound||0)*(1-(a.missedPct||0)/100)),0);
+      const companyRate = bookableCallCount>0 ? Math.round(validEsts.length/bookableCallCount*100) : 0;
+
+      const agentsForTab = agents.map(a => {
+        const agentAnswered = Math.round(a.inbound*(1-a.missedPct/100));
+        const share = dispTotalInbound > 0 ? (a.inbound||0)/dispTotalInbound : 0;
+        const impliedBookable = Math.round(bookableCallCount * share);
+        const impliedEsts     = Math.round(validEsts.length * share);
+        const bookingRate = impliedBookable > 0 ? Math.round(impliedEsts/impliedBookable*100) : 0;
+        return {
+          name:             a.name,
+          ext:              String(a.ext||''),
+          inbound:          a.inbound,
+          outbound:         a.outbound,
+          answered:         agentAnswered,
+          missed:           a.inbound - agentAnswered,
+          ans_rate:         agentAnswered>0 ? Math.round(agentAnswered/a.inbound*100) : 0,
+          missed_pct:       a.missedPct.toFixed(1),
+          avg_dur_sec:      a.avgDur,
+          booking_rate:     DISPATCH_EXTS.has(String(a.ext)) ? bookingRate : '',
+          estimates_implied:DISPATCH_EXTS.has(String(a.ext)) ? impliedEsts : '',
+          pinned:           ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
+          category:         DISPATCH_EXTS.has(String(a.ext)) ? 'dispatch' : 'agent',
+        };
+      });
+
+      showToast(`✅ RC report loaded: ${agents.length} users | Booking rate: ${companyRate}% (${bookableSource})`, 'success');
+      dashLog('success', `RC Excel: ${agents.length} users | Booking rate: ${companyRate}% (${validEsts.length} estimates / ${bookableCallCount} ${bookableSource} calls)`);
+
+      // Log full breakdown
+      console.log('[RC Excel] User breakdown:');
+      agents.sort((a,b)=>b.inbound-a.inbound).forEach(a => {
+        const ans = Math.round(a.inbound*(1-a.missedPct/100));
+        console.log(`  ${a.name.padEnd(22)} Ext:${a.ext} | In:${a.inbound} | Ans:${ans} | Missed:${a.missedPct.toFixed(1)}% | Avg:${Math.floor(a.avgDur/60)}m${a.avgDur%60}s`);
+      });
+      console.log(`[RC Excel] Company booking rate: ${companyRate}% (${validEsts.length} estimates / ${companyAnswered} answered inbound)`);
+
+      // Update local leaderboard state
+      _rcSnap = _rcSnap || {};
+      _rcSnap.leaderboard = agentsForTab.map(a => ({
+        name:      a.name,
+        answered:  a.answered,
+        missed:    a.missed,
+        total:     a.inbound + a.outbound,
+        inbound:   a.inbound,
+        outbound:  a.outbound,
+        ansRate:   a.ans_rate,
+        avgDur:    a.avg_dur_sec,
+        missedPct: parseFloat(a.missed_pct)||0,
+        isDispatch:DISPATCH_EXTS.has(a.ext),
+        category:  a.category,
+        bookingRate: a.booking_rate,
+        estimatesImplied: a.estimates_implied,
+      }));
+      renderAgentSummary();
+
+      // Push everything to Sheets
+      if(_sheetsProxy) {
+        // 1. RC_Agents tab — full per-user data
+        fetch(_sheetsProxy, {
+          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+          body: JSON.stringify({
+            action: 'syncRCAgents',
+            agents: agentsForTab,
+            source: 'RingCentral-Export',
+            report_date: reportDate,
+          })
+        }).then(r=>r.json())
+          .then(d => { if(d.success) dashLog('info', `RC_Agents tab updated (${d.rows} rows) ✅`); })
+          .catch(e=>console.warn('[RC Excel] RC_Agents push failed:', e.message));
+
+        // 2. KPI_Dashboard — booking rate + summary keys (staggered 1s)
+        setTimeout(() => {
+          fetch(_sheetsProxy, {
+            method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+            body: JSON.stringify({
+              action:           'syncRingCentral',
+              total:            agents.reduce((s,a)=>s+a.total,0),
+              answered:         companyAnswered,
+              answer_rate:      companyRate,
+              booking_rate:     companyRate,
+              report_date:      reportDate,
+              report_period:    reportPeriod,
+              total_estimates:  validEsts.length,
+            })
+          }).then(r=>r.json())
+            .then(d => { if(d.success) dashLog('info','KPI_Dashboard rc_booking_rate updated ✅'); })
+            .catch(e=>console.warn('[RC Excel] KPI snapshot push failed:', e.message));
+        }, 1000);
+
+        // 3. RC_BookingRate history tab — append snapshot (staggered 2s)
+        setTimeout(() => {
+          const agentRates = agentsForTab
+            .filter(a => a.booking_rate !== '')
+            .map(a => ({ name:a.name, calls:a.answered, rate:a.booking_rate, estimates:a.estimates_implied }));
+          fetch(_sheetsProxy, {
+            method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+            body: JSON.stringify({
+              action:           'saveRCBookingRate',
+              report_period:    reportPeriod,
+              company_rate:     companyRate,
+              total_estimates:  validEsts.length,
+              total_calls:      bookableCallCount,
+              calls_source:     bookableSource,
+              agent_rates:      agentRates,
+            })
+          }).then(r=>r.json())
+            .then(d => {
+              if(d.success) {
+                showToast('✅ All RC data saved to Sheets (Agents + Booking Rate history)', 'success');
+                dashLog('success', `RC_BookingRate history row appended ✅`);
+              }
+            }).catch(e=>console.warn('[RC Excel] BookingRate history push failed:', e.message));
+        }, 2000);
+      }
+
+    } catch(err) {
+      console.error('[RC Excel] Parse error:', err);
+      showToast('RC Excel parse error: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 // Build agent call leaderboard from CallRail transcript attribution
 // Writes to RC_Agents Sheets tab — same tab the companion reads
@@ -6931,9 +7265,11 @@ function renderAgentSummary() {
   const footer = $$('agent-summary-footer');
   if(!tbody) return;
 
-  // Use full leaderboard from _rcSnap — includes ALL agents, even phantom/queue
   const lb = _rcSnap?.leaderboard || [];
   if(!lb.length) return;
+
+  // Compute booking rates from HCP estimate data
+  const bookingRates = computeBookingRates();
 
   // Sort
   const sorted = [...lb].sort((a,b) => {
@@ -6944,33 +7280,238 @@ function renderAgentSummary() {
   });
 
   const fmtDur = s => { const m=Math.floor(s/60),sec=s%60; return m>0?`${m}m ${String(sec).padStart(2,'0')}s`:`${s}s`; };
-  const DISPATCH = new Set(['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Bob D.','Victoria','Eric']);
+  const DISPATCH_NAMES = new Set(['Robert Danaher','Victoria Ellsworth','Eric Stoffel',
+                                   'Jody Serres','Jason Cornell','Bob D.','Victoria','Eric']);
 
   tbody.innerHTML = sorted.map(a => {
-    const isDispatch = DISPATCH.has(a.name) || a.isDispatch;
+    const isDispatch = DISPATCH_NAMES.has(a.name) || a.isDispatch || a.category === 'dispatch';
     const typeLabel  = isDispatch ? '🎧 Dispatch' : a.name.toLowerCase().includes('voicemail') ? '📬 Voicemail' : '👤 Agent';
     const rateColor  = a.ansRate >= 90 ? '#166534' : a.ansRate >= 70 ? '#92400E' : '#991B1B';
     const rateBg     = a.ansRate >= 90 ? '#F0FDF4' : a.ansRate >= 70 ? '#FFFBEB' : '#FEF2F2';
+
+    // Booking rate cell
+    const br = bookingRates[a.name];
+    let bookingCell = '<td style="padding:7px 12px;text-align:right;color:#9ca3af;font-size:11px">—</td>';
+    if(br) {
+      const pct = br.rate;
+      const brColor = pct >= 40 ? '#166534' : pct >= 25 ? '#92400E' : '#991B1B';
+      const brBg    = pct >= 40 ? '#F0FDF4' : pct >= 25 ? '#FFFBEB' : '#FEF2F2';
+      const isProp  = br.method === 'proportional';
+      const tooltip = isProp
+        ? `~${br.estimates} bookings / ~${br.calls} opportunities (proportional by call share — upload daily RC report for exact per-dispatcher attribution)`
+        : `${br.estimates} confirmed bookings / ${br.calls} unique customer opportunities (phone + same-day estimate match)`;
+      bookingCell = `<td style="padding:7px 12px;text-align:right">
+        <span style="background:${brBg};color:${brColor};padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700"
+              title="${tooltip}">
+          ${isProp?'~':''}${pct}%
+        </span>
+        <div style="font-size:10px;color:#9ca3af;margin-top:1px">${isProp?'~':''}${br.estimates} / ${isProp?'~':''}${br.calls}${isProp?' ⓘ':''}</div>
+      </td>`;
+    }
+
     return `<tr style="border-bottom:1px solid #f3f4f6;${isDispatch?'background:#eff6ff':''}">
       <td style="padding:7px 12px;font-weight:${isDispatch?'700':'400'};color:#111827">${escHtml(a.name)}</td>
-      <td style="padding:7px 12px;text-align:right;font-weight:700;color:#059669">${a.answered}</td>
-      <td style="padding:7px 12px;text-align:right;color:${a.missed>0?'#DC2626':'#6b7280'}">${a.missed}</td>
-      <td style="padding:7px 12px;text-align:right;color:#374151">${a.total}</td>
+      <td style="padding:7px 12px;text-align:right;font-weight:700;color:#059669">${a.answered?.toLocaleString()??'—'}</td>
+      <td style="padding:7px 12px;text-align:right;color:${(a.missed||0)>0?'#DC2626':'#6b7280'}">${(a.missed||0).toLocaleString()}</td>
+      <td style="padding:7px 12px;text-align:right;color:#374151">${(a.total||0).toLocaleString()}</td>
       <td style="padding:7px 12px;text-align:right">
-        <span style="background:${rateBg};color:${rateColor};padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700">${a.ansRate}%</span>
+        <span style="background:${rateBg};color:${rateColor};padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700">${a.ansRate??'—'}%</span>
       </td>
       <td style="padding:7px 12px;text-align:right;color:#6b7280">${a.avgDur>0?fmtDur(a.avgDur):'—'}</td>
+      ${bookingCell}
       <td style="padding:7px 12px;font-size:11px;color:#6b7280">${typeLabel}</td>
     </tr>`;
   }).join('');
 
-  // Totals footer
-  const totalAnswered = lb.reduce((s,a)=>s+a.answered,0);
-  const totalMissed   = lb.reduce((s,a)=>s+a.missed,0);
-  const totalTotal    = lb.reduce((s,a)=>s+a.total,0);
-  if(footer) footer.textContent = `${lb.length} agents · ${totalAnswered.toLocaleString()} answered · ${totalMissed.toLocaleString()} missed · ${totalTotal.toLocaleString()} total`;
+  // Company-level booking rate in footer
+  const totalAnswered = lb.reduce((s,a)=>s+(a.answered||0),0);
+  const totalMissed   = lb.reduce((s,a)=>s+(a.missed||0),0);
+  const totalTotal    = lb.reduce((s,a)=>s+(a.total||0),0);
+  const companyBR = bookingRates['__company__'];
+  const brSummary = companyBR
+    ? ` · 📅 Booking rate: <strong>${companyBR.rate}%</strong> (${companyBR.estimates} booked / ${companyBR.calls} unique customer opportunities)`
+    : (_crCallsRaw.length ? ' · Fetch CR calls + pull report to see booking rate' : ' · 📅 Upload CallRail export to compute booking rate');
+  if(footer) footer.innerHTML = `${totalTotal.toLocaleString()} total · ${totalAnswered.toLocaleString()} answered · ${totalMissed.toLocaleString()} missed${brSummary}`;
   if(badge) badge.textContent = `${lb.length} agents · ${totalTotal.toLocaleString()} calls`;
 }
+
+// ============================================================
+// BOOKING RATE — phone number + date match
+// For each CallRail inbound call, look for an HCP estimate
+// created the same day for the same customer phone number.
+// That's a confirmed booking from that call.
+// ============================================================
+
+// Normalize phone to 10-digit string for comparison
+function normPhone(p) {
+  if(!p) return '';
+  const d = String(p).replace(/\D/g,'');
+  return d.length >= 10 ? d.slice(-10) : d;
+}
+
+function computeBookingRates() {
+  const rates = {};
+  if(!_estimates.length) return rates;
+
+  // ── Filter estimates ──────────────────────────────────────────────────────────
+  const validEsts = _estimates.filter(e => {
+    const s = (e.work_status||e.status||'').toLowerCase();
+    return s !== 'canceled' && s !== 'draft';
+  });
+
+  // ── Build phone → estimate date lookup ───────────────────────────────────────
+  const estByPhone = {};
+  validEsts.forEach(e => {
+    const cust  = e.customer || {};
+    const phone = normPhone(cust.mobile_number || cust.home_number || cust.work_number || '');
+    if(!phone) return;
+    const dateStr = (e.created_at || e.schedule?.scheduled_start || '').split('T')[0];
+    if(!dateStr) return;
+    if(!estByPhone[phone]) estByPhone[phone] = [];
+    estByPhone[phone].push({ date: dateStr, id: e.id });
+  });
+
+  const estPhoneSet = new Set(Object.keys(estByPhone));
+  console.log(`[Booking Rate] ${validEsts.length} estimates indexed. ${estPhoneSet.size} unique phones.`);
+
+  // ── Bail if no CR data ────────────────────────────────────────────────────────
+  if(!_crCallsRaw.length) {
+    console.log('[Booking Rate] No CallRail data — fetch CR calls first for phone matching');
+    return rates;
+  }
+
+  // ── Filter bookable calls ────────────────────────────────────────────────────
+  const TECH_NAMES = new Set([
+    'Glenn Jonathan','Jonathan Glenn','Radant Gordon','Gordon Radant',
+    'Daniels Amy','Amy Daniels','Schlosser Lukas','Lukas Schlosser',
+    'Blaiser Gannon','Gannon Blaiser','Hohenauer','Mitchell Mary',
+    'Stoffel Eric','Eric Stoffel','McNamara Doug','Doug McNamara',
+    'Danaher Robert','Robert Danaher','Ellsworth Victo','Victoria Ellsworth',
+    'Cornell Jason','Jason Cornell','Serres Jody','Jody Serres',
+    'Secrest Bob','Bob Secrest','Hanson Cory','Cory Hanson',
+  ]);
+  const GENERIC_RE = /wireless caller|twin cities mn|detroit lake mn|red wing mn|windom mn|lake city mn|north branch mn|saint cloud mn|hastings mn|rochester mn|washington z dc|phoenix az|miami fl|san jose ca|unavailable|unknown|mid state plumb/i;
+  const VENDOR_RE  = /\b(inc|llc|corp|supply|roofing|electric|plumbing|construction|builder|hvac|services|svc|svcs|financial|capital|group|media|yelp|choice home|zentrades|cmg|avidxchange|fieldstone|otis elevator|ace supply|pure plumbing|judge appliance|kaufman|gardner law|kiehm|knutson|lawrence build|smart builder|direct bus|direct business)\b/i;
+  const DISP_PHONES = new Set(['6512762506','6127705509','6512393697','6513070621']);
+
+  const bookableCR = _crCallsRaw.filter(c => {
+    if(c._direction !== 'inbound') return false;
+    if(!c._answered)               return false;
+    if(c._duration < 10)           return false;
+    const ph = normPhone(c._number);
+    if(DISP_PHONES.has(ph))        return false;
+    const n = (c._caller||'').trim();
+    if(TECH_NAMES.has(n))          return false;
+    if(GENERIC_RE.test(n))         return false;
+    if(VENDOR_RE.test(n))          return false;
+    return true;
+  });
+
+  // ── Match: unique phone+date opportunities ───────────────────────────────────
+  // Deduplicate BOTH sides:
+  //   Denominator: unique customer phone+date pairs (not total calls)
+  //     → if a customer calls twice in a day, that's 1 opportunity, not 2
+  //   Numerator: one booking per phone+date pair even if multiple estimates exist
+  //     → customer gets one estimate, one booking credit
+  //
+  // Process calls sorted oldest-first so the FIRST call gets the 📅 Booked badge
+
+  const callsSorted = [...bookableCR].sort((a,b) => {
+    const ta = a._time ? new Date(a._time) : 0;
+    const tb = b._time ? new Date(b._time) : 0;
+    return ta - tb;
+  });
+
+  const seenOpportunities = new Set(); // phone|date → already seen as opportunity
+  const seenBookings      = new Set(); // phone|date → already counted as booking
+  const opportunities     = [];        // unique phone+date pairs (denominator)
+  const matched           = [];        // confirmed bookings (numerator)
+
+  // Reset all booking flags
+  _crCallsRaw.forEach(c => { c._booked = false; c._bookedEstId = null; });
+
+  callsSorted.forEach(c => {
+    const phone    = normPhone(c._number);
+    const callDate = (c._time||'').split('T')[0];
+    if(!phone || !callDate) return;
+
+    const oppKey = `${phone}|${callDate}`;
+
+    // Count this phone+date as ONE opportunity regardless of how many times they called
+    if(!seenOpportunities.has(oppKey)) {
+      seenOpportunities.add(oppKey);
+      opportunities.push(c); // first call for this opportunity
+    }
+
+    // Check for a same-day estimate — only count once per phone+date
+    if(!seenBookings.has(oppKey)) {
+      const ests    = estByPhone[phone];
+      const sameDay = ests?.find(e => e.date === callDate);
+      if(sameDay) {
+        seenBookings.add(oppKey);
+        matched.push({ call: c, est: sameDay });
+        c._booked      = true;  // mark FIRST call that triggered the booking
+        c._bookedEstId = sameDay.id;
+      }
+    }
+  });
+
+  const bookableCalls = opportunities.length;  // unique customer opportunities
+  const bookedCalls   = matched.length;         // unique confirmed bookings
+  const companyRate   = bookableCalls > 0 ? Math.round(bookedCalls / bookableCalls * 100) : 0;
+
+  console.log(`[Booking Rate] ${bookedCalls} confirmed bookings / ${bookableCalls} unique customer opportunities = ${companyRate}%`);
+  console.log(`  (Total bookable call records: ${bookableCR.length} — deduplicated to ${bookableCalls} unique phone+day pairs)`);
+
+  // ── Company rate ──────────────────────────────────────────────────────────────
+  if(bookableCalls > 0) {
+    rates['__company__'] = { calls: bookableCalls, estimates: bookedCalls, rate: companyRate, method: 'phone_match' };
+  }
+
+  // ── Per-dispatcher ────────────────────────────────────────────────────────────
+  const lb = _rcSnap?.leaderboard || [];
+  const dispatchers = lb.filter(a =>
+    a.category === 'dispatch' ||
+    ['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell'].includes(a.name)
+  );
+
+  if(dispatchers.length) {
+    // Try transcript/agent attribution first
+    const agentBookable = {}, agentBooked = {};
+    let attributed = 0;
+    bookableCR.forEach(c => {
+      const agent = normalizeAgentDisplay(c._agentTx || c._agentCR || '');
+      if(!agent) return;
+      agentBookable[agent] = (agentBookable[agent]||0) + 1;
+      if(c._booked) { agentBooked[agent] = (agentBooked[agent]||0) + 1; attributed++; }
+    });
+
+    if(attributed > 0) {
+      dispatchers.forEach(a => {
+        const bookable = agentBookable[a.name]||0;
+        const booked   = agentBooked[a.name]  ||0;
+        if(!bookable) return;
+        rates[a.name] = { calls: bookable, estimates: booked, rate: Math.round(booked/bookable*100), method: 'phone_match' };
+      });
+    } else {
+      // No attribution — proportional by inbound share
+      const dispTotal = dispatchers.reduce((s,a)=>s+(a.inbound||0),0);
+      if(dispTotal > 0) {
+        dispatchers.forEach(a => {
+          const share = (a.inbound||0)/dispTotal;
+          const b = Math.round(bookableCalls*share);
+          const m = Math.round(bookedCalls*share);
+          if(!b) return;
+          rates[a.name] = { calls: b, estimates: m, rate: Math.round(m/b*100), method: 'proportional' };
+        });
+      }
+    }
+  }
+
+  return rates;
+}
+
+
 
 
 let _callsTableData = [];
@@ -7062,8 +7603,9 @@ function filterCallsTable() {
       <td style="padding:7px 12px;max-width:130px">${agentDisplay}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._agentExt||'—')}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px">${c._duration>0?fmtDuration(c._duration):'—'}</td>
-      <td style="padding:7px 12px;display:flex;align-items:center;gap:6px">
+      <td style="padding:7px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span>
+        ${c._booked ? '<span style="font-size:10px;padding:2px 6px;border-radius:20px;background:#D1FAE5;color:#065F46;font-weight:700" title="Estimate found for this phone number on same day — confirmed booking">📅 Booked</span>' : ''}
         ${txBtn}
       </td>
     </tr>${txRow}`;
