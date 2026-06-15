@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.80</title>
+<title>Midstate — KPI Command Center v2.82</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1108,12 +1108,34 @@ html, body {
       <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:14px">
 
         <!-- LEFT: Rotating period hero + RC stats -->
-        <div class="card" style="display:flex;flex-direction:column;padding:24px;gap:18px">
-          <!-- Rotating big number -->
-          <div id="calls-period-card" style="text-align:center;flex-shrink:0">
-            <div style="font-family:var(--font-display);font-size:clamp(56px,8vw,104px);color:var(--blue);font-weight:900;line-height:1;transition:opacity .3s" id="calls-period-val">0</div>
-            <div style="font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.6);margin-top:6px" id="calls-period-label">Today</div>
-            <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:2px">📞 Inbound Calls</div>
+        <div class="card" style="display:flex;flex-direction:column;padding:24px;gap:14px">
+          <!-- Rotating big number + sparkline + goal ring -->
+          <div style="display:flex;align-items:center;gap:18px;flex-shrink:0">
+            <div id="calls-period-card" style="text-align:center;flex:1;min-width:0">
+              <div style="font-family:var(--font-display);font-size:clamp(52px,7.5vw,96px);color:var(--blue);font-weight:900;line-height:1;transition:opacity .3s" id="calls-period-val">0</div>
+              <div style="font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.6);margin-top:6px" id="calls-period-label">Today</div>
+              <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:2px">📞 Inbound Calls</div>
+              <!-- 7-day sparkline -->
+              <div style="height:28px;margin-top:8px;position:relative">
+                <svg id="calls-sparkline-svg" style="position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible"></svg>
+              </div>
+              <div style="font-size:12px;color:rgba(255,255,255,.25);margin-top:2px;letter-spacing:.06em">Last 7 days</div>
+            </div>
+
+            <!-- Goal progress ring -->
+            <div style="flex-shrink:0;text-align:center">
+              <svg width="92" height="92" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
+                <circle cx="46" cy="46" r="40" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="8"/>
+                <circle id="calls-goal-ring" cx="46" cy="46" r="40" fill="none" stroke="#00BFA5" stroke-width="8"
+                  stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round"
+                  style="transition:stroke-dashoffset 1s ease"/>
+              </svg>
+              <div style="margin-top:-66px;margin-bottom:38px">
+                <div style="font-family:var(--font-display);font-size:22px;font-weight:900;color:#00BFA5" id="calls-goal-pct">0%</div>
+              </div>
+              <div style="font-size:12px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em">Daily Goal</div>
+              <div style="font-size:13px;color:rgba(255,255,255,.5);font-family:var(--font-mono)" id="calls-goal-frac">0 / 0</div>
+            </div>
           </div>
 
           <div style="height:1px;background:rgba(255,255,255,.08)"></div>
@@ -1156,13 +1178,16 @@ html, body {
             </div>
             <div style="font-size:14px;color:rgba(255,255,255,.4);margin-top:2px">Inbound calls by day · darker = busier</div>
           </div>
-          <div id="calls-week-heatmap" style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:stretch"></div>
+          <div id="calls-week-heatmap" style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:stretch;min-height:140px"></div>
 
-          <!-- Monthly trend strip below heatmap -->
-          <div style="margin-top:16px;flex-shrink:0">
-            <div style="font-size:14px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Month-to-Date Trend</div>
-            <div style="height:50px;position:relative">
-              <svg id="calls-line-svg" style="position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible"></svg>
+          <!-- Monthly trend strip below heatmap — larger, with gradient fill -->
+          <div style="margin-top:18px;flex-shrink:0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+              <div style="font-size:14px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Month-to-Date Trend</div>
+              <div style="font-size:13px;color:rgba(255,255,255,.3)" id="calls-trend-total"></div>
+            </div>
+            <div style="height:110px;position:relative;background:rgba(255,255,255,.02);border-radius:10px;padding:8px">
+              <svg id="calls-line-svg" style="position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);display:block;overflow:visible"></svg>
             </div>
           </div>
         </div>
@@ -1509,7 +1534,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.80
+      v2.82
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1520,7 +1545,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.80';
+const COMPANION_VERSION = 'v2.82';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1548,6 +1573,10 @@ const CONFIG = {
 
   // Monthly goal
   MONTHLY_GOAL: 250000,
+
+  // Target inbound calls per day — used for the goal ring on Communications scene
+  // Adjust based on typical call volume; ring shows progress toward this
+  DAILY_CALLS_GOAL: 12,
 
   // Data refresh interval (ms)
   REFRESH_MS: 30000,  // 30s refresh — keep wallboard current
@@ -3116,6 +3145,31 @@ async function updateS13() {
         const photo  = getEmpPhoto(lookup, '');
         const medal  = i===0?'①':i===1?'②':'③';
         const hasData = agent.answered > 0;
+        const isStar  = i===0 && hasData;
+
+        // #1 agent gets elevated treatment: glow, larger photo, star badge
+        if(isStar) {
+          return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+            background:linear-gradient(135deg,rgba(255,215,0,.10) 0%,rgba(255,215,0,.02) 100%);
+            border:1.5px solid rgba(255,215,0,.35);box-shadow:0 0 24px rgba(255,215,0,.12);margin-bottom:4px;position:relative">
+            <div style="position:absolute;top:-9px;left:12px;background:#FFD700;color:#1a1a1a;font-size:10px;font-weight:900;
+              padding:2px 8px;border-radius:99px;letter-spacing:.08em;box-shadow:0 2px 6px rgba(0,0,0,.3)">★ STAR AGENT</div>
+            ${photo
+              ? `<img src="${photo}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0;border:2px solid #FFD700;margin-top:4px" onerror="this.style.display='none'">`
+              : `<div style="width:52px;height:52px;border-radius:10px;background:rgba(255,215,0,.08);flex-shrink:0;border:2px solid #FFD700;margin-top:4px"></div>`}
+            <div style="flex:1;min-width:0;margin-top:4px">
+              <div style="font-size:18px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${agent.name}</div>
+              <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:5px;overflow:hidden">
+                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#FFD700,#FFA500);box-shadow:0 0 8px rgba(255,215,0,.5)"></div>
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;min-width:64px;margin-top:4px">
+              <div style="font-family:var(--font-display);font-size:30px;font-weight:900;color:#FFD700;text-shadow:0 0 12px rgba(255,215,0,.4)">${agent.answered}</div>
+              <div style="font-size:15px;color:rgba(255,255,255,.5)">${agent.ansRate}% · ${avgStr}</div>
+            </div>
+          </div>`;
+        }
+
         return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)">
           <div style="font-size:17px;width:18px;text-align:center;color:${col};font-weight:900;flex-shrink:0">${medal}</div>
           ${photo
@@ -3186,6 +3240,8 @@ async function updateS13() {
 function renderCallsChart() {
   renderCallsWeekHeatmap();
   renderCallsLineChart();
+  renderCallsSparkline();
+  renderCallsGoalRing();
 }
 
 // Weekly call activity heatmap — 7 day cards showing call volume with color intensity
@@ -3242,17 +3298,83 @@ function renderCallsWeekHeatmap() {
     }
     const intensity = d.count / maxVal; // 0-1
     const bg = d.isToday
-      ? `rgba(56,189,248,${0.15 + intensity*0.35})`
+      ? `rgba(0,191,165,${0.15 + intensity*0.35})`
       : `rgba(56,189,248,${0.04 + intensity*0.22})`;
-    const border = d.isToday ? '1.5px solid #38BDF8' : '1px solid rgba(56,189,248,.12)';
-    const numColor = d.isToday ? '#38BDF8' : (intensity > 0.5 ? '#fff' : 'rgba(255,255,255,.7)');
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;background:${bg};border:${border};min-height:90px;position:relative;${d.isToday?'box-shadow:0 0 16px rgba(56,189,248,.25)':''}">
-      ${d.isToday?'<div style="position:absolute;top:6px;font-size:10px;font-weight:800;color:#38BDF8;letter-spacing:.1em">TODAY</div>':''}
+    const border = d.isToday ? '1.5px solid #00BFA5' : '1px solid rgba(56,189,248,.12)';
+    const numColor = d.isToday ? '#00BFA5' : (intensity > 0.5 ? '#fff' : 'rgba(255,255,255,.7)');
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;background:${bg};border:${border};min-height:90px;position:relative;${d.isToday?'box-shadow:0 0 16px rgba(0,191,165,.25)':''}">
+      ${d.isToday?'<div style="position:absolute;top:6px;font-size:10px;font-weight:800;color:#00BFA5;letter-spacing:.1em">TODAY</div>':''}
       <div style="font-size:14px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;${d.isToday?'margin-top:14px':''}">${d.label}</div>
       <div style="font-family:var(--font-display);font-size:clamp(22px,3vw,34px);font-weight:900;color:${numColor};line-height:1;margin-top:4px">${d.count}</div>
       <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">${d.count===1?'call':'calls'}</div>
     </div>`;
   }).join('');
+}
+
+// 7-day sparkline under the rotating hero number — shows recent trend at a glance
+function renderCallsSparkline() {
+  const snap = state.snap;
+  const svg  = el('calls-sparkline-svg');
+  if(!svg) return;
+
+  let daily = [];
+  try {
+    const raw = snap['rc_daily'] || '[]';
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if(Array.isArray(parsed)) daily = parsed;
+  } catch(e) {}
+
+  const today = new Date().getDate();
+  // Last 7 days up to and including today
+  const start = Math.max(0, today - 7);
+  const pts = daily.slice(start, today);
+  if(pts.length < 2) { svg.innerHTML = ''; return; }
+
+  const W = svg.parentElement?.clientWidth || 100;
+  const H = svg.parentElement?.clientHeight || 28;
+  const maxV = Math.max(...pts, 1);
+  const minV = Math.min(...pts, 0);
+  const range = Math.max(maxV - minV, 1);
+
+  const stepX = W / (pts.length - 1);
+  const toY = v => H - ((v - minV) / range) * (H - 4) - 2;
+
+  const linePoints = pts.map((v,i) => `${(i*stepX).toFixed(1)},${toY(v).toFixed(1)}`).join(' ');
+  const areaPoints = `0,${H} ${linePoints} ${W},${H}`;
+
+  svg.innerHTML = `
+    <polyline points="${areaPoints}" fill="rgba(0,212,255,.12)" stroke="none"/>
+    <polyline points="${linePoints}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${((pts.length-1)*stepX).toFixed(1)}" cy="${toY(pts[pts.length-1]).toFixed(1)}" r="3" fill="var(--blue)"/>
+  `;
+}
+
+// Daily calls goal progress ring
+function renderCallsGoalRing() {
+  const snap = state.snap;
+  const ring = el('calls-goal-ring');
+  const pctEl = el('calls-goal-pct');
+  const fracEl = el('calls-goal-frac');
+  if(!ring) return;
+
+  const rcToday = parseInt(snap['rc_today']||0) || (() => {
+    let daily = []; try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
+    return daily[new Date().getDate()-1] || 0;
+  })();
+
+  const goal = num(snap['daily_calls_goal']) || CONFIG.DAILY_CALLS_GOAL;
+  const pct  = goal > 0 ? Math.min(100, Math.round(rcToday/goal*100)) : 0;
+
+  const circumference = 2 * Math.PI * 40; // r=40
+  const offset = circumference * (1 - pct/100);
+  ring.style.strokeDashoffset = offset.toFixed(1);
+
+  // Color shifts as goal approaches/exceeds: blue → teal → green
+  const color = pct >= 100 ? '#00FF88' : pct >= 60 ? '#00BFA5' : '#00D4FF';
+  ring.style.stroke = color;
+
+  if(pctEl)  { pctEl.textContent = pct + '%'; pctEl.style.color = color; }
+  if(fracEl) fracEl.textContent = `${rcToday} / ${goal}`;
 }
 
 function renderCallsLineChart() {
@@ -3293,34 +3415,55 @@ function renderCallsLineChart() {
 
   if(!daily.length || !daily.slice(0,today).some(v=>v>0)) {
     svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="14" dominant-baseline="middle">No call data yet — push report to populate</text>`;
+    const trendEl0 = el('calls-trend-total');
+    if(trendEl0) trendEl0.textContent = '';
     return;
   }
 
   // Build bars for each day up to today
   const pts = Array.from({length: today}, (_, i) => ({ day: i+1, count: daily[i]||0 }));
   const maxVal  = Math.max(...pts.map(p=>p.count), 1);
+  const monthTotal = pts.reduce((s,p)=>s+p.count, 0);
+  const trendEl = el('calls-trend-total');
+  if(trendEl) trendEl.textContent = `${monthTotal.toLocaleString()} calls this month`;
 
-  // Compact layout for the small trend strip — no Y axis, minimal padding
-  const padL=2, padR=2, padT=2, padB=14;
+  // Larger layout — room for Y-axis gridlines and value labels
+  const padL=4, padR=4, padT=20, padB=18;
   const chartW  = W - padL - padR;
   const chartH  = H - padT - padB;
-  const barW    = Math.max(1, Math.floor(chartW / daysInMonth) - 1);
+  const barW    = Math.max(2, Math.floor(chartW / daysInMonth) - 2);
   const toX     = d => padL + ((d-1)/daysInMonth) * chartW;
   const barH    = v => Math.max(1, (v/maxVal) * chartH);
   const barY    = v => padT + chartH - barH(v);
 
+  // Subtle horizontal gridlines at 50% and 100% of max
   let grid = '';
+  [0.5, 1].forEach(frac => {
+    const y = padT + chartH * (1 - frac);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1" stroke-dasharray="3,4"/>`;
+  });
 
-  // Bars
+  // Bars with gradient fill for today, value label on highest bars
   let bars = '';
   pts.forEach(p => {
     const x     = toX(p.day);
     const h     = barH(p.count);
     const y     = barY(p.count);
     const isToday = p.day === today;
-    const fill  = isToday ? '#38BDF8' : 'rgba(56,189,248,.35)';
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${fill}" rx="1"/>`;
+    const fill  = isToday ? 'url(#todayGrad)' : 'rgba(56,189,248,.3)';
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${fill}" rx="2"/>`;
+    // Label today's value above its bar
+    if(isToday && p.count > 0) {
+      bars += `<text x="${(x+barW/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="800" fill="#38BDF8">${p.count}</text>`;
+    }
   });
+
+  const defs = `<defs>
+    <linearGradient id="todayGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>`;
 
   // X-axis: only first day, today, and last day of month
   let xLabels = '';
@@ -3331,7 +3474,7 @@ function renderCallsLineChart() {
     xLabels += `<text x="${x.toFixed(1)}" y="${(H-2)}" text-anchor="middle" font-size="10" fill="${isToday2?'#38BDF8':'rgba(255,255,255,.35)'}" font-weight="${isToday2?'700':'400'}">${d===today?'Today':d}</text>`;
   });
 
-  svg.innerHTML = `${grid}${bars}${xLabels}`;
+  svg.innerHTML = `${defs}${grid}${bars}${xLabels}`;
 }
 let _callsResizeObs = null;
 
