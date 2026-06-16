@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.30</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.31</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.30</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.31</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.30</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.31</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1472,6 +1472,7 @@ tr:hover td{background:#fafafa}
               📊 Upload RC Report
               <input type="file" accept=".xlsx" style="display:none" onchange="loadRCExcel(this.files[0])">
             </label>
+            <span id="rc-report-status" style="font-size:11px;color:#9ca3af;align-self:center"></span>
             <button onclick="clearCallsResult('rc')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
           </div>
           <div id="rc-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
@@ -2786,7 +2787,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.30
+  // ATTRIBUTION ENGINE — v24.31
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4936,7 +4937,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.30',  // dashboard version that generated this push
+    dash_version: 'v24.31',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5573,7 +5574,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.30',
+        dash_version:        'v24.31',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6913,6 +6914,13 @@ function loadRCExcel(file) {
 
       showToast(`✅ RC report loaded: ${agents.length} users | Booking rate: ${companyRate}% (${bookableSource})`, 'success');
       dashLog('success', `RC Excel: ${agents.length} users | Booking rate: ${companyRate}% (${validEsts.length} estimates / ${bookableCallCount} ${bookableSource} calls)`);
+
+      // Mark session status — no Apply button needed, everything syncs automatically
+      const statusEl = $$('rc-report-status');
+      if(statusEl) {
+        statusEl.textContent = `✅ Loaded ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} — pushed to companion automatically`;
+        statusEl.style.color = '#059669';
+      }
 
       // Log full breakdown
       console.log('[RC Excel] User breakdown:');
@@ -9811,6 +9819,21 @@ async function pushToCompanion(){
 
   if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); btn.textContent=orig; btn.disabled=false; return; }
   if(!_jobs.length){ showToast('Pull a report first','warn'); btn.textContent=orig; btn.disabled=false; return; }
+
+  // Remind if RC report hasn't been uploaded this session
+  const hasRCData = _rcSnap?.leaderboard?.length > 0;
+  if(!hasRCData) {
+    const go = confirm(
+      '📊 RingCentral call report not uploaded this session.\n\n' +
+      'The agent call leaderboard on the companion wallboard will show stale or empty data.\n\n' +
+      'To update it:\n' +
+      '  1. Go to the Calls tab\n' +
+      '  2. Click "📊 Upload RC Report" in the RingCentral card\n' +
+      '  3. Select your RC Analytics → Performance Reports → Users export\n\n' +
+      'Click OK to push anyway, or Cancel to upload the report first.'
+    );
+    if(!go){ btn.textContent=orig; btn.disabled=false; return; }
+  }
 
   // Remind if plans haven't been uploaded this session
   if(!_plansUploadedThisSession) {
