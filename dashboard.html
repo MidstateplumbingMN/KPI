@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.35</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.37</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.35</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.37</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.35</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.37</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1468,7 +1468,7 @@ tr:hover td{background:#fafafa}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button onclick="testRingCentral()" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
             <button onclick="saveCallsToSheets('rc')" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
-            <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload RC Analytics → Performance Reports → Calls or Users export (.csv preferred, .xlsx also works)">
+            <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="For accurate COUNTS: upload Users Summary report (RC Analytics → Performance Reports → Users). For avg duration detail: upload Calls report (RC Analytics → Performance Reports → Calls). Both formats auto-detected.">
               📊 Upload RC Report
               <input type="file" accept=".xlsx,.csv" style="display:none" onchange="loadRCExcel(this.files[0])">
             </label>
@@ -1512,12 +1512,11 @@ tr:hover td{background:#fafafa}
                 <tr style="background:#f3f4f6">
                   <th onclick="sortAgentTable('name')"       style="padding:8px 12px;text-align:left;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Agent ↕</th>
                   <th onclick="sortAgentTable('answered')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Answered ↕</th>
-                  <th onclick="sortAgentTable('shortCalls')" style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151" title="Calls answered but lasting under 30 seconds — likely wrong numbers, misdials, or quick transfers">&lt;30s ↕</th>
+                  <th onclick="sortAgentTable('shortCalls')" style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151" title="Calls under 30 seconds">&lt;30s ↕</th>
                   <th onclick="sortAgentTable('total')"      style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Total ↕</th>
                   <th onclick="sortAgentTable('ansRate')"    style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Ans Rate ↕</th>
                   <th onclick="sortAgentTable('avgDur')"     style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Avg Dur ↕</th>
-                  <th style="padding:8px 12px;text-align:right;border-bottom:1px solid #e5e7eb;color:#374151" title="Estimates booked ÷ filtered bookable customer calls. Excludes: spam/hangups (<10s), tech call-ins, dispatcher personal phones, vendors, generic area caller IDs. Upload CallRail export for accurate filtering. ~ = proportional estimate by call share.">Booking Rate 📅</th>
-                  <th style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb;color:#374151;background:#EEF2FF;white-space:nowrap" title="Count shown on the companion wallboard leaderboard. Recommended value auto-filled — edit to override, then push.">📺 Companion Display</th>
+                  <th style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb;color:#374151;background:#EEF2FF;white-space:nowrap">📺 Companion Display</th>
                   <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;color:#374151">Type</th>
                 </tr>
               </thead>
@@ -2789,7 +2788,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.35
+  // ATTRIBUTION ENGINE — v24.37
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4939,7 +4938,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.35',  // dashboard version that generated this push
+    dash_version: 'v24.37',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5576,7 +5575,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.35',
+        dash_version:        'v24.37',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5698,6 +5697,12 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
 async function syncMonthlyRevenueToSheet(monthly) {
   if(!_sheetsProxy) return;
+  // Guard: never overwrite Sheets with all-zeros (happens after Clear Data)
+  // The Monthly_Revenue tab is authoritative and should only be updated when real data exists
+  if(!Array.isArray(monthly) || !monthly.some(v => v > 0)) {
+    console.log('[Monthly Revenue] Skipping sync — no revenue data (data cleared?)');
+    return;
+  }
   // Write to Monthly_Revenue tab (for companion bar chart direct read)
   fetch(_sheetsProxy, {
     method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
@@ -6888,6 +6893,7 @@ function _processRCCallsReport(rows, headerIdx) {
   const iHandle = h.findIndex(v => v.includes('handle'));
   const iStart  = h.findIndex(v => v.includes('start'));
   const iDir    = h.findIndex(v => v.includes('direction'));
+  const iQueue  = h.findIndex(v => v.includes('queue'));
 
   // Store per-call data in _rcCallsRaw format for booking rate matching
   const DISPATCHER_NAMES = ['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell','Cory Hanson','Bob Secrest'];
@@ -6918,6 +6924,15 @@ function _processRCCallsReport(rows, headerIdx) {
     const len      = parseInt(row[iLen])||0;
     const handle   = parseInt(row[iHandle])||0;
     const startRaw = String(row[iStart]||'').trim();
+    const queue    = String(row[iQueue]||'').trim();
+
+    // Only count inbound calls through the Service Coordinator queue
+    // Direct extension calls, internal transfers, and personal-phone calls
+    // are NOT customer service calls and inflate agent counts incorrectly
+    const isServiceCoordQueue = queue === 'Service Coordinator';
+    if(dir !== 'inbound' || !isServiceCoordQueue) {
+      // Still record outbound for reference but don't count as answered inbound
+    }
 
     // Extract agent from 'To' field for inbound calls
     let agentName = '';
@@ -6960,17 +6975,23 @@ function _processRCCallsReport(rows, headerIdx) {
       _status:    answered ? 'Answered' : 'Missed',
     });
 
-    // Tally per agent
-    if(agentName) {
+    // Tally per agent — only SC queue inbound, answered, >10s
+    if(agentName && dir === 'inbound' && isServiceCoordQueue) {
+      const answered = result === 'Answered' || result === 'Connected';
       ensureAgent(agentName);
       agentTally[agentName].total++;
-      if(answered) {
+      if(answered && len > 10) {
         agentTally[agentName].answered++;
-        agentTally[agentName].totalDur += handle;
-      } else {
+        // Only count handle time ≥60s for avg duration — sub-minute calls
+        // are hangups/wrong numbers and skew the average down
+        if(handle >= 60) {
+          agentTally[agentName].totalDur += handle;
+          agentTally[agentName].durCount  = (agentTally[agentName].durCount||0) + 1;
+        }
+      } else if(!answered) {
         agentTally[agentName].missed++;
       }
-      if(len < 30) agentTally[agentName].shortCalls = (agentTally[agentName].shortCalls||0) + 1;
+      if(len > 0 && len < 30) agentTally[agentName].shortCalls = (agentTally[agentName].shortCalls||0) + 1;
     }
   }
 
@@ -6978,6 +6999,16 @@ function _processRCCallsReport(rows, headerIdx) {
   // Keep existing CR calls, add/replace RC records
   _rcCallsRaw = callRecords;
   console.log(`[RC Calls] Parsed ${callRecords.length} call records. Agent tally:`, agentTally);
+
+  // IMPORTANT: The Calls report can only attribute ~22% of inbound calls to named agents.
+  // 78% of queue calls show "Service Coordinator" as To field — the individual agent is unknown.
+  // For accurate COUNTS, upload the Users Summary report instead.
+  // The Calls report is best for: avg duration (≥1min calls), short call counts, date-level data.
+  const totalAttributed = Object.values(agentTally).reduce((s,a)=>s+a.answered,0);
+  if(totalAttributed < 500) {
+    showToast(`⚠ Calls report: only ${totalAttributed} calls attributed to named agents (78% go to unattributed queue). For accurate call COUNTS, upload the Users Summary report instead.`, 'warn');
+    dashLog('warn', `RC Calls report: ${totalAttributed} attributed / many in unattributed queue. Avg duration data is accurate. Use Users report for counts.`);
+  }
 
   // Build agentsForTab
   const DISPATCH_NAMES = new Set(['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell']);
@@ -6991,8 +7022,9 @@ function _processRCCallsReport(rows, headerIdx) {
     short_calls: a.shortCalls || 0,
     ans_rate:    (a.answered+a.missed)>0 ? Math.round(a.answered/(a.answered+a.missed)*100) : 0,
     missed_pct:  (a.answered+a.missed)>0 ? ((a.missed/(a.answered+a.missed))*100).toFixed(1) : '0',
-    avg_dur_sec: a.answered>0 ? Math.round(a.totalDur/a.answered) : 0,
-    booking_rate: '',
+    // Avg duration only counts calls ≥1min — sub-minute calls are hangups/misdials
+    avg_dur_sec: (a.durCount||0)>0 ? Math.round(a.totalDur/(a.durCount)) : 0,
+    booking_rate:      '',
     estimates_implied: '',
     pinned:      ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
     category:    DISPATCH_NAMES.has(a.name) ? 'dispatch' : 'agent',
@@ -7432,15 +7464,12 @@ function updateAgentField(name, field, rawVal) {
     if(badge) badge.textContent = (agent.ansRate??'—') + '%';
   });
 
-  // Update footer totals
-  const footer = $$('agent-summary-footer');
-  if(footer) {
-    const totalAnswered   = lb.reduce((s,a)=>s+(a.answered||0),0);
-    const totalShortCalls = lb.reduce((s,a)=>s+(a.shortCalls||0),0);
-    const totalTotal      = lb.reduce((s,a)=>s+(a.total||0),0);
-    const companyBR = computeBookingRates()['__company__'];
-    const brSummary = companyBR ? ` · 📅 Booking rate: <strong>${companyBR.rate}%</strong> (${companyBR.estimates} booked / ${companyBR.calls} opportunities)` : '';
-    footer.innerHTML = `${totalTotal.toLocaleString()} total · ${totalAnswered.toLocaleString()} answered · ${totalShortCalls} under 30s${brSummary}`;
+  const footer2 = $$('agent-summary-footer');
+  if(footer2) {
+    const totalAnswered2   = lb.reduce((s,a)=>s+(a.answered||0),0);
+    const totalShortCalls2 = lb.reduce((s,a)=>s+(a.shortCalls||0),0);
+    const totalTotal2      = lb.reduce((s,a)=>s+(a.total||0),0);
+    footer2.innerHTML = `${totalTotal2.toLocaleString()} total · ${totalAnswered2.toLocaleString()} answered (SC queue) · ${totalShortCalls2} under 30s`;
   }
 }
 
@@ -7521,9 +7550,6 @@ function renderAgentSummary() {
   const lb = _rcSnap?.leaderboard || [];
   if(!lb.length) return;
 
-  // Compute booking rates from HCP estimate data
-  const bookingRates = computeBookingRates();
-
   // Sort
   const sorted = [...lb].sort((a,b) => {
     const av = a[_agentSortCol] ?? 0;
@@ -7582,14 +7608,13 @@ function renderAgentSummary() {
 
     return `<tr style="border-bottom:1px solid #f3f4f6;${isDispatch?'background:#eff6ff':''}">
       <td style="padding:7px 12px;font-weight:${isDispatch?'700':'400'};color:#111827;white-space:nowrap">${escHtml(a.name)}</td>
-      <td style="padding:4px 8px;text-align:right">${inp('answered', a.answered||0, '#059669', true, 'Answered calls shown on companion leaderboard')}</td>
+      <td style="padding:4px 8px;text-align:right">${inp('answered', a.answered||0, '#059669', true, 'Answered SC queue calls — edit to adjust companion display')}</td>
       <td style="padding:4px 8px;text-align:right">${inp('shortCalls', a.shortCalls||0, (a.shortCalls||0)>5?'#D97706':'#6b7280', false, 'Calls under 30 seconds')}</td>
       <td style="padding:4px 8px;text-align:right">${inp('total', a.total||0, '#374151', false, 'Total calls')}</td>
       <td style="padding:4px 8px;text-align:right">
         <span style="background:${rateBg};color:${rateColor};padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700">${a.ansRate??'—'}%</span>
       </td>
       <td style="padding:7px 12px;text-align:right;color:#6b7280">${a.avgDur>0?fmtDur(a.avgDur):'—'}</td>
-      ${bookingCell}
       ${companionCell}
       <td style="padding:7px 12px;font-size:11px;color:#6b7280">${typeLabel}</td>
     </tr>`;
@@ -7599,11 +7624,7 @@ function renderAgentSummary() {
   const totalAnswered   = lb.reduce((s,a)=>s+(a.answered||0),0);
   const totalShortCalls = lb.reduce((s,a)=>s+(a.shortCalls||0),0);
   const totalTotal      = lb.reduce((s,a)=>s+(a.total||0),0);
-  const companyBR = bookingRates['__company__'];
-  const brSummary = companyBR
-    ? ` · 📅 Booking rate: <strong>${companyBR.rate}%</strong> (${companyBR.estimates} booked / ${companyBR.calls} unique customer opportunities)`
-    : '';
-  if(footer) footer.innerHTML = `${totalTotal.toLocaleString()} total · ${totalAnswered.toLocaleString()} answered · ${totalShortCalls} under 30s${brSummary}`;
+  if(footer) footer.innerHTML = `${totalTotal.toLocaleString()} total · ${totalAnswered.toLocaleString()} answered (SC queue) · ${totalShortCalls} under 30s · avg dur excludes calls &lt;1min`;
   if(badge) badge.textContent = `${lb.length} agents · ${totalTotal.toLocaleString()} calls`;
 }
 
