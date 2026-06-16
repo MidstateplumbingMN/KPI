@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.31</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.33</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.31</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.33</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.31</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.33</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1468,9 +1468,9 @@ tr:hover td{background:#fafafa}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button onclick="testRingCentral()" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
             <button onclick="saveCallsToSheets('rc')" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
-            <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload RC Analytics → Performance Reports → Users export (.xlsx) for accurate per-agent counts">
+            <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload RC Analytics → Performance Reports → Calls or Users export (.csv preferred, .xlsx also works)">
               📊 Upload RC Report
-              <input type="file" accept=".xlsx" style="display:none" onchange="loadRCExcel(this.files[0])">
+              <input type="file" accept=".xlsx,.csv" style="display:none" onchange="loadRCExcel(this.files[0])">
             </label>
             <span id="rc-report-status" style="font-size:11px;color:#9ca3af;align-self:center"></span>
             <button onclick="clearCallsResult('rc')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
@@ -1501,6 +1501,7 @@ tr:hover td{background:#fafafa}
           <div onclick="toggleAgentSummary()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;background:#f9fafb">
             <div style="font-size:13px;font-weight:700;color:#1f2937">📊 Agent Call Breakdown — RingCentral</div>
             <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="event.stopPropagation();pushCompanionCounts()" style="padding:4px 12px;background:#4F46E5;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer" title="Push the Companion Display counts to RC_Agents tab — companion wallboard updates within 30s">📺 Push Counts to Companion</button>
               <span id="agent-summary-badge" style="font-size:11px;color:#6b7280">Fetch RC calls to populate</span>
               <span id="agent-summary-toggle" style="font-size:14px;color:#6b7280">▼</span>
             </div>
@@ -1516,6 +1517,7 @@ tr:hover td{background:#fafafa}
                   <th onclick="sortAgentTable('ansRate')"  style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Ans Rate ↕</th>
                   <th onclick="sortAgentTable('avgDur')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Avg Dur ↕</th>
                   <th style="padding:8px 12px;text-align:right;border-bottom:1px solid #e5e7eb;color:#374151" title="Estimates booked ÷ filtered bookable customer calls. Excludes: spam/hangups (<10s), tech call-ins, dispatcher personal phones, vendors, generic area caller IDs. Upload CallRail export for accurate filtering. ~ = proportional estimate by call share.">Booking Rate 📅</th>
+                  <th style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb;color:#374151;background:#EEF2FF;white-space:nowrap" title="Count shown on the companion wallboard leaderboard. Recommended value auto-filled — edit to override, then push.">📺 Companion Display</th>
                   <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;color:#374151">Type</th>
                 </tr>
               </thead>
@@ -2787,7 +2789,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.31
+  // ATTRIBUTION ENGINE — v24.33
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4937,7 +4939,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.31',  // dashboard version that generated this push
+    dash_version: 'v24.33',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5574,7 +5576,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.31',
+        dash_version:        'v24.33',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6797,225 +6799,363 @@ function loadCRExcel(file) {
 // Load RingCentral per-user call report Excel
 // Export from RC Analytics → Performance Reports → Users → Export
 // This is the AUTHORITATIVE source for per-agent call counts
+// Load RC report — handles two formats:
+//   1. Calls report (per-call log): From, To, Result, Call Length, Handle Time, Start Time, Direction, Queue
+//   2. Users report (summary):      Name, Ext, Total, Avg/Day, Inbound, Outbound, Missed%, Avg Handle
+// Also accepts CSV (preferred — no XLSX parse overhead or Tracking Prevention issues)
 function loadRCExcel(file) {
-  if(!window.XLSX) {
-    // Load SheetJS first then retry
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = () => loadRCExcel(file);
-    document.head.appendChild(s);
+  const isCsv = file.name.toLowerCase().endsWith('.csv');
+
+  if(isCsv) {
+    // CSV — read as text, no SheetJS needed
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      const rows = text.split('\n').map(l => l.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
+      _processRCRows(rows, file.name);
+    };
+    reader.readAsText(file);
     return;
   }
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const wb   = XLSX.read(e.target.result, {type:'array'});
-      const ws   = wb.Sheets['Users'] || wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
 
-      // Find header row
-      let headerIdx = -1;
-      for(let i = 0; i < Math.min(5, rows.length); i++) {
-        if(rows[i].some(v => String(v||'').toLowerCase() === 'name')) {
-          headerIdx = i; break;
-        }
+  // XLSX — load SheetJS lazily
+  const doLoad = () => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb   = XLSX.read(e.target.result, {type:'array'});
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
+        _processRCRows(rows, file.name);
+      } catch(err) {
+        console.error('[RC] XLSX parse error:', err);
+        showToast('RC upload error: ' + err.message, 'error');
       }
-      if(headerIdx < 0) { showToast('Could not find header row in RC report','error'); return; }
-
-      const h    = rows[headerIdx].map(v => String(v||'').toLowerCase().trim());
-      const iName  = h.findIndex(v => v === 'name');
-      const iExt   = h.findIndex(v => v === 'ext' || v.includes('ext'));
-      const iTotal = h.findIndex(v => v.includes('total'));
-      const iIn    = h.findIndex(v => v.includes('inbound'));
-      const iOut   = h.findIndex(v => v.includes('outbound'));
-      const iMiss  = h.findIndex(v => v.includes('missed'));
-      const iDur   = h.findIndex(v => v.includes('handle') || v.includes('duration'));
-
-      const agents = [];
-      for(let r = headerIdx+1; r < rows.length; r++) {
-        const row = rows[r];
-        if(!row || !row[iName]) continue;
-        const name    = String(row[iName]||'').trim();
-        if(!name) continue;
-        const inbound  = parseInt(row[iIn])  || 0;
-        const outbound = parseInt(row[iOut]) || 0;
-        const total    = parseInt(row[iTotal]) || (inbound + outbound);
-        const missedPct = parseFloat(row[iMiss]) || 0;
-        const missed   = Math.round(total * missedPct / 100);
-        const answered = inbound - missed;
-        const ext      = String(row[iExt]||'').trim();
-
-        // Parse avg handle time — could be "0:02:28" or "0 days 00:02:28"
-        let avgDurSec = 0;
-        const durRaw = String(row[iDur]||'');
-        const durM = durRaw.match(/(\d+):(\d+):(\d+)\s*$/);
-        if(durM) avgDurSec = parseInt(durM[1])*3600 + parseInt(durM[2])*60 + parseInt(durM[3]);
-
-        const ansRate = total > 0 ? Math.round(answered/inbound*100) : 0;
-
-        agents.push({ name, ext, total, inbound, outbound, missed, answered, ansRate, avgDur: avgDurSec, missedPct });
-      }
-
-      if(!agents.length) { showToast('No user rows found in RC report','error'); return; }
-
-      // Map to RC_Agents format — same schema the companion reads
-      const DISPATCH_EXTS = new Set(['102','103','105','106','107']); // Bob, Victoria, Eric, Jody, Jason
-      const reportDate = new Date().toISOString().split('T')[0];
-      const reportPeriod = 'Jan 1 – Jun 14, 2026'; // from Filters sheet if parseable
-
-      // Compute booking rates against current _estimates
-      const validEsts = (_estimates||[]).filter(e => {
-        const s = (e.work_status||e.status||'').toLowerCase();
-        return s !== 'canceled' && s !== 'draft';
-      });
-
-      // Use filtered CallRail bookable calls if available, else fall back to RC answered
-      // This avoids inflating denominator with spam/staff/vendor calls
-      let bookableCallCount = 0;
-      let bookableSource = 'RC answered (unfiltered)';
-      if(_crCallsRaw.length > 0) {
-        // Re-use the same filter logic as computeBookingRates()
-        bookableCallCount = computeBookingRates()['__company__']?.calls || 0;
-        bookableSource = 'CallRail filtered';
-      }
-      if(!bookableCallCount) {
-        // Fallback: RC answered inbound across dispatchers
-        bookableCallCount = agents.reduce((s,a) => s+Math.round((a.inbound||0)*(1-(a.missedPct||0)/100)), 0);
-        bookableSource = 'RC answered (unfiltered)';
-      }
-
-      const dispatchers = agents.filter(a => DISPATCH_EXTS.has(String(a.ext)));
-      const dispTotalInbound = dispatchers.reduce((s,a)=>s+(a.inbound||0),0);
-      const companyAnswered = agents.reduce((s,a)=>s+Math.round((a.inbound||0)*(1-(a.missedPct||0)/100)),0);
-      const companyRate = bookableCallCount>0 ? Math.round(validEsts.length/bookableCallCount*100) : 0;
-
-      const agentsForTab = agents.map(a => {
-        const agentAnswered = Math.round(a.inbound*(1-a.missedPct/100));
-        const share = dispTotalInbound > 0 ? (a.inbound||0)/dispTotalInbound : 0;
-        const impliedBookable = Math.round(bookableCallCount * share);
-        const impliedEsts     = Math.round(validEsts.length * share);
-        const bookingRate = impliedBookable > 0 ? Math.round(impliedEsts/impliedBookable*100) : 0;
-        return {
-          name:             a.name,
-          ext:              String(a.ext||''),
-          inbound:          a.inbound,
-          outbound:         a.outbound,
-          answered:         agentAnswered,
-          missed:           a.inbound - agentAnswered,
-          ans_rate:         agentAnswered>0 ? Math.round(agentAnswered/a.inbound*100) : 0,
-          missed_pct:       a.missedPct.toFixed(1),
-          avg_dur_sec:      a.avgDur,
-          booking_rate:     DISPATCH_EXTS.has(String(a.ext)) ? bookingRate : '',
-          estimates_implied:DISPATCH_EXTS.has(String(a.ext)) ? impliedEsts : '',
-          pinned:           ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
-          category:         DISPATCH_EXTS.has(String(a.ext)) ? 'dispatch' : 'agent',
-        };
-      });
-
-      showToast(`✅ RC report loaded: ${agents.length} users | Booking rate: ${companyRate}% (${bookableSource})`, 'success');
-      dashLog('success', `RC Excel: ${agents.length} users | Booking rate: ${companyRate}% (${validEsts.length} estimates / ${bookableCallCount} ${bookableSource} calls)`);
-
-      // Mark session status — no Apply button needed, everything syncs automatically
-      const statusEl = $$('rc-report-status');
-      if(statusEl) {
-        statusEl.textContent = `✅ Loaded ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} — pushed to companion automatically`;
-        statusEl.style.color = '#059669';
-      }
-
-      // Log full breakdown
-      console.log('[RC Excel] User breakdown:');
-      agents.sort((a,b)=>b.inbound-a.inbound).forEach(a => {
-        const ans = Math.round(a.inbound*(1-a.missedPct/100));
-        console.log(`  ${a.name.padEnd(22)} Ext:${a.ext} | In:${a.inbound} | Ans:${ans} | Missed:${a.missedPct.toFixed(1)}% | Avg:${Math.floor(a.avgDur/60)}m${a.avgDur%60}s`);
-      });
-      console.log(`[RC Excel] Company booking rate: ${companyRate}% (${validEsts.length} estimates / ${companyAnswered} answered inbound)`);
-
-      // Update local leaderboard state
-      _rcSnap = _rcSnap || {};
-      _rcSnap.leaderboard = agentsForTab.map(a => ({
-        name:      a.name,
-        answered:  a.answered,
-        missed:    a.missed,
-        total:     a.inbound + a.outbound,
-        inbound:   a.inbound,
-        outbound:  a.outbound,
-        ansRate:   a.ans_rate,
-        avgDur:    a.avg_dur_sec,
-        missedPct: parseFloat(a.missed_pct)||0,
-        isDispatch:DISPATCH_EXTS.has(a.ext),
-        category:  a.category,
-        bookingRate: a.booking_rate,
-        estimatesImplied: a.estimates_implied,
-      }));
-      renderAgentSummary();
-
-      // Push everything to Sheets
-      if(_sheetsProxy) {
-        // 1. RC_Agents tab — full per-user data
-        fetch(_sheetsProxy, {
-          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-          body: JSON.stringify({
-            action: 'syncRCAgents',
-            agents: agentsForTab,
-            source: 'RingCentral-Export',
-            report_date: reportDate,
-          })
-        }).then(r=>r.json())
-          .then(d => { if(d.success) dashLog('info', `RC_Agents tab updated (${d.rows} rows) ✅`); })
-          .catch(e=>console.warn('[RC Excel] RC_Agents push failed:', e.message));
-
-        // 2. KPI_Dashboard — booking rate + summary keys (staggered 1s)
-        setTimeout(() => {
-          fetch(_sheetsProxy, {
-            method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-            body: JSON.stringify({
-              action:           'syncRingCentral',
-              total:            agents.reduce((s,a)=>s+a.total,0),
-              answered:         companyAnswered,
-              answer_rate:      companyRate,
-              booking_rate:     companyRate,
-              report_date:      reportDate,
-              report_period:    reportPeriod,
-              total_estimates:  validEsts.length,
-            })
-          }).then(r=>r.json())
-            .then(d => { if(d.success) dashLog('info','KPI_Dashboard rc_booking_rate updated ✅'); })
-            .catch(e=>console.warn('[RC Excel] KPI snapshot push failed:', e.message));
-        }, 1000);
-
-        // 3. RC_BookingRate history tab — append snapshot (staggered 2s)
-        setTimeout(() => {
-          const agentRates = agentsForTab
-            .filter(a => a.booking_rate !== '')
-            .map(a => ({ name:a.name, calls:a.answered, rate:a.booking_rate, estimates:a.estimates_implied }));
-          fetch(_sheetsProxy, {
-            method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-            body: JSON.stringify({
-              action:           'saveRCBookingRate',
-              report_period:    reportPeriod,
-              company_rate:     companyRate,
-              total_estimates:  validEsts.length,
-              total_calls:      bookableCallCount,
-              calls_source:     bookableSource,
-              agent_rates:      agentRates,
-            })
-          }).then(r=>r.json())
-            .then(d => {
-              if(d.success) {
-                showToast('✅ All RC data saved to Sheets (Agents + Booking Rate history)', 'success');
-                dashLog('success', `RC_BookingRate history row appended ✅`);
-              }
-            }).catch(e=>console.warn('[RC Excel] BookingRate history push failed:', e.message));
-        }, 2000);
-      }
-
-    } catch(err) {
-      console.error('[RC Excel] Parse error:', err);
-      showToast('RC Excel parse error: ' + err.message, 'error');
-    }
+    };
+    reader.readAsArrayBuffer(file);
   };
-  reader.readAsArrayBuffer(file);
+
+  if(window.XLSX) { doLoad(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = doLoad;
+  document.head.appendChild(s);
 }
+
+function _processRCRows(rows, filename) {
+  // Filter blank rows
+  const nonEmpty = rows.filter(r => r && r.some(v => v && String(v).trim()));
+  if(!nonEmpty.length) { showToast('RC file appears empty','error'); return; }
+
+  // Find header row and detect format
+  let headerIdx = -1;
+  let format = null; // 'calls' or 'users'
+
+  for(let i = 0; i < Math.min(10, nonEmpty.length); i++) {
+    const row = nonEmpty[i].map(v => String(v||'').toLowerCase().trim());
+    const joined = row.join('|');
+
+    if(joined.includes('from name') || (joined.includes('from') && joined.includes('to') && joined.includes('result') && joined.includes('direction'))) {
+      headerIdx = i; format = 'calls'; break;
+    }
+    if(joined.includes('name') && (joined.includes('inbound') || joined.includes('ext') || joined.includes('missed'))) {
+      headerIdx = i; format = 'users'; break;
+    }
+  }
+
+  if(headerIdx < 0 || !format) {
+    console.error('[RC] Could not detect report format. Headers found:', nonEmpty[0]);
+    showToast('RC report: could not detect format (Calls or Users). Check console.', 'error');
+    return;
+  }
+
+  console.log(`[RC] Detected format: ${format} | Header at row ${headerIdx}`);
+
+  if(format === 'calls') {
+    _processRCCallsReport(nonEmpty, headerIdx);
+  } else {
+    _processRCUsersReport(nonEmpty, headerIdx);
+  }
+}
+
+// ── Calls report: per-call log with From/To/Result/Direction ──────────────────
+function _processRCCallsReport(rows, headerIdx) {
+  const h = rows[headerIdx].map(v => String(v||'').toLowerCase().trim());
+  const iFrom   = h.findIndex(v => v === 'from name' || v === 'from');
+  const iTo     = h.findIndex(v => v === 'to name'   || v === 'to');
+  const iResult = h.findIndex(v => v === 'result');
+  const iLen    = h.findIndex(v => v.includes('call length') || v.includes('call len'));
+  const iHandle = h.findIndex(v => v.includes('handle'));
+  const iStart  = h.findIndex(v => v.includes('start'));
+  const iDir    = h.findIndex(v => v.includes('direction'));
+
+  // Store per-call data in _rcCallsRaw format for booking rate matching
+  const DISPATCHER_NAMES = ['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell','Cory Hanson','Bob Secrest'];
+
+  const agentTally = {}; // name → {answered,missed,total,totalDur}
+  const callRecords = [];
+
+  const ensureAgent = name => {
+    if(!agentTally[name]) agentTally[name] = {name, answered:0, missed:0, total:0, totalDur:0};
+  };
+
+  // Known tech/employee names to exclude from customer calls
+  const TECH_NAMES = new Set([
+    'GLENN JONATHAN','RADANT GORDON','DANIELS AMY','SCHLOSSER LUKAS',
+    'BLAISER GANNON','HOHENAUER JEFF','MITCHELL ANDREW','STOFFEL ERIC',
+    'MCNAMARA DOUG','DANAHER ROBERT','ELLSWORTH VICTO','CORNELL JASON',
+    'SERRES JODY','SECREST BOB','HANSON CORY',
+  ]);
+
+  for(let r = headerIdx+1; r < rows.length; r++) {
+    const row = rows[r];
+    if(!row || !row[iFrom]) continue;
+
+    const from     = String(row[iFrom]||'').trim();
+    const to       = String(row[iTo]  ||'').trim();
+    const result   = String(row[iResult]||'').trim();
+    const dir      = String(row[iDir]  ||'').trim().toLowerCase();
+    const len      = parseInt(row[iLen])||0;
+    const handle   = parseInt(row[iHandle])||0;
+    const startRaw = String(row[iStart]||'').trim();
+
+    // Extract agent from 'To' field for inbound calls
+    let agentName = '';
+    for(const d of DISPATCHER_NAMES) {
+      if(to.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
+    }
+    // For outbound, the 'From' field is the agent
+    if(!agentName && dir === 'outbound') {
+      for(const d of DISPATCHER_NAMES) {
+        if(from.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
+      }
+    }
+
+    // Extract caller phone for booking rate matching
+    const phoneMatch = from.match(/\((\d{3})\)\s*(\d{3})-(\d{4})/);
+    const callerPhone = phoneMatch ? phoneMatch[1]+phoneMatch[2]+phoneMatch[3] : '';
+
+    // Parse date
+    let callDate = '';
+    if(startRaw) {
+      const d = new Date(startRaw);
+      if(!isNaN(d)) callDate = d.toISOString().split('T')[0];
+    }
+
+    // Build call record compatible with computeBookingRates
+    const answered = result === 'Answered' || result === 'Connected';
+    callRecords.push({
+      _source:    'RingCentral',
+      _id:        `rc_${r}`,
+      _time:      callDate ? callDate + 'T12:00:00' : '',
+      _caller:    from,
+      _number:    callerPhone,
+      _direction: dir,
+      _agent:     normalizeAgentDisplay(agentName),
+      _agentTx:   agentName,
+      _agentCR:   agentName,
+      _duration:  len,
+      _answered:  answered,
+      _missed:    !answered,
+      _status:    answered ? 'Answered' : 'Missed',
+    });
+
+    // Tally per agent
+    if(agentName) {
+      ensureAgent(agentName);
+      agentTally[agentName].total++;
+      if(answered) {
+        agentTally[agentName].answered++;
+        agentTally[agentName].totalDur += handle;
+      } else {
+        agentTally[agentName].missed++;
+      }
+    }
+  }
+
+  // Merge into _crCallsRaw so booking rate matching works
+  // Keep existing CR calls, add/replace RC records
+  _rcCallsRaw = callRecords;
+  console.log(`[RC Calls] Parsed ${callRecords.length} call records. Agent tally:`, agentTally);
+
+  // Build agentsForTab
+  const DISPATCH_NAMES = new Set(['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell']);
+  const agentsForTab = Object.values(agentTally).map(a => ({
+    name:        a.name,
+    ext:         '',
+    inbound:     a.answered + a.missed,
+    outbound:    0,
+    answered:    a.answered,
+    missed:      a.missed,
+    ans_rate:    (a.answered+a.missed)>0 ? Math.round(a.answered/(a.answered+a.missed)*100) : 0,
+    missed_pct:  (a.answered+a.missed)>0 ? ((a.missed/(a.answered+a.missed))*100).toFixed(1) : '0',
+    avg_dur_sec: a.answered>0 ? Math.round(a.totalDur/a.answered) : 0,
+    booking_rate: '',
+    estimates_implied: '',
+    pinned:      ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
+    category:    DISPATCH_NAMES.has(a.name) ? 'dispatch' : 'agent',
+  })).sort((a,b) => b.answered - a.answered);
+
+  _finishRCLoad(agentsForTab, `Calls report (${callRecords.length} records)`);
+}
+
+// ── Users report: per-user summary with Inbound/Outbound/Missed% ──────────────
+function _processRCUsersReport(rows, headerIdx) {
+  const h = rows[headerIdx].map(v => String(v||'').toLowerCase().trim());
+  const iName  = h.findIndex(v => v === 'name');
+  const iExt   = h.findIndex(v => v === 'ext' || v === 'extension');
+  const iTotal = h.findIndex(v => v === 'total' || v.includes('total calls'));
+  const iIn    = h.findIndex(v => v.includes('inbound'));
+  const iOut   = h.findIndex(v => v.includes('outbound'));
+  const iMiss  = h.findIndex(v => v.includes('missed'));
+  const iDur   = h.findIndex(v => v.includes('handle') || v.includes('avg duration'));
+
+  const agents = [];
+  for(let r = headerIdx+1; r < rows.length; r++) {
+    const row = rows[r];
+    if(!row || !row[iName]) continue;
+    const name = String(row[iName]||'').trim();
+    if(!name || name.toLowerCase() === 'total') continue;
+
+    const inbound    = parseInt(row[iIn])  || 0;
+    const outbound   = parseInt(row[iOut]) || 0;
+    const total      = parseInt(row[iTotal]) || (inbound + outbound);
+    const missedPct  = parseFloat(row[iMiss]) || 0;
+    const missed     = Math.round(inbound * missedPct / 100);
+    const answered   = inbound - missed;
+    const ext        = String(row[iExt]||'').trim();
+
+    let avgDurSec = 0;
+    const durRaw = String(row[iDur]||'');
+    const durM = durRaw.match(/(\d+):(\d+):(\d+)\s*$/);
+    if(durM) avgDurSec = parseInt(durM[1])*3600 + parseInt(durM[2])*60 + parseInt(durM[3]);
+
+    agents.push({ name, ext, total, inbound, outbound, missed, answered,
+                  ansRate: inbound>0?Math.round(answered/inbound*100):0,
+                  avgDur: avgDurSec, missedPct });
+  }
+
+  if(!agents.length) { showToast('No user rows found in RC Users report','error'); return; }
+
+  const DISPATCH_EXTS = new Set(['102','103','105','106','107']);
+  const agentsForTab = agents.map(a => ({
+    name:             a.name,
+    ext:              String(a.ext||''),
+    inbound:          a.inbound,
+    outbound:         a.outbound,
+    answered:         a.answered,
+    missed:           a.missed,
+    ans_rate:         a.ansRate,
+    missed_pct:       a.missedPct.toFixed(1),
+    avg_dur_sec:      a.avgDur,
+    booking_rate:     '',
+    estimates_implied:'',
+    pinned:           ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
+    category:         DISPATCH_EXTS.has(String(a.ext)) ? 'dispatch' : 'agent',
+  }));
+
+  _finishRCLoad(agentsForTab, `Users report (${agents.length} agents)`);
+}
+
+// ── Shared finalization: update state, render, push to Sheets ─────────────────
+function _finishRCLoad(agentsForTab, sourceLabel) {
+  const reportDate = new Date().toISOString().split('T')[0];
+
+  // Compute booking rates now that we have RC data
+  const br = computeBookingRates();
+  const companyBR = br['__company__'];
+  const companyRate = companyBR?.rate || 0;
+  const bookableCallCount = companyBR?.calls || 0;
+
+  // Attach booking rates to agents
+  agentsForTab.forEach(a => {
+    const agentBR = br[a.name];
+    if(agentBR) {
+      a.booking_rate      = agentBR.rate;
+      a.estimates_implied = agentBR.estimates;
+    }
+  });
+
+  // Update local leaderboard state
+  _rcSnap = _rcSnap || {};
+  _rcSnap.leaderboard = agentsForTab.map(a => ({
+    name:       a.name,
+    answered:   a.answered,
+    missed:     a.missed,
+    total:      (a.inbound||0) + (a.outbound||0),
+    inbound:    a.inbound || a.answered,
+    outbound:   a.outbound || 0,
+    ansRate:    a.ans_rate,
+    avgDur:     a.avg_dur_sec,
+    missedPct:  parseFloat(a.missed_pct)||0,
+    isDispatch: a.category === 'dispatch',
+    category:   a.category,
+    bookingRate: a.booking_rate,
+  }));
+
+  renderAgentSummary();
+  if(_crCallsRaw.length) renderCallsTable(); // refresh Booked badges
+
+  showToast(`✅ RC ${sourceLabel} loaded${companyRate?` | Booking rate: ${companyRate}%`:''}`, 'success');
+  dashLog('success', `RC ${sourceLabel}${companyRate?` | Booking rate: ${companyRate}% (${companyBR.estimates} booked / ${bookableCallCount} opportunities)`:''}`);
+
+  const statusEl = $$('rc-report-status');
+  if(statusEl) {
+    statusEl.textContent = `✅ ${sourceLabel} — ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+    statusEl.style.color = '#059669';
+  }
+
+  if(!_sheetsProxy) return;
+
+  // 1. RC_Agents tab
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+    body: JSON.stringify({ action:'syncRCAgents', agents:agentsForTab, source:`RC-${sourceLabel}`, report_date:reportDate })
+  }).then(r=>r.json()).then(d=>{ if(d.success) dashLog('info',`RC_Agents tab updated ✅`); })
+    .catch(e=>console.warn('[RC] Sheets push failed:',e.message));
+
+  // 2. KPI_Dashboard snapshot (staggered)
+  setTimeout(() => {
+    const totalAnswered = agentsForTab.reduce((s,a)=>s+a.answered,0);
+    fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({
+        action:'syncRingCentral',
+        total:   agentsForTab.reduce((s,a)=>s+(a.inbound||0)+(a.outbound||0),0),
+        answered: totalAnswered,
+        answer_rate: companyRate,
+        booking_rate: companyRate,
+        report_date: reportDate,
+        total_estimates: companyBR?.estimates || 0,
+      })
+    }).catch(()=>{});
+  }, 1000);
+
+  // 3. Booking rate history (staggered)
+  if(companyBR) {
+    setTimeout(() => {
+      const agentRates = agentsForTab
+        .filter(a => a.booking_rate !== '')
+        .map(a => ({name:a.name, calls:a.answered, rate:a.booking_rate, estimates:a.estimates_implied}));
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+        body: JSON.stringify({
+          action:'saveRCBookingRate',
+          report_period: reportDate,
+          company_rate: companyRate,
+          total_estimates: companyBR.estimates,
+          total_calls: bookableCallCount,
+          calls_source: `RC-${sourceLabel}`,
+          agent_rates: agentRates,
+        })
+      }).then(r=>r.json()).then(d=>{
+        if(d.success) { showToast('✅ RC data + booking rate saved to Sheets','success'); }
+      }).catch(()=>{});
+    }, 2000);
+  }
+}
+
+
 
 // Build agent call leaderboard from CallRail transcript attribution
 // Writes to RC_Agents Sheets tab — same tab the companion reads
@@ -7247,6 +7387,75 @@ async function testRingCentral() {
 let _agentSortCol = 'answered';
 let _agentSortAsc = false;
 
+// Manual overrides for companion display counts — keyed by agent name
+// undefined = use auto-recommended (answered count from RC report)
+let _companionOverrides = {};
+
+function updateCompanionPreview() {
+  const lb = _rcSnap?.leaderboard || [];
+  const lines = lb
+    .filter(a => a.category === 'dispatch' || a.isDispatch)
+    .map(a => {
+      const val = _companionOverrides[a.name] !== undefined ? _companionOverrides[a.name] : (a.answered||0);
+      return `${a.name.split(' ')[0]}: ${val}${_companionOverrides[a.name]!==undefined?' ✏️':''}`;
+    });
+  if(lines.length) console.log('[Companion Preview]', lines.join(' | '));
+}
+
+async function pushCompanionCounts() {
+  if(!_sheetsProxy) { showToast('Connect to Sheets first','error'); return; }
+  const lb = _rcSnap?.leaderboard || [];
+  if(!lb.length) { showToast('Upload RC report first','warn'); return; }
+
+  const agentsForTab = lb.map(a => {
+    const displayCount = _companionOverrides[a.name] !== undefined
+      ? _companionOverrides[a.name]
+      : (a.answered || 0);
+    return {
+      name:             a.name,
+      ext:              a.ext || '',
+      inbound:          a.inbound || a.answered || 0,
+      outbound:         a.outbound || 0,
+      answered:         displayCount,
+      missed:           a.missed || 0,
+      ans_rate:         a.ansRate || 0,
+      missed_pct:       String(a.missedPct || 0),
+      avg_dur_sec:      a.avgDur || 0,
+      booking_rate:     a.bookingRate || '',
+      estimates_implied:a.estimatesImplied || '',
+      pinned:           ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
+      category:         a.category || (a.isDispatch ? 'dispatch' : 'agent'),
+    };
+  });
+
+  const dispatchers = agentsForTab.filter(a => a.category === 'dispatch');
+  const summary = dispatchers.map(a =>
+    `${a.name.split(' ')[0]}: ${a.answered}${_companionOverrides[a.name]!==undefined?' (manual)':''}`
+  ).join(', ');
+  dashLog('info', `📺 Pushing companion counts — ${summary}`);
+
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({
+        action:'syncRCAgents', agents:agentsForTab,
+        source:'Manual-Override',
+        report_date: new Date().toISOString().split('T')[0],
+      })
+    });
+    const d = await res.json().catch(()=>({}));
+    if(d.success) {
+      showToast('✅ Companion counts pushed — wallboard updates in ~30s','success');
+      dashLog('success','RC_Agents updated with companion display counts ✅');
+      const statusEl = $$('rc-report-status');
+      if(statusEl) {
+        statusEl.textContent = `✅ Pushed ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+        statusEl.style.color = '#059669';
+      }
+    } else { showToast('Push failed: '+(d.error||'unknown'),'error'); }
+  } catch(e) { showToast('Push failed: '+e.message,'error'); }
+}
+
 function toggleAgentSummary() {
   const body   = $$('agent-summary-body');
   const toggle = $$('agent-summary-toggle');
@@ -7317,6 +7526,31 @@ function renderAgentSummary() {
       </td>`;
     }
 
+    // ── Companion display count ───────────────────────────────────────────────
+    // Recommended = answered count if from Calls report (exact), else answered (from Users report)
+    // Manual override stored in _companionOverrides[name]
+    const recommended = a.answered || 0;
+    const override    = _companionOverrides[a.name];
+    const displayVal  = override !== undefined ? override : recommended;
+    const isOverridden = override !== undefined && override !== recommended;
+    const companionCell = isDispatch ? `
+      <td style="padding:4px 8px;text-align:center;background:#EEF2FF">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <input type="number" min="0" value="${displayVal}"
+            onchange="_companionOverrides['${escHtml(a.name)}']=parseInt(this.value)||0;updateCompanionPreview()"
+            style="width:60px;text-align:center;font-weight:700;font-size:13px;
+              padding:3px 6px;border:${isOverridden?'2px solid #6366F1':'1px solid #d1d5db'};
+              border-radius:5px;background:${isOverridden?'#EEF2FF':'#fff'};color:#1f2937"
+            title="${isOverridden?'Manually overridden — click ↺ to reset':'Auto-recommended from RC data'}">
+          ${isOverridden?`<button onclick="_companionOverrides['${escHtml(a.name)}']=undefined;renderAgentSummary()" 
+            style="background:none;border:none;cursor:pointer;color:#6366F1;font-size:12px;padding:0" 
+            title="Reset to recommended (${recommended})">↺</button>`:''}
+        </div>
+        <div style="font-size:9px;color:${isOverridden?'#6366F1':'#9ca3af'};margin-top:2px">
+          ${isOverridden?'manual':'auto'}
+        </div>
+      </td>` : '<td style="background:#f9fafb"></td>';
+
     return `<tr style="border-bottom:1px solid #f3f4f6;${isDispatch?'background:#eff6ff':''}">
       <td style="padding:7px 12px;font-weight:${isDispatch?'700':'400'};color:#111827">${escHtml(a.name)}</td>
       <td style="padding:7px 12px;text-align:right;font-weight:700;color:#059669">${a.answered?.toLocaleString()??'—'}</td>
@@ -7327,6 +7561,7 @@ function renderAgentSummary() {
       </td>
       <td style="padding:7px 12px;text-align:right;color:#6b7280">${a.avgDur>0?fmtDur(a.avgDur):'—'}</td>
       ${bookingCell}
+      ${companionCell}
       <td style="padding:7px 12px;font-size:11px;color:#6b7280">${typeLabel}</td>
     </tr>`;
   }).join('');
