@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.86</title>
+<title>Midstate — KPI Command Center v2.88</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1118,18 +1118,15 @@ html, body {
         <div id="s13-agent-race" style="flex:1;min-height:0;display:flex;gap:14px;align-items:stretch"></div>
 
         <!-- Bottom stats strip -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex-shrink:0">
           <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
             <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Total Answered</div>
             <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:var(--green);font-weight:900" id="s13-total-answered">—</div>
           </div>
           <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
-            <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Booking Rate</div>
-            <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:#FFD700;font-weight:900" id="s13-booking-rate">—</div>
-          </div>
-          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
             <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Avg Handle Time</div>
             <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:var(--blue);font-weight:900" id="s13-avg-handle">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.25);margin-top:2px">calls ≥ 1 min only</div>
           </div>
           <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
             <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">&lt;30s Calls</div>
@@ -1484,7 +1481,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.86
+      v2.88
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1495,7 +1492,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.86';
+const COMPANION_VERSION = 'v2.88';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2514,12 +2511,12 @@ function renderConvByDept(kpi, deptIdx, totalCount) {
   }
 
   const cCount = totalCount || byConv.length;
-  // Dynamic font scaling: more techs = smaller text, fewer = bigger
-  const cNameFs  = cCount <= 3 ? '18px' : cCount <= 5 ? '15px' : cCount <= 7 ? '13px' : '11px';
-  const cValueFs = cCount <= 3 ? '20px' : cCount <= 5 ? '16px' : cCount <= 7 ? '14px' : '12px';
-  const cPad     = cCount <= 3 ? '12px 0' : cCount <= 5 ? '9px 0' : cCount <= 7 ? '6px 0' : '4px 0';
-  const cBarH    = cCount <= 5 ? '5px' : '3px';
-  const photoSz  = cCount <= 5 ? '36px' : cCount <= 7 ? '28px' : '22px';
+  // Dynamic font scaling — prioritize readability on large TV displays
+  const cNameFs  = cCount <= 3 ? '26px' : cCount <= 5 ? '23px' : cCount <= 7 ? '20px' : '17px';
+  const cValueFs = cCount <= 3 ? '30px' : cCount <= 5 ? '26px' : cCount <= 7 ? '22px' : '19px';
+  const cPad     = cCount <= 3 ? '14px 0' : cCount <= 5 ? '11px 0' : cCount <= 7 ? '8px 0' : '6px 0';
+  const cBarH    = cCount <= 5 ? '7px' : '5px';
+  const photoSz  = cCount <= 5 ? '54px' : cCount <= 7 ? '46px' : '38px';
 
   el('lb-conv').innerHTML = byConv.slice(0, 7).map((row, i) => {
     const pctVal = num(row[CONFIG.KPI_COLS.convPct]);
@@ -3087,7 +3084,10 @@ async function updateS13() {
       const hasExtended = rows[0] && rows[0].length >= 10;
       agentRows = rows.slice(1).filter(r => r && r[0]).map(r => {
         if(hasExtended) {
-          // New schema: name,ext,inbound,outbound,answered,missed,ans_rate,missed_pct,avg_dur_sec,booking_rate,estimates_implied,pinned,category,source,report_date,updated_at
+          // Schema (from Apps Script syncRCAgentsTab):
+          // 0:name, 1:ext, 2:inbound, 3:outbound, 4:answered, 5:missed,
+          // 6:ans_rate, 7:missed_pct, 8:avg_dur_sec, 9:booking_rate,
+          // 10:estimates_implied, 11:pinned, 12:category, 13:source, 14:report_date, 15:updated_at
           return {
             name:         String(r[0]||''),
             ext:          String(r[1]||''),
@@ -3099,10 +3099,8 @@ async function updateS13() {
             missedPct:    parseFloat(r[7])||0,
             avgDur:       parseInt(r[8])||0,
             booking_rate: parseInt(r[9])||0,
-            estimates_implied: parseInt(r[10])||0,
-            short_calls:  parseInt(r[11])||0, // may not be in all exports
-            pinned:       String(r[12]||'').toLowerCase() === 'true',
-            category:     String(r[13]||'dispatch'),
+            pinned:       String(r[11]||'').toLowerCase() === 'true',
+            category:     String(r[12]||'dispatch'),
           };
         } else {
           // Legacy schema: name,answered,total,ans_rate,avg_dur_sec,pinned,category
@@ -3303,7 +3301,7 @@ function renderS13AgentRace() {
     const photo   = getEmpPhoto(agent.name, '');
     const isFirst = i === 0;
     const avgStr  = fmtDur(agent.avgDur||0);
-    const bookRate= agent.booking_rate ? `${agent.booking_rate}%` : '—';
+
 
     return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;border-radius:16px;
         background:linear-gradient(180deg,${c.glow.replace('.3',',.08')} 0%,rgba(255,255,255,.02) 100%);
@@ -3362,16 +3360,12 @@ function renderS13AgentRace() {
             border-radius:3px"></div>
         </div>
 
-        <!-- Stats row -->
+        <!-- Stats row — avg handle time only -->
         <div style="display:flex;gap:14px;margin-top:6px">
           <div style="text-align:center">
             <div style="font-size:${isFirst?'16px':'13px'};font-weight:700;color:rgba(255,255,255,.7)">${avgStr}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em">Avg</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em">Avg ≥1m</div>
           </div>
-          ${bookRate !== '—' ? `<div style="text-align:center">
-            <div style="font-size:${isFirst?'16px':'13px'};font-weight:700;color:#FFD700">${bookRate}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em">Booked</div>
-          </div>` : ''}
         </div>
       </div>
     </div>`;
@@ -3380,15 +3374,13 @@ function renderS13AgentRace() {
   // Update strip totals
   const totalAnswered = dispatchers.reduce((s,a)=>s+(a.answered||0),0);
   const totalShort    = dispatchers.reduce((s,a)=>s+(parseInt(a.short_calls)||0),0);
-  const avgHandle     = dispatchers.filter(a=>a.avgDur>0).reduce((s,a,_,arr)=>s+a.avgDur/arr.length,0);
-  const bookRateAvg   = dispatchers.filter(a=>a.booking_rate>0);
-  const avgBookRate   = bookRateAvg.length
-    ? Math.round(bookRateAvg.reduce((s,a)=>s+(a.booking_rate||0),0)/bookRateAvg.length)
-    : 0;
+  const avgHandle     = (() => {
+    const withDur = dispatchers.filter(a=>a.avgDur>0);
+    return withDur.length ? Math.round(withDur.reduce((s,a)=>s+a.avgDur,0)/withDur.length) : 0;
+  })();
 
   const setEl = (id, v) => { const e = el(id); if(e) e.textContent = v; };
   setEl('s13-total-answered', totalAnswered.toLocaleString());
-  setEl('s13-booking-rate',   avgBookRate ? avgBookRate+'%' : '—');
   setEl('s13-avg-handle',     avgHandle > 0 ? fmtDur(Math.round(avgHandle)) : '—');
   setEl('s13-short-calls',    totalShort || '—');
 }
