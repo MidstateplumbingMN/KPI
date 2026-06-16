@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.39</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.40</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.39</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.40</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.39</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.40</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1538,7 +1538,7 @@ tr:hover td{background:#fafafa}
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Caller</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Number</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Direction</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Agent</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Agent / Assign</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Ext</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Duration</th>
                 <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Status</th>
@@ -1757,13 +1757,13 @@ function connect(){
   // This runs asynchronously so UI is not blocked
   loadAllSettingsFromSheets().then(() => {
     console.log('[Connect] Settings loaded from Sheets');
-    // Restore content data from Sheets
     loadPlansFromSheets();
     loadPlanAttributions();
     loadTYCards();
     loadSpotlights();
     loadAnnouncements();
     loadHolidays();
+    loadCallAttribFromSheets(); // load saved call attributions
   });
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
@@ -2788,7 +2788,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.39
+  // ATTRIBUTION ENGINE — v24.40
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4938,7 +4938,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.39',  // dashboard version that generated this push
+    dash_version: 'v24.40',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5575,7 +5575,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.39',
+        dash_version:        'v24.40',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -7770,54 +7770,82 @@ function filterCallsTable() {
   }
 
   const srcColors = { CallRail:'#10B981', RingCentral:'#3B82F6' };
+  const AGENT_OPTIONS = [
+    { value:'', label:'— assign —' },
+    { value:'Victoria Ellsworth', label:'Victoria' },
+    { value:'Robert Danaher',     label:'Bob D.' },
+    { value:'Eric Stoffel',       label:'Eric' },
+    { value:'Jody Serres',        label:'Jody' },
+    { value:'Jason Cornell',      label:'Jason' },
+    { value:'__spam__',           label:'🚫 Spam / Robocall' },
+    { value:'__wrong__',          label:'❌ Wrong Number' },
+    { value:'__employee__',       label:'👤 Employee Call' },
+    { value:'__vendor__',         label:'🏢 Vendor / Supplier' },
+  ];
+
   tbody.innerHTML = rows.slice(0,500).map(c => {
     const dt  = c._time ? new Date(c._time) : null;
     const ds  = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
     const ts  = dt ? dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
     const col = srcColors[c._source]||'#6b7280';
     const statusCol = c._answered ? '#10B981' : '#EF4444';
-    // Agent display — purple badge if from transcript, plain text otherwise
-    const agentDisplay = c._agentTx
-      ? `<span style="color:#7C3AED;font-weight:700" title="Attributed from transcript">📝 ${escHtml(c._agentTx.split(' ')[0])}</span>`
-      : `<span style="color:#1e293b">${escHtml(c._agent||'—')}</span>`;
 
-    // Transcript toggle — only show button for CR calls with a transcript
-    const txId       = `tx-${c._id}`;
-    const hasTx      = c._source === 'CallRail' && !!c._transcript;
-    const txBtn      = hasTx
+    // Check for existing manual attribution
+    const stored = _callAttribStore[c._id];
+    const manualVal   = stored?.agent || '';
+    const isSpecial   = manualVal.startsWith('__');
+    const isAssigned  = !!manualVal;
+
+    // Agent display — manual > transcript > auto
+    let agentDisplay;
+    if(isSpecial) {
+      const labels = { '__spam__':'🚫 Spam','__wrong__':'❌ Wrong #','__employee__':'👤 Employee','__vendor__':'🏢 Vendor' };
+      agentDisplay = `<span style="color:#9ca3af;font-size:11px">${labels[manualVal]||manualVal}</span>`;
+    } else if(manualVal) {
+      agentDisplay = `<span style="color:#059669;font-weight:700" title="Manually assigned">✓ ${escHtml(manualVal.split(' ')[0])}</span>`;
+    } else if(c._agentTx) {
+      agentDisplay = `<span style="color:#7C3AED;font-weight:700" title="Auto-attributed">📝 ${escHtml(c._agentTx.split(' ')[0])}</span>`;
+    } else {
+      agentDisplay = `<span style="color:#9ca3af;font-size:11px">${escHtml(c._agent||'—')}</span>`;
+    }
+
+    // Attribution dropdown — always visible, pre-selected if already assigned
+    const opts = AGENT_OPTIONS.map(o =>
+      `<option value="${o.value}"${o.value===manualVal?' selected':''}>${o.label}</option>`
+    ).join('');
+
+    const attrCell = `<td style="padding:4px 8px;white-space:nowrap">
+      <div style="display:flex;align-items:center;gap:4px">
+        ${agentDisplay}
+        <select id="attr-${escHtml(c._id)}"
+          onchange="assignCallAgent('${escHtml(c._id)}',this.value,this)"
+          style="font-size:10px;padding:2px 4px;border:1px solid ${isAssigned?'#10B981':'#d1d5db'};
+            border-radius:4px;background:${isAssigned?'#F0FDF4':'#fff'};
+            color:#374151;max-width:100px;cursor:pointer">
+          ${opts}
+        </select>
+      </div>
+    </td>`;
+
+    // Transcript toggle
+    const txId  = `tx-${c._id}`;
+    const hasTx = c._source === 'CallRail' && !!c._transcript;
+    const txBtn = hasTx
       ? `<button onclick="toggleTranscriptRow('${txId}')" style="font-size:10px;padding:2px 7px;border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;color:#374151;cursor:pointer;white-space:nowrap">📄 Transcript</button>`
       : '';
 
-    // Format transcript with speaker turns
     const fmtTx = (tx) => escHtml(tx)
       .replace(/\b(Customer|Caller|Speaker 1|S1):\s*/gi,  '<br><strong style="color:#1d4ed8">Customer:</strong> ')
       .replace(/\b(Agent|Speaker 2|S2|Operator|Rep):\s*/gi,'<br><strong style="color:#059669">Agent:</strong> ')
       .replace(/\n/g, '<br>');
 
-    // Manual attribution dropdown for calls without transcript attribution
-    const manualAttr = !c._agentTx && hasTx
-      ? `<div style="margin-top:8px;display:flex;align-items:center;gap:6px">
-          <span style="font-size:11px;color:#6b7280">Assign agent:</span>
-          <select onchange="manuallyAssignAgent('${c._id}',this.value)" style="font-size:11px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px">
-            <option value="">— select —</option>
-            <option value="Bob Danaher">Bob D.</option>
-            <option value="Victoria Ellsworth">Victoria</option>
-            <option value="Eric Stoffel">Eric</option>
-            <option value="other">Other</option>
-          </select>
-          <span style="font-size:10px;color:#9ca3af">(no intro detected)</span>
-        </div>`
-      : '';
-
     const txRow = hasTx
       ? `<tr id="${txId}" style="display:none;background:#f8f7ff;border-bottom:1px solid #ede9fe">
           <td colspan="9" style="padding:10px 16px">
-            <div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between">
-              <span>📝 Transcript${c._agentTx?' — attributed to '+escHtml(c._agentTx):' — agent not detected'}</span>
-              ${c._recording?`<a href="${escHtml(c._recording)}" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;font-weight:400">🎧 Recording</a>`:''}
+            <div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:5px">
+              📝 Transcript${c._agentTx?' — auto-attributed to '+escHtml(c._agentTx):''}
             </div>
             <div style="font-size:11px;line-height:1.7;color:#374151;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #ede9fe;border-radius:6px;padding:8px 10px">${fmtTx(c._transcript)}</div>
-            ${manualAttr}
           </td>
         </tr>`
       : '';
@@ -7825,21 +7853,149 @@ function filterCallsTable() {
     return `<tr style="border-bottom:${hasTx?'none':'1px solid #f3f4f6'};transition:background .1s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
       <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${col}22;color:${col};font-weight:600">${c._source}</span></td>
       <td style="padding:7px 12px;white-space:nowrap"><div style="font-weight:500">${ds}</div><div style="font-size:10px;color:#6b7280">${ts}</div></td>
-      <td style="padding:7px 12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c._caller)}</td>
+      <td style="padding:7px 12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c._caller)}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._number)}</td>
       <td style="padding:7px 12px;font-size:11px;text-transform:capitalize">${c._direction||'—'}</td>
-      <td style="padding:7px 12px;max-width:130px">${agentDisplay}</td>
-      <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._agentExt||'—')}</td>
+      ${attrCell}
       <td style="padding:7px 12px;font-family:monospace;font-size:11px">${c._duration>0?fmtDuration(c._duration):'—'}</td>
       <td style="padding:7px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span>
-        ${c._booked ? '<span style="font-size:10px;padding:2px 6px;border-radius:20px;background:#D1FAE5;color:#065F46;font-weight:700" title="Estimate found for this phone number on same day — confirmed booking">📅 Booked</span>' : ''}
         ${txBtn}
       </td>
     </tr>${txRow}`;
   }).join('');
 }
 
+
+// ============================================================
+// CALL ATTRIBUTION STORE
+// Persists manual agent assignments across sessions via Sheets
+// Keys: call_id → { agent, caller, phone, datetime, duration, reason, source }
+// ============================================================
+let _callAttribStore = {}; // call_id → attribution record
+
+// Assign agent (or tag as spam/wrong#/employee) to a call
+function assignCallAgent(callId, value, selectEl) {
+  if(!value) return;
+
+  // Find the call in either raw dataset
+  const call = [..._rcCallsRaw, ..._crCallsRaw].find(c => c._id === callId);
+  if(!call) return;
+
+  const isSpecial = value.startsWith('__');
+  const agentLabel = {
+    '__spam__':     'Spam/Robocall',
+    '__wrong__':    'Wrong Number',
+    '__employee__': 'Employee Call',
+    '__vendor__':   'Vendor/Supplier',
+  }[value] || value;
+
+  // Update store
+  _callAttribStore[callId] = {
+    agent:    value,
+    label:    agentLabel,
+    caller:   call._caller || '',
+    phone:    call._number || '',
+    datetime: call._time   || '',
+    duration: call._duration || 0,
+    source:   call._source || '',
+    queue:    call._queue  || '',
+    from_raw: call._caller || '',  // for future auto-assign pattern matching
+    assigned_at: new Date().toISOString(),
+  };
+
+  // Update the call object itself
+  if(!isSpecial) {
+    call._agentTx = value;
+    call._agent   = normalizeAgentDisplay(value);
+  } else {
+    call._tag     = value; // spam/wrong/employee tag
+  }
+
+  // Update dropdown border color
+  if(selectEl) {
+    selectEl.style.border = `1px solid ${isSpecial?'#9ca3af':'#10B981'}`;
+    selectEl.style.background = isSpecial ? '#F9FAFB' : '#F0FDF4';
+  }
+
+  const displayLabel = isSpecial ? agentLabel : normalizeAgentDisplay(value);
+  showToast(`✅ ${call._caller||call._number}: ${displayLabel}`, 'success');
+  console.log(`[Attrib] ${callId} → ${displayLabel} (${call._caller})`);
+
+  // Debounced save to Sheets — batch saves after 2s of inactivity
+  clearTimeout(_callAttribStore._saveTimer);
+  _callAttribStore._saveTimer = setTimeout(saveCallAttribToSheets, 2000);
+}
+
+// Load saved attributions from Sheets on connect
+async function loadCallAttribFromSheets() {
+  if(!_sheetsProxy) return;
+  try {
+    const rows = await fetchCSVFromProxy('Call_Attribution');
+    if(!rows || rows.length < 2) return;
+    // Headers: call_id, agent, label, caller, phone, datetime, duration, source, queue, assigned_at
+    rows.slice(1).forEach(r => {
+      if(!r[0]) return;
+      _callAttribStore[r[0]] = {
+        agent:       r[1]||'',
+        label:       r[2]||'',
+        caller:      r[3]||'',
+        phone:       r[4]||'',
+        datetime:    r[5]||'',
+        duration:    parseInt(r[6])||0,
+        source:      r[7]||'',
+        queue:       r[8]||'',
+        assigned_at: r[9]||'',
+      };
+    });
+    const count = Object.keys(_callAttribStore).filter(k=>k!=='_saveTimer').length;
+    console.log(`[Attrib] Loaded ${count} call attributions from Sheets`);
+    if(count > 0 && _callsTableData.length) renderCallsTable(); // refresh badges
+  } catch(e) {
+    console.log('[Attrib] No Call_Attribution tab yet —', e.message);
+  }
+}
+
+// Helper to fetch CSV from proxy by tab name
+async function fetchCSVFromProxy(tabName) {
+  if(!_sheetsProxy) return [];
+  const url = `${_sheetsProxy}?action=getCSV&tab=${encodeURIComponent(tabName)}`;
+  const res = await fetch(url, {redirect:'follow'});
+  const text = await res.text();
+  return text.trim().split('\n').map(line => line.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
+}
+
+// Save all attributions to Call_Attribution Sheets tab
+async function saveCallAttribToSheets() {
+  if(!_sheetsProxy) return;
+  const records = Object.entries(_callAttribStore)
+    .filter(([k]) => k !== '_saveTimer')
+    .map(([id, r]) => ({
+      call_id:     id,
+      agent:       r.agent,
+      label:       r.label,
+      caller:      r.caller,
+      phone:       r.phone,
+      datetime:    r.datetime,
+      duration:    r.duration,
+      source:      r.source,
+      queue:       r.queue,
+      assigned_at: r.assigned_at,
+    }));
+  if(!records.length) return;
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'saveCallAttributions', records })
+    });
+    const d = await res.json().catch(()=>({}));
+    if(d.success) {
+      dashLog('info', `✅ ${records.length} call attributions saved to Sheets`);
+    }
+  } catch(e) {
+    console.warn('[Attrib] Save failed:', e.message);
+  }
+}
 
 // Toggle inline transcript row visibility
 function toggleTranscriptRow(txId) {
