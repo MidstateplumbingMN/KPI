@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.85</title>
+<title>Midstate — KPI Command Center v2.86</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1102,109 +1102,59 @@ html, body {
       </div>
     </div>
 
-    <!-- SCENE 13+14: COMMUNICATIONS — CallRail + RingCentral -->
+    <!-- SCENE 13+14: COMMUNICATIONS — Agent Performance -->
     <div class="scene" id="s13">
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:12px">
 
-      <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:14px">
-
-        <!-- LEFT: Rotating period hero + RC stats -->
-        <div class="card" style="display:flex;flex-direction:column;padding:24px;gap:14px">
-          <!-- Rotating big number + sparkline + goal ring -->
-          <div style="display:flex;align-items:center;gap:18px;flex-shrink:0">
-            <div id="calls-period-card" style="text-align:center;flex:1;min-width:0">
-              <div style="font-family:var(--font-display);font-size:clamp(52px,7.5vw,96px);color:var(--blue);font-weight:900;line-height:1;transition:opacity .3s" id="calls-period-val">0</div>
-              <div style="font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.6);margin-top:6px" id="calls-period-label">Today</div>
-              <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:2px">📞 Inbound Calls</div>
-              <!-- 7-day sparkline -->
-              <div style="height:28px;margin-top:8px;position:relative">
-                <svg id="calls-sparkline-svg" style="position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible"></svg>
-              </div>
-              <div style="font-size:12px;color:rgba(255,255,255,.25);margin-top:2px;letter-spacing:.06em">Last 7 days</div>
-            </div>
-
-            <!-- Goal progress ring -->
-            <div style="flex-shrink:0;text-align:center">
-              <svg width="92" height="92" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
-                <circle cx="46" cy="46" r="40" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="8"/>
-                <circle id="calls-goal-ring" cx="46" cy="46" r="40" fill="none" stroke="#00BFA5" stroke-width="8"
-                  stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round"
-                  style="transition:stroke-dashoffset 1s ease"/>
-              </svg>
-              <div style="margin-top:-66px;margin-bottom:38px">
-                <div style="font-family:var(--font-display);font-size:22px;font-weight:900;color:#00BFA5" id="calls-goal-pct">0%</div>
-              </div>
-              <div style="font-size:12px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em">Daily Goal</div>
-              <div style="font-size:13px;color:rgba(255,255,255,.5);font-family:var(--font-mono)" id="calls-goal-frac">0 / 0</div>
-            </div>
+        <!-- Header -->
+        <div style="display:flex;align-items:baseline;justify-content:space-between;flex-shrink:0">
+          <div style="font-family:var(--font-display);font-size:clamp(18px,2.2vw,28px);font-weight:900;letter-spacing:.08em;color:#fff">
+            📞 CALL PERFORMANCE
           </div>
+          <div style="font-size:15px;color:rgba(255,255,255,.35);letter-spacing:.06em" id="s13-period-label">Month to Date</div>
+        </div>
 
-          <div style="height:1px;background:rgba(255,255,255,.08)"></div>
+        <!-- Agent race cards — one per dispatcher, fills width -->
+        <div id="s13-agent-race" style="flex:1;min-height:0;display:flex;gap:14px;align-items:stretch"></div>
 
-          <!-- RC stats stacked -->
-          <div style="display:flex;flex-direction:column;gap:12px;flex:1;justify-content:center">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.12);border-radius:10px">
-              <div style="font-size:18px;color:rgba(255,255,255,.6)">✅ RC Answered</div>
-              <div style="font-family:var(--font-display);font-size:32px;color:var(--green);font-weight:900" id="rc-answered">0</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.12);border-radius:10px">
-              <div style="font-size:18px;color:rgba(255,255,255,.6)">📊 Answer Rate</div>
-              <div style="font-family:var(--font-display);font-size:32px;color:var(--blue);font-weight:900" id="rc-rate">0%</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.12);border-radius:10px">
-              <div style="font-size:18px;color:rgba(255,255,255,.6)">🆕 New Callers</div>
-              <div style="font-family:var(--font-display);font-size:32px;color:var(--gold);font-weight:900" id="calls-new">0</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.12);border-radius:10px">
-              <div style="font-size:18px;color:rgba(255,255,255,.6)">🚫 Spam / Hangup <span style="font-size:14px;color:rgba(255,255,255,.3)">&lt;60s</span></div>
-              <div style="font-family:var(--font-display);font-size:32px;color:rgba(239,68,68,.8);font-weight:900" id="calls-spam-ct">—</div>
-            </div>
+        <!-- Bottom stats strip -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0">
+          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
+            <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Total Answered</div>
+            <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:var(--green);font-weight:900" id="s13-total-answered">—</div>
           </div>
-
-          <!-- Hidden legacy elements still written by updateS13 -->
-          <div style="display:none">
-            <span id="calls-total">0</span>
-            <span id="calls-mtd">0</span>
-            <span id="calls-today">0</span>
-            <span id="calls-ytd">0</span>
-            <span id="calls-source"></span>
+          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
+            <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Booking Rate</div>
+            <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:#FFD700;font-weight:900" id="s13-booking-rate">—</div>
+          </div>
+          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
+            <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Avg Handle Time</div>
+            <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:var(--blue);font-weight:900" id="s13-avg-handle">—</div>
+          </div>
+          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;text-align:center">
+            <div style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">&lt;30s Calls</div>
+            <div style="font-family:var(--font-display);font-size:clamp(24px,3vw,38px);color:rgba(255,255,255,.5);font-weight:900" id="s13-short-calls">—</div>
           </div>
         </div>
 
-        <!-- CENTER: Weekly call heatmap -->
-        <div class="card" style="display:flex;flex-direction:column;padding:24px">
-          <div style="margin-bottom:14px;flex-shrink:0">
-            <div style="font-size:19px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.12em">
-              📅 This Week's Call Activity
-            </div>
-            <div style="font-size:14px;color:rgba(255,255,255,.4);margin-top:2px">Inbound calls by day · darker = busier</div>
-          </div>
-          <div id="calls-week-heatmap" style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:stretch;min-height:140px"></div>
-
-          <!-- Monthly trend strip below heatmap — larger, with gradient fill -->
-          <div style="margin-top:18px;flex-shrink:0">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-              <div style="font-size:14px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em">Month-to-Date Trend</div>
-              <div style="font-size:13px;color:rgba(255,255,255,.3)" id="calls-trend-total"></div>
-            </div>
-            <div style="height:110px;position:relative;background:rgba(255,255,255,.02);border-radius:10px;padding:8px">
-              <svg id="calls-line-svg" style="position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);display:block;overflow:visible"></svg>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT: RC agent leaderboard + rotating leader card -->
-        <div class="card" style="display:flex;flex-direction:column;padding:18px;overflow:hidden;gap:10px">
-          <!-- Rotating call leader highlight -->
-          <div id="call-leader-card" style="flex-shrink:0;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;min-height:76px;transition:opacity .3s"></div>
-          <div style="font-size:19px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.12em;flex-shrink:0">
-            🏆 Top Agents — <span style="color:rgba(255,255,255,.4);font-size:15px;font-weight:400">Last 30 days</span>
-          </div>
-          <div id="rc-leaderboard" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px"></div>
+        <!-- Hidden legacy elements -->
+        <div style="display:none">
+          <span id="calls-total">0</span><span id="calls-mtd">0</span>
+          <span id="calls-today">0</span><span id="calls-ytd">0</span>
+          <span id="calls-source"></span><span id="calls-new">0</span>
+          <span id="calls-spam-ct">—</span><span id="rc-answered">0</span>
+          <span id="rc-rate">0</span><span id="calls-period-val">0</span>
+          <span id="calls-period-label"></span><span id="rc-leaderboard"></span>
+          <span id="call-leader-card"></span>
+          <svg id="calls-sparkline-svg" style="display:none"></svg>
+          <circle id="calls-goal-ring"></circle>
+          <span id="calls-goal-pct"></span><span id="calls-goal-frac"></span>
+          <span id="calls-trend-total"></span>
+          <svg id="calls-line-svg" style="display:none"></svg>
+          <div id="calls-week-heatmap" style="display:none"></div>
         </div>
       </div>
     </div>
-
-    <!-- S14 removed — merged into S13 above -->
 
     <!-- SCENE 4: DEPARTMENT PERFORMANCE — HVAC vs PLUMBING -->
     <div class="scene" id="s4">
@@ -1534,7 +1484,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.85
+      v2.86
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1545,7 +1495,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.85';
+const COMPANION_VERSION = 'v2.86';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2321,12 +2271,19 @@ function renderMonthlyBars() {
     return;
   }
 
-  // Data
+  // Data — try all sources in order of reliability
   let months = [];
-  if (state.snap._monthly && state.snap._monthly.some(v=>v>0)) {
+  // 1. Pre-parsed array stored directly on snap
+  if(state.snap._monthly?.some(v=>v>0)) {
     months = state.snap._monthly;
-  } else if (state.snap['monthly_revenue']) {
-    try { months = JSON.parse(state.snap['monthly_revenue']||'[]'); } catch(e) {}
+  }
+  // 2. JSON string stored under monthly_revenue key
+  if(!months.some(v=>v>0) && state.snap['monthly_revenue']) {
+    try { const m = JSON.parse(state.snap['monthly_revenue']||'[]'); if(Array.isArray(m)&&m.some(v=>v>0)) months = m; } catch(e) {}
+  }
+  // 3. monthly_revenue_json key (alternate name used by some Apps Script versions)
+  if(!months.some(v=>v>0) && state.snap['monthly_revenue_json']) {
+    try { const m = JSON.parse(state.snap['monthly_revenue_json']||'[]'); if(Array.isArray(m)&&m.some(v=>v>0)) months = m; } catch(e) {}
   }
 
   if (!months.length || !months.some(v=>v>0)) {
@@ -2489,20 +2446,19 @@ function updateS3() {
     return;
   }
 
-  // Dynamic text scaling — always prioritize readability over fitting more rows
-  // Show top 6 max, scale up aggressively
-  const count = Math.min(kpi.length, 6);
-  const nameFontSize = count <= 4 ? '20px' : count <= 5 ? '18px' : '16px';
-  const valFontSize  = count <= 4 ? '24px' : count <= 5 ? '20px' : '18px';
-  const itemPadding  = count <= 4 ? '10px 0' : count <= 5 ? '8px 0' : '6px 0';
-  const barHeight    = '5px';
-  const photoSize    = count <= 4 ? '52px' : count <= 5 ? '44px' : '38px';
+  // Dynamic text scaling — show top 7, scale up aggressively for TV readability
+  const count = Math.min(kpi.length, 7);
+  const nameFontSize = count <= 4 ? '26px' : count <= 5 ? '23px' : count <= 6 ? '21px' : '19px';
+  const valFontSize  = count <= 4 ? '32px' : count <= 5 ? '28px' : count <= 6 ? '24px' : '22px';
+  const itemPadding  = count <= 4 ? '12px 0' : count <= 5 ? '10px 0' : '8px 0';
+  const barHeight    = count <= 5 ? '7px' : '5px';
+  const photoSize    = count <= 4 ? '66px' : count <= 5 ? '58px' : count <= 6 ? '50px' : '44px';
 
   // Revenue leaderboard
   const byRev = [...kpi].sort((a,b) => num(b[CONFIG.KPI_COLS.revenue]) - num(a[CONFIG.KPI_COLS.revenue]));
   const maxRev = num(byRev[0]?.[CONFIG.KPI_COLS.revenue] || 1);
 
-  el('lb-revenue').innerHTML = byRev.slice(0, 6).map((row, i) => {
+  el('lb-revenue').innerHTML = byRev.slice(0, 7).map((row, i) => {
     const rev = num(row[CONFIG.KPI_COLS.revenue]);
     const pct = Math.round(rev / maxRev * 100);
     const name = row[CONFIG.KPI_COLS.name];
@@ -3126,16 +3082,41 @@ async function updateS13() {
   try {
     const rows = await fetchCSV('RC_Agents');
     if(rows && rows.length > 1) {
-      // Headers: name, answered, total, ans_rate, avg_dur_sec, pinned, category
-      agentRows = rows.slice(1).filter(r => r && r[0]).map(r => ({
-        name:        String(r[0]||''),
-        answered:    parseInt(r[1])||0,
-        total:       parseInt(r[2])||0,
-        ansRate:     parseInt(r[3])||0,
-        avgDur:      parseInt(r[4])||0,
-        pinned:      String(r[5]||'').toLowerCase() === 'true',
-        category:    String(r[6]||'dispatch'),
-      }));
+      const firstRow = rows[1] || [];
+      // Detect schema version by checking if row has ext column (new) or just name+answered (old)
+      const hasExtended = rows[0] && rows[0].length >= 10;
+      agentRows = rows.slice(1).filter(r => r && r[0]).map(r => {
+        if(hasExtended) {
+          // New schema: name,ext,inbound,outbound,answered,missed,ans_rate,missed_pct,avg_dur_sec,booking_rate,estimates_implied,pinned,category,source,report_date,updated_at
+          return {
+            name:         String(r[0]||''),
+            ext:          String(r[1]||''),
+            inbound:      parseInt(r[2])||0,
+            outbound:     parseInt(r[3])||0,
+            answered:     parseInt(r[4])||0,
+            missed:       parseInt(r[5])||0,
+            ansRate:      parseInt(r[6])||0,
+            missedPct:    parseFloat(r[7])||0,
+            avgDur:       parseInt(r[8])||0,
+            booking_rate: parseInt(r[9])||0,
+            estimates_implied: parseInt(r[10])||0,
+            short_calls:  parseInt(r[11])||0, // may not be in all exports
+            pinned:       String(r[12]||'').toLowerCase() === 'true',
+            category:     String(r[13]||'dispatch'),
+          };
+        } else {
+          // Legacy schema: name,answered,total,ans_rate,avg_dur_sec,pinned,category
+          return {
+            name:     String(r[0]||''),
+            answered: parseInt(r[1])||0,
+            total:    parseInt(r[2])||0,
+            ansRate:  parseInt(r[3])||0,
+            avgDur:   parseInt(r[4])||0,
+            pinned:   String(r[5]||'').toLowerCase() === 'true',
+            category: String(r[6]||'dispatch'),
+          };
+        }
+      });
       console.log('[RC Agents] Loaded', agentRows.length, 'rows from RC_Agents tab');
     }
   } catch(e) {
@@ -3267,270 +3248,160 @@ async function updateS13() {
       startCallLeaderRotation(topAgent, topAgent.answered, rcAnsweredMtd, ytdTotal);
     }
   } else if(lbEl) {
-    lbEl.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:15px;text-align:center;padding:16px 0;line-height:1.6">RC data not yet pushed<br><span style="font-size:17px">Pull report → Push to Companion</span></div>';
+    lbEl.innerHTML = '';
   }
 
+  // Store agent rows globally so renderS13AgentRace can access them
+  window._s13AgentRows = agentRows;
   renderCallsChart();
-
-  // Wire ResizeObserver — debounced to avoid thrashing on scene transition
-  const svgEl = el('calls-line-svg');
-  if(svgEl && svgEl.parentElement && !_callsResizeObs && window.ResizeObserver) {
-    let _resizeTimer = null;
-    _callsResizeObs = new ResizeObserver(() => {
-      clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(() => renderCallsChart(), 200);
-    });
-    _callsResizeObs.observe(svgEl.parentElement);
-  }
 }
 
 function renderCallsChart() {
-  renderCallsWeekHeatmap();
-  renderCallsLineChart();
-  renderCallsSparkline();
-  renderCallsGoalRing();
+  // Legacy — heatmap/trend chart removed from S13, now uses renderS13AgentRace
+  renderS13AgentRace();
 }
 
-// Weekly call activity heatmap — 7 day cards showing call volume with color intensity
-function renderCallsWeekHeatmap() {
-  const snap = state.snap;
-  const wrap = el('calls-week-heatmap');
-  if(!wrap) return;
+function renderS13AgentRace() {
+  const container = el('s13-agent-race');
+  if(!container) return;
 
-  let daily = [];
-  try {
-    const raw = snap['rc_daily'] || '[]';
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if(Array.isArray(parsed)) daily = parsed;
-  } catch(e) {}
-  if(!daily.length) {
-    try {
-      const raw = snap['calls_daily_json'] || '[]';
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if(Array.isArray(parsed)) daily = parsed;
-    } catch(e) {}
-  }
-
-  const now = new Date();
-  const todayDow = now.getDay(); // 0=Sun
-  const todayDate = now.getDate();
-
-  // Build the current week (Sun-Sat) — map each day to its date-of-month
-  const weekDays = [];
-  for(let i = 0; i < 7; i++) {
-    const dateOfMonth = todayDate - todayDow + i;
-    weekDays.push({
-      dow: i,
-      label: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i],
-      dateOfMonth,
-      isToday: i === todayDow,
-      isFuture: dateOfMonth > todayDate,
-      count: (dateOfMonth >= 1 && dateOfMonth <= daily.length) ? (daily[dateOfMonth-1]||0) : 0,
-    });
-  }
-
-  const maxVal = Math.max(...weekDays.filter(d=>!d.isFuture).map(d=>d.count), 1);
-
-  if(weekDays.every(d => d.isFuture || d.count === 0)) {
-    wrap.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3);font-size:15px">No call data yet this week</div>`;
+  // Get agent data from RC_Agents tab (already loaded into agentRows by updateS13)
+  // Fall back to _s13AgentRows set by updateS13
+  const agentRows = window._s13AgentRows || [];
+  if(!agentRows.length) {
+    container.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.2);font-size:18px">Upload RC report in dashboard to see agent performance</div>`;
     return;
   }
 
-  wrap.innerHTML = weekDays.map(d => {
-    if(d.isFuture) {
-      return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;border:1px dashed rgba(255,255,255,.08);min-height:90px">
-        <div style="font-size:14px;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.1em">${d.label}</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.15);margin-top:6px">—</div>
-      </div>`;
-    }
-    const intensity = d.count / maxVal; // 0-1
-    const bg = d.isToday
-      ? `rgba(0,191,165,${0.15 + intensity*0.35})`
-      : `rgba(56,189,248,${0.04 + intensity*0.22})`;
-    const border = d.isToday ? '1.5px solid #00BFA5' : '1px solid rgba(56,189,248,.12)';
-    const numColor = d.isToday ? '#00BFA5' : (intensity > 0.5 ? '#fff' : 'rgba(255,255,255,.7)');
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;background:${bg};border:${border};min-height:90px;position:relative;${d.isToday?'box-shadow:0 0 16px rgba(0,191,165,.25)':''}">
-      ${d.isToday?'<div style="position:absolute;top:6px;font-size:10px;font-weight:800;color:#00BFA5;letter-spacing:.1em">TODAY</div>':''}
-      <div style="font-size:14px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;${d.isToday?'margin-top:14px':''}">${d.label}</div>
-      <div style="font-family:var(--font-display);font-size:clamp(22px,3vw,34px);font-weight:900;color:${numColor};line-height:1;margin-top:4px">${d.count}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">${d.count===1?'call':'calls'}</div>
+  const dispatchers = agentRows
+    .filter(a => a.category === 'dispatch' && (a.answered||0) > 0)
+    .sort((a,b) => b.answered - a.answered);
+
+  if(!dispatchers.length) {
+    container.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.2);font-size:18px">No dispatcher data — push RC report from dashboard</div>`;
+    return;
+  }
+
+  const maxAnswered = Math.max(...dispatchers.map(a => a.answered), 1);
+  const COLORS = [
+    { main:'#FFD700', glow:'rgba(255,215,0,.3)',  rank:'#FFD700' }, // gold — #1
+    { main:'#C0C0C0', glow:'rgba(192,192,192,.2)', rank:'#C0C0C0' }, // silver — #2
+    { main:'#CD7F32', glow:'rgba(205,127,50,.2)',  rank:'#CD7F32' }, // bronze — #3
+    { main:'#00D4FF', glow:'rgba(0,212,255,.2)',   rank:'#00D4FF' }, // cyan — #4
+    { main:'#00FF88', glow:'rgba(0,255,136,.2)',   rank:'#00FF88' }, // green — #5
+  ];
+
+  const fmtDur = s => {
+    if(!s) return '—';
+    const m = Math.floor(s/60), sec = s%60;
+    return m > 0 ? `${m}m ${String(sec).padStart(2,'0')}s` : `${s}s`;
+  };
+
+  container.innerHTML = dispatchers.map((agent, i) => {
+    const c       = COLORS[i] || COLORS[COLORS.length-1];
+    const pct     = Math.round(agent.answered / maxAnswered * 100);
+    const photo   = getEmpPhoto(agent.name, '');
+    const isFirst = i === 0;
+    const avgStr  = fmtDur(agent.avgDur||0);
+    const bookRate= agent.booking_rate ? `${agent.booking_rate}%` : '—';
+
+    return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;border-radius:16px;
+        background:linear-gradient(180deg,${c.glow.replace('.3',',.08')} 0%,rgba(255,255,255,.02) 100%);
+        border:1px solid ${c.main}${isFirst?'':'44'};
+        ${isFirst?`box-shadow:0 0 40px ${c.glow};`:''}
+        overflow:hidden;position:relative">
+
+      <!-- Rank badge -->
+      <div style="position:absolute;top:14px;left:14px;
+        font-family:var(--font-display);font-size:22px;font-weight:900;
+        color:${c.rank};opacity:.9;line-height:1">${i===0?'①':i===1?'②':i===2?'③':i===3?'④':'⑤'}</div>
+
+      <!-- Fill bar — grows from bottom -->
+      <div style="position:absolute;bottom:0;left:0;right:0;
+        height:${pct}%;
+        background:linear-gradient(0deg,${c.main}18 0%,transparent 100%);
+        transition:height 1.2s cubic-bezier(.16,1,.3,1)"></div>
+
+      <!-- Content -->
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;padding:20px 12px;gap:10px;position:relative;z-index:1">
+
+        <!-- Photo -->
+        ${photo
+          ? `<img src="${photo}" style="width:${isFirst?'84px':'68px'};height:${isFirst?'84px':'68px'};
+              border-radius:50%;object-fit:cover;
+              border:3px solid ${c.main};
+              box-shadow:0 0 20px ${c.glow}" onerror="this.style.display='none'">`
+          : `<div style="width:${isFirst?'84px':'68px'};height:${isFirst?'84px':'68px'};border-radius:50%;
+              background:${c.main}22;border:3px solid ${c.main}66"></div>`}
+
+        <!-- Name -->
+        <div style="font-size:${isFirst?'21px':'17px'};font-weight:800;color:#fff;text-align:center;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">
+          ${agent.name.split(' ')[0]}
+        </div>
+
+        <!-- Big answered number -->
+        <div style="font-family:var(--font-display);
+          font-size:${isFirst?'clamp(56px,7vw,88px)':'clamp(42px,5.5vw,70px)'};
+          font-weight:900;color:${c.main};line-height:1;
+          text-shadow:0 0 30px ${c.glow}">
+          ${agent.answered.toLocaleString()}
+        </div>
+        <div style="font-size:13px;color:rgba(255,255,255,.35);
+          text-transform:uppercase;letter-spacing:.1em;margin-top:-4px">
+          Answered
+        </div>
+
+        <!-- Progress bar -->
+        <div style="width:100%;height:6px;background:rgba(255,255,255,.08);
+          border-radius:3px;overflow:hidden;margin-top:4px">
+          <div style="height:100%;width:${pct}%;
+            background:${c.main};
+            box-shadow:0 0 8px ${c.glow};
+            border-radius:3px"></div>
+        </div>
+
+        <!-- Stats row -->
+        <div style="display:flex;gap:14px;margin-top:6px">
+          <div style="text-align:center">
+            <div style="font-size:${isFirst?'16px':'13px'};font-weight:700;color:rgba(255,255,255,.7)">${avgStr}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em">Avg</div>
+          </div>
+          ${bookRate !== '—' ? `<div style="text-align:center">
+            <div style="font-size:${isFirst?'16px':'13px'};font-weight:700;color:#FFD700">${bookRate}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em">Booked</div>
+          </div>` : ''}
+        </div>
+      </div>
     </div>`;
   }).join('');
+
+  // Update strip totals
+  const totalAnswered = dispatchers.reduce((s,a)=>s+(a.answered||0),0);
+  const totalShort    = dispatchers.reduce((s,a)=>s+(parseInt(a.short_calls)||0),0);
+  const avgHandle     = dispatchers.filter(a=>a.avgDur>0).reduce((s,a,_,arr)=>s+a.avgDur/arr.length,0);
+  const bookRateAvg   = dispatchers.filter(a=>a.booking_rate>0);
+  const avgBookRate   = bookRateAvg.length
+    ? Math.round(bookRateAvg.reduce((s,a)=>s+(a.booking_rate||0),0)/bookRateAvg.length)
+    : 0;
+
+  const setEl = (id, v) => { const e = el(id); if(e) e.textContent = v; };
+  setEl('s13-total-answered', totalAnswered.toLocaleString());
+  setEl('s13-booking-rate',   avgBookRate ? avgBookRate+'%' : '—');
+  setEl('s13-avg-handle',     avgHandle > 0 ? fmtDur(Math.round(avgHandle)) : '—');
+  setEl('s13-short-calls',    totalShort || '—');
 }
 
-// 7-day sparkline under the rotating hero number — shows recent trend at a glance
-function renderCallsSparkline() {
-  const snap = state.snap;
-  const svg  = el('calls-sparkline-svg');
-  if(!svg) return;
+// Stubs for legacy callers — replaced by renderS13AgentRace
+function renderCallsSparkline()    {}
+function renderCallsGoalRing()     {}
+function renderCallsWeekHeatmap()  {}
+function renderCallsLineChart()    {}
 
-  let daily = [];
-  try {
-    const raw = snap['rc_daily'] || '[]';
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if(Array.isArray(parsed)) daily = parsed;
-  } catch(e) {}
 
-  const today = new Date().getDate();
-  // Last 7 days up to and including today
-  const start = Math.max(0, today - 7);
-  const pts = daily.slice(start, today);
-  if(pts.length < 2) { svg.innerHTML = ''; return; }
 
-  const W = svg.parentElement?.clientWidth || 100;
-  const H = svg.parentElement?.clientHeight || 28;
-  const maxV = Math.max(...pts, 1);
-  const minV = Math.min(...pts, 0);
-  const range = Math.max(maxV - minV, 1);
-
-  const stepX = W / (pts.length - 1);
-  const toY = v => H - ((v - minV) / range) * (H - 4) - 2;
-
-  const linePoints = pts.map((v,i) => `${(i*stepX).toFixed(1)},${toY(v).toFixed(1)}`).join(' ');
-  const areaPoints = `0,${H} ${linePoints} ${W},${H}`;
-
-  svg.innerHTML = `
-    <polyline points="${areaPoints}" fill="rgba(0,212,255,.12)" stroke="none"/>
-    <polyline points="${linePoints}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${((pts.length-1)*stepX).toFixed(1)}" cy="${toY(pts[pts.length-1]).toFixed(1)}" r="3" fill="var(--blue)"/>
-  `;
-}
-
-// Daily calls goal progress ring
-function renderCallsGoalRing() {
-  const snap = state.snap;
-  const ring = el('calls-goal-ring');
-  const pctEl = el('calls-goal-pct');
-  const fracEl = el('calls-goal-frac');
-  if(!ring) return;
-
-  const rcToday = parseInt(snap['rc_today']||0) || (() => {
-    let daily = []; try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
-    return daily[new Date().getDate()-1] || 0;
-  })();
-
-  const goal = num(snap['daily_calls_goal']) || CONFIG.DAILY_CALLS_GOAL;
-  const pct  = goal > 0 ? Math.min(100, Math.round(rcToday/goal*100)) : 0;
-
-  const circumference = 2 * Math.PI * 40; // r=40
-  const offset = circumference * (1 - pct/100);
-  ring.style.strokeDashoffset = offset.toFixed(1);
-
-  // Color shifts as goal approaches/exceeds: blue → teal → green
-  const color = pct >= 100 ? '#00FF88' : pct >= 60 ? '#00BFA5' : '#00D4FF';
-  ring.style.stroke = color;
-
-  if(pctEl)  { pctEl.textContent = pct + '%'; pctEl.style.color = color; }
-  if(fracEl) fracEl.textContent = `${rcToday} / ${goal}`;
-}
-
-function renderCallsLineChart() {
-  const snap = state.snap;
-  const svg  = el('calls-line-svg');
-  if(!svg) return;
-
-  // Get daily RC data
-  let daily = [];
-  try {
-    const raw = snap['rc_daily'] || '[]';
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if(Array.isArray(parsed) && parsed.some(v=>v>0)) daily = parsed;
-  } catch(e) {}
-  if(!daily.length) {
-    try {
-      const raw = snap['calls_daily_json'] || '[]';
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if(Array.isArray(parsed) && parsed.some(v=>v>0)) daily = parsed;
-    } catch(e) {}
-  }
-
-  const W = (svg.parentElement?.clientWidth  || svg.clientWidth  || 600);
-  const H = (svg.parentElement?.clientHeight || svg.clientHeight || 130);
-  if(W < 50 || H < 20) {
-    if(!renderCallsLineChart._retryTimer) {
-      renderCallsLineChart._retryTimer = setTimeout(() => {
-        renderCallsLineChart._retryTimer = null;
-        renderCallsLineChart();
-      }, 300);
-    }
-    return;
-  }
-
-  const now          = new Date();
-  const today        = now.getDate();
-  const daysInMonth  = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-
-  if(!daily.length || !daily.slice(0,today).some(v=>v>0)) {
-    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="14" dominant-baseline="middle">No call data yet — push report to populate</text>`;
-    const trendEl0 = el('calls-trend-total');
-    if(trendEl0) trendEl0.textContent = '';
-    return;
-  }
-
-  // Build bars for each day up to today
-  const pts = Array.from({length: today}, (_, i) => ({ day: i+1, count: daily[i]||0 }));
-  const maxVal  = Math.max(...pts.map(p=>p.count), 1);
-  const monthTotal = pts.reduce((s,p)=>s+p.count, 0);
-  const trendEl = el('calls-trend-total');
-  if(trendEl) trendEl.textContent = `${monthTotal.toLocaleString()} calls this month`;
-
-  // Larger layout — room for Y-axis gridlines and value labels
-  const padL=4, padR=4, padT=20, padB=18;
-  const chartW  = W - padL - padR;
-  const chartH  = H - padT - padB;
-  const barW    = Math.max(2, Math.floor(chartW / daysInMonth) - 2);
-  const toX     = d => padL + ((d-1)/daysInMonth) * chartW;
-  const barH    = v => Math.max(1, (v/maxVal) * chartH);
-  const barY    = v => padT + chartH - barH(v);
-
-  // Subtle horizontal gridlines at 50% and 100% of max
-  let grid = '';
-  [0.5, 1].forEach(frac => {
-    const y = padT + chartH * (1 - frac);
-    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1" stroke-dasharray="3,4"/>`;
-  });
-
-  // Bars with gradient fill for today, value label on highest bars
-  let bars = '';
-  pts.forEach(p => {
-    const x     = toX(p.day);
-    const h     = barH(p.count);
-    const y     = barY(p.count);
-    const isToday = p.day === today;
-    const fill  = isToday ? 'url(#todayGrad)' : 'rgba(56,189,248,.3)';
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${fill}" rx="2"/>`;
-    // Label today's value above its bar
-    if(isToday && p.count > 0) {
-      bars += `<text x="${(x+barW/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="800" fill="#38BDF8">${p.count}</text>`;
-    }
-  });
-
-  const defs = `<defs>
-    <linearGradient id="todayGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#38BDF8"/>
-      <stop offset="100%" stop-color="#0EA5E9"/>
-    </linearGradient>
-  </defs>`;
-
-  // X-axis: only first day, today, and last day of month
-  let xLabels = '';
-  const xLabelPts = [...new Set([1, today, daysInMonth])];
-  xLabelPts.forEach(d => {
-    const x = toX(d) + barW/2;
-    const isToday2 = d === today;
-    xLabels += `<text x="${x.toFixed(1)}" y="${(H-2)}" text-anchor="middle" font-size="10" fill="${isToday2?'#38BDF8':'rgba(255,255,255,.35)'}" font-weight="${isToday2?'700':'400'}">${d===today?'Today':d}</text>`;
-  });
-
-  svg.innerHTML = `${defs}${grid}${bars}${xLabels}`;
-}
-let _callsResizeObs = null;
-
-// ============================================================
-// BIG WIN NOTIFICATION — fires when a job over threshold closes
-// ============================================================
-let _lastJobIds = new Set();
-const BIG_WIN_THRESHOLD = 2000; // $2,000+
-
+// Weekly call activity heatmap — 7 day cards showing call volume with color intensity
 function checkBigWins() {
   const snap = state.snap;
   const bigWinJson = snap['big_win_job'] || '';
