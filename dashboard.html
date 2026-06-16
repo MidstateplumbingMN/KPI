@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.38</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.39</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.38</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.39</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.38</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.39</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1521,7 +1521,7 @@ tr:hover td{background:#fafafa}
                 </tr>
               </thead>
               <tbody id="agent-summary-tbody">
-                <tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">Fetch RingCentral calls to see agent breakdown</td></tr>
+                <tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">Upload RC report above to see agent breakdown</td></tr>
               </tbody>
             </table>
             <div id="agent-summary-footer" style="padding:8px 12px;font-size:11px;color:#6b7280;background:#f9fafb;border-top:1px solid #e5e7eb"></div>
@@ -1545,7 +1545,7 @@ tr:hover td{background:#fafafa}
               </tr>
             </thead>
             <tbody id="calls-tbody">
-              <tr><td colspan="8" style="padding:32px;text-align:center;color:#9ca3af">Fetch calls to see records here</td></tr>
+              <tr><td colspan="8" style="padding:32px;text-align:center;color:#9ca3af">Upload the RC report above — call records will appear here automatically</td></tr>
             </tbody>
           </table>
         </div>
@@ -2788,7 +2788,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.38
+  // ATTRIBUTION ENGINE — v24.39
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4938,7 +4938,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.38',  // dashboard version that generated this push
+    dash_version: 'v24.39',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5575,7 +5575,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.38',
+        dash_version:        'v24.39',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -7103,6 +7103,13 @@ function _finishRCLoad(agentsForTab, sourceLabel) {
   }));
 
   renderAgentSummary();
+  // Populate call records table automatically — no fetch button needed
+  if(_rcCallsRaw.length || _crCallsRaw.length) renderCallsTable();
+  // Auto-expand agent summary so it's immediately visible
+  const summaryBody = $$('agent-summary-body');
+  const summaryToggle = $$('agent-summary-toggle');
+  if(summaryBody) { summaryBody.style.display = 'block'; }
+  if(summaryToggle) { summaryToggle.textContent = '▲'; }
 
   showToast(`✅ RC ${sourceLabel} loaded`, 'success');
   dashLog('success', `RC ${sourceLabel} loaded`);
