@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.43</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.47</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.43</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.47</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,9 +452,10 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.43</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.47</span></div>
     <div class="top-right">
-      <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
+      <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
+      <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
       <button class="sec-btn no-print" id="summaryBtn" style="display:none" onclick="openSummaryReport()">📊 Summary Report</button>
       <button class="sec-btn no-print refresh-all-btn" id="refreshAllBtn" style="display:none" onclick="refreshAll()">↻ Refresh all</button>
@@ -2455,6 +2456,29 @@ function cancelPull() {
   $$('statusBar').textContent='Pull canceled.';
 }
 
+// ── Quick Pull — last 7 days ───────────────────────────────────────────────────
+// Sets date range to last 7 days and runs a normal pull.
+// Estimates and jobs are date-filtered so only ~50-100 records each (vs 12k+).
+// Invoices are always full (HCP has no invoice date filter) — still fast at 4 pages.
+// After pull, monthly_revenue is MERGED from Sheets so bar charts stay accurate.
+async function quickPull() {
+  const today = new Date();
+  const from  = new Date(today); from.setDate(from.getDate() - 7);
+  const fmt   = d => d.toISOString().split('T')[0];
+
+  // Set date inputs to last 7 days
+  const fromEl = $$('dateFrom');
+  const toEl   = $$('dateTo');
+  if(fromEl) fromEl.value = fmt(from);
+  if(toEl)   toEl.value   = fmt(today);
+
+  // Mark as quick pull — loadAll will see this flag
+  window._isQuickPull = true;
+  dashLog('info', `⚡ Quick Pull — last 7 days (${fmt(from)} → ${fmt(today)})`);
+  await loadAll();
+  window._isQuickPull = false;
+}
+
 async function loadAll(){
   const from=$$('dateFrom').value,to=$$('dateTo').value;
   showErr('');
@@ -2750,8 +2774,15 @@ async function loadAll(){
     // 2. THEN write snapshot to Sheets → companion reads correct numbers
     // 3. Everything else fires in parallel after that
     setTimeout(async ()=>{
-      // Step 1 — build _allYearJobs for accurate YTD revenue
-      await fetchYTDMonthlyRevenue();
+      if(window._isQuickPull) {
+        // Quick pull: skip YTD fetch (slow — 4 pages of jobs) 
+        // Load monthly revenue from Sheets instead to keep bar charts accurate
+        stepLog('⚡ Quick pull — loading monthly revenue from Sheets...');
+        await loadMonthlyRevenueFromSheets();
+      } else {
+        // Full pull: fetch full-year jobs for accurate monthly revenue breakdown
+        await fetchYTDMonthlyRevenue();
+      }
 
       // Step 2 — now write snapshot with correct annual/quarterly/monthly revenue
       stepLog('📤 Syncing to Sheets...');
@@ -2788,7 +2819,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.43
+  // ATTRIBUTION ENGINE — v24.47
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4938,7 +4969,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.43',  // dashboard version that generated this push
+    dash_version: 'v24.47',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5425,12 +5456,20 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       console.warn('[Sheets sync] Fetch error:', fetchErr.message);
       syncOk = false;
     }
-    $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${_uploadedPlans.length > 0 ? _uploadedPlans.length+' plans (uploaded)' : plans.length+' plans'} · ${employees.length} employees · ${dateFrom} → ${dateTo} · ${syncOk ? 'Saved to Sheets ✅' : '⚠ Sheets sync failed — check Apps Script logs'}`;
+    const pullMode = window._isQuickPull ? '⚡ Quick Pull (7d)' : '↻ Full Pull (YTD)';
+    $$('statusBar').textContent=`${pullMode} · ${jobs.length} jobs · ${estimates.length} estimates · ${_uploadedPlans.length > 0 ? _uploadedPlans.length+' plans (uploaded)' : plans.length+' plans'} · ${employees.length} employees · ${dateFrom} → ${dateTo} · ${syncOk ? 'Saved to Sheets ✅' : '⚠ Sheets sync failed — check Apps Script logs'}`;
 
-    // Stagger background syncs (jobs, estimates, monthly revenue, etc.) below to avoid
-    // hitting Apps Script execution quota when fired back-to-back
+    // Stagger background syncs to avoid Apps Script quota hits
     await new Promise(r => setTimeout(r, 1000));
-    syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
+
+    if(window._isQuickPull) {
+      // Quick pull: DON'T overwrite monthly revenue in Sheets — it only has 7 days of data.
+      // The companion reads monthly_revenue directly from the Monthly_Revenue tab which
+      // was written by the last full pull and stays accurate.
+      dashLog('info', '⚡ Quick pull — skipping monthly revenue sync (preserving full-year Sheets data)');
+    } else {
+      syncMonthlyRevenueToSheet(dashboardSnapshot.monthly_revenue||[]);
+    }
 
     // Send jobs separately — medium payload, non-blocking
     if(jobsPayload.length && PROXY) {
@@ -5575,7 +5614,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.43',
+        dash_version:        'v24.47',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5725,6 +5764,32 @@ async function syncMonthlyRevenueToSheet(monthly) {
 // YTD MONTHLY REVENUE — fetch full year for bar chart
 // Runs in background after main pull, independent of date range
 // ============================================================
+// Load monthly revenue from the dedicated Sheets tab (after quick pull)
+// This keeps the bar chart accurate without re-fetching 12k estimates
+async function loadMonthlyRevenueFromSheets() {
+  if(!_sheetsProxy) return;
+  try {
+    const url = `${_sheetsProxy}?action=getCSV&tab=Monthly_Revenue`;
+    const res = await fetch(url, {redirect:'follow'});
+    const text = await res.text();
+    const rows = text.trim().split('\n').map(l => l.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
+    if(rows.length < 2) return;
+    const arr = new Array(12).fill(0);
+    rows.slice(1).forEach(r => {
+      const idx = parseInt(r[0]||'-1');
+      const rev = parseFloat(String(r[2]||'0').replace(/[$,]/g,''))||0;
+      if(idx >= 0 && idx < 12 && rev > 0) arr[idx] = rev;
+    });
+    if(arr.some(v => v > 0)) {
+      // Inject into dashboardSnapshot so bar chart renders correctly
+      dashboardSnapshot.monthly_revenue = arr;
+      console.log('[Quick Pull] Monthly revenue loaded from Sheets:', arr.filter(v=>v>0).length, 'months');
+    }
+  } catch(e) {
+    console.warn('[Quick Pull] Could not load monthly revenue from Sheets:', e.message);
+  }
+}
+
 async function fetchYTDMonthlyRevenue() {
   if (!_workerUrl) return;
   try {
@@ -6909,6 +6974,26 @@ function _processRCCallsReport(rows, headerIdx) {
     'SERRES JODY','SECREST BOB','HANSON CORY',
   ]);
 
+  // RC Call Flow: CallRail → RingCentral → SC Queue (Victoria/Eric/Bob) →
+  //   if no answer → Call all (everyone's phone rings simultaneously)
+  //
+  // CSV structure per customer call:
+  //   1. Parent row: To="Service Coordinator" — queue entry leg, SKIP
+  //   2. SC queue child rows: one per person it rang (Answered=winner, VM/Missed=others)
+  //   3. Call all rows: if SC queue missed, rings everyone — same pattern
+  //
+  // For transfers: both legs show "Answered" — credit the FIRST answerer
+  //
+  // CORRECT LOGIC:
+  //   • Include: SC queue + Call all queue
+  //   • Skip: parent rows (To=Service Coordinator), internal calls, outbound
+  //   • Only count: Result=Answered/Connected, named agent in To field
+  //   • Deduplicate: same caller phone + 2-minute window = one call (transfer dedup)
+
+  // Build a deduplicated set: caller+time → first agent who answered
+  // This prevents transfers from double-counting
+  const seenCalls = new Map(); // callKey → agentName of first answerer
+
   for(let r = headerIdx+1; r < rows.length; r++) {
     const row = rows[r];
     if(!row || !row[iFrom]) continue;
@@ -6922,48 +7007,20 @@ function _processRCCallsReport(rows, headerIdx) {
     const startRaw = String(row[iStart]||'').trim();
     const queue    = String(row[iQueue]||'').trim();
 
-    // KEY INSIGHT from RC portal export structure:
-    // Each call through the SC queue generates MULTIPLE rows:
-    //   Parent row: To = "Service Coordinator (651) 352-6866" → queue leg, skip for attribution
-    //   Child rows: To = "Victoria Ellsworth (651) 352-6866" → who actually answered
-    //
-    // Strategy: SKIP parent rows (To contains "Service Coordinator")
-    //           USE child rows (To = named agent) for attribution
-    // This gives accurate per-agent counts that match the RC portal UI
+    const isParentQueueRow = to.toLowerCase().includes('service coordinator')
+                          || /^call all\s*\d*$/i.test(to.trim());
+    const isValidQueue = queue === 'Service Coordinator' || queue === 'Call all';
+    const isInternal   = dir === 'internal';
+    const isInbound    = dir === 'inbound';
+    const isAnswered   = result === 'Answered' || result === 'Connected';
 
-    const isParentQueueRow = to.toLowerCase().includes('service coordinator');
-    const isServiceCoordQueue = queue === 'Service Coordinator' || queue === 'Call all';
-
-    // Extract agent from 'To' field using UNIQUE EXTENSION NUMBERS — not shared phone lines
-    // The shared (651) 352-6866 is answered by multiple agents so we can't attribute by name+shared#
-    // Unique extensions: 101=Cory, 102=Bob, 103=Victoria, 104=Bob Secrest, 105=Eric, 106=Jody, 107=Jason
-    const EXT_MAP = {
-      '101': 'Cory Hanson',
-      '102': 'Robert Danaher',
-      '103': 'Victoria Ellsworth',
-      '104': 'Bob Secrest',
-      '105': 'Eric Stoffel',
-      '106': 'Jody Serres',
-      '107': 'Jason Cornell',
-      '108': 'Tony Engesether',
-    };
-
+    // Extract agent from To field by name
     let agentName = '';
-    if(!isParentQueueRow) {
-      // First try: match by unique extension number at end of To field (most reliable)
-      const extMatch = to.match(/\b(\d{3})\s*$/);
-      if(extMatch && EXT_MAP[extMatch[1]]) {
-        agentName = EXT_MAP[extMatch[1]];
-      }
-      // Second try: match name when To doesn't end with ext (e.g. "Victoria Ellsworth (651) 352-6866")
-      // BUT exclude the shared (352-6866) line — too ambiguous
-      if(!agentName && !to.includes('352-6866')) {
-        for(const d of DISPATCHER_NAMES) {
-          if(to.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
-        }
+    if(!isParentQueueRow && !isInternal) {
+      for(const d of DISPATCHER_NAMES) {
+        if(to.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
       }
     }
-    // Outbound: From field is the agent
     if(!agentName && dir === 'outbound') {
       for(const d of DISPATCHER_NAMES) {
         if(from.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
@@ -7019,23 +7076,33 @@ function _processRCCallsReport(rows, headerIdx) {
       _isParent:  isParentQueueRow, // flag so table can visually distinguish
     });
 
-    // Tally per agent — child rows (named agent in To field) through SC queue only
-    // Skip: parent queue rows, non-SC-queue rows, no agent identified
-    if(agentName && !isParentQueueRow && isServiceCoordQueue) {
-      const answered = result === 'Answered' || result === 'Connected';
-      ensureAgent(agentName);
-      agentTally[agentName].total++;
-      if(answered) {
+    // Tally: inbound, valid queue, named agent, answered, non-parent, non-internal
+    // Deduplicate transfers: same caller + 2-minute window → credit first answerer only
+    if(agentName && isValidQueue && !isParentQueueRow && !isInternal && isInbound && isAnswered) {
+      // Build a call key: caller phone + 2-minute time bucket
+      const timeBucket = callISO ? callISO.slice(0,15) + '0:00' : ''; // floor to 10-min
+      const callKey = callerPhone ? `${callerPhone}|${timeBucket}` : '';
+
+      let isFirstAnswerer = true;
+      if(callKey) {
+        if(seenCalls.has(callKey)) {
+          // Already seen this call answered — this is a transfer leg, skip counting
+          isFirstAnswerer = false;
+        } else {
+          seenCalls.set(callKey, agentName);
+        }
+      }
+
+      if(isFirstAnswerer) {
+        ensureAgent(agentName);
         agentTally[agentName].answered++;
-        // Only count handle time ≥60s for avg duration — sub-minute calls skew average
+        agentTally[agentName].total++;
         if(handle >= 60) {
           agentTally[agentName].totalDur += handle;
-          agentTally[agentName].durCount  = (agentTally[agentName].durCount||0) + 1;
+          agentTally[agentName].durCount = (agentTally[agentName].durCount||0) + 1;
         }
-      } else {
-        agentTally[agentName].missed++;
+        if(len > 0 && len < 30) agentTally[agentName].shortCalls = (agentTally[agentName].shortCalls||0) + 1;
       }
-      if(len > 0 && len < 30) agentTally[agentName].shortCalls = (agentTally[agentName].shortCalls||0) + 1;
     }
   }
 
@@ -7151,6 +7218,9 @@ function _finishRCLoad(agentsForTab, sourceLabel) {
   }));
 
   renderAgentSummary();
+  // Apply phone number memory to auto-tag known callers
+  const phoneApplied = applyPhoneAttribStore([..._rcCallsRaw, ..._crCallsRaw]);
+  if(phoneApplied > 0) dashLog('info', `📞 Auto-tagged ${phoneApplied} calls from remembered phone numbers`);
   // Populate call records table automatically — no fetch button needed
   if(_rcCallsRaw.length || _crCallsRaw.length) renderCallsTable();
   // Auto-expand agent summary so it's immediately visible
@@ -7921,12 +7991,12 @@ function filterCallsTable() {
 // Keys: call_id → { agent, caller, phone, datetime, duration, reason, source }
 // ============================================================
 let _callAttribStore = {}; // call_id → attribution record
+let _phoneAttribStore = {}; // phone → { agent, tag, label, name } — persists across sessions
 
 // Assign agent (or tag as spam/wrong#/employee) to a call
 function assignCallAgent(callId, value, selectEl) {
   if(!value) return;
 
-  // Find the call in either raw dataset
   const call = [..._rcCallsRaw, ..._crCallsRaw].find(c => c._id === callId);
   if(!call) return;
 
@@ -7938,29 +8008,58 @@ function assignCallAgent(callId, value, selectEl) {
     '__vendor__':   'Vendor/Supplier',
   }[value] || value;
 
-  // Update store
+  // Save by call ID
   _callAttribStore[callId] = {
-    agent:    value,
-    label:    agentLabel,
-    caller:   call._caller || '',
-    phone:    call._number || '',
-    datetime: call._time   || '',
-    duration: call._duration || 0,
-    source:   call._source || '',
-    queue:    call._queue  || '',
-    from_raw: call._caller || '',  // for future auto-assign pattern matching
+    agent:       value,
+    label:       agentLabel,
+    caller:      call._caller || '',
+    phone:       call._number || '',
+    datetime:    call._time   || '',
+    duration:    call._duration || 0,
+    source:      call._source || '',
+    queue:       call._queue  || '',
     assigned_at: new Date().toISOString(),
   };
 
-  // Update the call object itself
-  if(!isSpecial) {
-    call._agentTx = value;
-    call._agent   = normalizeAgentDisplay(value);
-  } else {
-    call._tag     = value; // spam/wrong/employee tag
+  // Save by phone number — THIS is the key for auto-attribution
+  // Every future call from this phone number will be auto-tagged
+  const phone = (call._number||'').replace(/\D/g,'').slice(-10);
+  if(phone) {
+    _phoneAttribStore[phone] = {
+      agent:    value,
+      label:    agentLabel,
+      caller:   call._caller || '',
+      isSpecial,
+    };
+    console.log(`[PhoneAttrib] Saved ${phone} (${call._caller}) → ${agentLabel}`);
+
+    // Apply to ALL other calls from this phone number in current dataset
+    let autoApplied = 0;
+    [..._rcCallsRaw, ..._crCallsRaw].forEach(c => {
+      const cPhone = (c._number||'').replace(/\D/g,'').slice(-10);
+      if(cPhone === phone && c._id !== callId) {
+        if(!isSpecial) {
+          c._agentTx = value;
+          c._agent   = normalizeAgentDisplay(value);
+        }
+        c._tag = isSpecial ? value : null;
+        // Also store by call ID so the dropdown shows the value
+        _callAttribStore[c._id] = { ..._callAttribStore[callId], 
+          call_id: c._id, datetime: c._time || '', duration: c._duration || 0 };
+        autoApplied++;
+      }
+    });
+    if(autoApplied > 0) {
+      showToast(`✅ ${agentLabel} applied to ${autoApplied + 1} calls from ${call._caller||phone}`, 'success');
+      renderCallsTable(); // re-render all rows to show updated dropdowns
+      return; // skip the separate toast below
+    }
   }
 
-  // Update dropdown border color
+  // Update the call object
+  if(!isSpecial) { call._agentTx = value; call._agent = normalizeAgentDisplay(value); }
+  else { call._tag = value; }
+
   if(selectEl) {
     selectEl.style.border = `1px solid ${isSpecial?'#9ca3af':'#10B981'}`;
     selectEl.style.background = isSpecial ? '#F9FAFB' : '#F0FDF4';
@@ -7968,11 +8067,40 @@ function assignCallAgent(callId, value, selectEl) {
 
   const displayLabel = isSpecial ? agentLabel : normalizeAgentDisplay(value);
   showToast(`✅ ${call._caller||call._number}: ${displayLabel}`, 'success');
-  console.log(`[Attrib] ${callId} → ${displayLabel} (${call._caller})`);
 
-  // Debounced save to Sheets — batch saves after 2s of inactivity
   clearTimeout(_callAttribStore._saveTimer);
   _callAttribStore._saveTimer = setTimeout(saveCallAttribToSheets, 2000);
+}
+
+// Apply phone number memory to a freshly loaded call dataset
+function applyPhoneAttribStore(calls) {
+  if(!Object.keys(_phoneAttribStore).length) return 0;
+  let applied = 0;
+  calls.forEach(c => {
+    if(_callAttribStore[c._id]) return; // already has call-level attribution
+    const phone = (c._number||'').replace(/\D/g,'').slice(-10);
+    if(!phone) return;
+    const saved = _phoneAttribStore[phone];
+    if(!saved) return;
+    if(!saved.isSpecial) {
+      c._agentTx = saved.agent;
+      c._agent   = normalizeAgentDisplay(saved.agent);
+    }
+    c._tag = saved.isSpecial ? saved.agent : null;
+    // Store by call ID so dropdown shows correct value
+    _callAttribStore[c._id] = {
+      agent:       saved.agent,
+      label:       saved.label,
+      caller:      c._caller || '',
+      phone:       c._number || '',
+      datetime:    c._time   || '',
+      duration:    c._duration || 0,
+      source:      c._source || '',
+      assigned_at: 'auto-phone',
+    };
+    applied++;
+  });
+  return applied;
 }
 
 // Load saved attributions from Sheets on connect
@@ -7998,7 +8126,27 @@ async function loadCallAttribFromSheets() {
     });
     const count = Object.keys(_callAttribStore).filter(k=>k!=='_saveTimer').length;
     console.log(`[Attrib] Loaded ${count} call attributions from Sheets`);
-    if(count > 0 && _callsTableData.length) renderCallsTable(); // refresh badges
+
+    // Also build phone → attrib lookup from saved records
+    Object.values(_callAttribStore).forEach(r => {
+      if(!r.phone) return;
+      const phone = String(r.phone).replace(/\D/g,'').slice(-10);
+      if(phone && !_phoneAttribStore[phone]) {
+        _phoneAttribStore[phone] = {
+          agent:    r.agent,
+          label:    r.label,
+          caller:   r.caller,
+          isSpecial: r.agent?.startsWith('__'),
+        };
+      }
+    });
+    console.log(`[PhoneAttrib] ${Object.keys(_phoneAttribStore).length} phone numbers remembered`);
+
+    if(count > 0 && _callsTableData.length) {
+      const applied = applyPhoneAttribStore(_callsTableData);
+      if(applied > 0) { console.log(`[PhoneAttrib] Auto-applied to ${applied} calls`); }
+      renderCallsTable();
+    }
   } catch(e) {
     console.log('[Attrib] No Call_Attribution tab yet —', e.message);
   }
@@ -8038,7 +8186,8 @@ async function saveCallAttribToSheets() {
     });
     const d = await res.json().catch(()=>({}));
     if(d.success) {
-      dashLog('info', `✅ ${records.length} call attributions saved to Sheets`);
+      const phones = Object.keys(_phoneAttribStore).length;
+      dashLog('info', `✅ ${records.length} call attributions saved (${phones} phone numbers remembered)`);
     }
   } catch(e) {
     console.warn('[Attrib] Save failed:', e.message);
