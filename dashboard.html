@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.41</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.43</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.41</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.43</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.41</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.43</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -2788,7 +2788,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.41
+  // ATTRIBUTION ENGINE — v24.43
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4938,7 +4938,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.41',  // dashboard version that generated this push
+    dash_version: 'v24.43',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5575,7 +5575,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.41',
+        dash_version:        'v24.43',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6922,27 +6922,55 @@ function _processRCCallsReport(rows, headerIdx) {
     const startRaw = String(row[iStart]||'').trim();
     const queue    = String(row[iQueue]||'').trim();
 
-    // Only count inbound calls through the Service Coordinator queue
-    // Direct extension calls, internal transfers, and personal-phone calls
-    // are NOT customer service calls and inflate agent counts incorrectly
-    const isServiceCoordQueue = queue === 'Service Coordinator';
-    if(dir !== 'inbound' || !isServiceCoordQueue) {
-      // Still record outbound for reference but don't count as answered inbound
-    }
+    // KEY INSIGHT from RC portal export structure:
+    // Each call through the SC queue generates MULTIPLE rows:
+    //   Parent row: To = "Service Coordinator (651) 352-6866" → queue leg, skip for attribution
+    //   Child rows: To = "Victoria Ellsworth (651) 352-6866" → who actually answered
+    //
+    // Strategy: SKIP parent rows (To contains "Service Coordinator")
+    //           USE child rows (To = named agent) for attribution
+    // This gives accurate per-agent counts that match the RC portal UI
 
-    // Extract agent from 'To' field for inbound calls
+    const isParentQueueRow = to.toLowerCase().includes('service coordinator');
+    const isServiceCoordQueue = queue === 'Service Coordinator' || queue === 'Call all';
+
+    // Extract agent from 'To' field using UNIQUE EXTENSION NUMBERS — not shared phone lines
+    // The shared (651) 352-6866 is answered by multiple agents so we can't attribute by name+shared#
+    // Unique extensions: 101=Cory, 102=Bob, 103=Victoria, 104=Bob Secrest, 105=Eric, 106=Jody, 107=Jason
+    const EXT_MAP = {
+      '101': 'Cory Hanson',
+      '102': 'Robert Danaher',
+      '103': 'Victoria Ellsworth',
+      '104': 'Bob Secrest',
+      '105': 'Eric Stoffel',
+      '106': 'Jody Serres',
+      '107': 'Jason Cornell',
+      '108': 'Tony Engesether',
+    };
+
     let agentName = '';
-    for(const d of DISPATCHER_NAMES) {
-      if(to.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
+    if(!isParentQueueRow) {
+      // First try: match by unique extension number at end of To field (most reliable)
+      const extMatch = to.match(/\b(\d{3})\s*$/);
+      if(extMatch && EXT_MAP[extMatch[1]]) {
+        agentName = EXT_MAP[extMatch[1]];
+      }
+      // Second try: match name when To doesn't end with ext (e.g. "Victoria Ellsworth (651) 352-6866")
+      // BUT exclude the shared (352-6866) line — too ambiguous
+      if(!agentName && !to.includes('352-6866')) {
+        for(const d of DISPATCHER_NAMES) {
+          if(to.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
+        }
+      }
     }
-    // For outbound, the 'From' field is the agent
+    // Outbound: From field is the agent
     if(!agentName && dir === 'outbound') {
       for(const d of DISPATCHER_NAMES) {
         if(from.toLowerCase().includes(d.toLowerCase())) { agentName = d; break; }
       }
     }
 
-    // Extract caller phone for booking rate matching
+    // Extract caller phone from From field
     const phoneMatch = from.match(/\((\d{3})\)\s*(\d{3})-(\d{4})/);
     const callerPhone = phoneMatch ? phoneMatch[1]+phoneMatch[2]+phoneMatch[3] : '';
 
@@ -6970,11 +6998,14 @@ function _processRCCallsReport(rows, headerIdx) {
     }
 
     const answered = result === 'Answered' || result === 'Connected';
+    // Clean caller name — RC appends " - 1XXXXXXXXXX (XXX) XXX-XXXX" to names
+    const cleanCaller = from.replace(/\s*-\s*1?\d{10}\s*\(\d{3}\)\s*\d{3}-\d{4}\s*$/, '').trim() || from;
+
     callRecords.push({
       _source:    'RingCentral',
       _id:        `rc_${r}`,
       _time:      callISO || (callDate ? callDate + 'T00:00:00' : ''),
-      _caller:    from,
+      _caller:    cleanCaller,
       _number:    callerPhone,
       _direction: dir,
       _agent:     normalizeAgentDisplay(agentName),
@@ -6985,22 +7016,23 @@ function _processRCCallsReport(rows, headerIdx) {
       _missed:    !answered,
       _status:    answered ? 'Answered' : 'Missed',
       _queue:     queue,
+      _isParent:  isParentQueueRow, // flag so table can visually distinguish
     });
 
-    // Tally per agent — only SC queue inbound, answered, >10s
-    if(agentName && dir === 'inbound' && isServiceCoordQueue) {
+    // Tally per agent — child rows (named agent in To field) through SC queue only
+    // Skip: parent queue rows, non-SC-queue rows, no agent identified
+    if(agentName && !isParentQueueRow && isServiceCoordQueue) {
       const answered = result === 'Answered' || result === 'Connected';
       ensureAgent(agentName);
       agentTally[agentName].total++;
-      if(answered && len > 10) {
+      if(answered) {
         agentTally[agentName].answered++;
-        // Only count handle time ≥60s for avg duration — sub-minute calls
-        // are hangups/wrong numbers and skew the average down
+        // Only count handle time ≥60s for avg duration — sub-minute calls skew average
         if(handle >= 60) {
           agentTally[agentName].totalDur += handle;
           agentTally[agentName].durCount  = (agentTally[agentName].durCount||0) + 1;
         }
-      } else if(!answered) {
+      } else {
         agentTally[agentName].missed++;
       }
       if(len > 0 && len < 30) agentTally[agentName].shortCalls = (agentTally[agentName].shortCalls||0) + 1;
@@ -7010,16 +7042,10 @@ function _processRCCallsReport(rows, headerIdx) {
   // Merge into _crCallsRaw so booking rate matching works
   // Keep existing CR calls, add/replace RC records
   _rcCallsRaw = callRecords;
-  console.log(`[RC Calls] Parsed ${callRecords.length} call records. Agent tally:`, agentTally);
-
-  // IMPORTANT: The Calls report can only attribute ~22% of inbound calls to named agents.
-  // 78% of queue calls show "Service Coordinator" as To field — the individual agent is unknown.
-  // For accurate COUNTS, upload the Users Summary report instead.
-  // The Calls report is best for: avg duration (≥1min calls), short call counts, date-level data.
   const totalAttributed = Object.values(agentTally).reduce((s,a)=>s+a.answered,0);
-  if(totalAttributed < 500) {
-    showToast(`⚠ Calls report: only ${totalAttributed} calls attributed to named agents (78% go to unattributed queue). For accurate call COUNTS, upload the Users Summary report instead.`, 'warn');
-    dashLog('warn', `RC Calls report: ${totalAttributed} attributed / many in unattributed queue. Avg duration data is accurate. Use Users report for counts.`);
+  console.log(`[RC Calls] Parsed ${callRecords.length} rows. Child-row agent attribution: ${totalAttributed} answered calls across ${Object.keys(agentTally).length} agents`);
+  if(totalAttributed === 0) {
+    showToast('⚠ No agents found in To field — check CSV format matches RC Calls export', 'warn');
   }
 
   // Build agentsForTab
