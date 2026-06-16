@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.37</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.38</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.37</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.38</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.37</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.38</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="loadAll()">Pull report ↗</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
@@ -1429,7 +1429,7 @@ tr:hover td{background:#fafafa}
             </select>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button onclick="testCallRail()" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
+            <button onclick="testCallRail()" style="padding:6px 12px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;opacity:.5" title="CallRail API — requires Premium for transcripts. Not needed for current workflow." disabled>▶ Fetch Calls</button>
             <button onclick="saveCallsToSheets('callrail')" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
             <button onclick="saveTranscriptsToSheets()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">📝 Save Transcripts</button>
             <label style="padding:6px 12px;background:#F59E0B;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload CallRail Analytics Export (.xlsx) to improve agent attribution">
@@ -1466,7 +1466,7 @@ tr:hover td{background:#fafafa}
             </select>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button onclick="testRingCentral()" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">▶ Fetch Calls</button>
+            <button onclick="testRingCentral()" style="padding:6px 12px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;opacity:.5" title="RC API fetch — rate limited and doesn't attribute queue calls. Use Upload RC Report instead." disabled>▶ Fetch Calls (use Upload instead)</button>
             <button onclick="saveCallsToSheets('rc')" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
             <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="For accurate COUNTS: upload Users Summary report (RC Analytics → Performance Reports → Users). For avg duration detail: upload Calls report (RC Analytics → Performance Reports → Calls). Both formats auto-detected.">
               📊 Upload RC Report
@@ -2788,7 +2788,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.37
+  // ATTRIBUTION ENGINE — v24.38
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4938,7 +4938,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.37',  // dashboard version that generated this push
+    dash_version: 'v24.38',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5575,7 +5575,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.37',
+        dash_version:        'v24.38',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6626,16 +6626,6 @@ async function testCallRail() {
     renderCallMetrics('cr', _crCallsRaw);
     renderCallsTable();
     buildCRAgentLeaderboard();
-    // Re-render agent summary with booking rates now that CR data is loaded
-    if(_estimates.length) {
-      const br = computeBookingRates();
-      if(br['__company__']) {
-        const c = br['__company__'];
-        dashLog('info', `📅 Booking rate: ${c.rate}% (${c.estimates} booked / ${c.calls} bookable calls — phone+date match)`);
-        renderAgentSummary();
-        renderCallsTable(); // re-render table to show 📅 Booked badges
-      }
-    }
     dashLog('success', `CallRail: ${_crCallsRaw.length} calls fetched`);
   } catch(e) {
     showCallsError('cr', e.message);
@@ -7095,44 +7085,27 @@ function _processRCUsersReport(rows, headerIdx) {
 function _finishRCLoad(agentsForTab, sourceLabel) {
   const reportDate = new Date().toISOString().split('T')[0];
 
-  // Compute booking rates now that we have RC data
-  const br = computeBookingRates();
-  const companyBR = br['__company__'];
-  const companyRate = companyBR?.rate || 0;
-  const bookableCallCount = companyBR?.calls || 0;
-
-  // Attach booking rates to agents
-  agentsForTab.forEach(a => {
-    const agentBR = br[a.name];
-    if(agentBR) {
-      a.booking_rate      = agentBR.rate;
-      a.estimates_implied = agentBR.estimates;
-    }
-  });
-
   // Update local leaderboard state
   _rcSnap = _rcSnap || {};
   _rcSnap.leaderboard = agentsForTab.map(a => ({
-    name:        a.name,
-    answered:    a.answered,
-    missed:      a.missed,
-    shortCalls:  a.short_calls || 0,
-    total:       (a.inbound||0) + (a.outbound||0),
-    inbound:     a.inbound || a.answered,
-    outbound:    a.outbound || 0,
-    ansRate:     a.ans_rate,
-    avgDur:      a.avg_dur_sec,
-    missedPct:   parseFloat(a.missed_pct)||0,
-    isDispatch:  a.category === 'dispatch',
-    category:    a.category,
-    bookingRate: a.booking_rate,
+    name:       a.name,
+    answered:   a.answered,
+    missed:     a.missed,
+    shortCalls: a.short_calls || 0,
+    total:      (a.inbound||0) + (a.outbound||0),
+    inbound:    a.inbound || a.answered,
+    outbound:   a.outbound || 0,
+    ansRate:    a.ans_rate,
+    avgDur:     a.avg_dur_sec,
+    missedPct:  parseFloat(a.missed_pct)||0,
+    isDispatch: a.category === 'dispatch',
+    category:   a.category,
   }));
 
   renderAgentSummary();
-  if(_crCallsRaw.length) renderCallsTable(); // refresh Booked badges
 
-  showToast(`✅ RC ${sourceLabel} loaded${companyRate?` | Booking rate: ${companyRate}%`:''}`, 'success');
-  dashLog('success', `RC ${sourceLabel}${companyRate?` | Booking rate: ${companyRate}% (${companyBR.estimates} booked / ${bookableCallCount} opportunities)`:''}`);
+  showToast(`✅ RC ${sourceLabel} loaded`, 'success');
+  dashLog('success', `RC ${sourceLabel} loaded`);
 
   const statusEl = $$('rc-report-status');
   if(statusEl) {
@@ -7142,52 +7115,27 @@ function _finishRCLoad(agentsForTab, sourceLabel) {
 
   if(!_sheetsProxy) return;
 
-  // 1. RC_Agents tab
+  // Push RC_Agents tab — companion reads this
   fetch(_sheetsProxy, {
     method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({ action:'syncRCAgents', agents:agentsForTab, source:`RC-${sourceLabel}`, report_date:reportDate })
   }).then(r=>r.json()).then(d=>{ if(d.success) dashLog('info',`RC_Agents tab updated ✅`); })
     .catch(e=>console.warn('[RC] Sheets push failed:',e.message));
 
-  // 2. KPI_Dashboard snapshot (staggered)
+  // KPI_Dashboard snapshot (staggered)
   setTimeout(() => {
     const totalAnswered = agentsForTab.reduce((s,a)=>s+a.answered,0);
     fetch(_sheetsProxy, {
       method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
       body: JSON.stringify({
-        action:'syncRingCentral',
-        total:   agentsForTab.reduce((s,a)=>s+(a.inbound||0)+(a.outbound||0),0),
+        action:   'syncRingCentral',
+        total:    agentsForTab.reduce((s,a)=>s+(a.inbound||0)+(a.outbound||0),0),
         answered: totalAnswered,
-        answer_rate: companyRate,
-        booking_rate: companyRate,
+        answer_rate: totalAnswered > 0 ? Math.round(totalAnswered / agentsForTab.reduce((s,a)=>s+(a.inbound||0),1) * 100) : 0,
         report_date: reportDate,
-        total_estimates: companyBR?.estimates || 0,
       })
     }).catch(()=>{});
   }, 1000);
-
-  // 3. Booking rate history (staggered)
-  if(companyBR) {
-    setTimeout(() => {
-      const agentRates = agentsForTab
-        .filter(a => a.booking_rate !== '')
-        .map(a => ({name:a.name, calls:a.answered, rate:a.booking_rate, estimates:a.estimates_implied}));
-      fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-        body: JSON.stringify({
-          action:'saveRCBookingRate',
-          report_period: reportDate,
-          company_rate: companyRate,
-          total_estimates: companyBR.estimates,
-          total_calls: bookableCallCount,
-          calls_source: `RC-${sourceLabel}`,
-          agent_rates: agentRates,
-        })
-      }).then(r=>r.json()).then(d=>{
-        if(d.success) { showToast('✅ RC data + booking rate saved to Sheets','success'); }
-      }).catch(()=>{});
-    }, 2000);
-  }
 }
 
 
@@ -7567,26 +7515,6 @@ function renderAgentSummary() {
     const typeLabel  = isDispatch ? '🎧 Dispatch' : a.name.toLowerCase().includes('voicemail') ? '📬 Voicemail' : '👤 Agent';
     const rateColor  = a.ansRate >= 90 ? '#166534' : a.ansRate >= 70 ? '#92400E' : '#991B1B';
     const rateBg     = a.ansRate >= 90 ? '#F0FDF4' : a.ansRate >= 70 ? '#FFFBEB' : '#FEF2F2';
-
-    // Booking rate cell
-    const br = bookingRates[a.name];
-    let bookingCell = '<td style="padding:7px 12px;text-align:right;color:#9ca3af;font-size:11px">—</td>';
-    if(br) {
-      const pct = br.rate;
-      const brColor = pct >= 40 ? '#166534' : pct >= 25 ? '#92400E' : '#991B1B';
-      const brBg    = pct >= 40 ? '#F0FDF4' : pct >= 25 ? '#FFFBEB' : '#FEF2F2';
-      const isProp  = br.method === 'proportional';
-      const tooltip = isProp
-        ? `~${br.estimates} bookings / ~${br.calls} opportunities (proportional by call share — upload daily RC report for exact per-dispatcher attribution)`
-        : `${br.estimates} confirmed bookings / ${br.calls} unique customer opportunities (phone + same-day estimate match)`;
-      bookingCell = `<td style="padding:7px 12px;text-align:right">
-        <span style="background:${brBg};color:${brColor};padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700"
-              title="${tooltip}">
-          ${isProp?'~':''}${pct}%
-        </span>
-        <div style="font-size:10px;color:#9ca3af;margin-top:1px">${isProp?'~':''}${br.estimates} / ${isProp?'~':''}${br.calls}${isProp?' ⓘ':''}</div>
-      </td>`;
-    }
 
     // Editable field helper — inline number input that updates leaderboard on change
     const inp = (field, val, color='#111827', bold=false, title='') =>
