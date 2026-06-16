@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.82</title>
+<title>Midstate — KPI Command Center v2.85</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1534,7 +1534,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.82
+      v2.85
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1545,7 +1545,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.82';
+const COMPANION_VERSION = 'v2.85';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1857,10 +1857,33 @@ async function loadData() {
             console.log('[Companion] Proxy URL loaded — direct content fetches enabled');
           }
           state.snap[key] = row[1];
-        } else if (key === 'holidays_json') {
+        } else if (key === 'hcp_wb_settings') {
+          // Wallboard settings saved as JSON blob from dashboard
+          try {
+            const wb = JSON.parse(row[1]||'{}');
+            if(wb && typeof wb === 'object') {
+              state.wbSettings = Object.assign({}, state.wbSettings, {
+                theme:          wb.theme          || wb.seasonal_theme || state.wbSettings.theme || 'default',
+                holiday:        wb.holiday        || state.wbSettings.holiday || '',
+                logo_url:       wb.logoUrl        || wb.logo_url || state.wbSettings.logo_url || '',
+                weather_loc:    wb.weatherLoc     || state.wbSettings.weather_loc || '',
+                weather_enabled:wb.weatherEnabled || state.wbSettings.weather_enabled || false,
+                open_hour:      wb.openHour       || state.wbSettings.open_hour || 7,
+                close_hour:     wb.closeHour      || state.wbSettings.close_hour || 17,
+              });
+              console.log('[WbSettings] Parsed hcp_wb_settings from snap — theme:', state.wbSettings.theme);
+            }
+          } catch(e) { console.warn('[WbSettings] parse error:', e.message); }
           try {
             const h = JSON.parse(row[1]||'[]');
-            if(Array.isArray(h) && h.length) state.holidays = h;
+            if(Array.isArray(h) && h.length) {
+              const todayMs = new Date().setHours(0,0,0,0);
+              state.holidays = h.filter(hol => {
+                if(hol.enabled === false) return false;
+                const d = new Date(hol.date.includes('T') ? hol.date : hol.date + 'T12:00:00');
+                return !isNaN(d) && d.getTime() >= todayMs; // future or today only
+              });
+            }
           } catch(e) {}
           state.snap[key] = row[1];
         } else if (key === 'birthdays_json') {
@@ -3007,9 +3030,9 @@ function startCallLeaderRotation(agent, today, mtd, ytd) {
     : agent.name;
   const photo = getEmpPhoto(lookup, '');
   const periods = [
-    { label: 'Last 30 Days', value: agent.answered, color: 'var(--gold)' },
-    { label: 'Team MTD',     value: mtd,            color: 'var(--blue)' },
-    { label: 'Team YTD',     value: ytd,            color: 'var(--green)' },
+    { label: 'Top Agent',  sublabel: 'Last 30 Days · Calls Answered', value: agent.answered,        color: 'var(--gold)',   personal: true },
+    { label: 'Team Total', sublabel: 'Month to Date · Answered Calls', value: mtd,                  color: 'var(--blue)',   personal: false },
+    { label: 'Team Total', sublabel: 'Year to Date · Answered Calls',  value: ytd,                  color: 'var(--green)',  personal: false },
   ];
   let idx = 0;
 
@@ -3018,16 +3041,27 @@ function startCallLeaderRotation(agent, today, mtd, ytd) {
     cardEl.style.transition = 'opacity .3s';
     cardEl.style.opacity = '0';
     setTimeout(() => {
-      cardEl.innerHTML = `
-        <div style="font-size:17px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:${p.color};margin-bottom:6px">📞 Call Leader — ${p.label}</div>
-        <div style="display:flex;align-items:center;gap:10px">
-          ${photo ? `<img src="${photo}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:2px solid ${p.color}66" onerror="this.style.display='none'">` : ''}
-          <div>
-            <div style="font-size:15px;font-weight:800;color:#fff">${agent.name}</div>
-            <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:${p.color};line-height:1">${p.value||'—'}</div>
-            <div style="font-size:15px;color:rgba(255,255,255,.4)">calls ${p.label.toLowerCase()}</div>
-          </div>
-        </div>`;
+      if(p.personal) {
+        // Personal card — show agent photo + name + their count
+        cardEl.innerHTML = `
+          <div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:${p.color};margin-bottom:6px">📞 ${p.label} — ${p.sublabel.split('·')[0].trim()}</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            ${photo ? `<img src="${photo}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:2px solid ${p.color}66" onerror="this.style.display='none'">` : ''}
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#fff">${agent.name}</div>
+              <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:${p.color};line-height:1">${p.value||'—'}</div>
+              <div style="font-size:13px;color:rgba(255,255,255,.4)">${p.sublabel}</div>
+            </div>
+          </div>`;
+      } else {
+        // Team total card — clearly labeled as whole-team number
+        cardEl.innerHTML = `
+          <div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:${p.color};margin-bottom:6px">📞 ${p.label} — ${p.sublabel.split('·')[0].trim()}</div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-family:var(--font-mono);font-size:36px;font-weight:900;color:${p.color};line-height:1">${p.value?.toLocaleString()||'—'}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.4">${p.sublabel}</div>
+          </div>`;
+      }
       cardEl.style.opacity = '1';
     }, 300);
     idx = (idx + 1) % periods.length;
@@ -3071,9 +3105,12 @@ async function updateS13() {
   })();
 
   // Use RC today/mtd/ytd to populate the period cells
+  // rc_today/rc_mtd/rc_ytd = all inbound calls (inc. missed)
+  // For "calls answered" we use rc_answered from the leaderboard sum after it loads
+  // For the hero rotating card, show inbound (total volume) labeled clearly
   const todayVal = rcToday;
-  const mtdTotal = rcMtd;
-  const ytdTotal = rcYtd;
+  const mtdTotal = rcMtd;   // all inbound MTD — hero card labeled "Inbound Calls"
+  const ytdTotal = rcYtd;   // all inbound YTD
 
   if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal > 0 ? mtdTotal.toLocaleString() : '0';
   if(el('calls-today')) el('calls-today').textContent = todayVal > 0 ? todayVal.toLocaleString() : '0';
@@ -3212,12 +3249,22 @@ async function updateS13() {
 
     lbEl.innerHTML = html;
 
-    // Rotating call leader card — shows top agent with their 30-day stats
+    // Rotating call leader card
     const topAgent = allDisp.length ? allDisp[0] : null;
     if(topAgent && topAgent.answered > 0) {
-      // Use agent's own stats — we don't have per-agent daily breakdown,
-      // so show their 30-day answered count with clear labeling
-      startCallLeaderRotation(topAgent, topAgent.answered, mtdTotal, ytdTotal);
+      // For team totals, use rc_answered (answered calls only) not rc_mtd (all inbound)
+      // rc_mtd = all inbound calls this month (includes missed/voicemail/spam)
+      // rc_answered = calls that were actually answered
+      const rcAnsweredMtd = (() => {
+        // Sum answered from leaderboard — this is the most accurate answered-only MTD total
+        // since it comes from per-agent breakdown of the same RC dataset
+        const lbAnsweredTotal = agentRows
+          .filter(a => a.category !== 'spam')
+          .reduce((s,a) => s + (a.answered||0), 0);
+        // If that's plausible, use it; otherwise fall back to rc_answered snap
+        return lbAnsweredTotal > 0 ? lbAnsweredTotal : (parseInt(snap['rc_answered']||0)||0);
+      })();
+      startCallLeaderRotation(topAgent, topAgent.answered, rcAnsweredMtd, ytdTotal);
     }
   } else if(lbEl) {
     lbEl.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:15px;text-align:center;padding:16px 0;line-height:1.6">RC data not yet pushed<br><span style="font-size:17px">Pull report → Push to Companion</span></div>';
@@ -4744,12 +4791,20 @@ function showHolidaySlide(idx) {
   const target = new Date(h.date.includes('T') ? h.date : h.date + 'T12:00:00');
   const days = Math.ceil((target - today) / (1000*60*60*24));
 
+  // Skip past holidays — should already be filtered, but safety net
+  if(days < 0) {
+    _holidayIdx++;
+    const holidays = state.holidays || [];
+    if(_holidayIdx < holidays.length) showHolidaySlide(_holidayIdx);
+    else nextScene();
+    return;
+  }
+
   const countdownText = days === 0 ? 'TODAY! 🎉'
     : days === 1 ? 'Tomorrow!'
-    : days < 0  ? `${Math.abs(days)} days ago`
     : `${days} days away`;
 
-  const urgent = days >= 0 && days <= 7;
+  const urgent = days <= 7;
   const accentColor = urgent ? '#FFD700' : 'var(--blue)';
 
   container.style.opacity = '0';
@@ -4900,8 +4955,13 @@ async function loadWallboardData() {
       console.log('[Birthdays] Loaded', state.birthdays.length, 'via proxy');
     }
     if(proxyData.holidays?.length) {
-      state.holidays = proxyData.holidays.filter(h => h.enabled !== false);
-      console.log('[Holidays] Loaded', state.holidays.length, 'via proxy');
+      const todayMs = new Date().setHours(0,0,0,0);
+      state.holidays = proxyData.holidays.filter(h => {
+        if(h.enabled === false) return false;
+        const d = new Date(h.date.includes('T') ? h.date : h.date + 'T12:00:00');
+        return !isNaN(d) && d.getTime() >= todayMs;
+      });
+      console.log('[Holidays] Loaded', state.holidays.length, 'upcoming enabled via proxy');
     }
   }
 
@@ -4927,10 +4987,15 @@ async function loadWallboardData() {
   if(!state.holidays?.length) {
     try {
       const rows = await fetchCSV('Holidays');
+      const todayMs = new Date().setHours(0,0,0,0);
       state.holidays = rows.slice(1).filter(r => {
         if(!r || !r[0]) return false;
         const enabled = String(r[4]||'').trim().toUpperCase();
-        return enabled !== 'FALSE' && enabled !== 'NO' && enabled !== '0';
+        if(enabled === 'FALSE' || enabled === 'NO' || enabled === '0') return false;
+        const dateStr = String(r[3]||'').trim();
+        if(!dateStr) return false;
+        const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
+        return !isNaN(d) && d.getTime() >= todayMs; // future or today only
       }).map(r=>({
         id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
         enabled:true, message:r[5]||'', photoUrl:r[6]||''
@@ -4991,8 +5056,10 @@ function applyWallboardSettings() {
   if(logoEl && logoUrl) {
     logoEl.innerHTML = `<img src="${convertDriveToThumb(logoUrl)||logoUrl}" style="height:140px;object-fit:contain;max-width:360px" alt="Midstate">`;
   }
-  // Theme
-  applyTheme(s['theme'] || s.theme || 'default');
+  // Theme — apply and log so we can confirm the value is being received
+  const theme = s['theme'] || s.theme || 'default';
+  console.log('[Theme] Applying:', theme, '| wbSettings keys:', Object.keys(s).join(', '));
+  applyTheme(theme);
   // Holiday overlay
   const holiday = s['holiday'] || s.holiday || '';
   if(holiday) applyHolidayOverlay(holiday);
