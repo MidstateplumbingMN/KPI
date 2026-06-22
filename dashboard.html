@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.47</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.49</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.47</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.49</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.47</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.49</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -545,6 +545,27 @@ tr:hover td{background:#fafafa}
     <!-- JOBS -->
     <div class="panel active" id="tab-jobs">
       <div class="metrics" id="jobMetrics"></div>
+
+      <!-- REVENUE RECONCILIATION CARD -->
+      <div id="rev-recon-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
+          <div style="font-size:13px;font-weight:700;color:#1f2937">📊 Revenue Reconciliation — HCP Emailed Report</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="padding:5px 12px;background:#1A3A5C;color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer" title="Upload the 'Jobs by completed day' CSV from your HCP email report">
+              📂 Upload HCP Report
+              <input type="file" accept=".csv" style="display:none" onchange="loadRevenueReport(this.files[0])">
+            </label>
+            <span id="recon-status" style="font-size:11px;color:#9ca3af"></span>
+            <button onclick="toggleReconCard()" id="recon-toggle-btn" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer">Hide ▲</button>
+          </div>
+        </div>
+        <div id="recon-body" style="padding:16px">
+          <div id="recon-content" style="color:#9ca3af;font-size:12px;text-align:center;padding:12px 0">
+            Upload your HCP emailed revenue report (.csv) to reconcile against dashboard numbers
+          </div>
+        </div>
+      </div>
+
       <div class="sec-head">Jobs</div>
       <div class="filter-bar">
         <label>Status:</label><select id="jobStatusFilter" onchange="applyJobFilter()"><option value="">All</option></select>
@@ -2819,7 +2840,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.47
+  // ATTRIBUTION ENGINE — v24.49
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4969,7 +4990,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.47',  // dashboard version that generated this push
+    dash_version: 'v24.49',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5614,7 +5635,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.47',
+        dash_version:        'v24.49',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6884,7 +6905,13 @@ function loadRCExcel(file) {
     reader.onload = e => {
       try {
         const wb   = XLSX.read(e.target.result, {type:'array'});
-        const ws   = wb.Sheets[wb.SheetNames[0]];
+        // Prefer 'Users' sheet (PR report) or 'Calls' sheet — avoid 'Filters' which is just metadata
+        const wsName = wb.SheetNames.find(n => n === 'Users') ||
+                       wb.SheetNames.find(n => n === 'Calls') ||
+                       wb.SheetNames.find(n => !['Filters','KPIs','Summary'].includes(n)) ||
+                       wb.SheetNames[0];
+        const ws   = wb.Sheets[wsName];
+        console.log('[RC] Using sheet:', wsName, '(available:', wb.SheetNames.join(', ')+')');
         const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
         _processRCRows(rows, file.name);
       } catch(err) {
@@ -7141,13 +7168,19 @@ function _processRCCallsReport(rows, headerIdx) {
 // ── Users report: per-user summary with Inbound/Outbound/Missed% ──────────────
 function _processRCUsersReport(rows, headerIdx) {
   const h = rows[headerIdx].map(v => String(v||'').toLowerCase().trim());
+
+  // Map headers — PR Users report has slightly different names than older format
+  // "# Inbound", "# Outbound", "% Missed (w/VM) " (trailing space), "Avg. Handle Time"
   const iName  = h.findIndex(v => v === 'name');
+  const iStatus= h.findIndex(v => v.includes('status'));
   const iExt   = h.findIndex(v => v === 'ext' || v === 'extension');
-  const iTotal = h.findIndex(v => v === 'total' || v.includes('total calls'));
+  const iTotal = h.findIndex(v => v.includes('total'));
   const iIn    = h.findIndex(v => v.includes('inbound'));
   const iOut   = h.findIndex(v => v.includes('outbound'));
   const iMiss  = h.findIndex(v => v.includes('missed'));
-  const iDur   = h.findIndex(v => v.includes('handle') || v.includes('avg duration'));
+  const iDur   = h.findIndex(v => v.includes('handle'));
+
+  console.log('[RC Users] Header map:', {name:iName,ext:iExt,total:iTotal,in:iIn,out:iOut,miss:iMiss,dur:iDur});
 
   const agents = [];
   for(let r = headerIdx+1; r < rows.length; r++) {
@@ -7156,41 +7189,60 @@ function _processRCUsersReport(rows, headerIdx) {
     const name = String(row[iName]||'').trim();
     if(!name || name.toLowerCase() === 'total') continue;
 
-    const inbound    = parseInt(row[iIn])  || 0;
-    const outbound   = parseInt(row[iOut]) || 0;
-    const total      = parseInt(row[iTotal]) || (inbound + outbound);
-    const missedPct  = parseFloat(row[iMiss]) || 0;
-    const missed     = Math.round(inbound * missedPct / 100);
-    const answered   = inbound - missed;
-    const ext        = String(row[iExt]||'').trim();
+    const inbound   = parseInt(row[iIn])    || 0;
+    const outbound  = parseInt(row[iOut])   || 0;
+    const total     = parseInt(row[iTotal]) || (inbound + outbound);
+    const ext       = String(row[iExt]||'').trim();
 
+    // Missed % — stored as decimal (14.58) not fraction
+    const missedRaw = row[iMiss];
+    const missedPct = parseFloat(String(missedRaw||'0').replace(/[%\s]/g,'')) || 0;
+    const missed    = Math.round(inbound * missedPct / 100);
+    const answered  = inbound - missed;
+
+    // Avg Handle Time — SheetJS reads Excel time as decimal fraction of a day
+    // e.g. 00:01:45 = 1min 45s = 105s / 86400 = 0.001215...
+    // OR it may come as a string "0:01:45" or "0 days 00:01:45"
     let avgDurSec = 0;
-    const durRaw = String(row[iDur]||'');
-    const durM = durRaw.match(/(\d+):(\d+):(\d+)\s*$/);
-    if(durM) avgDurSec = parseInt(durM[1])*3600 + parseInt(durM[2])*60 + parseInt(durM[3]);
+    const durRaw = row[iDur];
+    if(typeof durRaw === 'number' && durRaw > 0 && durRaw < 1) {
+      // Excel time serial — fraction of a day
+      avgDurSec = Math.round(durRaw * 86400);
+    } else {
+      const durStr = String(durRaw||'');
+      // Match "H:MM:SS", "0 days HH:MM:SS", "HH:MM:SS"
+      const m = durStr.match(/(\d+):(\d{2}):(\d{2})\s*$/);
+      if(m) avgDurSec = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]);
+    }
 
     agents.push({ name, ext, total, inbound, outbound, missed, answered,
-                  ansRate: inbound>0?Math.round(answered/inbound*100):0,
+                  ansRate: inbound>0 ? Math.round(answered/inbound*100) : 0,
                   avgDur: avgDurSec, missedPct });
   }
 
   if(!agents.length) { showToast('No user rows found in RC Users report','error'); return; }
 
+  console.log('[RC Users] Parsed agents:', agents.map(a=>
+    `${a.name} ext${a.ext}: in=${a.inbound} ans=${a.answered} missed=${a.missedPct.toFixed(1)}% avg=${Math.floor(a.avgDur/60)}m${a.avgDur%60}s`
+  ));
+
+  // Dispatchers = primary SC queue agents (the ones who answered inbound customer calls)
   const DISPATCH_EXTS = new Set(['102','103','105','106','107']);
   const agentsForTab = agents.map(a => ({
-    name:             a.name,
-    ext:              String(a.ext||''),
-    inbound:          a.inbound,
-    outbound:         a.outbound,
-    answered:         a.answered,
-    missed:           a.missed,
-    ans_rate:         a.ansRate,
-    missed_pct:       a.missedPct.toFixed(1),
-    avg_dur_sec:      a.avgDur,
-    booking_rate:     '',
+    name:        a.name,
+    ext:         String(a.ext||''),
+    inbound:     a.inbound,
+    outbound:    a.outbound,
+    answered:    a.answered,
+    missed:      a.missed,
+    ans_rate:    a.ansRate,
+    missed_pct:  a.missedPct.toFixed(1),
+    avg_dur_sec: a.avgDur,
+    booking_rate:'',
     estimates_implied:'',
-    pinned:           ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
-    category:         DISPATCH_EXTS.has(String(a.ext)) ? 'dispatch' : 'agent',
+    pinned:      ['Robert Danaher','Victoria Ellsworth','Eric Stoffel'].includes(a.name),
+    category:    DISPATCH_EXTS.has(String(a.ext)) ? 'dispatch' : 'agent',
+    short_calls: 0, // not available in Users report — comes from Calls CSV
   }));
 
   _finishRCLoad(agentsForTab, `Users report (${agents.length} agents)`);
@@ -8194,7 +8246,206 @@ async function saveCallAttribToSheets() {
   }
 }
 
-// Toggle inline transcript row visibility
+// ============================================================
+// REVENUE RECONCILIATION
+// Parses the HCP "Jobs by completed day" emailed CSV report
+// and compares it line-by-line against dashboard numbers
+// ============================================================
+
+function toggleReconCard() {
+  const body = $$('recon-body');
+  const btn  = $$('recon-toggle-btn');
+  if(!body) return;
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? 'block' : 'none';
+  if(btn) btn.textContent = hidden ? 'Hide ▲' : 'Show ▼';
+}
+
+function loadRevenueReport(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const lines = e.target.result.trim().split('\n')
+        .map(l => l.split(',').map(v => v.trim().replace(/^"|"$/g, '')));
+      if(!lines.length) { showToast('Empty CSV','error'); return; }
+
+      // Find header row
+      const headerIdx = lines.findIndex(r => r.some(v => /job revenue/i.test(v)));
+      if(headerIdx < 0) { showToast('Not a recognized HCP revenue report — expected "Job revenue" column','error'); return; }
+
+      const h = lines[headerIdx].map(v => v.toLowerCase());
+      const iP  = 0; // Period / date
+      const iRev = h.findIndex(v => v.includes('job revenue'));
+      const iCnt = h.findIndex(v => v.includes('job count') || v === 'count');
+      const iPaid= h.findIndex(v => v.includes('paid'));
+      const iAvg = h.findIndex(v => v.includes('avg'));
+
+      const cleanMoney = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
+
+      const rows = [];
+      let totalRow = null;
+      for(let i = headerIdx+1; i < lines.length; i++) {
+        const r = lines[i];
+        if(!r || !r[iP]) continue;
+        const period = r[iP].trim();
+        if(period.toLowerCase() === 'total') {
+          totalRow = { period, revenue: cleanMoney(r[iRev]), paid: cleanMoney(r[iPaid]), count: parseInt(r[iCnt])||0 };
+        } else {
+          rows.push({ period, revenue: cleanMoney(r[iRev]), paid: cleanMoney(r[iPaid]), count: parseInt(r[iCnt])||0, avg: cleanMoney(r[iAvg]) });
+        }
+      }
+
+      if(!rows.length) { showToast('No data rows found','error'); return; }
+
+      const statusEl = $$('recon-status');
+      if(statusEl) {
+        statusEl.textContent = `✅ ${file.name} — ${rows.length} days`;
+        statusEl.style.color = '#059669';
+      }
+
+      renderRecon(rows, totalRow);
+    } catch(err) {
+      console.error('[Recon]', err);
+      showToast('Revenue report parse error: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderRecon(rows, totalRow) {
+  const container = $$('recon-content');
+  if(!container) return;
+
+  // Build dashboard lookup: date → paid revenue
+  // _invoiceMap keys are job IDs, but each entry has a payment date
+  const dashByDate = {}; // YYYY-MM-DD → total paid
+  if(_invoiceMap) {
+    Object.values(_invoiceMap).forEach(inv => {
+      if(!inv.date) return;
+      const d = inv.date.split('T')[0];
+      if(!dashByDate[d]) dashByDate[d] = 0;
+      dashByDate[d] += parseFloat(inv.total)||0;
+    });
+  }
+
+  // Also check _allYearJobs invoices
+  if(_allYearJobs?.length) {
+    _allYearJobs.forEach(j => {
+      const paid = j._invoicePayments;
+      if(!paid?.length) return;
+      paid.forEach(p => {
+        const d = (p.date||'').split('T')[0];
+        if(!d) return;
+        if(!dashByDate[d]) dashByDate[d] = 0;
+        dashByDate[d] += parseFloat(p.total)||0;
+      });
+    });
+  }
+
+  const fmtDate = s => {
+    // "Jun 16, 2026" → "2026-06-16"
+    const m = s.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+    if(!m) return s;
+    const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
+                    Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    return `${m[3]}-${months[m[1]]||'??'}-${m[2].padStart(2,'0')}`;
+  };
+
+  const fmtMoney = n => n === 0 ? '—' : '$' + n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const diff = (a, b) => {
+    const d = a - b;
+    if(Math.abs(d) < 0.01) return '<span style="color:#059669;font-weight:700">✓ Match</span>';
+    const col = Math.abs(d) < 100 ? '#D97706' : '#DC2626';
+    const sign = d > 0 ? '+' : '';
+    return `<span style="color:${col};font-weight:700">${sign}${fmtMoney(d)}</span>`;
+  };
+
+  // Summary row
+  const reportTotal = totalRow?.paid || rows.reduce((s,r)=>s+r.paid,0);
+  const reportRev   = totalRow?.revenue || rows.reduce((s,r)=>s+r.revenue,0);
+  const dashTotal   = Object.values(dashByDate).reduce((s,v)=>s+v,0);
+
+  // Per-day table
+  const tableRows = rows
+    .filter(r => r.paid > 0 || r.revenue > 0)
+    .sort((a,b) => b.period > a.period ? 1 : -1)
+    .map(r => {
+      const iso   = fmtDate(r.period);
+      const dPaid = dashByDate[iso] || 0;
+      return `<tr style="border-bottom:1px solid #f3f4f6">
+        <td style="padding:6px 10px;font-size:12px;font-weight:500">${r.period}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:12px">${r.count}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:12px;color:#6b7280">${fmtMoney(r.revenue)}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">${fmtMoney(r.paid)}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:12px;color:#3B82F6">${dPaid > 0 ? fmtMoney(dPaid) : '<span style="color:#9ca3af">—</span>'}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:12px">${dPaid > 0 ? diff(dPaid, r.paid) : '<span style="color:#9ca3af">no data</span>'}</td>
+      </tr>`;
+    }).join('');
+
+  const totalMatch = diff(dashTotal, reportTotal);
+  const gap = reportRev - reportTotal;
+
+  container.innerHTML = `
+    <!-- Summary boxes -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Report: Paid Amount</div>
+        <div style="font-size:20px;font-weight:800;color:#059669">${fmtMoney(reportTotal)}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">${rows.filter(r=>r.paid>0).length} days with payments</div>
+      </div>
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Dashboard: Paid</div>
+        <div style="font-size:20px;font-weight:800;color:#3B82F6">${dashTotal > 0 ? fmtMoney(dashTotal) : '—'}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">${dashTotal > 0 ? 'from _invoiceMap' : 'pull report first'}</div>
+      </div>
+      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Difference</div>
+        <div style="font-size:20px;font-weight:800">${dashTotal > 0 ? totalMatch : '—'}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">dashboard vs report paid</div>
+      </div>
+      <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Invoiced but Unpaid</div>
+        <div style="font-size:20px;font-weight:800;color:#6b7280">${fmtMoney(gap)}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">job revenue − paid amount</div>
+      </div>
+    </div>
+
+    <!-- Note about what to compare -->
+    <div style="font-size:11px;color:#6b7280;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;margin-bottom:12px">
+      ⚠️ <strong>Compare "Paid Amount" (not "Job Revenue") to dashboard.</strong>
+      The dashboard counts payments received via <code>_invoiceMap</code>. 
+      "Job Revenue" includes all invoiced amounts — some may still be outstanding.
+      A small difference (&lt;$100) is usually a payment timing rounding.
+    </div>
+
+    <!-- Per-day table -->
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb">
+          <th style="padding:6px 10px;text-align:left;font-weight:600;color:#374151">Date</th>
+          <th style="padding:6px 10px;text-align:right;font-weight:600;color:#374151">Jobs</th>
+          <th style="padding:6px 10px;text-align:right;font-weight:600;color:#6b7280">Job Revenue</th>
+          <th style="padding:6px 10px;text-align:right;font-weight:600;color:#059669">Paid (Report)</th>
+          <th style="padding:6px 10px;text-align:right;font-weight:600;color:#3B82F6">Paid (Dashboard)</th>
+          <th style="padding:6px 10px;text-align:right;font-weight:600;color:#374151">Diff</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+      <tfoot>
+        <tr style="background:#f9fafb;border-top:2px solid #e5e7eb;font-weight:700">
+          <td style="padding:6px 10px">Total</td>
+          <td style="padding:6px 10px;text-align:right">${totalRow?.count||rows.reduce((s,r)=>s+r.count,0)}</td>
+          <td style="padding:6px 10px;text-align:right;color:#6b7280">${fmtMoney(reportRev)}</td>
+          <td style="padding:6px 10px;text-align:right;color:#059669">${fmtMoney(reportTotal)}</td>
+          <td style="padding:6px 10px;text-align:right;color:#3B82F6">${dashTotal > 0 ? fmtMoney(dashTotal) : '—'}</td>
+          <td style="padding:6px 10px;text-align:right">${dashTotal > 0 ? totalMatch : '—'}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+}
+
+
 function toggleTranscriptRow(txId) {
   const row = document.getElementById(txId);
   if(!row) return;
