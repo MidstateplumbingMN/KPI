@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.89</title>
+<title>Midstate — KPI Command Center v2.91</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1024,7 +1024,7 @@ html, body {
           </div>
           <div class="ring-title">Estimate Conversion</div>
           <div class="ring-detail" id="ring-conv-detail">
-            0 of 0 estimates sold<br>
+            0 of 0 estimates converted<br>
             <span style="color:rgba(255,255,255,.9)">Target: 40%+</span>
           </div>
         </div>
@@ -1430,7 +1430,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.89
+      v2.91
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1441,7 +1441,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.89';
+const COMPANION_VERSION = 'v2.91';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1487,7 +1487,6 @@ const CONFIG = {
     s4: 20000,  // Live Performance
     s5: 0,      // Announcements — self-managed
     s12: 25000, // Service Plans leaderboard
-    s13: 20000, // Call Volume
     s14: 25000, // RC Phone Leaderboard
     s6: 20000,  // Win the Day
     s7: 0,      // Spotlight — self-managed (8s per spotlight)
@@ -1879,7 +1878,6 @@ function updateAll() {
   else if (cur==='s3')  refreshS3Data();
   else if (cur==='s4')  updateS4();
   else if (cur==='s6')  refreshS6Data();
-  else if (cur==='s13') { updateS13(); }  // refreshes call metrics + line chart
   // s5/s7/s8/s9/s10/s11 — don't interrupt mid-display
   checkVictoryMode();
 }
@@ -2136,7 +2134,8 @@ function updateS2() {
   const neededPWD    = num(snap['needed_per_workday']||0);
   const daysLeft     = num(snap['days_left']||0);
 
-  const totalEsts    = num(snap['total_estimates']||0);
+  const totalEsts    = num(snap['total_estimates']||0);    // YTD — for conversion rate
+  const periodEsts   = num(snap['period_estimates']||totalEsts); // pulled period
   const convEsts     = num(snap['converted_estimates']||0);
   const convPct      = num(snap['conversion_pct']||0);
 
@@ -2144,7 +2143,7 @@ function updateS2() {
   el('ring-conv-pct').textContent = Math.round(convPct) + '%';
 
   el('ring-rev-detail').innerHTML  = `${dollars(revAnnual)} of ${dollars(goalAnnual)}<br><span style="color:rgba(255,255,255,.9)">${dollars(neededPWD)}/workday needed · ${wdLeft} workdays left</span>`;
-  el('ring-conv-detail').innerHTML = `${convEsts} of ${totalEsts} estimates sold<br><span style="color:rgba(255,255,255,.9)">Target: 40%+</span>`;
+  el('ring-conv-detail').innerHTML = `${convEsts} of ${totalEsts} estimates converted<br><span style="color:rgba(255,255,255,.9)">Target: 40%+</span>`;
 
   drawRing('ringRevenue', annualPct, '#00D4FF');
   drawRing('ringConv', Math.round(convPct), '#00FF88', 40);
@@ -3198,9 +3197,7 @@ async function updateS13() {
     lbEl.innerHTML = '';
   }
 
-  // Store agent rows globally so renderS13AgentRace can access them
-  window._s13AgentRows = agentRows;
-  renderCallsChart();
+  renderCallsChart(); // no-op stubs, kept for legacy
 }
 
 function renderCallsChart() {
@@ -3210,6 +3207,7 @@ function renderCallsChart() {
 
 function renderS13AgentRace() {
   const container = el('s13-agent-race');
+  if(!container) return; // s13 removed
   if(!container) return;
 
   // Get agent data from RC_Agents tab (already loaded into agentRows by updateS13)
