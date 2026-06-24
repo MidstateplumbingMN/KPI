@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.49</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.56</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.49</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.56</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.49</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.56</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -462,6 +462,11 @@ tr:hover td{background:#fafafa}
       <button class="sec-btn no-print" onclick="showDataTools()" title="Data management">⚙ Data</button>
       <button class="sec-btn no-print" onclick="showAutoPullSettings()" title="Auto-pull settings" id="autoPullBtn">⏱ Auto-pull</button>
       <button class="sec-btn no-print" id="pushCompanionBtn" onclick="pushToCompanion()" title="Force update companion wallboard">📺 Push to Companion</button>
+      <label class="sec-btn no-print" style="cursor:pointer" title="Upload RC Analytics → Performance Reports → Users (.xlsx) or Calls (.csv). Updates agent leaderboard on companion.">
+        📊 RC Report
+        <input type="file" accept=".xlsx,.csv" style="display:none" onchange="loadRCExcel(this.files[0])">
+      </label>
+      <span id="rc-report-status" style="font-size:11px;color:#9ca3af"></span>
       <span id="autoPullStatus" style="font-size:11px;color:#9ca3af;align-self:center"></span>
       <button class="sec-btn no-print" onclick="clearAllData()" title="Clear all loaded data" style="color:#dc2626;border-color:#dc2626">🗑 Clear Data</button>
       <button class="sec-btn no-print" onclick="disconnect()">Disconnect</button>
@@ -539,7 +544,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="wallboard" onclick="showTab('wallboard')">🎛 Wallboard</button>
       <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
-      <button class="tab" data-tab="calls" onclick="showTab('calls');initCallsTab()">📞 Calls</button>
+      <button class="tab" data-tab="debug"  onclick="showTab('debug')">🔧 Debug</button>
     </div>
 
     <!-- JOBS -->
@@ -1265,17 +1270,8 @@ tr:hover td{background:#fafafa}
           </div>
         </div>
 
-        <!-- COLUMN 2: RingCentral & CallRail & Weather -->
+        <!-- COLUMN 2: Weather -->
         <div style="display:flex;flex-direction:column;gap:14px">
-          <!-- RingCentral Integration -->
-          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
-            <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px">📱 RingCentral</div>
-            <div style="font-size:11px;color:#6b7280;margin-bottom:4px">JWT Token <span style="color:#9ca3af">(pre-filled)</span></div>
-            <input type="password" id="wb-rc-jwt" value="eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ"
-              style="width:100%;font-size:10px;padding:5px 7px;border:1px solid #d1d5db;border-radius:5px;font-family:monospace;margin-bottom:6px">
-            <button onclick="testRCConnection()" style="padding:5px 12px;background:#0f766e;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-weight:600">🔗 Test RC Connection</button>
-            <span id="rc-test-result" style="font-size:11px;margin-left:8px;color:#6b7280"></span>
-          </div>
 
           <div class="sec-head" style="margin:0">🌤 Weather &amp; Gap to Goal</div>
 
@@ -1284,18 +1280,6 @@ tr:hover td{background:#fafafa}
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
             <input type="text" id="wb-weather-loc" placeholder="55033 or Hastings,MN"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
-            <!-- CallRail settings -->
-            <div style="font-weight:700;color:#374151;font-size:12px;margin-bottom:8px;margin-top:8px">📞 CallRail Integration</div>
-            <div style="margin-bottom:8px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">CallRail API Key</div>
-              <input type="text" id="wb-callrail-key" placeholder="ctrk_43c7900e17d5793db876196ed978662aa6858367" value="ctrk_43c7900e17d5793db876196ed978662aa6858367"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px">
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">CallRail Account ID <span style="color:#9ca3af">(9-digit number from app.callrail.com/accounts/XXXXXXXXX/)</span></div>
-              <input type="text" id="wb-callrail-account" placeholder="541526025" value="541526025"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px">
-            </div>
             <div style="font-size:11px;color:#6b7280;margin-bottom:6px">WeatherAPI Key <span style="color:#9ca3af">(free at weatherapi.com — pre-filled)</span></div>
             <input type="text" id="wb-weather-key" placeholder="your API key"
               style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
@@ -1422,157 +1406,37 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
-    <!-- CALLS TAB -->
-    <div class="panel" id="tab-calls">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-
-        <!-- CallRail Card -->
-        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <div style="width:10px;height:10px;border-radius:50%;background:#10B981" id="cr-status-dot"></div>
-            <span style="font-size:14px;font-weight:700;color:#1f2937">📞 CallRail</span>
-            <span style="font-size:10px;color:#6b7280;margin-left:auto" id="cr-status-text">Not tested</span>
-          </div>
-          <div style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap">
-            <button onclick="setCallsDateRange('cr','today')"    style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">Today</button>
-            <button onclick="setCallsDateRange('cr','week')"     style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">This Week</button>
-            <button onclick="setCallsDateRange('cr','month')"    style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">This Month</button>
-            <button onclick="setCallsDateRange('cr','year')"     style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">This Year</button>
-            <button onclick="setCallsDateRange('cr','last30')"   style="font-size:10px;padding:3px 8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;cursor:pointer;color:#1d4ed8">Last 30 Days</button>
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-            <input type="date" id="cr-from" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-            <input type="date" id="cr-to"   style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-            <select id="cr-filter" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-              <option value="inbound" selected>Inbound Only</option>
-              <option value="all">All Calls</option>
-              <option value="outbound">Outbound Only</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button onclick="testCallRail()" style="padding:6px 12px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;opacity:.5" title="CallRail API — requires Premium for transcripts. Not needed for current workflow." disabled>▶ Fetch Calls</button>
-            <button onclick="saveCallsToSheets('callrail')" style="padding:6px 12px;background:#3B82F6;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
-            <button onclick="saveTranscriptsToSheets()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">📝 Save Transcripts</button>
-            <label style="padding:6px 12px;background:#F59E0B;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="Upload CallRail Analytics Export (.xlsx) to improve agent attribution">
-              📊 Upload CR Export
-              <input type="file" accept=".xlsx" style="display:none" onchange="loadCRExcel(this.files[0])">
-            </label>
-            <button onclick="clearCallsResult('cr')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
-          </div>
-          <div id="cr-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
-          <div id="cr-progress" style="margin-top:10px;font-size:11px;color:#6b7280;font-family:monospace"></div>
-          <div id="cr-error" style="display:none;margin-top:8px;padding:8px 10px;background:#FEE2E2;border-radius:5px;font-size:11px;color:#991B1B"></div>
-        </div>
-
-        <!-- RingCentral Card -->
-        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <div style="width:10px;height:10px;border-radius:50%;background:#6B7280" id="rc-status-dot"></div>
-            <span style="font-size:14px;font-weight:700;color:#1f2937">📱 RingCentral</span>
-            <span style="font-size:10px;color:#6b7280;margin-left:auto" id="rc-status-text">Not tested</span>
-          </div>
-          <div style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap">
-            <button onclick="setCallsDateRange('rc','today')"    style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">Today</button>
-            <button onclick="setCallsDateRange('rc','week')"     style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">This Week</button>
-            <button onclick="setCallsDateRange('rc','month')"    style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">This Month</button>
-            <button onclick="setCallsDateRange('rc','year')"     style="font-size:10px;padding:3px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">This Year</button>
-            <button onclick="setCallsDateRange('rc','last30')"   style="font-size:10px;padding:3px 8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;cursor:pointer;color:#1d4ed8">Last 30 Days</button>
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-            <input type="date" id="rc-from" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-            <input type="date" id="rc-to"   style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-            <select id="rc-view" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-              <option value="Detailed">Detailed (with legs)</option>
-              <option value="Simple">Simple</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button onclick="testRingCentral()" style="padding:6px 12px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;opacity:.5" title="RC API fetch — rate limited and doesn't attribute queue calls. Use Upload RC Report instead." disabled>▶ Fetch Calls (use Upload instead)</button>
-            <button onclick="saveCallsToSheets('rc')" style="padding:6px 12px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">💾 Save to Sheets</button>
-            <label style="padding:6px 12px;background:#6366F1;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer" title="For accurate COUNTS: upload Users Summary report (RC Analytics → Performance Reports → Users). For avg duration detail: upload Calls report (RC Analytics → Performance Reports → Calls). Both formats auto-detected.">
-              📊 Upload RC Report
-              <input type="file" accept=".xlsx,.csv" style="display:none" onchange="loadRCExcel(this.files[0])">
-            </label>
-            <span id="rc-report-status" style="font-size:11px;color:#9ca3af;align-self:center"></span>
-            <button onclick="clearCallsResult('rc')" style="padding:6px 12px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:5px;font-size:12px;cursor:pointer">✕ Clear</button>
-          </div>
-          <div id="rc-metrics" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
-          <div id="rc-progress" style="margin-top:10px;font-size:11px;color:#6b7280;font-family:monospace"></div>
-          <div id="rc-error" style="display:none;margin-top:8px;padding:8px 10px;background:#FEE2E2;border-radius:5px;font-size:11px;color:#991B1B"></div>
+    <!-- RC AGENT BREAKDOWN — within wallboard tab, collapsed by default -->
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-top:16px" id="agent-summary-panel">
+      <div onclick="toggleAgentSummary()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;background:#f9fafb">
+        <div style="font-size:13px;font-weight:700;color:#1f2937">📊 Agent Call Breakdown — RingCentral</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button onclick="event.stopPropagation();pushCompanionCounts()" style="padding:4px 12px;background:#4F46E5;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">📺 Push Counts to Companion</button>
+          <span id="agent-summary-badge" style="font-size:11px;color:#6b7280">Upload RC Report to populate</span>
+          <span id="agent-summary-toggle" style="font-size:14px;color:#6b7280">▼</span>
         </div>
       </div>
-
-      <!-- Combined Results Table -->
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
-          <span style="font-size:13px;font-weight:700;color:#1f2937">Call Records <span id="calls-count" style="background:#E8640A;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;margin-left:4px">0</span></span>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="calls-search" placeholder="Search name / number..." oninput="filterCallsTable()"
-              style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;width:200px">
-            <select id="calls-source-filter" onchange="filterCallsTable()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px">
-              <option value="">All Sources</option>
-              <option value="CallRail">CallRail</option>
-              <option value="RingCentral">RingCentral</option>
-            </select>
-            <button onclick="exportCallsCSV()" style="padding:5px 12px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer">⬇ CSV</button>
-          </div>
-        </div>
-        <!-- Agent Summary Breakdown — collapses/expands, shows all RC agents -->
-        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0;margin-bottom:16px;overflow:hidden">
-          <div onclick="toggleAgentSummary()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;background:#f9fafb">
-            <div style="font-size:13px;font-weight:700;color:#1f2937">📊 Agent Call Breakdown — RingCentral</div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <button onclick="event.stopPropagation();pushCompanionCounts()" style="padding:4px 12px;background:#4F46E5;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer" title="Push the Companion Display counts to RC_Agents tab — companion wallboard updates within 30s">📺 Push Counts to Companion</button>
-              <span id="agent-summary-badge" style="font-size:11px;color:#6b7280">Fetch RC calls to populate</span>
-              <span id="agent-summary-toggle" style="font-size:14px;color:#6b7280">▼</span>
-            </div>
-          </div>
-          <div id="agent-summary-body" style="display:none;overflow-x:auto">
-            <table id="agent-summary-table" style="width:100%;border-collapse:collapse;font-size:12px">
-              <thead>
-                <tr style="background:#f3f4f6">
-                  <th onclick="sortAgentTable('name')"       style="padding:8px 12px;text-align:left;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Agent ↕</th>
-                  <th onclick="sortAgentTable('answered')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Answered ↕</th>
-                  <th onclick="sortAgentTable('shortCalls')" style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151" title="Calls under 30 seconds">&lt;30s ↕</th>
-                  <th onclick="sortAgentTable('total')"      style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Total ↕</th>
-                  <th onclick="sortAgentTable('ansRate')"    style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Ans Rate ↕</th>
-                  <th onclick="sortAgentTable('avgDur')"     style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Avg Dur ↕</th>
-                  <th style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb;color:#374151;background:#EEF2FF;white-space:nowrap">📺 Companion Display</th>
-                  <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;color:#374151">Type</th>
-                </tr>
-              </thead>
-              <tbody id="agent-summary-tbody">
-                <tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">Upload RC report above to see agent breakdown</td></tr>
-              </tbody>
-            </table>
-            <div id="agent-summary-footer" style="padding:8px 12px;font-size:11px;color:#6b7280;background:#f9fafb;border-top:1px solid #e5e7eb"></div>
-          </div>
-        </div>
-
-        <!-- Call Records -->
-
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead style="position:sticky;top:0;background:#f9fafb;z-index:1">
-              <tr>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;white-space:nowrap">Source</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Date/Time</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Caller</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Number</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Direction</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Agent / Assign</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Ext</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Duration</th>
-                <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#6b7280">Status</th>
-              </tr>
-            </thead>
-            <tbody id="calls-tbody">
-              <tr><td colspan="8" style="padding:32px;text-align:center;color:#9ca3af">Upload the RC report above — call records will appear here automatically</td></tr>
-            </tbody>
-          </table>
-        </div>
+      <div id="agent-summary-body" style="display:none;overflow-x:auto">
+        <table id="agent-summary-table" style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#f3f4f6">
+              <th onclick="sortAgentTable('name')"       style="padding:8px 12px;text-align:left;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Agent ↕</th>
+              <th onclick="sortAgentTable('answered')"   style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Answered ↕</th>
+              <th onclick="sortAgentTable('shortCalls')" style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151" title="Calls under 30 seconds">&lt;30s ↕</th>
+              <th onclick="sortAgentTable('total')"      style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Total ↕</th>
+              <th onclick="sortAgentTable('ansRate')"    style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Ans Rate ↕</th>
+              <th onclick="sortAgentTable('avgDur')"     style="padding:8px 12px;text-align:right;cursor:pointer;white-space:nowrap;border-bottom:1px solid #e5e7eb;color:#374151">Avg Dur ↕</th>
+              <th style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb;color:#374151;background:#EEF2FF;white-space:nowrap">📺 Companion Display</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;color:#374151">Type</th>
+            </tr>
+          </thead>
+          <tbody id="agent-summary-tbody">
+            <tr><td colspan="8" style="padding:20px;text-align:center;color:#9ca3af">Upload RC Report (📊 RC Report button in toolbar) to populate</td></tr>
+          </tbody>
+        </table>
+        <div id="agent-summary-footer" style="padding:8px 12px;font-size:11px;color:#6b7280;background:#f9fafb;border-top:1px solid #e5e7eb"></div>
       </div>
-    </div><!-- end tab-calls -->
+    </div>
 
     <!-- DEBUG TAB -->
     <div class="panel" id="tab-debug">
@@ -2016,15 +1880,18 @@ function getRawStatus(x){return(x.work_status||x.status||'').toLowerCase();}
 // even after completion, so we use work_timestamps.completed_at as the real signal
 function hasCompletedAt(j){return !!(j.work_timestamps?.completed_at||j.completed_at);}
 
+// outstanding_balance is in CENTS per HCP spec — divide by 100 for dollars
+function outstandingDollars(x){ return (parseFloat(x.outstanding_balance)||0) / 100; }
+
 // Normalize HCP's many statuses into your 6
 function getNormStatus(x){
   const s=getRawStatus(x);
-  // outstanding_balance is in cents per HCP spec — 0 cents = fully paid
-  const bal=parseFloat(x.outstanding_balance)||0;
+  // outstanding_balance === 0 cents means fully paid
+  const balCents = parseFloat(x.outstanding_balance)||0;
   if(s.includes('cancel'))return'Canceled';
   if(s.includes('refund')||s.includes('void'))return'Refunded';
   if(s.includes('complete')||s.includes('completed')){
-    if(bal===0)return'Paid';
+    if(balCents===0)return'Paid';
     return'Unpaid';
   }
   if(s.includes('schedul')||s.includes('progress')||s.includes('way'))return'Scheduled';
@@ -2586,7 +2453,10 @@ async function loadAll(){
       invoices.forEach(inv => {
         const rawJobId = inv.job_id || inv.job?.id || '';
         const jobId = normalizeJobId(rawJobId);
-        if(!jobId || jobId === 'job_') return;
+        if(!jobId || jobId === 'job_') {
+          console.warn('[Invoices] No job_id on invoice:', inv.invoice_number, 'total:', (inv.total_amount||0)/100);
+          return;
+        }
         if(!_invoiceMap[jobId]) _invoiceMap[jobId] = [];
 
         // Use individual payments[] for split/partial payments
@@ -2840,7 +2710,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.49
+  // ATTRIBUTION ENGINE — v24.56
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3200,7 +3070,6 @@ function confirmAttribution(jobId,techId,techName,reason,notes){
       fetch(_sheetsProxy,{
         method:'POST',
         headers:{'Content-Type':'text/plain'},
-        mode:'no-cors',
         body:JSON.stringify({
           action:'saveAttrConfirmation',
           jobId,
@@ -4596,7 +4465,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       revenue_to:attr?.techName||getAssigned(j)||'',
       attribution_source:attr?.source||'',
       total:getJobTotal(j),
-      outstanding:parseFloat(j.outstanding_balance)||0,
+      outstanding:outstandingDollars(j),
       scheduled:j.schedule?.scheduled_start?fmtD(j.schedule.scheduled_start):'',
       completed:j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):'',
       payment_date:j._payments?.length ? j._payments[j._payments.length-1].date : (j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):''),
@@ -4990,7 +4859,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.49',  // dashboard version that generated this push
+    dash_version: 'v24.56',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5223,14 +5092,23 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     outstanding_jobs: outstandingJobs_snap.length,
 
     // Jobs & estimates
-    total_jobs: jobs.length,
-    paid_jobs: paidJobs.length,
-    total_revenue: totalRev,
-    total_estimates: estimates.length,
-    converted_estimates: convEsts.length,
-    conversion_pct: summary.conversion_pct,
-    avg_job: paidJobs.length>0?Math.round(totalRev/paidJobs.length):0,
-    open_is: openIS,
+    total_jobs:           jobs.length,
+    paid_jobs:            paidJobs.length,
+    total_revenue:        totalRev,
+    total_estimates:      estimates.length,      // YTD — used for conversion rate ring
+    converted_estimates:  convEsts.length,
+    conversion_pct:       summary.conversion_pct,
+    // Period estimates = only those within the pulled date range (what you'd say "this month")
+    period_estimates:     (() => {
+      const from = new Date((dateFrom||'2000-01-01')+'T00:00:00');
+      const to   = new Date((dateTo  ||new Date().toISOString().split('T')[0])+'T23:59:59');
+      return estimates.filter(e => {
+        const d = new Date(e.created_at||e.schedule?.scheduled_start||0);
+        return d >= from && d <= to;
+      }).length;
+    })(),
+    avg_job:              paidJobs.length>0?Math.round(totalRev/paidJobs.length):0,
+    open_is:              openIS,
 
     // Team
     total_plans: totalPlans,
@@ -5606,7 +5484,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
 
         // Write to dedicated Dept_Performance tab
         fetch(_sheetsProxy, {
-          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
           body: JSON.stringify({ action:'syncDeptPerformance', depts })
         }).catch(()=>{});
 
@@ -5620,7 +5498,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
           dept_plumbing_monthly: JSON.stringify(deptMonthly.Plumbing.map(Math.round)),
         };
         fetch(_sheetsProxy, {
-          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
           body: JSON.stringify({ action:'syncSnapshotKeys', keys: deptSnapKeys })
         }).catch(()=>{});
       })();
@@ -5635,7 +5513,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.49',
+        dash_version:        'v24.56',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5676,6 +5554,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         daily_jobs:          dashboardSnapshot.daily_jobs,
         daily_estimates:     dashboardSnapshot.daily_estimates,
         daily_converted:     dashboardSnapshot.daily_converted,
+        period_estimates:    dashboardSnapshot.period_estimates,
         // Weather
         wx_temp:             dashboardSnapshot.wx_temp,
         wx_city:             dashboardSnapshot.wx_city,
@@ -5729,10 +5608,12 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         wx_daily_rain_chance:dashboardSnapshot.wx_daily_rain_chance || dashboardSnapshot.wx_chance_rain || 0,
       };
       fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
         body: JSON.stringify({ action:'syncSnapshotKeys', keys: criticalKeys })
-      }).then(()=>dashLog('success','✅ Key metrics pushed to KPI_Dashboard'))
-        .catch(()=>{});
+      }).then(r => r.json().catch(()=>({}))).then(d => {
+        if(d.success) dashLog('success', `✅ ${d.written} keys pushed to KPI_Dashboard (daily: jobs=${criticalKeys.daily_jobs} ests=${criticalKeys.daily_estimates} conv=${criticalKeys.daily_converted})`);
+        else dashLog('warn', '⚠ KPI_Dashboard push: ' + (d.error||'unknown error'));
+      }).catch(e => dashLog('warn', '⚠ KPI_Dashboard push failed: ' + e.message));
 
       // Health check — only on explicit Push to Companion, not on auto-pull sync
       if(!opts.skipHealthCheck) {
@@ -5765,7 +5646,7 @@ async function syncMonthlyRevenueToSheet(monthly) {
   }
   // Write to Monthly_Revenue tab (for companion bar chart direct read)
   fetch(_sheetsProxy, {
-    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({ action:'syncMonthlyRevenue', monthly })
   }).then(()=>console.log('[Monthly Revenue] Tab synced'))
     .catch(e=>console.warn('[Monthly Revenue] Sync error:', e.message));
@@ -5773,7 +5654,7 @@ async function syncMonthlyRevenueToSheet(monthly) {
   // ALSO write monthly_revenue key directly to KPI_Dashboard
   // This works with the OLD Apps Script (syncReport action) as a fallback
   fetch(_sheetsProxy, {
-    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({
       action:'syncSnapshotKeys',
       keys:{ monthly_revenue: monthly }
@@ -5948,7 +5829,7 @@ function saveSetting(key, value) {
 function saveSettingToSheets(key, value) {
   if(!_sheetsProxy) return;
   fetch(_sheetsProxy, {
-    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({ action:'syncSettings', settings:{ [key]: typeof value==='object'?JSON.stringify(value):String(value) } })
   }).catch(()=>{});
 }
@@ -5958,7 +5839,7 @@ function saveSettingsToSheets(obj) {
   const flat = {};
   Object.entries(obj).forEach(([k,v]) => { flat[k] = typeof v==='object' ? JSON.stringify(v) : String(v); });
   fetch(_sheetsProxy, {
-    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({ action:'syncSettings', settings: flat })
   }).catch(()=>{});
 }
@@ -6071,7 +5952,7 @@ async function saveSceneOrder() {
   const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
   if(_sheetsProxy) {
     try {
-      await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      await fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
         body:JSON.stringify({action:'syncSettings',settings:{wb_scene_order:JSON.stringify(enabledIds)}})
       });
       showToast('✅ Scene order saved & pushed to companion','success');
@@ -6482,7 +6363,7 @@ async function fetchRCCallLog(jwt) {
     if(_sheetsProxy) {
       // Write RC_Agents tab — dedicated tab companion reads directly via fetchCSV
       fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
         body: JSON.stringify({ action:'syncRCAgents', agents: agentsForTab })
       }).then(()=>dashLog('info','RC agents → RC_Agents tab ✅')).catch(()=>{});
       const todayIdx = new Date().getDate() - 1;
@@ -6500,12 +6381,12 @@ async function fetchRCCallLog(jwt) {
         ytd:         monthCounts.reduce((s,v)=>s+v,0),
       };
       // Primary: write directly to KPI_Dashboard — small payload, always succeeds
-      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
         body: JSON.stringify({ action:'syncRCSnapshot', ...rcPayload })
       }).then(()=>dashLog('info','RC → KPI_Dashboard ✅'))
         .catch(e=>dashLog('warn','RC snapshot failed: '+e.message));
       // Secondary: write to RingCentral historical tab
-      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
         body: JSON.stringify({ action:'syncRingCentral', ...rcPayload })
       }).catch(e=>dashLog('warn','RC tab sync failed: '+e.message));
     }
@@ -8385,15 +8266,52 @@ function renderRecon(rows, totalRow) {
 
   const totalMatch = diff(dashTotal, reportTotal);
   const gap = reportRev - reportTotal;
+  // MTD dashboard revenue for comparison
+  const dashMTD = (() => {
+    const now = new Date(); const yr = now.getFullYear(); const mo = now.getMonth();
+    let total = 0;
+    if(_invoiceMap) Object.values(_invoiceMap).forEach(pmts => pmts.forEach(p => {
+      if(!p.date||p.amount<=0) return;
+      const d = new Date(p.date+'T12:00:00');
+      if(d.getFullYear()===yr && d.getMonth()===mo) total += p.amount;
+    }));
+    return total;
+  })();
 
   container.innerHTML = `
     <!-- Summary boxes -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
       <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 14px">
         <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Report: Paid Amount</div>
-        <div style="font-size:20px;font-weight:800;color:#059669">${fmtMoney(reportTotal)}</div>
-        <div style="font-size:10px;color:#9ca3af;margin-top:2px">${rows.filter(r=>r.paid>0).length} days with payments</div>
+        <div style="font-size:18px;font-weight:800;color:#059669">${fmtMoney(reportTotal)}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">${rows.filter(r=>r.paid>0).length} days</div>
       </div>
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Dashboard MTD</div>
+        <div style="font-size:18px;font-weight:800;color:#3B82F6">${dashMTD > 0 ? fmtMoney(dashMTD) : '—'}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">from invoiceMap</div>
+      </div>
+      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Report vs Dashboard</div>
+        <div style="font-size:18px;font-weight:800">${dashTotal > 0 ? totalMatch : '—'}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">uploaded CSV vs dashboard</div>
+      </div>
+      <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Invoiced Unpaid</div>
+        <div style="font-size:18px;font-weight:800;color:#6b7280">${fmtMoney(gap)}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">revenue − paid</div>
+      </div>
+      <div style="background:#fff;border:2px dashed #d1d5db;border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">HCP Report Figure</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
+          <span style="color:#374151">$</span>
+          <input type="number" id="hcp-manual-figure" placeholder="245960.66" step="0.01"
+            style="width:100%;font-size:13px;font-weight:700;border:1px solid #d1d5db;border-radius:4px;padding:3px 6px"
+            oninput="updateHCPManualComparison(${dashMTD.toFixed(2)})">
+        </div>
+        <div id="hcp-manual-diff" style="font-size:10px;color:#9ca3af;margin-top:4px">Type HCP paid-in-full total</div>
+      </div>
+    </div>
       <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px">
         <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Dashboard: Paid</div>
         <div style="font-size:20px;font-weight:800;color:#3B82F6">${dashTotal > 0 ? fmtMoney(dashTotal) : '—'}</div>
@@ -8412,11 +8330,16 @@ function renderRecon(rows, totalRow) {
     </div>
 
     <!-- Note about what to compare -->
-    <div style="font-size:11px;color:#6b7280;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;margin-bottom:12px">
-      ⚠️ <strong>Compare "Paid Amount" (not "Job Revenue") to dashboard.</strong>
-      The dashboard counts payments received via <code>_invoiceMap</code>. 
-      "Job Revenue" includes all invoiced amounts — some may still be outstanding.
-      A small difference (&lt;$100) is usually a payment timing rounding.
+    <div style="font-size:11px;color:#374151;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:6px;padding:10px 12px;margin-bottom:12px">
+      <strong>How to read this:</strong> Compare <em>Paid (Report)</em> to <em>Paid (Dashboard)</em>.
+      If they differ, check the browser console for <code>[Invoices] No job_id</code> warnings — 
+      those are invoices the dashboard can't attach to a job (they still get counted in <code>_invoiceMap</code> 
+      if job_id exists, but orphaned invoices are skipped). Also check <code>[Snapshot Rev]</code> 
+      for the monthly total the companion displays.
+      <br><br>
+      <strong>HCP "Paid in full" vs Dashboard:</strong> HCP counts a job when it's <em>fully paid</em>.
+      The dashboard counts each <em>individual payment transaction</em> by its payment date — 
+      so partial payments spread across months may fall in different periods than HCP shows.
     </div>
 
     <!-- Per-day table -->
@@ -8445,6 +8368,35 @@ function renderRecon(rows, totalRow) {
     </table>`;
 }
 
+
+function updateHCPManualComparison(dashMTD) {
+  const input = $$('hcp-manual-figure');
+  const diffEl = $$('hcp-manual-diff');
+  if(!input || !diffEl) return;
+  const hcpVal = parseFloat(input.value) || 0;
+  if(!hcpVal) { diffEl.textContent = 'Type HCP paid-in-full total'; diffEl.style.color='#9ca3af'; return; }
+  const dash = dashMTD || (() => {
+    const now = new Date(); const yr = now.getFullYear(); const mo = now.getMonth();
+    let total = 0;
+    if(_invoiceMap) Object.values(_invoiceMap).forEach(pmts => pmts.forEach(p => {
+      if(!p.date||p.amount<=0) return;
+      const d = new Date(p.date+'T12:00:00');
+      if(d.getFullYear()===yr && d.getMonth()===mo) total += p.amount;
+    }));
+    return total;
+  })();
+  const delta = dash - hcpVal;
+  const abs = Math.abs(delta);
+  const fmtM = n => '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(abs < 1) {
+    diffEl.textContent = '✓ Match';
+    diffEl.style.color = '#059669';
+  } else {
+    const sign = delta > 0 ? 'Dashboard +' : 'Dashboard −';
+    diffEl.textContent = `${sign}${fmtM(abs)} vs HCP`;
+    diffEl.style.color = abs < 500 ? '#D97706' : '#DC2626';
+  }
+}
 
 function toggleTranscriptRow(txId) {
   const row = document.getElementById(txId);
@@ -8694,7 +8646,7 @@ async function saveOrderQueueToSheets() {
     ordered_date: _orderQueue[item.id]?.orderedDate || '',
     ordered_by:   _orderQueue[item.id]?.orderedBy || '',
   }));
-  fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+  fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
     body:JSON.stringify({action:'syncOrderQueue',orders:payload})
   }).then(()=>showToast(`✅ ${payload.length} orders saved to Sheets`,'success'))
     .catch(e=>showToast('Save failed: '+e.message,'error'));
@@ -8705,7 +8657,7 @@ function setOrderWarranty(id, purchased) {
   _orderQueue[id].warrantyPurchased = purchased;
   // Push to Sheets
   if(_sheetsProxy) {
-    fetch(_sheetsProxy, {method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+    fetch(_sheetsProxy, {method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
       body: JSON.stringify({action:'updateOrderStatus', id, warrantyPurchased: purchased})
     }).catch(()=>{});
   }
@@ -8718,7 +8670,7 @@ function setOrderStatus(id, status) {
   saveOrderQueueLocal();
   // Push just this record to Sheets
   if(_sheetsProxy) {
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
       body:JSON.stringify({action:'updateOrderStatus',id,status})
     }).catch(()=>{});
   }
@@ -10343,7 +10295,7 @@ async function saveTYCard(jobId,update){
 
   // Sync to Sheets in background — don't block UI
   if(_sheetsProxy) {
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},mode:'no-cors',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},
       body:JSON.stringify({
         action:'saveTYCard',jobId,
         data:_tyCards[jobId],
@@ -10652,7 +10604,7 @@ async function pushToCompanion(){
       'The agent call leaderboard on the companion wallboard will show stale or empty data.\n\n' +
       'To update it:\n' +
       '  1. Go to the Calls tab\n' +
-      '  2. Click "📊 Upload RC Report" in the RingCentral card\n' +
+      '  2. Click "📊 Upload RC Report"\n' +
       '  3. Select your RC Analytics → Performance Reports → Users export\n\n' +
       'Click OK to push anyway, or Cancel to upload the report first.'
     );
@@ -10701,20 +10653,20 @@ async function pushToCompanion(){
     // ── 2. Push spotlights, promos, announcements, wallboard settings ──
     // These are independent small payloads — always succeed fast
     const smallPushes = [
-      _spotlights?.length ? fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      _spotlights?.length ? fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
         body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos||[]})
       }).catch(()=>{}) : null,
-      _announcements?.length ? fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      _announcements?.length ? fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
         body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements})
       }).catch(()=>{}) : null,
-      fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+      fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
         body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings||{},birthdays:_bdayList||[]})
       }).catch(()=>{}),
     ].filter(Boolean);
     await Promise.all(smallPushes);
 
     // ── 3. Trigger dept revenue recompute (server-side, uses Invoices tab) ──
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
       body:JSON.stringify({action:'computeDeptRevenue'})
     }).catch(()=>{});
 
@@ -10897,9 +10849,6 @@ function loadWallboardSettings(){
   if($$('wb-theme'))         { $$('wb-theme').value = _wbSettings.theme||'default'; updateThemePreview(_wbSettings.theme||'default'); }
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
   if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
-  if($$('wb-rc-jwt'))          $$('wb-rc-jwt').value          = _wbSettings.rcJwt||RC_JWT_DEFAULT//eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
-  if($$('wb-callrail-key'))    $$('wb-callrail-key').value    = _wbSettings.callrailKey||'ctrk_43c7900e17d5793db876196ed978662aa6858367';
-  if($$('wb-callrail-account'))$$('wb-callrail-account').value= _wbSettings.callrailAccount||'541526025';
   if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
   if($$('wb-weather-enabled')) $$('wb-weather-enabled').checked = !!_wbSettings.weatherEnabled;
   if($$('wb-daily-goal'))    $$('wb-daily-goal').value     = _wbSettings.dailyGoal||8219;
@@ -10976,7 +10925,7 @@ function saveGapSettings(){
 function saveWallboardSettingsToSheets(){
   saveSettingsToSheets({hcp_wb_settings: JSON.stringify(_wbSettings)});
   if(_sheetsProxy){
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
       body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList,holidays:_holidays||[]})
     }).then(()=>showToast('✅ Wallboard settings synced','success')).catch(()=>{});
   }
@@ -11046,7 +10995,7 @@ function saveAnnouncements(){
   }
   try{saveSettingToSheets('hcp_announcements', JSON.stringify(_announcements));}catch(e){}
   if(_sheetsProxy){
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
       body:JSON.stringify({action:'saveAnnouncements',announcements:_announcements})})
     .then(r=>r.json()).then(d=>{ if(d.success) showToast('✅ Announcements synced to companion','success'); }).catch(()=>{});
   }
@@ -12102,7 +12051,7 @@ function openUnpaidDetail(jobId){
         <div><span style="color:#9ca3af">Department:</span> <strong>${getDept(j)}</strong></div>
         <div><span style="color:#9ca3af">Status:</span> <strong>${getNormStatus(j)}</strong></div>
         <div><span style="color:#9ca3af">Total:</span> <strong style="color:#DC2626">${dollars(total)}</strong></div>
-        <div><span style="color:#9ca3af">Outstanding:</span> <strong style="color:#DC2626">${dollars(parseFloat(j.outstanding_balance)||0)}</strong></div>
+        <div><span style="color:#9ca3af">Outstanding:</span> <strong style="color:#DC2626">${dollars(outstandingDollars(j))}</strong></div>
         ${j.description?`<div style="grid-column:1/-1"><span style="color:#9ca3af">Description:</span> ${j.description}</div>`:''}
       </div>
     </div>
@@ -12455,7 +12404,7 @@ function saveUploadedPlans(){
   try {
     fetch(_sheetsProxy, {
       method:'POST', headers:{'Content-Type':'text/plain'},
-      redirect:'follow', mode:'no-cors',
+      redirect:'follow',
       body: JSON.stringify({ action:'syncPlans', plans: flattened, lastUploadedAt: now })
     });
   } catch(e) { console.warn('[Plans] save failed:', e.message); }
@@ -12586,7 +12535,7 @@ async function processPlanFile(file){
         hcp_id:        p.hcp_id||'',
       }));
       fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow', mode:'no-cors',
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
         body: JSON.stringify({ action:'syncPlans', plans: plansPayload })
       }).then(()=>{
         dashLog('success', `Service Plans: ${_uploadedPlans.length} total records synced to Sheets`);
@@ -13067,7 +13016,7 @@ function clearISData(){
 async function clearSheetsTab(tabName){
   if(!_sheetsProxy)return;
   try{
-    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',mode:'no-cors',
+    await fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
       body:JSON.stringify({action:'clearTab',tabName})});
   }catch(e){console.warn('Sheets clear failed:',tabName,e.message);}
 }
@@ -13161,7 +13110,6 @@ async function syncISStatusToSheets(estId, status, convertedBy){
     await fetch(_sheetsProxy,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      mode:'no-cors',
       body:JSON.stringify({
         action:'saveISStatus',
         estId,
@@ -13185,7 +13133,6 @@ async function syncISActivityToSheets(estId, activityItem){
     await fetch(_sheetsProxy,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      mode:'no-cors',
       body:JSON.stringify({
         action:'saveISActivity',
         estId,
@@ -13527,7 +13474,6 @@ async function syncISEmailStateToSheets(){
     await fetch(_sheetsProxy,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      mode:'no-cors',
       body:JSON.stringify({
         action:'saveISEmailState',
         emailStatuses:_isEmailStatuses,
@@ -14410,10 +14356,10 @@ function buildCalendarData(jobs, estimates, mode){
     const jobPayments=j._payments||[]; // [{date, amount, method}]
     const hasRealPayments=jobPayments.length>0;
 
-    // Amount actually collected
-    const outstanding=parseFloat(j.outstanding_balance)||0;
-    const collected=Math.max(0,total-outstanding);
-    const isPartial=complete&&outstanding>0&&collected>0;
+    // Amount actually collected — outstanding_balance is in cents, divide by 100
+    const outstanding = outstandingDollars(j);
+    const collected   = Math.max(0, total - outstanding);
+    const isPartial   = complete && outstanding > 0 && collected > 0;
 
     // Collection date = actual payment date only.
     // If no completed_at exists, the job hasn't been paid — use null, not schedDate.
