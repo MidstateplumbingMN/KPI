@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.60</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.62</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.60</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.62</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.60</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.62</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1349,60 +1349,144 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
-    <!-- ANNOUNCEMENTS -->
+    <!-- ANNOUNCEMENTS & MOTIVATIONS -->
     <div class="panel" id="tab-announcements">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;height:100%">
-        <div style="display:flex;flex-direction:column;gap:16px">
-          <div>
-            <div class="sec-head" style="margin:0">💬 Motivation &amp; Announcements</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px">Shown on companion wallboard motivation scene</div>
-          </div>
-          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px">
-            <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:14px">✨ Add Announcement</div>
-            <div style="margin-bottom:10px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Message / Quote</div>
-              <textarea id="ann-message" rows="3" placeholder="e.g. Show up. Do the work. Earn the trust."
-                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit"></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+        <!-- ── LEFT: MOTIVATIONS ─────────────────────────────────── -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="sec-head" style="margin:0">💪 Motivations</div>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px">Add Motivation</div>
+
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Quote / Message</div>
+              <textarea id="mot-message" rows="3" placeholder="e.g. Show up. Do the work. Earn the trust."
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit"></textarea>
             </div>
-            <div style="margin-bottom:10px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Author / Source <span style="color:#9ca3af">(optional)</span></div>
-              <input type="text" id="ann-author" placeholder="e.g. Cory Hanson"
-                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Author <span style="color:#9ca3af">(optional)</span></div>
+              <input type="text" id="mot-author" placeholder="e.g. Cory Hanson"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px">
             </div>
-            <div style="margin-bottom:10px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Photo URL <span style="color:#9ca3af">(optional)</span> <button type="button" id="gh-picker-btn-ann-photo" onclick="showImagePicker('ann-photo','ann-photo-preview')" style="font-size:10px;padding:2px 8px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">📁 Browse GitHub</button></div>
-              <input type="text" id="ann-photo" placeholder="https://midstateplumbingmn.github.io/KPI/images/Doug.JPG"
-                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px"
-                oninput="previewAnnPhoto(this.value)">
-              <div id="ann-photo-preview" style="display:none;margin-top:8px;display:flex;align-items:center;gap:8px">
-                <img id="ann-photo-img" style="max-width:80px;max-height:80px;width:auto;height:auto;border-radius:8px;object-fit:contain;border:3px solid #8B5CF6" alt="">
-                <span style="font-size:11px;color:#059669">✅ Photo will show on companion wallboard</span>
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Image <span style="color:#9ca3af">(optional)</span>
+                <button type="button" onclick="showImagePicker('mot-photo','mot-photo-preview')"
+                  style="font-size:10px;padding:2px 7px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer;margin-left:4px">📁 Browse</button>
+              </div>
+              <input type="text" id="mot-photo" placeholder="URL or select from GitHub"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px"
+                oninput="previewPhoto(this.value,'mot-photo-preview','mot-photo-img')">
+              <div id="mot-photo-preview" style="display:none;margin-top:6px;align-items:center;gap:8px">
+                <img id="mot-photo-img" style="max-width:60px;max-height:60px;border-radius:6px;object-fit:contain;border:2px solid #8B5CF6">
+                <span style="font-size:10px;color:#059669">✅ Will show on wallboard</span>
               </div>
             </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Type</div>
-              <select id="ann-type" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
-                <option value="motivation">💪 Motivation</option>
+
+            <!-- Schedule -->
+            <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:6px">⏰ Schedule <span style="font-size:10px;font-weight:400;color:#6b7280">(optional — leave blank to always show)</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div>
+                  <div style="font-size:10px;color:#6b7280;margin-bottom:2px">Show from</div>
+                  <input type="datetime-local" id="mot-from"
+                    style="width:100%;font-size:11px;padding:5px 7px;border:1px solid #BFDBFE;border-radius:5px;background:#fff">
+                </div>
+                <div>
+                  <div style="font-size:10px;color:#6b7280;margin-bottom:2px">Show until</div>
+                  <input type="datetime-local" id="mot-until"
+                    style="width:100%;font-size:11px;padding:5px 7px;border:1px solid #BFDBFE;border-radius:5px;background:#fff">
+                </div>
+              </div>
+            </div>
+
+            <button onclick="submitItem('motivation')"
+              style="width:100%;padding:8px;background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;border:none;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">
+              💪 Add Motivation
+            </button>
+          </div>
+
+          <!-- Motivation list -->
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:12px;font-weight:700;color:#374151">Active Motivations</div>
+            <span id="motCount" style="font-size:11px;color:#9ca3af">0</span>
+          </div>
+          <div id="motList" style="display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto">
+            <div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px">No motivations yet.</div>
+          </div>
+        </div>
+
+        <!-- ── RIGHT: ANNOUNCEMENTS ───────────────────────────────── -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="sec-head" style="margin:0">📢 Announcements</div>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px">Add Announcement</div>
+
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Type</div>
+              <select id="ann-type" style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px;background:#fff">
                 <option value="announcement">📢 Announcement</option>
                 <option value="achievement">🏆 Achievement</option>
                 <option value="reminder">🔔 Reminder</option>
               </select>
             </div>
-            <button onclick="submitAnnouncement()"
-              style="width:100%;padding:9px;background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;border:none;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer">
-              💬 Post to Wallboard
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Message</div>
+              <textarea id="ann-message" rows="3" placeholder="e.g. Team meeting Friday at 8am"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px;resize:vertical;font-family:inherit"></textarea>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Author <span style="color:#9ca3af">(optional)</span></div>
+              <input type="text" id="ann-author" placeholder="e.g. Bob Danaher"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px">
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Image <span style="color:#9ca3af">(optional)</span>
+                <button type="button" onclick="showImagePicker('ann-photo','ann-photo-preview')"
+                  style="font-size:10px;padding:2px 7px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer;margin-left:4px">📁 Browse</button>
+              </div>
+              <input type="text" id="ann-photo" placeholder="URL or select from GitHub"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px"
+                oninput="previewPhoto(this.value,'ann-photo-preview','ann-photo-img')">
+              <div id="ann-photo-preview" style="display:none;margin-top:6px;align-items:center;gap:8px">
+                <img id="ann-photo-img" style="max-width:60px;max-height:60px;border-radius:6px;object-fit:contain;border:2px solid #8B5CF6">
+                <span style="font-size:10px;color:#059669">✅ Will show on wallboard</span>
+              </div>
+            </div>
+
+            <!-- Schedule -->
+            <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:#C2410C;margin-bottom:6px">⏰ Schedule <span style="font-size:10px;font-weight:400;color:#6b7280">(optional — leave blank to always show)</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div>
+                  <div style="font-size:10px;color:#6b7280;margin-bottom:2px">Show from</div>
+                  <input type="datetime-local" id="ann-from"
+                    style="width:100%;font-size:11px;padding:5px 7px;border:1px solid #FED7AA;border-radius:5px;background:#fff">
+                </div>
+                <div>
+                  <div style="font-size:10px;color:#6b7280;margin-bottom:2px">Show until</div>
+                  <input type="datetime-local" id="ann-until"
+                    style="width:100%;font-size:11px;padding:5px 7px;border:1px solid #FED7AA;border-radius:5px;background:#fff">
+                </div>
+              </div>
+            </div>
+
+            <button onclick="submitItem('announcement')"
+              style="width:100%;padding:8px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;border:none;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">
+              📢 Post Announcement
             </button>
           </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px">
+
+          <!-- Announcement list -->
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <div class="sec-head" style="margin:0">Active Announcements</div>
-            <span style="font-size:11px;color:#9ca3af" id="annCount">0 items</span>
+            <div style="font-size:12px;font-weight:700;color:#374151">Active Announcements</div>
+            <span id="annCount" style="font-size:11px;color:#9ca3af">0</span>
           </div>
-          <div id="annList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
-            <div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No announcements yet.</div>
+          <div id="annList" style="display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto">
+            <div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px">No announcements yet.</div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1485,6 +1569,7 @@ let _planAttributions = {};      // planKey → techName, loaded from SP_Attribu
 let _spotlights      = [];
 let _promos          = [];
 let _announcements   = [];
+let _motivations     = [];
 let _bdayList        = [];
 let _holidays        = [];
 let _wbSettings      = {};
@@ -1649,6 +1734,7 @@ function connect(){
     loadSpotlights();
     loadAnnouncements();
     loadHolidays();
+    loadMotivations();
   });
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
@@ -2740,7 +2826,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.60
+  // ATTRIBUTION ENGINE — v24.62
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4801,7 +4887,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.60',  // dashboard version that generated this push
+    dash_version: 'v24.62',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5447,7 +5533,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.60',
+        dash_version:        'v24.62',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5550,7 +5636,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
             .then(r => r.json())
             .then(d => {
               if(d.missing?.length || d.empty?.length) {
-                dashLog('warn', `⚠️ KPI_Dashboard: ${d.missing?.length||0} missing, ${d.empty?.length||0} empty keys`);
+                const detail = [
+                  d.missing?.length ? `missing: ${d.missing.join(', ')}` : '',
+                  d.empty?.length   ? `empty: ${d.empty.join(', ')}` : '',
+                ].filter(Boolean).join(' | ');
+                dashLog('warn', `⚠️ KPI_Dashboard: ${d.missing?.length||0} missing, ${d.empty?.length||0} empty keys — ${detail}`);
               } else {
                 dashLog('success', `✅ KPI_Dashboard healthy — ${d.total_keys} keys written`);
               }
@@ -9680,102 +9770,206 @@ function renderPickerGrid(images, input, picker) {
   }), 100);
 }
 
-function previewAnnPhoto(url){
-  const preview=$$('ann-photo-preview');
-  const img=$$('ann-photo-img');
+// ── Shared photo preview helper ──────────────────────────────
+function previewPhoto(url, previewId, imgId) {
+  const preview = $$(previewId);
+  const img     = $$(imgId);
   if(!preview||!img) return;
-  if(!url||!url.trim()){ preview.style.display='none'; return; }
-  // Convert Drive links, pass through everything else
+  if(!url?.trim()) { preview.style.display='none'; return; }
   const converted = convertGoogleDriveUrl(url.trim()) || url.trim();
   img.src = converted;
-  img.onload  = () => preview.style.display = 'block';
-  img.onerror = () => { preview.style.display = 'none'; };
-  preview.style.display = 'block'; // show immediately, hide on error
+  img.onload  = () => { preview.style.display='flex'; };
+  img.onerror = () => { preview.style.display='none'; };
+  preview.style.display = 'flex';
 }
+// Keep legacy alias
+function previewAnnPhoto(url){ previewPhoto(url,'ann-photo-preview','ann-photo-img'); }
 
+// ── Add motivation or announcement with optional schedule ─────
+function submitItem(kind) {
+  const isMotivation = kind === 'motivation';
+  const prefix = isMotivation ? 'mot' : 'ann';
 
-function editAnnouncement(id) {
-  const ann = _announcements.find(a=>a.id===id);
-  if(!ann) return;
-  // Populate the form with existing values
-  const msgEl = $$('ann-message');
-  const authEl = $$('ann-author');
-  const photoEl = $$('ann-photo');
-  if(msgEl)   msgEl.value   = ann.message || '';
-  if(authEl)  authEl.value  = ann.author  || '';
-  if(photoEl) { photoEl.value = ann.photoUrl || ''; previewAnnPhoto(ann.photoUrl||''); }
-  // Remove the existing one
-  deleteAnnouncement(id);
-  // Scroll to form
-  $$('ann-message')?.scrollIntoView({behavior:'smooth', block:'center'});
-  $$('ann-message')?.focus();
-  showToast('✏️ Editing announcement — update and re-post','info');
-}
+  const message = $$(prefix+'-message')?.value?.trim();
+  const author  = $$(prefix+'-author')?.value?.trim() || 'Midstate Team';
+  const photo   = $$(prefix+'-photo')?.value?.trim() || '';
+  const type    = isMotivation ? 'motivation' : ($$('ann-type')?.value || 'announcement');
+  const from    = $$(prefix+'-from')?.value  || '';
+  const until   = $$(prefix+'-until')?.value || '';
 
-function submitAnnouncement(){
-  const message=$$('ann-message')?.value?.trim();
-  const author=$$('ann-author')?.value?.trim()||'Midstate Team';
-  const photoRaw=$$('ann-photo')?.value?.trim()||'';
-  const type=$$('ann-type')?.value||'motivation';
-  if(!message){ showToast('Please enter a message.','error'); return; }
-  const ann={
-    id:Date.now(), message, author, type,
-    photoUrl:convertGoogleDriveUrl(photoRaw)||'',
-    createdAt:new Date().toISOString()
+  if(!message) { showToast('Please enter a message.', 'error'); return; }
+
+  const item = {
+    id:        Date.now(),
+    message,
+    author,
+    type,
+    photoUrl:  convertGoogleDriveUrl(photo) || photo,
+    createdAt: new Date().toISOString(),
+    showFrom:  from  ? new Date(from).toISOString()  : '',
+    showUntil: until ? new Date(until).toISOString() : '',
   };
-  _announcements.unshift(ann);
-  saveAnnouncements();
-  renderAnnList();
-  ['ann-message','ann-author','ann-photo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  $$('ann-photo-preview').style.display='none';
-  showToast('💬 Announcement posted!','success');
+
+  if(isMotivation) {
+    if(!window._motivations) _motivations = [];
+    _motivations.unshift(item);
+    saveItemsToSheets('motivations');
+    renderItemList('motivation');
+    ['mot-message','mot-author','mot-photo','mot-from','mot-until'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    $$('mot-photo-preview').style.display = 'none';
+    showToast('💪 Motivation added!', 'success');
+  } else {
+    _announcements.unshift(item);
+    saveAnnouncements();
+    renderItemList('announcement');
+    ['ann-message','ann-author','ann-photo','ann-from','ann-until'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    $$('ann-photo-preview').style.display = 'none';
+    showToast('📢 Announcement posted!', 'success');
+  }
 }
 
-function deleteAnnouncement(id){
-  if(!confirm('Remove this announcement?')) return;
-  _announcements=_announcements.filter(a=>a.id!==id);
-  saveAnnouncements(); renderAnnList();
-  showToast('Announcement removed','warning');
-}
+// Keep legacy alias
+function submitAnnouncement(){ submitItem('announcement'); }
 
-function renderAnnList(){
-  const el=$$('annList');
-  if(!el) return;
-  const countEl=$$('annCount');
-  if(countEl) countEl.textContent=`${_announcements.length} item${_announcements.length!==1?'s':''}`;
-  if(!_announcements.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No announcements yet.</div>'; return; }
-  const icons={'motivation':'💪','announcement':'📢','achievement':'🏆','reminder':'🔔'};
-  el.innerHTML=_announcements.map((a,i)=>`
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
-      <!-- Sort handle -->
-      <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;padding-top:2px">
-        <button onclick="moveAnnouncement(${a.id},-1)" ${i===0?'disabled':''} style="font-size:11px;padding:2px 6px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:4px;cursor:pointer;opacity:${i===0?'0.3':'1'}" title="Move up">▲</button>
-        <button onclick="moveAnnouncement(${a.id},1)" ${i===_announcements.length-1?'disabled':''} style="font-size:11px;padding:2px 6px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:4px;cursor:pointer;opacity:${i===_announcements.length-1?'0.3':'1'}" title="Move down">▼</button>
+// ── Render list for motivations or announcements ──────────────
+function renderItemList(kind) {
+  const isMotivation = kind === 'motivation';
+  const items  = isMotivation ? (window._motivations||[]) : _announcements;
+  const listEl = $$(isMotivation ? 'motList' : 'annList');
+  const countEl= $$(isMotivation ? 'motCount' : 'annCount');
+  if(!listEl) return;
+
+  if(countEl) countEl.textContent = items.length + (items.length===1?' item':' items');
+  if(!items.length) {
+    listEl.innerHTML = `<div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px">No ${kind}s yet.</div>`;
+    return;
+  }
+
+  const icons = { motivation:'💪', announcement:'📢', achievement:'🏆', reminder:'🔔' };
+  const now = new Date();
+
+  listEl.innerHTML = items.map((a, i) => {
+    // Schedule status
+    const from  = a.showFrom  ? new Date(a.showFrom)  : null;
+    const until = a.showUntil ? new Date(a.showUntil) : null;
+    const active  = (!from || now >= from) && (!until || now <= until);
+    const pending = from && now < from;
+    const expired = until && now > until;
+    const schedLabel = expired  ? `<span style="color:#EF4444;font-size:10px">⏰ Expired ${until.toLocaleDateString()}</span>` :
+                       pending  ? `<span style="color:#F59E0B;font-size:10px">⏰ Starts ${from.toLocaleDateString()}</span>` :
+                       from||until ? `<span style="color:#059669;font-size:10px">⏰ Active${until?' until '+until.toLocaleDateString():''}</span>` : '';
+
+    return `<div style="background:${expired?'#FFF5F5':active&&(from||until)?'#F0FFF4':'#fff'};border:1px solid ${expired?'#FECACA':active&&(from||until)?'#BBF7D0':'#e5e7eb'};border-radius:10px;padding:10px;display:flex;align-items:flex-start;gap:8px">
+      <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
+        <button onclick="moveItem('${kind}',${a.id},-1)" ${i===0?'disabled':''} style="font-size:10px;padding:1px 5px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:3px;cursor:pointer;opacity:${i===0?.3:1}">▲</button>
+        <button onclick="moveItem('${kind}',${a.id},1)" ${i===items.length-1?'disabled':''} style="font-size:10px;padding:1px 5px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:3px;cursor:pointer;opacity:${i===items.length-1?.3:1}">▼</button>
       </div>
-      ${a.photoUrl?`<img src="${a.photoUrl}" style="max-width:80px;max-height:80px;width:auto;height:auto;border-radius:8px;object-fit:contain;border:2px solid #8B5CF6;flex-shrink:0">`
-        :`<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${icons[a.type]||'💬'}</div>`}
+      ${a.photoUrl
+        ? `<img src="${a.photoUrl}" style="width:48px;height:48px;border-radius:6px;object-fit:contain;border:2px solid #8B5CF6;flex-shrink:0">`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${icons[a.type]||'💬'}</div>`}
       <div style="flex:1;min-width:0">
-        <div style="font-size:11px;color:#6B7280;margin-bottom:2px">#${i+1} · ${a.type||'motivation'}</div>
-        <div style="font-size:13px;font-weight:600;color:#111827;line-height:1.4">"${a.message}"</div>
-        <div style="font-size:11px;color:#8B5CF6;margin-top:3px">— ${a.author}</div>
+        <div style="font-size:11px;color:#6B7280">${a.type||kind} ${schedLabel}</div>
+        <div style="font-size:12px;font-weight:600;color:#111827;line-height:1.4;margin-top:1px">"${escHtml(a.message)}"</div>
+        <div style="font-size:11px;color:#8B5CF6;margin-top:2px">— ${escHtml(a.author)}</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-        <button onclick="editAnnouncement(${a.id})" style="font-size:10px;padding:3px 8px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">✏️ Edit</button>
-        <button onclick="deleteAnnouncement(${a.id})" style="font-size:10px;padding:3px 8px;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;cursor:pointer">✕ Delete</button>
+      <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
+        <button onclick="editItem('${kind}',${a.id})" style="font-size:10px;padding:2px 7px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">✏️</button>
+        <button onclick="deleteItem('${kind}',${a.id})" style="font-size:10px;padding:2px 7px;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;cursor:pointer">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
-function moveAnnouncement(id, direction) {
-  const idx = _announcements.findIndex(a=>a.id===id);
-  if(idx < 0) return;
-  const newIdx = idx + direction;
-  if(newIdx < 0 || newIdx >= _announcements.length) return;
-  // Swap
-  [_announcements[idx], _announcements[newIdx]] = [_announcements[newIdx], _announcements[idx]];
-  saveAnnouncements();
-  renderAnnList();
+function renderAnnList() { renderItemList('announcement'); }
+
+function deleteItem(kind, id) {
+  if(!confirm('Remove this item?')) return;
+  if(kind === 'motivation') {
+    if(!window._motivations) return;
+    _motivations = _motivations.filter(a=>a.id!==id);
+    saveItemsToSheets('motivations');
+    renderItemList('motivation');
+  } else {
+    _announcements = _announcements.filter(a=>a.id!==id);
+    saveAnnouncements();
+    renderItemList('announcement');
+  }
+  showToast('Removed', 'warning');
 }
+function deleteAnnouncement(id){ deleteItem('announcement', id); }
+
+function moveItem(kind, id, dir) {
+  const arr = kind==='motivation' ? (window._motivations||[]) : _announcements;
+  const idx = arr.findIndex(a=>a.id===id);
+  if(idx<0) return;
+  const ni = idx+dir;
+  if(ni<0||ni>=arr.length) return;
+  [arr[idx],arr[ni]] = [arr[ni],arr[idx]];
+  if(kind==='motivation') { saveItemsToSheets('motivations'); renderItemList('motivation'); }
+  else { saveAnnouncements(); renderItemList('announcement'); }
+}
+function moveAnnouncement(id,dir){ moveItem('announcement',id,dir); }
+
+function editItem(kind, id) {
+  const arr = kind==='motivation' ? (window._motivations||[]) : _announcements;
+  const item = arr.find(a=>a.id===id);
+  if(!item) return;
+  const prefix = kind==='motivation' ? 'mot' : 'ann';
+  const msgEl   = $$(prefix+'-message');
+  const authEl  = $$(prefix+'-author');
+  const photoEl = $$(prefix+'-photo');
+  const fromEl  = $$(prefix+'-from');
+  const untilEl = $$(prefix+'-until');
+  if(msgEl)   msgEl.value   = item.message || '';
+  if(authEl)  authEl.value  = item.author  || '';
+  if(photoEl) { photoEl.value = item.photoUrl||''; previewPhoto(item.photoUrl||'', prefix+'-photo-preview', prefix+'-photo-img'); }
+  if(fromEl && item.showFrom)   fromEl.value  = item.showFrom.slice(0,16);
+  if(untilEl && item.showUntil) untilEl.value = item.showUntil.slice(0,16);
+  if(kind==='announcement' && $$('ann-type')) $$('ann-type').value = item.type||'announcement';
+  deleteItem(kind, id);
+  msgEl?.scrollIntoView({behavior:'smooth',block:'center'});
+  msgEl?.focus();
+  showToast('✏️ Editing — update and re-save', 'info');
+}
+function editAnnouncement(id){ editItem('announcement',id); }
+
+// Save motivations to Sheets
+function saveItemsToSheets(key) {
+  if(!_sheetsProxy) return;
+  const data = key==='motivations' ? (window._motivations||[]) : _announcements;
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+    body: JSON.stringify({ action:'saveSettingToSheets', key:'hcp_'+key, value:JSON.stringify(data) })
+  }).catch(()=>{});
+  // Also push to KPI_Dashboard so companion picks it up
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+    body: JSON.stringify({ action:'syncSnapshotKeys', keys:{ [key+'_json']: JSON.stringify(data) } })
+  }).catch(()=>{});
+}
+
+// Load motivations from Sheets on connect
+function loadMotivations() {
+  if(!window._motivations) window._motivations = [];
+  renderItemList('motivation');
+  if(!_sheetsProxy) return;
+  fetch(_sheetsProxy+'?action=loadSettings', {redirect:'follow'})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.success && d.settings?.hcp_motivations) {
+        try {
+          const m = JSON.parse(d.settings.hcp_motivations);
+          if(Array.isArray(m)) { window._motivations = m; renderItemList('motivation'); }
+        } catch(e) {}
+      }
+    }).catch(()=>{});
+}
+
+
 
 function loadSpotlights(){
   _spotlights = _spotlights || [];
