@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.56</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.60</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.56</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.60</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.56</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.60</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1491,10 +1491,10 @@ let _wbSettings      = {};
 let _tyCards         = {};       // jobId → {status, sentDate, note}
 let _isActivity      = {};
 let _isStatus        = {};       // inside sales status map
-let _crCallsRaw      = [];
-let _rcCallsRaw      = [];
+
+
 let _rcSnap          = null;
-let _callrailSnap    = null;
+
 let _jobAttribution  = {};
 let _allYearJobs     = [];
 let _jobTypesMap     = {};       // job type id → name (fetched from /job_fields/job_types)
@@ -1649,7 +1649,6 @@ function connect(){
     loadSpotlights();
     loadAnnouncements();
     loadHolidays();
-    loadCallAttribFromSheets(); // load saved call attributions
   });
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
@@ -2262,9 +2261,15 @@ function printReport(){
 // ============================================================
 // API
 // ============================================================
+// Global AbortController for the current pull — replaced each pull
+let _pullController = null;
+
 async function hcpGet(path){
-  // Send both headers — works with original Worker (Authorization) and new Worker (X-HCP-Token)
-  const res=await fetch(_workerUrl+'/api'+path,{headers:{Authorization:_token,'X-HCP-Token':_token.replace(/^(Bearer|Token)\s+/i,'').trim()}});
+  const signal = _pullController?.signal;
+  const res = await fetch(_workerUrl+'/api'+path, {
+    headers: { Authorization:_token, 'X-HCP-Token':_token.replace(/^(Bearer|Token)\s+/i,'').trim() },
+    signal,
+  });
   if(!res.ok){const txt=await res.text().catch(()=>'');throw new Error('HTTP '+res.status+' on '+path+(txt?' → '+txt.slice(0,200):''));}
   return res.json();
 }
@@ -2337,6 +2342,10 @@ function stepLog(msg) {
 }
 
 function cancelPull() {
+  if(_pullController) {
+    _pullController.abort();
+    _pullController = null;
+  }
   window._pullCanceled = true;
   showToast('Pull canceled — you can try a shorter date range','warn');
   $$('loadBtn').textContent='Pull report ↗';
@@ -2368,10 +2377,20 @@ async function quickPull() {
 }
 
 async function loadAll(){
+  // Abort any in-flight pull before starting a new one
+  if(_pullController) {
+    _pullController.abort();
+    _pullController = null;
+    console.log('[Pull] Previous pull aborted — starting fresh');
+  }
+  _pullController = new AbortController();
+  const myController = _pullController; // capture for this pull's closure
+
   const from=$$('dateFrom').value,to=$$('dateTo').value;
   showErr('');
   if(!from||!to){showErr('Select a date range.');return;}
   $$('loadBtn').textContent='Loading...';$$('loadBtn').disabled=true;
+  if($$('fullPullBtn')) { $$('fullPullBtn').textContent='Loading...';$$('fullPullBtn').disabled=true; }
   $$('main').style.display='none';
   _pullStepStart = Date.now();
   $$('statusBar').innerHTML = `<span id='pullStep'>⏳ Connecting...</span> <span id='pullStepTime' style='color:#9ca3af;font-size:10px'></span>
@@ -2693,10 +2712,21 @@ async function loadAll(){
     _wbSettings = _wbSettings || {};// loaded from Sheets
     if(!_holidays.length) _holidays=JSON.parse(JSON.stringify(DEFAULT_HOLIDAYS));
   }catch(e){
-    showErr('Error: '+e.message);$$('statusBar').textContent='';
+    if(e.name === 'AbortError' || e.message?.includes('aborted')) {
+      // This pull was superseded by a newer one — clean up silently
+      console.log('[Pull] Aborted (superseded by new pull)');
+      $$('statusBar').textContent = '';
+    } else {
+      showErr('Error: '+e.message);$$('statusBar').textContent='';
+    }
   }finally{
     clearTimeout(window._pullTimeoutId);
-    $$('loadBtn').textContent='Pull report ↗';$$('loadBtn').disabled=false;
+    // Only reset button if this is still the active controller
+    if(myController === _pullController || !_pullController) {
+      $$('loadBtn').textContent='Pull report ↗';$$('loadBtn').disabled=false;
+      $$('fullPullBtn').textContent='↻ Full Pull';$$('fullPullBtn').disabled=false;
+      _pullController = null;
+    }
   }
 }
 
@@ -2710,7 +2740,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.56
+  // ATTRIBUTION ENGINE — v24.60
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4698,94 +4728,6 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const kpiPlanCount = Object.values(map).reduce((s,e)=>s+e.plans,0);
   const totalPlans = _uploadedPlans.length > 0 ? _uploadedPlans.filter(isPlanActive).length : kpiPlanCount;
 
-  // Auto-fetch CallRail last 30 days when pulling report
-  try {
-    const crKey     = _wbSettings.callrailKey || 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
-    const crAccount = _wbSettings.callrailAccount || '541526025';
-    if(crKey && crAccount && _workerUrl) {
-      const now  = new Date();
-      const from = new Date(now); from.setDate(now.getDate()-30);
-      const fmt  = d => d.toISOString().split('T')[0];
-      dashLog('info','Fetching CallRail last 30 days...');
-      let crCalls=[], crOffset=0, crPage=1;
-      do {
-        // Always route through worker — never call api.callrail.com directly
-        // (direct calls are blocked by browser tracking prevention / ad blockers)
-        const params = new URLSearchParams({
-          start_date: fmt(from), end_date: fmt(now), per_page:'250',
-          relative_pagination:'true', company_id:'819196701',
-          fields:'id,start_time,answered,first_call,direction,tracking_phone_number,customer_phone_number,duration,source_name,agent_email',
-          direction:'inbound', offset: crOffset
-        });
-        const crUrl = `${_workerUrl}/callrail/v3/a/${crAccount}/calls.json?${params}`;
-        const crRes = await fetch(crUrl, { headers: { 'Authorization': `Token token="${crKey}"` } });
-        if(!crRes.ok) {
-          dashLog('warn', `CallRail: Worker returned ${crRes.status} — trying Apps Script proxy`);
-          // Fallback: route through Apps Script proxy
-          if(_sheetsProxy) {
-            const proxyRes = await fetch(_sheetsProxy, {
-              method:'POST', headers:{'Content-Type':'text/plain'},
-              body: JSON.stringify({ action:'callrailProxy', url: crUrl.replace(_workerUrl+'/callrail','https://api.callrail.com'), apiKey: crKey })
-            }).catch(()=>null);
-            if(proxyRes?.ok) {
-              const pd = await proxyRes.json();
-              if(pd.success && pd.data) {
-                crCalls = [...crCalls, ...(pd.data.calls||[])];
-                nextPageUrl = pd.data.has_next_page ? pd.data.next_page : null;
-                crPage++;
-                continue;
-              }
-            }
-          }
-          break;
-        }
-        const crData = await crRes.json();
-        const crBatch = crData.calls||[];
-        crCalls = [...crCalls, ...crBatch];
-        crOffset += crBatch.length;
-        crPage++;
-        if(!crData.has_next_page || crBatch.length === 0) break;
-      } while(crPage <= 8);
-
-      // Build daily counts for this month
-      const curM  = now.getMonth(), curY = now.getFullYear();
-      const daily = new Array(31).fill(0);
-      const monthly = new Array(12).fill(0);
-      crCalls.forEach(c => {
-        const d = new Date(c.start_time||c.startTime||'');
-        if(isNaN(d)) return;
-        if(d.getFullYear()===curY){ monthly[d.getMonth()]++; }
-        if(d.getFullYear()===curY && d.getMonth()===curM){ daily[d.getDate()-1]++; }
-      });
-
-      _callrailSnap = {
-        total:       crCalls.length,
-        new_callers: crCalls.filter(c=>c.first_call).length,
-        answered:    crCalls.filter(c=>c.answered).length,
-        weekly:      [{day:0,count:0},{day:1,count:0},{day:2,count:0},{day:3,count:0},{day:4,count:0},{day:5,count:0},{day:6,count:0}],
-        monthly,
-        daily,
-      };
-      // Fill weekly from calls
-      crCalls.forEach(c => {
-        const d = new Date(c.start_time||'');
-        if(!isNaN(d)){ const dow=d.getDay(); _callrailSnap.weekly[dow].count++; }
-      });
-      dashLog('success',`CallRail: ${crCalls.length} calls last 30 days, ${_callrailSnap.new_callers} new callers`);
-    }
-  } catch(e) { console.warn('[CallRail auto-fetch] error:', e.message); }
-  // Fetch RingCentral call log — only if not already fetched this pull
-  // (syncReportToSheets runs twice: from auto-pull and from Push to Companion)
-  if(!_rcSnap) {
-    const rcJwt = _wbSettings.rcJwt || localStorage.getItem('rc_jwt') || '';
-    if(rcJwt && _workerUrl) {
-      try { await fetchRCCallLog(rcJwt); }
-      catch(e) { dashLog('warn','RC fetch skipped: '+e.message); }
-    }
-  } else {
-    dashLog('info','RC: using cached data from this pull');
-  }
-
   // Fetch weather forecast from weatherapi.com (1 day = free tier)
   let _weatherSnap = {};
   try {
@@ -4859,7 +4801,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.56',  // dashboard version that generated this push
+    dash_version: 'v24.60',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5143,8 +5085,6 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     weather_loc:      _wbSettings.weatherLoc||'55033',
 
     // CallRail daily/monthly — flattened for companion
-    calls_daily_json:   JSON.stringify(_callrailSnap?.daily||[]),
-    calls_monthly_json: JSON.stringify(_callrailSnap?.monthly||[]),
 
     // Holidays and birthdays — kept as JSON strings
     // Proxy URL — written to KPI_Dashboard so companion can call Apps Script directly
@@ -5266,12 +5206,6 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
                   return (_rcSnap.monthly||[])[new Date().getMonth()] || 0; })(),
     rc_ytd:    (_rcSnap?.monthly||[]).reduce((s,v)=>s+v,0),
     // CallRail
-    calls_total:      parseInt(_callrailSnap?.total||0)||0,
-    calls_new:        parseInt(_callrailSnap?.new_callers||0)||0,
-    calls_answered:   parseInt(_callrailSnap?.answered||0)||0,
-    calls_mtd:        parseInt(_callrailSnap?.mtd||0)||0,
-    calls_ytd:        parseInt(_callrailSnap?.ytd||0)||0,
-    calls_weekly_json: JSON.stringify(_callrailSnap?.weekly||[]),
 
     // Daily revenue by calendar day this month — for companion trend line
     // Array of 31 values (index = day-1), each = revenue collected that day
@@ -5513,7 +5447,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.56',
+        dash_version:        'v24.60',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5580,12 +5514,6 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         wx_fetched_at:       dashboardSnapshot.wx_fetched_at,
         weather_loc:         dashboardSnapshot.weather_loc,
         // Calls (CallRail)
-        calls_total:         dashboardSnapshot.calls_total,
-        calls_new:           dashboardSnapshot.calls_new,
-        calls_answered:      dashboardSnapshot.calls_answered,
-        calls_daily_json:    dashboardSnapshot.calls_daily_json,
-        calls_weekly_json:   dashboardSnapshot.calls_weekly_json,
-        calls_monthly_json:  dashboardSnapshot.calls_monthly_json,
         // Content
         holidays_json:       dashboardSnapshot.holidays_json,
         birthdays_json:      dashboardSnapshot.birthdays_json,
@@ -5682,11 +5610,20 @@ async function loadMonthlyRevenueFromSheets() {
       const rev = parseFloat(String(r[2]||'0').replace(/[$,]/g,''))||0;
       if(idx >= 0 && idx < 12 && rev > 0) arr[idx] = rev;
     });
-    if(arr.some(v => v > 0)) {
-      // Inject into dashboardSnapshot so bar chart renders correctly
-      dashboardSnapshot.monthly_revenue = arr;
-      console.log('[Quick Pull] Monthly revenue loaded from Sheets:', arr.filter(v=>v>0).length, 'months');
+    if(!arr.some(v => v > 0)) return;
+
+    // Sanity check: compare Sheets total vs what _invoiceMap says
+    // If Sheets is 1.4x+ higher it's likely stale/doubled data from a bad push
+    const sheetsTotal = arr.reduce((s,v)=>s+v,0);
+    const mapTotal = Object.values(_invoiceMap||{}).reduce((s,pmts)=>
+      s+pmts.reduce((ps,p)=>ps+(p.amount||0),0),0);
+    if(mapTotal > 0 && sheetsTotal > mapTotal * 1.4) {
+      console.warn(`[Quick Pull] Sheets monthly data looks stale/doubled (Sheets: $${Math.round(sheetsTotal/1000)}K vs invoiceMap: $${Math.round(mapTotal/1000)}K) — skipping Sheets cache, recalculating`);
+      return; // fall through to recalculate from _invoiceMap
     }
+
+    dashboardSnapshot.monthly_revenue = arr;
+    console.log('[Quick Pull] Monthly revenue loaded from Sheets:', arr.filter(v=>v>0).length, 'months');
   } catch(e) {
     console.warn('[Quick Pull] Could not load monthly revenue from Sheets:', e.message);
   }
@@ -6071,377 +6008,10 @@ async function rcGet(path, jwt) {
 }
 
 
-async function testRCConnection() {
-  const jwt = ($$('wb-rc-jwt')?.value?.trim()) || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
-  const resultEl = $$('rc-test-result');
-  if(resultEl) { resultEl.textContent = '⏳ Testing...'; resultEl.style.color='#6b7280'; }
-  dashLog('info','Testing RC connection...');
-  try {
-    _rcAccessToken = null; // force fresh token
-    await rcGetToken(jwt);
-    const data = await rcGet('/restapi/v1.0/account/~', jwt);
-    const name = data.name || data.serviceInfo?.brand?.name || 'Connected';
-    if(resultEl) { resultEl.textContent = '✅ ' + name; resultEl.style.color='#059669'; }
-    showToast('✅ RC: ' + name, 'success');
-    dashLog('success','RC test OK: ' + name);
-    _wbSettings.rcJwt = jwt;
-    try { localStorage.setItem('rc_jwt', jwt); } catch(e) {}
-  } catch(e) {
-    if(resultEl) { resultEl.textContent = '❌ ' + e.message.slice(0,80); resultEl.style.color='#dc2626'; }
-    showToast('RC failed: ' + e.message, 'error');
-    dashLog('error','RC test failed: ' + e.message);
-  }
-}
-
-async function fetchRCCallLog(jwt) {
-  if(!jwt || !_workerUrl) return;
-  try {
-    dashLog('info','Fetching RingCentral call log...');
-    // Company call log — last 30 days
-    const now   = new Date();
-    const from  = new Date(now); from.setDate(from.getDate()-30);
-    const fmt   = d => d.toISOString().split('.')[0] + 'Z';
-
-    let allCalls = [], page = 1;
-    while(true) {
-      const path = `/restapi/v1.0/account/~/call-log?dateFrom=${fmt(from)}&dateTo=${fmt(now)}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
-      const data = await rcGet(path, jwt);
-      const records = data.records || [];
-      allCalls = [...allCalls, ...records];
-      if(!data.navigation?.nextPage) break;
-      page++;
-      if(page > 20) break;
-    }
-    console.log('[RC] Fetched', allCalls.length, 'inbound calls');
-
-    // Process calls — categorize by agent type, filter spam, tally by extension
-    const monthCounts  = new Array(12).fill(0);
-    const dailyCounts  = new Array(31).fill(0);
-    const hourlyCounts = new Array(24).fill(0);
-    const curM = now.getMonth();
-    const curY = now.getFullYear();
-    const todayStr = `${curY}-${String(curM+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-
-    // ── EMPLOYEE CLASSIFICATION ────────────────────────────────
-    // DISPATCH AGENTS — answer incoming customer calls
-    // Extension number → name map (RingCentral extension numbers)
-    const EXT_MAP = {
-      '103': 'Victoria Ellsworth',
-      '107': 'Jason Cornell',
-      '108': 'Tony',
-    };
-
-    // Helper: resolve name from leg — checks extension name, then ext number map
-    const resolveName = (leg) => {
-      const name = leg?.extension?.name || leg?.to?.name || '';
-      if(name) return name;
-      const extNum = String(leg?.extension?.extensionNumber || leg?.to?.extensionNumber || '');
-      return EXT_MAP[extNum] || '';
-    };
-
-    const DISPATCH_AGENTS = new Set([
-      'Robert Danaher', 'Bob Danaher',
-      'Victoria Ellsworth', 'Victoria',
-      'Jody Serres',
-      'Eric Stoffel',   // also handles incoming calls
-      'Jason Cornell',
-    ]);
-
-    // TECHNICIANS — field staff, appear as callers (calling in) not as agents
-    const TECH_NAMES = new Set([
-      'Lukas Schlosser', 'Doug McNamara',
-      'Gannon Blaiser', 'Andy Mitchell', 'Andrew Mitchell',
-      'Mark Daniels', 'Gordon Radant', 'Jon Glenn', 'Jeff Hohenauer',
-    ]);
-
-    // QUEUE/ROUTING entries — not real people, never tally
-    const QUEUE_NAMES = new Set([
-      'Service Coordinator', 'Call all', 'Unknown',
-      'Voicemail', 'Auto-Receptionist', 'Main Line',
-      'After Hours', 'Emergency Line', 'Hunt Group',
-      'Call Queue', 'Queue', 'Park Location',
-    ]);
-
-    // Spam/hangup threshold — true hangups/robocalls are under 10 seconds
-    // 60s was filtering too many legitimate short calls (quick transfers, brief answers)
-    const SPAM_THRESHOLD_SEC = 10;
-
-    // Tallies
-    const byAgent    = {}; // dispatch staff answering customer calls
-    const byTech     = {}; // technician call-ins from field
-    let   spamCount  = 0;  // calls < 60s (likely spam/hangup)
-    let   spamDur    = 0;  // total duration of spam calls
-
-    const ensure = (map, name) => {
-      if(!map[name]) map[name] = { name, answered:0, total:0, totalDur:0, missed:0 };
-    };
-
-    allCalls.forEach(call => {
-      const dt      = new Date(call.startTime);
-      const m       = dt.getMonth();
-      const day     = dt.getDate()-1;
-      const callDur = parseInt(call.duration||0);
-
-      // Monthly / daily / hourly counts (all calls including spam for volume)
-      if(m >= 0 && m < 12) monthCounts[m]++;
-      if(m === curM && day >= 0) dailyCounts[day]++;
-      const callDateStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-      if(callDateStr === todayStr) hourlyCounts[dt.getHours()]++;
-
-      // Spam / hangup detection — short calls not worth tallying per-agent
-      if(callDur < SPAM_THRESHOLD_SEC) {
-        spamCount++;
-        spamDur += callDur;
-        return; // don't attribute to any agent
-      }
-
-      const legs = call.legs || [];
-
-      // Find who actually answered — RC uses various result values
-      const acceptLegs = legs.filter(l => {
-        const action = (l.action||'').toLowerCase();
-        const result = (l.result||'').toLowerCase();
-        return action === 'accept'
-          || result === 'accepted'
-          || result === 'connected'
-          || result === 'answered'
-          || (action === '' && result === '' && parseInt(l.duration||0) > 0);
-      });
-
-      // Check if this is a TECH calling IN from the field
-      // Technician calls show the tech name in the FROM field
-      const fromName = call.from?.name || '';
-      const isTechCall = TECH_NAMES.has(fromName);
-
-      if(isTechCall) {
-        // Tally as tech call-in — answered = the call connected
-        ensure(byTech, fromName);
-        byTech[fromName].total++;
-        if(acceptLegs.length > 0 || call.result !== 'Missed') {
-          byTech[fromName].answered++;
-          byTech[fromName].totalDur += callDur;
-        } else {
-          byTech[fromName].missed++;
-        }
-        return;
-      }
-
-      // Customer call — tally against the agent who answered
-      if(acceptLegs.length > 0) {
-        acceptLegs.forEach(leg => {
-          const name = resolveName(leg);
-          if(!name || QUEUE_NAMES.has(name)) return;
-          ensure(byAgent, name);
-          byAgent[name].answered++;
-          byAgent[name].total++;
-          byAgent[name].totalDur += parseInt(leg.duration || callDur || 0);
-        });
-      } else if(call.result === 'Missed') {
-        const nonQueueLegs = legs.filter(l => {
-          const n = resolveName(l);
-          return n && !QUEUE_NAMES.has(n);
-        });
-        const dest = nonQueueLegs[nonQueueLegs.length-1] || legs[legs.length-1];
-        const name = resolveName(dest);
-        if(name && !QUEUE_NAMES.has(name)) {
-          ensure(byAgent, name);
-          byAgent[name].missed++;
-          byAgent[name].total++;
-        }
-      }
-    });
-
-    // Build leaderboard from dispatch agents
-    const leaderboard = Object.values(byAgent)
-      .filter(e => !QUEUE_NAMES.has(e.name))
-      .filter(e => !e.name.toLowerCase().includes('voicemail'))
-      .map(e => ({
-        ...e,
-        avgDur:  e.answered > 0 ? Math.round(e.totalDur / e.answered) : 0,
-        ansRate: e.total    > 0 ? Math.round(e.answered / e.total * 100) : 0,
-        isDispatch: DISPATCH_AGENTS.has(e.name),
-      }))
-      .sort((a,b) => b.answered - a.answered);
-
-    // Tech call-in summary
-    const techCalls = Object.values(byTech)
-      .map(e => ({
-        ...e,
-        avgDur:  e.answered > 0 ? Math.round(e.totalDur / e.answered) : 0,
-        ansRate: e.total    > 0 ? Math.round(e.answered / e.total * 100) : 0,
-      }))
-      .sort((a,b) => b.total - a.total);
-
-    console.log(`[RC] Agents: ${leaderboard.length} | Tech call-ins: ${techCalls.length} | Spam/hangup: ${spamCount} (<60s)`);
-    dashLog('info', `RC: ${allCalls.length} calls | ${leaderboard.filter(a=>a.answered>0).length} agents | ${spamCount} spam/hangups`);
-
-    // Pinned dispatch agents — always show these, even with 0 calls
-    const PINNED_AGENTS = [
-      { name: 'Robert Danaher',    display: 'Bob D.'   },
-      { name: 'Victoria Ellsworth',display: 'Victoria' },
-      { name: 'Eric Stoffel',      display: 'Eric'     },
-    ];
-
-    // Build RC_Agents tab payload
-    const pinnedNames = new Set(PINNED_AGENTS.map(p => p.name));
-    const agentsForTab = [];
-
-    // Pinned first
-    PINNED_AGENTS.forEach(pin => {
-      const live = leaderboard.find(a => a.name === pin.name);
-      agentsForTab.push({
-        name:        pin.display,
-        answered:    live?.answered    || 0,
-        total:       live?.total       || 0,
-        ans_rate:    live?.ansRate     || 0,
-        avg_dur_sec: live?.avgDur      || 0,
-        pinned:      true,
-        category:    'dispatch',
-      });
-    });
-
-    // Non-pinned dispatch agents ranked by answered
-    leaderboard
-      .filter(a => !pinnedNames.has(a.name) && a.answered > 0)
-      .slice(0, 4)
-      .forEach(a => agentsForTab.push({
-        name:        a.name,
-        answered:    a.answered,
-        total:       a.total,
-        ans_rate:    a.ansRate,
-        avg_dur_sec: a.avgDur,
-        pinned:      false,
-        category:    'dispatch',
-      }));
-
-    // Tech call-ins (separate category)
-    techCalls.slice(0, 5).forEach(t => agentsForTab.push({
-      name:        t.name.split(' ')[0], // first name only
-      answered:    t.answered,
-      total:       t.total,
-      ans_rate:    t.ansRate,
-      avg_dur_sec: t.avgDur,
-      pinned:      false,
-      category:    'tech',
-    }));
-
-    // Spam row
-    if(spamCount > 0) {
-      agentsForTab.push({
-        name:        'Spam/Hangup',
-        answered:    0,
-        total:       spamCount,
-        ans_rate:    0,
-        avg_dur_sec: spamCount > 0 ? Math.round(spamDur / spamCount) : 0,
-        pinned:      false,
-        category:    'spam',
-      });
-    }
-
-    const totalAnswered = allCalls.filter(c => c.result !== 'Missed').length;
-    const totalMissed   = allCalls.filter(c => c.result === 'Missed').length;
-    const ansRate       = allCalls.length > 0 ? Math.round(totalAnswered/allCalls.length*100) : 0;
-
-    _rcSnap = {
-      total: allCalls.length, answered: totalAnswered, missed: totalMissed,
-      answer_rate: ansRate, leaderboard, monthly: monthCounts,
-      daily: dailyCounts, hourly: hourlyCounts,
-      // Tech call-ins today — for Win the Day scene
-      techCallsToday: techCalls
-        .filter(t => {
-          const todayCalls = allCalls.filter(c => {
-            const d = new Date(c.startTime);
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayStr
-              && (c.from?.name||'') === t.name;
-          });
-          return todayCalls.length > 0;
-        })
-        .map(t => ({name:t.name, calls:t.total})),
-    };
-    dashLog('success', `RC: ${allCalls.length} calls, ${ansRate}% answered, ${leaderboard.length} real agents`);
-
-    if(_sheetsProxy) {
-      // Write RC_Agents tab — dedicated tab companion reads directly via fetchCSV
-      fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-        body: JSON.stringify({ action:'syncRCAgents', agents: agentsForTab })
-      }).then(()=>dashLog('info','RC agents → RC_Agents tab ✅')).catch(()=>{});
-      const todayIdx = new Date().getDate() - 1;
-      const rcPayload = {
-        total:       _rcSnap.total,
-        answered:    _rcSnap.answered,
-        missed:      _rcSnap.missed,
-        answer_rate: _rcSnap.answer_rate,
-        leaderboard: JSON.stringify(leaderboard),
-        monthly:     JSON.stringify(monthCounts),
-        daily:       JSON.stringify(dailyCounts),
-        hourly:      JSON.stringify(hourlyCounts),
-        today:       dailyCounts[todayIdx] || 0,
-        mtd:         monthCounts[new Date().getMonth()] || 0,
-        ytd:         monthCounts.reduce((s,v)=>s+v,0),
-      };
-      // Primary: write directly to KPI_Dashboard — small payload, always succeeds
-      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
-        body: JSON.stringify({ action:'syncRCSnapshot', ...rcPayload })
-      }).then(()=>dashLog('info','RC → KPI_Dashboard ✅'))
-        .catch(e=>dashLog('warn','RC snapshot failed: '+e.message));
-      // Secondary: write to RingCentral historical tab
-      fetch(_sheetsProxy, {method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
-        body: JSON.stringify({ action:'syncRingCentral', ...rcPayload })
-      }).catch(e=>dashLog('warn','RC tab sync failed: '+e.message));
-    }
-  } catch(e) {
-    dashLog('error','RC failed: '+e.message);
-    console.warn('[RC] Error:', e.message);
-  }
-}
-
-
 // ============================================================
 // CALLS TAB — test and inspect CallRail + RingCentral data
 // ============================================================
 
-
-function setCallsDateRange(prefix, range) {
-  const now  = new Date();
-  const fmt  = d => d.toISOString().split('T')[0];
-  let from, to = fmt(now);
-  switch(range) {
-    case 'today':
-      from = fmt(now); break;
-    case 'week': {
-      const d = new Date(now);
-      d.setDate(now.getDate() - now.getDay() + (now.getDay()===0?-6:1)); // Mon
-      from = fmt(d); break;
-    }
-    case 'month':
-      from = fmt(new Date(now.getFullYear(), now.getMonth(), 1)); break;
-    case 'year':
-      from = fmt(new Date(now.getFullYear(), 0, 1)); break;
-    case 'last30': {
-      const d = new Date(now); d.setDate(d.getDate()-30);
-      from = fmt(d); break;
-    }
-    default: from = fmt(now);
-  }
-  const fromEl = document.getElementById(prefix+'-from');
-  const toEl   = document.getElementById(prefix+'-to');
-  if(fromEl) fromEl.value = from;
-  if(toEl)   toEl.value   = to;
-  // Highlight active button
-  const btns = document.querySelectorAll(`[onclick*="setCallsDateRange('${prefix}'"]`);
-  btns.forEach(b => { b.style.background=b.getAttribute('onclick').includes(range)?'#1A3A5C':'#f3f4f6'; b.style.color=b.getAttribute('onclick').includes(range)?'#fff':''; });
-}
-
-function initCallsTab() {
-  // Set default date range — last 30 days
-  const to   = new Date();
-  const from = new Date(); from.setDate(from.getDate()-30);
-  const fmt  = d => d.toISOString().split('T')[0];
-  // Default both panels to 'This Week'
-  setCallsDateRange('cr','week');
-  setCallsDateRange('rc','week');
-}
 
 function setCallsStatus(prefix, ok, text) {
   const dot  = document.getElementById(prefix+'-status-dot');
@@ -6462,144 +6032,14 @@ function showCallsError(prefix, msg) {
   dashLog('error', prefix.toUpperCase() + ': ' + msg);
 }
 
-function clearCallsResult(prefix) {
-  document.getElementById(prefix+'-error').style.display='none';
-  document.getElementById(prefix+'-progress').textContent='';
-  document.getElementById(prefix+'-metrics').style.display='none';
-  setCallsStatus(prefix, null, 'Not tested');
-  if(prefix==='cr') _crCallsRaw=[];
-  if(prefix==='rc') _rcCallsRaw=[];
-  renderCallsTable();
-}
-
 function fmtDuration(secs) {
   const s = parseInt(secs)||0;
   return Math.floor(s/60)+'m '+(s%60).toString().padStart(2,'0')+'s';
 }
 
-function renderCallMetrics(prefix, calls) {
-  const total    = calls.length;
-  const answered = calls.filter(c => c._answered).length;
-  const missed   = calls.filter(c => !c._answered).length;
-  const withDur  = calls.filter(c => c._duration > 0);
-  const avgDur   = withDur.length ? Math.round(withDur.reduce((s,c)=>s+c._duration,0)/withDur.length) : 0;
-  const ansRate  = total > 0 ? Math.round(answered/total*100) : 0;
-
-  const el = document.getElementById(prefix+'-metrics');
-  if(!el) return;
-  el.style.display='grid';
-  el.innerHTML = [
-    ['Total',total,'#1e293b'],
-    ['Answered',answered,'#10B981'],
-    ['Missed',missed,'#EF4444'],
-    ['Avg Duration',fmtDuration(avgDur),'#3B82F6'],
-    ['Answer Rate',ansRate+'%', ansRate>=80?'#10B981':ansRate>=60?'#F59E0B':'#EF4444'],
-  ].map(([l,v,c])=>`<div style="padding:8px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb">
-    <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">${l}</div>
-    <div style="font-size:18px;font-weight:700;color:${c}">${v}</div>
-  </div>`).join('');
-}
-
 // ============================================================
 // CALLRAIL FETCH
 // ============================================================
-async function testCallRail() {
-  const from   = $$(  'cr-from')?.value; if(!from){alert('Select date range');return;}
-  const to     = $$('cr-to')?.value   || new Date().toISOString().split('T')[0];
-  const filter = $$('cr-filter')?.value||'all';
-  const CR_KEY = 'ctrk_43c7900e17d5793db876196ed978662aa6858367';
-  const CR_ACC = '541526025';
-  const CR_CO  = '819196701';
-
-  document.getElementById('cr-error').style.display='none';
-  setCallsStatus('cr', null, 'Fetching...');
-  setCallsProgress('cr', '⏳ Connecting to CallRail...');
-
-  try {
-    let allCalls = [];
-    let nextPageUrl = null;
-    let pageNum = 1;
-    const maxPages = 50;
-
-    do {
-      // Use relative pagination for large datasets (recommended by CallRail docs)
-      // On first request build the URL; on subsequent requests use the next_page URL
-      let crUrl;
-      if(nextPageUrl){
-        crUrl = nextPageUrl; // CallRail provides the full next page URL
-      } else {
-        const params = new URLSearchParams({
-          start_date:          from,
-          end_date:            to,
-          per_page:            '250',
-          relative_pagination: 'true',  // recommended for large datasets
-          company_id:          CR_CO,
-          fields:              'id,start_time,customer_name,customer_phone_number,tracking_phone_number,duration,answered,first_call,direction,source_name,agent_email,transcription,recording,note,call_disposition',
-        });
-        if(filter==='inbound')  params.set('direction','inbound');
-        if(filter==='outbound') params.set('direction','outbound');
-        crUrl = _workerUrl
-          ? `${_workerUrl}/callrail/v3/a/${CR_ACC}/calls.json?${params}`
-          : `https://api.callrail.com/v3/a/${CR_ACC}/calls.json?${params}`;
-      }
-
-      setCallsProgress('cr', `📡 Page ${pageNum} — ${allCalls.length} calls so far...`);
-
-      const res = await fetch(crUrl, {
-        headers: { 'Authorization': `Token token="${CR_KEY}"` }
-      });
-      if(!res.ok){ const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`); }
-      const d = await res.json();
-      allCalls = [...allCalls, ...(d.calls||[])];
-
-      // Relative pagination uses has_next_page + next_page URL
-      nextPageUrl = d.has_next_page ? d.next_page : null;
-      pageNum++;
-    } while(nextPageUrl && pageNum <= maxPages);
-
-    // Normalize to common schema
-    _crCallsRaw = allCalls.map(c => {
-      const transcript  = c.transcription || '';
-      const agentFromCR = c.agent_email || c.agent?.name || c.agent?.email || '';
-      const callObj = {
-        _source:      'CallRail',
-        _id:          c.id,
-        _time:        c.start_time,
-        _caller:      c.customer_name || 'Unknown',
-        _number:      c.customer_phone_number || '',
-        _direction:   c.direction || 'inbound',
-        _agentCR:     agentFromCR,
-        _agentTx:     '',  // populated after full object created
-        _agent:       agentFromCR || '',
-        _duration:    parseInt(c.duration)||0,
-        _answered:    c.answered === true,
-        _missed:      c.answered === false || c.duration === 0,
-        _status:      c.answered ? 'Answered' : 'Missed',
-        _firstCall:   c.first_call,
-        _transcript:  transcript,
-        _recording:   c.recording  || '',
-        _note:        c.note       || '',
-        _disposition: c.call_disposition || '',
-        _raw:         c,
-      };
-      // Attribute agent using all available signals
-      callObj._agentTx = attributeAgent(callObj);
-      if(callObj._agentTx) callObj._agent = normalizeAgentDisplay(callObj._agentTx);
-      return callObj;
-    });
-
-    setCallsStatus('cr', true, `✅ ${_crCallsRaw.length} calls`);
-    setCallsProgress('cr', `✅ ${_crCallsRaw.length} calls loaded · ${from} → ${to}`);
-    renderCallMetrics('cr', _crCallsRaw);
-    renderCallsTable();
-    buildCRAgentLeaderboard();
-    dashLog('success', `CallRail: ${_crCallsRaw.length} calls fetched`);
-  } catch(e) {
-    showCallsError('cr', e.message);
-    setCallsProgress('cr','');
-  }
-}
-
 // ============================================================
 // CALLRAIL AGENT ATTRIBUTION
 // 
@@ -6616,148 +6056,21 @@ async function testCallRail() {
 // Confirmed dispatcher phone numbers (from CallRail export analysis):
 // ============================================================
 
-const DISPATCHER_PHONES = {
-  '6512762506': 'Bob Danaher',        // Robert Danaher personal cell
-  '6127705509': 'Victoria Ellsworth', // Victoria Ellsworth personal cell
-  '6512393697': 'Eric Stoffel',       // Eric Stoffel phone 1
-  '6513070621': 'Eric Stoffel',       // Eric Stoffel phone 2
-};
+
 
 // Agent email → display name mapping from CR API
-const AGENT_EMAIL_MAP = {
-  'robert.danaher':  'Bob Danaher',
-  'bob':             'Bob Danaher',
-  'rdanaher':        'Bob Danaher',
-  'victoria':        'Victoria Ellsworth',
-  'vellsworth':      'Victoria Ellsworth',
-  'ellsworth':       'Victoria Ellsworth',
-  'eric':            'Eric Stoffel',
-  'estoffel':        'Eric Stoffel',
-  'stoffel':         'Eric Stoffel',
-};
+
 
 // Lookup table populated from uploaded Excel — Call_ID → call metadata
-let _crExcelLookup = {}; // populated by loadCRExcel()
+
 
 // Attribute agent from all available signals — priority order:
 // 1. Dispatcher's personal phone is the caller (outbound or field call)
 // 2. CR API agent_email field
 // 3. Excel lookup cross-reference (if user uploaded export)
-function attributeAgent(call) {
-  // 1. Dispatcher phone as caller (outbound calls, field callbacks)
-  const callerPhoneClean = (call._number||'').replace(/\D/g,'');
-  if(callerPhoneClean && DISPATCHER_PHONES[callerPhoneClean]) {
-    return DISPATCHER_PHONES[callerPhoneClean];
-  }
-
-  // 2. CR API agent_email field
-  const email = (call._agentCR||'').toLowerCase();
-  if(email) {
-    const local = email.split('@')[0]; // take local part of email
-    for(const [key, name] of Object.entries(AGENT_EMAIL_MAP)) {
-      if(local.includes(key)) return name;
-    }
-    // If email present but unrecognized, return a cleaned version
-    if(email.includes('@')) return email.split('@')[0];
-  }
-
-  // 3. Excel lookup — if user uploaded the CallRail export
-  if(call._id && _crExcelLookup[call._id]) {
-    return _crExcelLookup[call._id].agent || '';
-  }
-
-  return ''; // unattributed
-}
-
 // Keep transcript function for future use if Premium plan is added
-function attributeAgentFromTranscript(transcript) {
-  if(!transcript || transcript.length < 10) return '';
-  // Transcripts require Premium Conversation Intelligence plan
-  // Currently not available — returns empty string
-  return '';
-}
-
 // Load CallRail Excel export and build call ID → agent lookup
 // Users upload their periodic export from CallRail → Analytics → Calls
-function loadCRExcel(file) {
-  if(!window.XLSX) { showToast('Loading Excel parser...','info'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const wb = XLSX.read(e.target.result, {type:'array'});
-      const ws = wb.Sheets['Calls'] || wb.Sheets[wb.SheetNames[1]] || wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-
-      // Find header row
-      let headerIdx = -1;
-      for(let i=0; i<Math.min(10,rows.length); i++) {
-        if(rows[i].some(v => String(v||'').toLowerCase().includes('call status'))) {
-          headerIdx = i; break;
-        }
-      }
-      if(headerIdx < 0) { showToast('Could not find header row in Excel','error'); return; }
-
-      const headers = rows[headerIdx].map(h => String(h||'').toLowerCase().trim());
-      const iStatus   = headers.indexOf('call status');
-      const iDur      = headers.findIndex(h => h.includes('duration'));
-      const iCaller   = headers.findIndex(h => h === 'name');
-      const iPhone    = headers.findIndex(h => h.includes('phone'));
-      const iTracking = headers.findIndex(h => h.includes('tracking'));
-      const iRec      = headers.findIndex(h => h.includes('recording'));
-      const iTime     = headers.findIndex(h => h.includes('start'));
-
-      let count = 0;
-      _crExcelLookup = {};
-
-      for(let r = headerIdx+1; r < rows.length; r++) {
-        const row = rows[r];
-        if(!row || !row[iRec]) continue;
-        const recUrl = String(row[iRec]||'');
-        const m = recUrl.match(/\/calls\/(CAL[a-f0-9]+)\//);
-        if(!m) continue;
-        const callId = m[1];
-
-        // Determine agent from phone number
-        const phoneRaw = String(row[iPhone]||'').replace(/\D/g,'');
-        const agentFromPhone = DISPATCHER_PHONES[phoneRaw] || '';
-
-        _crExcelLookup[callId] = {
-          status:    row[iStatus],
-          dur:       parseInt(row[iDur])||0,
-          caller:    row[iCaller],
-          phone:     row[iPhone],
-          tracking:  row[iTracking],
-          dt:        row[iTime],
-          agent:     agentFromPhone, // only set if dispatcher's own number called
-        };
-        count++;
-      }
-
-      const agentMatches = Object.values(_crExcelLookup).filter(v=>v.agent).length;
-      showToast(`✅ CallRail Excel loaded: ${count} calls indexed, ${agentMatches} dispatcher phone matches`, 'success');
-      console.log(`[CR Excel] Loaded ${count} call IDs. Agent matches from phone: ${agentMatches}`);
-      dashLog('info', `CR Excel: ${count} calls loaded, ${agentMatches} dispatcher phone matches`);
-
-      // Re-attribute any already-fetched calls
-      if(_crCallsRaw.length) {
-        _crCallsRaw = _crCallsRaw.map(c => ({
-          ...c,
-          _agentTx: attributeAgent(c),
-          _agent:   normalizeAgentDisplay(attributeAgent(c)) || c._agent,
-        }));
-        buildCRAgentLeaderboard();
-        renderCallsTable();
-        showToast('Leaderboard updated with Excel attribution', 'success');
-      }
-    } catch(err) {
-      console.error('[CR Excel] Parse error:', err);
-      showToast('Excel parse error: ' + err.message, 'error');
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-
 // Load RingCentral per-user call report Excel
 // Export from RC Analytics → Performance Reports → Users → Export
 // This is the AUTHORITATIVE source for per-agent call counts
@@ -6865,7 +6178,7 @@ function _processRCCallsReport(rows, headerIdx) {
   const iQueue  = h.findIndex(v => v.includes('queue'));
 
   // Store per-call data in _rcCallsRaw format for booking rate matching
-  const DISPATCHER_NAMES = ['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell','Cory Hanson','Bob Secrest'];
+  
 
   const agentTally = {}; // name → {answered,missed,total,totalDur}
   const callRecords = [];
@@ -7151,11 +6464,6 @@ function _finishRCLoad(agentsForTab, sourceLabel) {
   }));
 
   renderAgentSummary();
-  // Apply phone number memory to auto-tag known callers
-  const phoneApplied = applyPhoneAttribStore([..._rcCallsRaw, ..._crCallsRaw]);
-  if(phoneApplied > 0) dashLog('info', `📞 Auto-tagged ${phoneApplied} calls from remembered phone numbers`);
-  // Populate call records table automatically — no fetch button needed
-  if(_rcCallsRaw.length || _crCallsRaw.length) renderCallsTable();
   // Auto-expand agent summary so it's immediately visible
   const summaryBody = $$('agent-summary-body');
   const summaryToggle = $$('agent-summary-toggle');
@@ -7201,235 +6509,13 @@ function _finishRCLoad(agentsForTab, sourceLabel) {
 // Build agent call leaderboard from CallRail transcript attribution
 // Writes to RC_Agents Sheets tab — same tab the companion reads
 // This gives accurate per-agent answered counts without needing RC leg data
-function buildCRAgentLeaderboard() {
-  if(!_crCallsRaw.length) return;
-
-  const SPAM_SEC = 10; // ignore calls under 10s (hangups/robocalls)
-
-  // Tally per agent from CR transcript attribution
-  const byAgent = {};
-  const ensure = name => {
-    if(!byAgent[name]) byAgent[name] = { name, answered:0, missed:0, total:0, totalDur:0 };
-  };
-
-  let spamCount = 0;
-
-  _crCallsRaw.forEach(c => {
-    if(c._duration < SPAM_SEC) { spamCount++; return; } // skip spam
-    if(c._direction !== 'inbound') return; // inbound only
-
-    const agent = c._agentTx || c._agentCR || ''; // transcript attribution first
-    if(!agent) return; // unattributed — skip for now
-
-    // Normalize to display name
-    const displayName = normalizeAgentDisplay(agent);
-    ensure(displayName);
-    byAgent[displayName].total++;
-    if(c._answered) {
-      byAgent[displayName].answered++;
-      byAgent[displayName].totalDur += c._duration || 0;
-    } else {
-      byAgent[displayName].missed++;
-    }
-  });
-
-  const agentList = Object.values(byAgent).map(a => ({
-    ...a,
-    avgDur:  a.answered > 0 ? Math.round(a.totalDur / a.answered) : 0,
-    ansRate: a.total > 0 ? Math.round(a.answered / a.total * 100) : 0,
-  })).sort((a,b) => b.answered - a.answered);
-
-  // Always include pinned agents even if 0 calls attributed
-  const PINNED = [
-    { name:'Bob Danaher',       display:'Bob D.' },
-    { name:'Victoria Ellsworth',display:'Victoria' },
-    { name:'Eric Stoffel',      display:'Eric' },
-  ];
-  const pinnedDisplayNames = new Set(PINNED.map(p => p.display));
-  const agentsForTab = [];
-
-  PINNED.forEach(pin => {
-    const live = agentList.find(a => a.name === pin.display || a.name === pin.name);
-    agentsForTab.push({
-      name:        pin.display,
-      answered:    live?.answered    || 0,
-      total:       live?.total       || 0,
-      ans_rate:    live?.ansRate     || 0,
-      avg_dur_sec: live?.avgDur      || 0,
-      pinned:      true,
-      category:    'dispatch',
-    });
-  });
-
-  // Non-pinned agents
-  agentList
-    .filter(a => !pinnedDisplayNames.has(a.name))
-    .forEach(a => agentsForTab.push({
-      name:        a.name,
-      answered:    a.answered,
-      total:       a.total,
-      ans_rate:    a.ansRate,
-      avg_dur_sec: a.avgDur,
-      pinned:      false,
-      category:    'dispatch',
-    }));
-
-  // Spam row
-  if(spamCount > 0) {
-    agentsForTab.push({ name:'Spam/Hangup', answered:0, total:spamCount, ans_rate:0, avg_dur_sec:0, pinned:false, category:'spam' });
-  }
-
-  const attributed = agentList.reduce((s,a) => s + a.total, 0);
-  const total = _crCallsRaw.filter(c => c._duration >= SPAM_SEC && c._direction === 'inbound').length;
-  console.log(`[CR Agents] ${agentList.length} agents | ${attributed}/${total} attributed from transcripts | ${spamCount} spam`);
-  dashLog('info', `CR agent attribution: ${attributed}/${total} calls attributed from ${_crCallsRaw.filter(c=>c._agentTx).length} transcripts`);
-
-  // Write to RC_Agents tab — companion reads this
-  if(_sheetsProxy && agentsForTab.length) {
-    fetch(_sheetsProxy, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-      body: JSON.stringify({ action:'syncRCAgents', agents: agentsForTab, source:'CallRail-Transcript' })
-    }).then(r=>r.json())
-      .then(d => { if(d.success) dashLog('info','CR transcript agents → RC_Agents tab ✅'); })
-      .catch(e => console.warn('[CR Agents] Sheets write failed:', e.message));
-  }
-}
-
 // Normalize agent name to display name used in companion
-function normalizeAgentDisplay(name) {
-  if(!name) return '';
-  const n = name.toLowerCase();
-  if(n.includes('danaher') || n === 'bob')       return 'Bob D.';
-  if(n.includes('ellsworth') || n === 'victoria') return 'Victoria';
-  if(n.includes('stoffel') || n === 'eric')       return 'Eric';
-  // Capitalize first letter of each word for unknown agents
-  return name.replace(/\b\w/g, l => l.toUpperCase());
-}
-
-async function testRingCentral() {
-  const from = $$('rc-from')?.value; if(!from){alert('Select date range');return;}
-  const to   = $$('rc-to')?.value || new Date().toISOString().split('T')[0];
-  const view = $$('rc-view')?.value || 'Detailed';
-
-  if(!_workerUrl) { showCallsError('rc','Worker URL not configured'); return; }
-  // Ensure we have a valid RC token
-  // Use stored JWT, localStorage cache, or hardcoded default
-  const jwt = _wbSettings.rcJwt
-    || localStorage.getItem('rc_jwt')
-    || 'eyJraWQiOiI4NzYyZjU5OGQwNTk0NGRiODZiZjVjYTk3ODA0NzYwOCIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJhdWQiOiJodHRwczovL3BsYXRmb3JtLnJpbmdjZW50cmFsLmNvbS9yZXN0YXBpL29hdXRoL3Rva2VuIiwic3ViIjoiMTY5ODE0MDUzIiwiaXNzIjoiaHR0cHM6Ly9wbGF0Zm9ybS5yaW5nY2VudHJhbC5jb20iLCJleHAiOjM5Mjc1NDIyMzYsImlhdCI6MTc4MDA1ODU4OSwianRpIjoiZnZyRHBUMmpRdnlIb18tbWZsSEFMdyJ9.Gaz9-ikXP33YNrXogxGmTFWgNRPI2eLO7Sn3BkOagwhmi1TdlMKX08Y5Wh31K09lA-8RIPNOovaEKpNYRYJWukwLbwgGudBQIuGMjoKT4UMHwXdKMjRq33_ThjkPxynNSOVpbL0Jr9IS0_MJ_jNXsrgBUHioVa9YXoqfuuheGUekmQAyPTFUsF1H_YDbQ5LQE_NasSYftnv2HO5GfEzJAVj1x5lV30a7fZl5K9BIi-OwT6EWPEeJvgiZzkOQ6x5AAkoluGa1sJ0Z7hdxAenonOBr6KnYDws7z6GGcagNQQv4zR5qDSQTGUGIIkoNv7NGd1X0AEE7s5fko8Mn7wC8nQ';
-
-  document.getElementById('rc-error').style.display='none';
-  setCallsStatus('rc', null, 'Authenticating...');
-  setCallsProgress('rc', '🔑 Getting RC access token...');
-
-  try {
-    await rcGetToken(jwt);
-    setCallsProgress('rc', '✅ Authenticated — fetching call log...');
-
-    const fromISO = new Date(from+'T00:00:00').toISOString();
-    const toISO   = new Date(to+'T23:59:59').toISOString();
-    let allCalls=[], nextUri=null, page=1;
-
-    do {
-      setCallsProgress('rc', `📡 Page ${page} — ${allCalls.length} calls so far...`);
-      const rcPath = nextUri ? nextUri.replace(RC_SERVER,'') : `/restapi/v1.0/account/~/call-log?dateFrom=${fromISO}&dateTo=${toISO}&type=Voice&direction=Inbound&perPage=250&page=${page}&view=Detailed`;
-
-      // Fetch with exponential backoff retry on 429 — up to 5 attempts, longer waits
-      let data = await rcGet(rcPath, jwt);
-      let attempt = 0;
-      while(data.errorCode && attempt < 5) {
-        const isRateLimit = data.errorCode === 'CMN-301' || data.status === 429 || data.message?.toLowerCase().includes('rate');
-        if(!isRateLimit) break; // non-rate-limit error — bail out of retry loop
-        attempt++;
-        // 5s, 10s, 20s, 40s, 60s — RC's rate window appears to be ~60s
-        const waitMs = attempt < 5 ? 5000 * Math.pow(2, attempt-1) : 60000;
-        setCallsProgress('rc', `⏳ Rate limit hit on page ${page} — waiting ${waitMs/1000}s (attempt ${attempt}/5)...`);
-        await new Promise(r => setTimeout(r, waitMs));
-        data = await rcGet(rcPath, jwt);
-      }
-
-      if(data.errorCode) {
-        // Still failing after retries — stop here but KEEP what we've already fetched
-        console.warn(`[RC] Page ${page} failed after retries:`, data.message || data.errorCode);
-        setCallsProgress('rc', `⚠ Stopped at page ${page} (rate limited) — keeping ${allCalls.length} calls fetched so far`);
-        nextUri = null; // exit loop, proceed with partial data
-        break;
-      }
-
-      allCalls = [...allCalls, ...(data.records||[])];
-      nextUri = data.navigation?.nextPage?.uri || null;
-      page++;
-      // Throttle between pages — 2.5s gap keeps cumulative request rate well under
-      // RC's limit even across a long pagination run (Jan-Jun = many pages)
-      if(nextUri) await new Promise(r => setTimeout(r, 2500));
-    } while(nextUri && page <= 50);
-
-    console.log('[RC] Fetched', allCalls.length, 'raw inbound records');
-
-    // Normalize — RC legs array shows the full call journey through the phone system
-    // CallRail forwards to a main number → RC routes to available agent
-    // The last leg with result=Accepted is who actually answered
-    _rcCallsRaw = allCalls.map(c => {
-      const legs = c.legs || [];
-
-      // Find the answering agent — last leg that was accepted/connected
-      const ansLeg = [...legs].reverse().find(l =>
-        l.result === 'Accepted' || l.result === 'Connected' || l.action === 'Accept'
-      );
-      // Fallback: any leg with an extension name
-      const extLeg = legs.find(l => l.extension?.name || l.to?.extensionNumber);
-
-      const agentName = ansLeg?.extension?.name
-        || ansLeg?.to?.name
-        || extLeg?.extension?.name
-        || extLeg?.to?.name
-        || c.to?.name || '';
-      const agentExt  = ansLeg?.extension?.extensionNumber
-        || extLeg?.extension?.extensionNumber
-        || c.to?.extensionNumber || '';
-
-      const answered = c.result !== 'Missed' && c.result !== 'VoiceMail'
-        && c.result !== 'Busy' && (c.duration||0) > 0;
-
-      return {
-        _source:    'RingCentral',
-        _id:        c.id,
-        _time:      c.startTime,
-        _caller:    c.from?.name || c.from?.phoneNumber || 'Unknown',
-        _number:    c.from?.phoneNumber || '',
-        _direction: (c.direction||'Inbound').toLowerCase(),
-        _agent:     agentName,
-        _agentExt:  agentExt,
-        _duration:  parseInt(c.duration)||0,
-        _answered:  answered,
-        _missed:    c.result === 'Missed',
-        _voicemail: c.result === 'VoiceMail',
-        _status:    c.result || (answered?'Accepted':'Missed'),
-        _legs:      legs.length,
-        _raw:       c,
-      };
-    });
-
-    setCallsStatus('rc', true, `✅ ${_rcCallsRaw.length} calls`);
-    setCallsProgress('rc', `✅ ${_rcCallsRaw.length} calls loaded · ${from} → ${to}`);
-    renderCallMetrics('rc', _rcCallsRaw);
-    renderCallsTable();
-    renderAgentSummary();
-    dashLog('success', `RingCentral: ${_rcCallsRaw.length} calls fetched`);
-  } catch(e) {
-    showCallsError('rc', e.message);
-    setCallsProgress('rc','');
-  }
-}
-
 // ============================================================
 // AGENT SUMMARY BREAKDOWN TABLE
 // ============================================================
-let _agentSortCol = 'answered';
-let _agentSortAsc = false;
 
-// Manual edits go directly to _rcSnap.leaderboard via updateAgentField()
-// No separate overrides object needed
+
+
 
 function updateCompanionPreview() {
   const lb = _rcSnap?.leaderboard || [];
@@ -7622,300 +6708,6 @@ function renderAgentSummary() {
 // ============================================================
 
 // Normalize phone to 10-digit string for comparison
-function normPhone(p) {
-  if(!p) return '';
-  const d = String(p).replace(/\D/g,'');
-  return d.length >= 10 ? d.slice(-10) : d;
-}
-
-function computeBookingRates() {
-  const rates = {};
-  if(!_estimates.length) return rates;
-
-  // ── Filter estimates ──────────────────────────────────────────────────────────
-  const validEsts = _estimates.filter(e => {
-    const s = (e.work_status||e.status||'').toLowerCase();
-    return s !== 'canceled' && s !== 'draft';
-  });
-
-  // ── Build phone → estimate date lookup ───────────────────────────────────────
-  const estByPhone = {};
-  validEsts.forEach(e => {
-    const cust  = e.customer || {};
-    const phone = normPhone(cust.mobile_number || cust.home_number || cust.work_number || '');
-    if(!phone) return;
-    const dateStr = (e.created_at || e.schedule?.scheduled_start || '').split('T')[0];
-    if(!dateStr) return;
-    if(!estByPhone[phone]) estByPhone[phone] = [];
-    estByPhone[phone].push({ date: dateStr, id: e.id });
-  });
-
-  const estPhoneSet = new Set(Object.keys(estByPhone));
-  console.log(`[Booking Rate] ${validEsts.length} estimates indexed. ${estPhoneSet.size} unique phones.`);
-
-  // ── Bail if no CR data ────────────────────────────────────────────────────────
-  if(!_crCallsRaw.length) {
-    console.log('[Booking Rate] No CallRail data — fetch CR calls first for phone matching');
-    return rates;
-  }
-
-  // ── Filter bookable calls ────────────────────────────────────────────────────
-  const TECH_NAMES = new Set([
-    'Glenn Jonathan','Jonathan Glenn','Radant Gordon','Gordon Radant',
-    'Daniels Amy','Amy Daniels','Schlosser Lukas','Lukas Schlosser',
-    'Blaiser Gannon','Gannon Blaiser','Hohenauer','Mitchell Mary',
-    'Stoffel Eric','Eric Stoffel','McNamara Doug','Doug McNamara',
-    'Danaher Robert','Robert Danaher','Ellsworth Victo','Victoria Ellsworth',
-    'Cornell Jason','Jason Cornell','Serres Jody','Jody Serres',
-    'Secrest Bob','Bob Secrest','Hanson Cory','Cory Hanson',
-  ]);
-  const GENERIC_RE = /wireless caller|twin cities mn|detroit lake mn|red wing mn|windom mn|lake city mn|north branch mn|saint cloud mn|hastings mn|rochester mn|washington z dc|phoenix az|miami fl|san jose ca|unavailable|unknown|mid state plumb/i;
-  const VENDOR_RE  = /\b(inc|llc|corp|supply|roofing|electric|plumbing|construction|builder|hvac|services|svc|svcs|financial|capital|group|media|yelp|choice home|zentrades|cmg|avidxchange|fieldstone|otis elevator|ace supply|pure plumbing|judge appliance|kaufman|gardner law|kiehm|knutson|lawrence build|smart builder|direct bus|direct business)\b/i;
-  const DISP_PHONES = new Set(['6512762506','6127705509','6512393697','6513070621']);
-
-  const bookableCR = _crCallsRaw.filter(c => {
-    if(c._direction !== 'inbound') return false;
-    if(!c._answered)               return false;
-    if(c._duration < 10)           return false;
-    const ph = normPhone(c._number);
-    if(DISP_PHONES.has(ph))        return false;
-    const n = (c._caller||'').trim();
-    if(TECH_NAMES.has(n))          return false;
-    if(GENERIC_RE.test(n))         return false;
-    if(VENDOR_RE.test(n))          return false;
-    return true;
-  });
-
-  // ── Match: unique phone+date opportunities ───────────────────────────────────
-  // Deduplicate BOTH sides:
-  //   Denominator: unique customer phone+date pairs (not total calls)
-  //     → if a customer calls twice in a day, that's 1 opportunity, not 2
-  //   Numerator: one booking per phone+date pair even if multiple estimates exist
-  //     → customer gets one estimate, one booking credit
-  //
-  // Process calls sorted oldest-first so the FIRST call gets the 📅 Booked badge
-
-  const callsSorted = [...bookableCR].sort((a,b) => {
-    const ta = a._time ? new Date(a._time) : 0;
-    const tb = b._time ? new Date(b._time) : 0;
-    return ta - tb;
-  });
-
-  const seenOpportunities = new Set(); // phone|date → already seen as opportunity
-  const seenBookings      = new Set(); // phone|date → already counted as booking
-  const opportunities     = [];        // unique phone+date pairs (denominator)
-  const matched           = [];        // confirmed bookings (numerator)
-
-  // Reset all booking flags
-  _crCallsRaw.forEach(c => { c._booked = false; c._bookedEstId = null; });
-
-  callsSorted.forEach(c => {
-    const phone    = normPhone(c._number);
-    const callDate = (c._time||'').split('T')[0];
-    if(!phone || !callDate) return;
-
-    const oppKey = `${phone}|${callDate}`;
-
-    // Count this phone+date as ONE opportunity regardless of how many times they called
-    if(!seenOpportunities.has(oppKey)) {
-      seenOpportunities.add(oppKey);
-      opportunities.push(c); // first call for this opportunity
-    }
-
-    // Check for a same-day estimate — only count once per phone+date
-    if(!seenBookings.has(oppKey)) {
-      const ests    = estByPhone[phone];
-      const sameDay = ests?.find(e => e.date === callDate);
-      if(sameDay) {
-        seenBookings.add(oppKey);
-        matched.push({ call: c, est: sameDay });
-        c._booked      = true;  // mark FIRST call that triggered the booking
-        c._bookedEstId = sameDay.id;
-      }
-    }
-  });
-
-  const bookableCalls = opportunities.length;  // unique customer opportunities
-  const bookedCalls   = matched.length;         // unique confirmed bookings
-  const companyRate   = bookableCalls > 0 ? Math.round(bookedCalls / bookableCalls * 100) : 0;
-
-  console.log(`[Booking Rate] ${bookedCalls} confirmed bookings / ${bookableCalls} unique customer opportunities = ${companyRate}%`);
-  console.log(`  (Total bookable call records: ${bookableCR.length} — deduplicated to ${bookableCalls} unique phone+day pairs)`);
-
-  // ── Company rate ──────────────────────────────────────────────────────────────
-  if(bookableCalls > 0) {
-    rates['__company__'] = { calls: bookableCalls, estimates: bookedCalls, rate: companyRate, method: 'phone_match' };
-  }
-
-  // ── Per-dispatcher ────────────────────────────────────────────────────────────
-  const lb = _rcSnap?.leaderboard || [];
-  const dispatchers = lb.filter(a =>
-    a.category === 'dispatch' ||
-    ['Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jody Serres','Jason Cornell'].includes(a.name)
-  );
-
-  if(dispatchers.length) {
-    // Try transcript/agent attribution first
-    const agentBookable = {}, agentBooked = {};
-    let attributed = 0;
-    bookableCR.forEach(c => {
-      const agent = normalizeAgentDisplay(c._agentTx || c._agentCR || '');
-      if(!agent) return;
-      agentBookable[agent] = (agentBookable[agent]||0) + 1;
-      if(c._booked) { agentBooked[agent] = (agentBooked[agent]||0) + 1; attributed++; }
-    });
-
-    if(attributed > 0) {
-      dispatchers.forEach(a => {
-        const bookable = agentBookable[a.name]||0;
-        const booked   = agentBooked[a.name]  ||0;
-        if(!bookable) return;
-        rates[a.name] = { calls: bookable, estimates: booked, rate: Math.round(booked/bookable*100), method: 'phone_match' };
-      });
-    } else {
-      // No attribution — proportional by inbound share
-      const dispTotal = dispatchers.reduce((s,a)=>s+(a.inbound||0),0);
-      if(dispTotal > 0) {
-        dispatchers.forEach(a => {
-          const share = (a.inbound||0)/dispTotal;
-          const b = Math.round(bookableCalls*share);
-          const m = Math.round(bookedCalls*share);
-          if(!b) return;
-          rates[a.name] = { calls: b, estimates: m, rate: Math.round(m/b*100), method: 'proportional' };
-        });
-      }
-    }
-  }
-
-  return rates;
-}
-
-
-
-
-let _callsTableData = [];
-
-function renderCallsTable() {
-  _callsTableData = [..._crCallsRaw, ..._rcCallsRaw]
-    .sort((a,b) => new Date(b._time)-new Date(a._time));
-  filterCallsTable();
-}
-
-function filterCallsTable() {
-  const search = ($$('calls-search')?.value||'').toLowerCase();
-  const src    = $$('calls-source-filter')?.value||'';
-  const rows   = _callsTableData.filter(c => {
-    if(src && c._source !== src) return false;
-    if(search && !c._caller.toLowerCase().includes(search) && !c._number.includes(search) && !(c._agent||'').toLowerCase().includes(search)) return false;
-    return true;
-  });
-
-  const cnt = document.getElementById('calls-count');
-  if(cnt) cnt.textContent = rows.length;
-
-  const tbody = document.getElementById('calls-tbody');
-  if(!tbody) return;
-  if(!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:#9ca3af">No records match</td></tr>';
-    return;
-  }
-
-  const srcColors = { CallRail:'#10B981', RingCentral:'#3B82F6' };
-  const AGENT_OPTIONS = [
-    { value:'', label:'— assign —' },
-    { value:'Victoria Ellsworth', label:'Victoria' },
-    { value:'Robert Danaher',     label:'Bob D.' },
-    { value:'Eric Stoffel',       label:'Eric' },
-    { value:'Jody Serres',        label:'Jody' },
-    { value:'Jason Cornell',      label:'Jason' },
-    { value:'__spam__',           label:'🚫 Spam / Robocall' },
-    { value:'__wrong__',          label:'❌ Wrong Number' },
-    { value:'__employee__',       label:'👤 Employee Call' },
-    { value:'__vendor__',         label:'🏢 Vendor / Supplier' },
-  ];
-
-  tbody.innerHTML = rows.slice(0,500).map(c => {
-    const dt  = c._time ? new Date(c._time) : null;
-    const ds  = dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
-    const ts  = dt ? dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
-    const col = srcColors[c._source]||'#6b7280';
-    const statusCol = c._answered ? '#10B981' : '#EF4444';
-
-    // Check for existing manual attribution
-    const stored = _callAttribStore[c._id];
-    const manualVal   = stored?.agent || '';
-    const isSpecial   = manualVal.startsWith('__');
-    const isAssigned  = !!manualVal;
-
-    // Agent display — manual > transcript > auto
-    let agentDisplay;
-    if(isSpecial) {
-      const labels = { '__spam__':'🚫 Spam','__wrong__':'❌ Wrong #','__employee__':'👤 Employee','__vendor__':'🏢 Vendor' };
-      agentDisplay = `<span style="color:#9ca3af;font-size:11px">${labels[manualVal]||manualVal}</span>`;
-    } else if(manualVal) {
-      agentDisplay = `<span style="color:#059669;font-weight:700" title="Manually assigned">✓ ${escHtml(manualVal.split(' ')[0])}</span>`;
-    } else if(c._agentTx) {
-      agentDisplay = `<span style="color:#7C3AED;font-weight:700" title="Auto-attributed">📝 ${escHtml(c._agentTx.split(' ')[0])}</span>`;
-    } else {
-      agentDisplay = `<span style="color:#9ca3af;font-size:11px">${escHtml(c._agent||'—')}</span>`;
-    }
-
-    // Attribution dropdown — always visible, pre-selected if already assigned
-    const opts = AGENT_OPTIONS.map(o =>
-      `<option value="${o.value}"${o.value===manualVal?' selected':''}>${o.label}</option>`
-    ).join('');
-
-    const attrCell = `<td style="padding:4px 8px;white-space:nowrap">
-      <div style="display:flex;align-items:center;gap:4px">
-        ${agentDisplay}
-        <select id="attr-${escHtml(c._id)}"
-          onchange="assignCallAgent('${escHtml(c._id)}',this.value,this)"
-          style="font-size:10px;padding:2px 4px;border:1px solid ${isAssigned?'#10B981':'#d1d5db'};
-            border-radius:4px;background:${isAssigned?'#F0FDF4':'#fff'};
-            color:#374151;max-width:100px;cursor:pointer">
-          ${opts}
-        </select>
-      </div>
-    </td>`;
-
-    // Transcript toggle
-    const txId  = `tx-${c._id}`;
-    const hasTx = c._source === 'CallRail' && !!c._transcript;
-    const txBtn = hasTx
-      ? `<button onclick="toggleTranscriptRow('${txId}')" style="font-size:10px;padding:2px 7px;border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;color:#374151;cursor:pointer;white-space:nowrap">📄 Transcript</button>`
-      : '';
-
-    const fmtTx = (tx) => escHtml(tx)
-      .replace(/\b(Customer|Caller|Speaker 1|S1):\s*/gi,  '<br><strong style="color:#1d4ed8">Customer:</strong> ')
-      .replace(/\b(Agent|Speaker 2|S2|Operator|Rep):\s*/gi,'<br><strong style="color:#059669">Agent:</strong> ')
-      .replace(/\n/g, '<br>');
-
-    const txRow = hasTx
-      ? `<tr id="${txId}" style="display:none;background:#f8f7ff;border-bottom:1px solid #ede9fe">
-          <td colspan="9" style="padding:10px 16px">
-            <div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:5px">
-              📝 Transcript${c._agentTx?' — auto-attributed to '+escHtml(c._agentTx):''}
-            </div>
-            <div style="font-size:11px;line-height:1.7;color:#374151;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #ede9fe;border-radius:6px;padding:8px 10px">${fmtTx(c._transcript)}</div>
-          </td>
-        </tr>`
-      : '';
-
-    return `<tr style="border-bottom:${hasTx?'none':'1px solid #f3f4f6'};transition:background .1s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
-      <td style="padding:7px 12px"><span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${col}22;color:${col};font-weight:600">${c._source}</span></td>
-      <td style="padding:7px 12px;white-space:nowrap"><div style="font-weight:500">${ds}</div><div style="font-size:10px;color:#6b7280">${ts}</div></td>
-      <td style="padding:7px 12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c._caller)}</td>
-      <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#6b7280">${escHtml(c._number)}</td>
-      <td style="padding:7px 12px;font-size:11px;text-transform:capitalize">${c._direction||'—'}</td>
-      ${attrCell}
-      <td style="padding:7px 12px;font-family:monospace;font-size:11px">${c._duration>0?fmtDuration(c._duration):'—'}</td>
-      <td style="padding:7px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${statusCol}22;color:${statusCol};font-weight:600">${c._status}</span>
-        ${txBtn}
-      </td>
-    </tr>${txRow}`;
-  }).join('');
-}
 
 
 // ============================================================
@@ -7923,210 +6715,14 @@ function filterCallsTable() {
 // Persists manual agent assignments across sessions via Sheets
 // Keys: call_id → { agent, caller, phone, datetime, duration, reason, source }
 // ============================================================
-let _callAttribStore = {}; // call_id → attribution record
-let _phoneAttribStore = {}; // phone → { agent, tag, label, name } — persists across sessions
+ // call_id → attribution record
+ // phone → { agent, tag, label, name } — persists across sessions
 
 // Assign agent (or tag as spam/wrong#/employee) to a call
-function assignCallAgent(callId, value, selectEl) {
-  if(!value) return;
-
-  const call = [..._rcCallsRaw, ..._crCallsRaw].find(c => c._id === callId);
-  if(!call) return;
-
-  const isSpecial = value.startsWith('__');
-  const agentLabel = {
-    '__spam__':     'Spam/Robocall',
-    '__wrong__':    'Wrong Number',
-    '__employee__': 'Employee Call',
-    '__vendor__':   'Vendor/Supplier',
-  }[value] || value;
-
-  // Save by call ID
-  _callAttribStore[callId] = {
-    agent:       value,
-    label:       agentLabel,
-    caller:      call._caller || '',
-    phone:       call._number || '',
-    datetime:    call._time   || '',
-    duration:    call._duration || 0,
-    source:      call._source || '',
-    queue:       call._queue  || '',
-    assigned_at: new Date().toISOString(),
-  };
-
-  // Save by phone number — THIS is the key for auto-attribution
-  // Every future call from this phone number will be auto-tagged
-  const phone = (call._number||'').replace(/\D/g,'').slice(-10);
-  if(phone) {
-    _phoneAttribStore[phone] = {
-      agent:    value,
-      label:    agentLabel,
-      caller:   call._caller || '',
-      isSpecial,
-    };
-    console.log(`[PhoneAttrib] Saved ${phone} (${call._caller}) → ${agentLabel}`);
-
-    // Apply to ALL other calls from this phone number in current dataset
-    let autoApplied = 0;
-    [..._rcCallsRaw, ..._crCallsRaw].forEach(c => {
-      const cPhone = (c._number||'').replace(/\D/g,'').slice(-10);
-      if(cPhone === phone && c._id !== callId) {
-        if(!isSpecial) {
-          c._agentTx = value;
-          c._agent   = normalizeAgentDisplay(value);
-        }
-        c._tag = isSpecial ? value : null;
-        // Also store by call ID so the dropdown shows the value
-        _callAttribStore[c._id] = { ..._callAttribStore[callId], 
-          call_id: c._id, datetime: c._time || '', duration: c._duration || 0 };
-        autoApplied++;
-      }
-    });
-    if(autoApplied > 0) {
-      showToast(`✅ ${agentLabel} applied to ${autoApplied + 1} calls from ${call._caller||phone}`, 'success');
-      renderCallsTable(); // re-render all rows to show updated dropdowns
-      return; // skip the separate toast below
-    }
-  }
-
-  // Update the call object
-  if(!isSpecial) { call._agentTx = value; call._agent = normalizeAgentDisplay(value); }
-  else { call._tag = value; }
-
-  if(selectEl) {
-    selectEl.style.border = `1px solid ${isSpecial?'#9ca3af':'#10B981'}`;
-    selectEl.style.background = isSpecial ? '#F9FAFB' : '#F0FDF4';
-  }
-
-  const displayLabel = isSpecial ? agentLabel : normalizeAgentDisplay(value);
-  showToast(`✅ ${call._caller||call._number}: ${displayLabel}`, 'success');
-
-  clearTimeout(_callAttribStore._saveTimer);
-  _callAttribStore._saveTimer = setTimeout(saveCallAttribToSheets, 2000);
-}
-
 // Apply phone number memory to a freshly loaded call dataset
-function applyPhoneAttribStore(calls) {
-  if(!Object.keys(_phoneAttribStore).length) return 0;
-  let applied = 0;
-  calls.forEach(c => {
-    if(_callAttribStore[c._id]) return; // already has call-level attribution
-    const phone = (c._number||'').replace(/\D/g,'').slice(-10);
-    if(!phone) return;
-    const saved = _phoneAttribStore[phone];
-    if(!saved) return;
-    if(!saved.isSpecial) {
-      c._agentTx = saved.agent;
-      c._agent   = normalizeAgentDisplay(saved.agent);
-    }
-    c._tag = saved.isSpecial ? saved.agent : null;
-    // Store by call ID so dropdown shows correct value
-    _callAttribStore[c._id] = {
-      agent:       saved.agent,
-      label:       saved.label,
-      caller:      c._caller || '',
-      phone:       c._number || '',
-      datetime:    c._time   || '',
-      duration:    c._duration || 0,
-      source:      c._source || '',
-      assigned_at: 'auto-phone',
-    };
-    applied++;
-  });
-  return applied;
-}
-
 // Load saved attributions from Sheets on connect
-async function loadCallAttribFromSheets() {
-  if(!_sheetsProxy) return;
-  try {
-    const rows = await fetchCSVFromProxy('Call_Attribution');
-    if(!rows || rows.length < 2) return;
-    // Headers: call_id, agent, label, caller, phone, datetime, duration, source, queue, assigned_at
-    rows.slice(1).forEach(r => {
-      if(!r[0]) return;
-      _callAttribStore[r[0]] = {
-        agent:       r[1]||'',
-        label:       r[2]||'',
-        caller:      r[3]||'',
-        phone:       r[4]||'',
-        datetime:    r[5]||'',
-        duration:    parseInt(r[6])||0,
-        source:      r[7]||'',
-        queue:       r[8]||'',
-        assigned_at: r[9]||'',
-      };
-    });
-    const count = Object.keys(_callAttribStore).filter(k=>k!=='_saveTimer').length;
-    console.log(`[Attrib] Loaded ${count} call attributions from Sheets`);
-
-    // Also build phone → attrib lookup from saved records
-    Object.values(_callAttribStore).forEach(r => {
-      if(!r.phone) return;
-      const phone = String(r.phone).replace(/\D/g,'').slice(-10);
-      if(phone && !_phoneAttribStore[phone]) {
-        _phoneAttribStore[phone] = {
-          agent:    r.agent,
-          label:    r.label,
-          caller:   r.caller,
-          isSpecial: r.agent?.startsWith('__'),
-        };
-      }
-    });
-    console.log(`[PhoneAttrib] ${Object.keys(_phoneAttribStore).length} phone numbers remembered`);
-
-    if(count > 0 && _callsTableData.length) {
-      const applied = applyPhoneAttribStore(_callsTableData);
-      if(applied > 0) { console.log(`[PhoneAttrib] Auto-applied to ${applied} calls`); }
-      renderCallsTable();
-    }
-  } catch(e) {
-    console.log('[Attrib] No Call_Attribution tab yet —', e.message);
-  }
-}
-
 // Helper to fetch CSV from proxy by tab name
-async function fetchCSVFromProxy(tabName) {
-  if(!_sheetsProxy) return [];
-  const url = `${_sheetsProxy}?action=getCSV&tab=${encodeURIComponent(tabName)}`;
-  const res = await fetch(url, {redirect:'follow'});
-  const text = await res.text();
-  return text.trim().split('\n').map(line => line.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
-}
-
 // Save all attributions to Call_Attribution Sheets tab
-async function saveCallAttribToSheets() {
-  if(!_sheetsProxy) return;
-  const records = Object.entries(_callAttribStore)
-    .filter(([k]) => k !== '_saveTimer')
-    .map(([id, r]) => ({
-      call_id:     id,
-      agent:       r.agent,
-      label:       r.label,
-      caller:      r.caller,
-      phone:       r.phone,
-      datetime:    r.datetime,
-      duration:    r.duration,
-      source:      r.source,
-      queue:       r.queue,
-      assigned_at: r.assigned_at,
-    }));
-  if(!records.length) return;
-  try {
-    const res = await fetch(_sheetsProxy, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-      body: JSON.stringify({ action:'saveCallAttributions', records })
-    });
-    const d = await res.json().catch(()=>({}));
-    if(d.success) {
-      const phones = Object.keys(_phoneAttribStore).length;
-      dashLog('info', `✅ ${records.length} call attributions saved (${phones} phone numbers remembered)`);
-    }
-  } catch(e) {
-    console.warn('[Attrib] Save failed:', e.message);
-  }
-}
-
 // ============================================================
 // REVENUE RECONCILIATION
 // Parses the HCP "Jobs by completed day" emailed CSV report
@@ -8398,13 +6994,6 @@ function updateHCPManualComparison(dashMTD) {
   }
 }
 
-function toggleTranscriptRow(txId) {
-  const row = document.getElementById(txId);
-  if(!row) return;
-  const open = row.style.display !== 'none';
-  row.style.display = open ? 'none' : 'table-row';
-}
-
 // Manual agent assignment from transcript review
 function manuallyAssignAgent(callId, agentName) {
   if(!agentName) return;
@@ -8415,9 +7004,7 @@ function manuallyAssignAgent(callId, agentName) {
   call._agent   = displayName;
   showToast(`✅ Assigned ${displayName} to ${call._caller}`, 'success');
   // Rebuild leaderboard with updated attribution
-  buildCRAgentLeaderboard();
   // Re-render just this row's agent display
-  renderCallsTable();
 }
 
 // Save transcripts to Sheets CR_Transcripts tab
@@ -8546,26 +7133,6 @@ async function saveCallsToSheets(source) {
 // ============================================================
 // CSV EXPORT
 // ============================================================
-function exportCallsCSV() {
-  if(!_callsTableData.length) { showToast('No data to export','warn'); return; }
-  const headers = ['Source','Date','Time','Caller','Phone','Direction','Agent','Duration_Sec','Status','First_Call'];
-  const rows = _callsTableData.map(c => {
-    const dt = c._time ? new Date(c._time) : null;
-    return [
-      c._source,
-      dt ? dt.toLocaleDateString('en-US') : '',
-      dt ? dt.toLocaleTimeString('en-US') : '',
-      c._caller, c._number, c._direction, c._agent||'',
-      c._duration, c._status, c._firstCall?'Yes':'No'
-    ].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',');
-  });
-  const csv = [headers.join(','),...rows].join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download = 'calls-'+new Date().toISOString().split('T')[0]+'.csv';
-  a.click();
-}
-
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 
@@ -10596,20 +9163,7 @@ async function pushToCompanion(){
   if(!_sheetsProxy){ showToast('Connect to Sheets first','error'); btn.textContent=orig; btn.disabled=false; return; }
   if(!_jobs.length){ showToast('Pull a report first','warn'); btn.textContent=orig; btn.disabled=false; return; }
 
-  // Remind if RC report hasn't been uploaded this session
-  const hasRCData = _rcSnap?.leaderboard?.length > 0;
-  if(!hasRCData) {
-    const go = confirm(
-      '📊 RingCentral call report not uploaded this session.\n\n' +
-      'The agent call leaderboard on the companion wallboard will show stale or empty data.\n\n' +
-      'To update it:\n' +
-      '  1. Go to the Calls tab\n' +
-      '  2. Click "📊 Upload RC Report"\n' +
-      '  3. Select your RC Analytics → Performance Reports → Users export\n\n' +
-      'Click OK to push anyway, or Cancel to upload the report first.'
-    );
-    if(!go){ btn.textContent=orig; btn.disabled=false; return; }
-  }
+
 
   // Remind if plans haven't been uploaded this session
   if(!_plansUploadedThisSession) {
