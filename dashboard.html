@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.63</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.65</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.63</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.65</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.63</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.65</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2881,7 +2881,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.63
+  // ATTRIBUTION ENGINE — v24.65
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4942,7 +4942,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.63',  // dashboard version that generated this push
+    dash_version: 'v24.65',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5588,7 +5588,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.63',
+        dash_version:        'v24.65',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6908,6 +6908,40 @@ function toggleHCPReportsCard() {
   if(btn) btn.textContent = hidden ? 'Hide ▲' : 'Show ▼';
 }
 
+function detectHCPReportType(lines) {
+  // Flatten all header text from first 5 rows for scanning
+  const header = lines.slice(0, 5).map(r => r.join(' ')).join(' ').toLowerCase();
+
+  const has = str => header.includes(str.toLowerCase());
+
+  if(has('payment received date') && has('assigned employee'))  return 'payments_detail';
+  if(has('payment type') && !has('assigned employee') && !has('job id')) return 'payments_summary';
+  if(has('job revenue') || has('job count')) {
+    // Distinguish month vs day by looking at first data row period value
+    const dataRow = lines.find(r => r[0] && !/total|period|date|job revenue|jobs by/i.test(r[0]));
+    if(dataRow) {
+      const period = dataRow[0].trim();
+      // "Jun 16, 2026" = specific day (day report)
+      if(/^\w+ \d{1,2}, \d{4}$/.test(period)) return 'jobs_day';
+      // "Jun 01 - Jun 30, 2026" = month range (month report)
+      if(/\w+.*-.*\w+.*\d{4}/.test(period)) return 'jobs_month';
+      // "Jan 2026" style = month report
+      if(/^\w+ \d{4}$/.test(period)) return 'jobs_month';
+    }
+    return 'jobs_unknown';
+  }
+  return 'unknown';
+}
+
+const HCP_REPORT_LABELS = {
+  payments_detail:  'Payments Detail (one row per transaction, with employee names)',
+  payments_summary: 'Payments Summary (totals by payment type)',
+  jobs_month:       'Jobs by Month (paid-in-full, monthly totals)',
+  jobs_day:         'Jobs by Day (paid-in-full, daily totals)',
+  jobs_unknown:     'Jobs report (could not determine month vs day)',
+  unknown:          'Unrecognized report format',
+};
+
 function loadHCPReport(type, file) {
   if(!file) return;
   const reader = new FileReader();
@@ -6915,6 +6949,43 @@ function loadHCPReport(type, file) {
     try {
       const lines = e.target.result.trim().split('\n')
         .map(l => l.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
+
+      // Detect what was actually uploaded
+      const detected = detectHCPReportType(lines);
+      if(detected !== type && detected !== 'unknown' && detected !== 'jobs_unknown') {
+        const expected = HCP_REPORT_LABELS[type]     || type;
+        const got      = HCP_REPORT_LABELS[detected] || detected;
+        const advice   = {
+          payments_detail:  'Go to HCP → Reporting → Payments → Generate report → download the detail CSV (large file, one row per payment)',
+          payments_summary: 'Go to HCP → Reporting → Payments → Generate report → download the summary CSV (small file, totals by payment type)',
+          jobs_month:       'Go to HCP → Reporting → Jobs → set grouping to Month → export CSV',
+          jobs_day:         'Go to HCP → Reporting → Jobs → set grouping to Day → export CSV',
+        };
+        showToast(`⚠️ Wrong report — see advisory below`, 'error');
+        const container = $$('hcp-analysis-content');
+        if(container) container.innerHTML = `
+          <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:14px 16px">
+            <div style="font-size:13px;font-weight:700;color:#991B1B;margin-bottom:8px">⚠️ Wrong Report Uploaded</div>
+            <div style="font-size:12px;color:#374151;margin-bottom:6px">
+              <strong>You uploaded to:</strong> ${expected}
+            </div>
+            <div style="font-size:12px;color:#374151;margin-bottom:6px">
+              <strong>This file appears to be:</strong> ${got}
+            </div>
+            <div style="font-size:12px;color:#374151;margin-bottom:10px">
+              <strong>What "${HCP_REPORT_LABELS[type]}" looks like:</strong><br>
+              ${type === 'payments_detail'  ? 'Large file (500–1000+ rows). Columns include: Job ID, Payment Received Date, Customer, Assigned Employee Name, Payment Amount, Payment Type.' : ''}
+              ${type === 'payments_summary' ? 'Small file (5–10 rows). One row per payment type (Check, Debit, Cash, etc.) with total revenue and invoice count.' : ''}
+              ${type === 'jobs_month'       ? 'Medium file. One row per month (Jan 2026, Feb 2026…) with Job Revenue, Job Count, Avg Job Size.' : ''}
+              ${type === 'jobs_day'         ? 'Large file (100–200 rows). One row per day (Jun 16, 2026…) with Job Revenue, Job Count, Avg Job Size.' : ''}
+            </div>
+            <div style="font-size:11px;color:#6B7280;background:#f9fafb;border-radius:6px;padding:8px 10px">
+              📍 ${advice[type] || 'Check HCP Reporting for the correct export.'}
+            </div>
+          </div>`;
+        return; // Don't parse — wait for correct file
+      }
+
       switch(type) {
         case 'payments_detail':  parsePaymentsDetail(lines, file.name);  break;
         case 'payments_summary': parsePaymentsSummary(lines, file.name); break;
@@ -7003,19 +7074,36 @@ function parseJobsReport(lines, filename, type) {
   const hi = lines.findIndex(r => r.some(v => /job revenue/i.test(v)));
   if(hi < 0) throw new Error('Not a Jobs report — expected "Job revenue" column');
   const cleanMoney = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
+
+  const MONTH_MAP = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+
   const rows = [];
   for(let i = hi+1; i < lines.length; i++) {
     const r = lines[i];
     if(!r || !r[0]) continue;
     if(/total/i.test(r[0])) continue;
-    rows.push({ period: r[0].trim(), revenue: cleanMoney(r[1]), count: parseInt(r[2])||0 });
+    const period  = r[0].trim();
+    const revenue = cleanMoney(r[1]);
+    const count   = parseInt(r[2])||0;
+
+    // Determine month index from period string
+    // Handles: "Jun 01 - Jun 30, 2026" OR "Jun 2026" OR "Jun 16, 2026"
+    let monthIdx = -1;
+    const mMatch = period.match(/^(\w{3})/i);
+    if(mMatch) monthIdx = MONTH_MAP[mMatch[1].toLowerCase()] ?? -1;
+
+    rows.push({ period, revenue, count, monthIdx });
   }
+
   _hcpReports[type] = rows;
   const total = rows.reduce((s,r)=>s+r.revenue,0);
   const elId  = type === 'jobs_month' ? 'hcp-jobs-month-status' : 'hcp-jobs-day-status';
   const status = $$(elId);
-  if(status) { status.textContent = `✅ ${rows.length} periods · $${(total/1000).toFixed(0)}K`; status.style.color='#059669'; }
-  showToast(`✅ Jobs report loaded: ${rows.length} periods`, 'success');
+  if(status) {
+    status.textContent = `✅ ${rows.length} periods · $${(total/1000).toFixed(0)}K`;
+    status.style.color = '#059669';
+  }
+  showToast(`✅ Jobs report loaded: ${rows.length} periods, $${(total/1000).toFixed(0)}K total`, 'success');
 }
 
 function renderHCPAnalysis() {
