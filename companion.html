@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.95</title>
+<title>Midstate — KPI Command Center v2.96</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1410,6 +1410,76 @@ html, body {
       </div>
     </div><!-- end s11 -->
 
+    <!-- SCENE 13: HCP REVENUE REPORT -->
+    <div class="scene" id="s13">
+      <div class="scene-title">// Revenue Report — HCP Payments Export</div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-height:0">
+
+        <!-- Top row: 3 big numbers -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex-shrink:0">
+          <div class="card" style="padding:16px 20px;background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(0,212,255,.02));border-top:3px solid var(--blue);text-align:center">
+            <div style="font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);margin-bottom:6px">MTD Collected</div>
+            <div id="s13-mtd" style="font-family:var(--font-display);font-size:clamp(26px,4vw,54px);color:#fff;line-height:1;font-weight:900">$—</div>
+            <div id="s13-mtd-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">payments this month</div>
+          </div>
+          <div class="card" style="padding:16px 20px;background:linear-gradient(135deg,rgba(0,255,136,.08),rgba(0,255,136,.02));border-top:3px solid var(--green);text-align:center">
+            <div style="font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--green);margin-bottom:6px">YTD Net Revenue</div>
+            <div id="s13-ytd" style="font-family:var(--font-display);font-size:clamp(26px,4vw,54px);color:#fff;line-height:1;font-weight:900">$—</div>
+            <div id="s13-ytd-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">after refunds · HCP Payments</div>
+          </div>
+          <div class="card" style="padding:16px 20px;background:linear-gradient(135deg,rgba(255,107,53,.08),rgba(255,107,53,.02));border-top:3px solid var(--orange);text-align:center">
+            <div style="font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--orange);margin-bottom:6px">Jobs Paid-In-Full YTD</div>
+            <div id="s13-jobs-ytd" style="font-family:var(--font-display);font-size:clamp(26px,4vw,54px);color:#fff;line-height:1;font-weight:900">$—</div>
+            <div id="s13-jobs-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">fully closed jobs only</div>
+          </div>
+        </div>
+
+        <!-- Bottom row: dept breakdown + monthly bars -->
+        <div style="display:grid;grid-template-columns:210px 1fr;gap:10px;flex:1;min-height:0">
+
+          <!-- Dept bars -->
+          <div class="card" style="padding:16px;display:flex;flex-direction:column;justify-content:center;gap:14px">
+            <div style="font-size:clamp(10px,1.1vw,12px);font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5)">By Department</div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+                <span style="font-size:clamp(12px,1.4vw,16px);font-weight:700;color:var(--blue)">🌡 HVAC</span>
+                <span id="s13-hvac" style="font-family:var(--font-display);font-size:clamp(20px,2.8vw,32px);color:#fff;font-weight:900">$—</span>
+              </div>
+              <div style="height:8px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
+                <div id="s13-hvac-bar" style="height:100%;width:0%;background:var(--blue);border-radius:99px;transition:width 1.2s ease"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+                <span style="font-size:clamp(12px,1.4vw,16px);font-weight:700;color:var(--orange)">🔧 Plumbing</span>
+                <span id="s13-plmb" style="font-family:var(--font-display);font-size:clamp(20px,2.8vw,32px);color:#fff;font-weight:900">$—</span>
+              </div>
+              <div style="height:8px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
+                <div id="s13-plmb-bar" style="height:100%;width:0%;background:var(--orange);border-radius:99px;transition:width 1.2s ease"></div>
+              </div>
+            </div>
+            <div id="s13-pct" style="font-size:clamp(10px,1.1vw,12px);color:rgba(255,255,255,.4);padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">HVAC —% · Plumbing —%</div>
+          </div>
+
+          <!-- Monthly stacked bars -->
+          <div class="card" style="padding:16px;display:flex;flex-direction:column;min-height:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0">
+              <div style="font-size:clamp(10px,1.1vw,12px);font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.5)">Monthly Revenue</div>
+              <div style="display:flex;gap:14px;font-size:clamp(10px,1.1vw,12px);color:rgba(255,255,255,.5)">
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--blue);display:inline-block;border-radius:1px"></span>HVAC</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--orange);display:inline-block;border-radius:1px"></span>Plumbing</span>
+              </div>
+            </div>
+            <div id="s13-monthly-bars" style="flex:1;display:flex;gap:3px;align-items:flex-end;min-height:0">
+              <div style="color:rgba(255,255,255,.3);font-size:12px;margin:auto">Upload HCP Payments report from dashboard to populate</div>
+            </div>
+            <div style="margin-top:6px;font-size:clamp(9px,1vw,11px);color:rgba(255,255,255,.3);text-align:right;flex-shrink:0" id="s13-source">HCP Payments Export</div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- end s13 -->
+
   </div><!-- /scenes -->
 
   <!-- STATUS BAR -->
@@ -1450,7 +1520,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.95
+      v2.96
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1461,7 +1531,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.95';
+const COMPANION_VERSION = 'v2.96';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1507,6 +1577,7 @@ const CONFIG = {
     s4: 20000,  // Live Performance
     s5: 0,      // Announcements — self-managed
     s12: 25000, // Service Plans leaderboard
+    s13: 25000, // Revenue Report — HCP Payments
     s14: 25000, // RC Phone Leaderboard
     s6: 20000,  // Win the Day
     s7: 0,      // Spotlight — self-managed (8s per spotlight)
@@ -1583,7 +1654,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s6','s4','s3','s12','s7','s8','s9','s10','s11','s5'];
+const SCENES = ['s1','s2','s6','s4','s3','s12','s13','s7','s8','s9','s10','s11','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -3041,233 +3112,6 @@ function startCallLeaderRotation(agent, today, mtd, ytd) {
 }
 
 // ============================================================
-async function updateS13() {
-  const snap = state.snap;
-
-  // RC metrics (last 30 days)
-  const rcAnswered = parseInt(snap['rc_answered']||0)||0;
-  const rcRate     = parseInt(snap['rc_answer_rate']||0)||0;
-
-  // CallRail metrics (last 30 days)
-  const crTotal = parseInt(snap['calls_total']||0)||0;
-  const crNew   = parseInt(snap['calls_new']||0)||0;
-
-  if(el('calls-total')) el('calls-total').textContent = crTotal || 0;
-  if(el('calls-new'))   el('calls-new').textContent   = crNew   || 0;
-  if(el('rc-answered')) el('rc-answered').textContent = rcAnswered || 0;
-  if(el('rc-rate'))     el('rc-rate').textContent     = rcRate > 0 ? rcRate+'%' : 0;
-  if(el('calls-source'))el('calls-source').textContent= rcAnswered > 0 ? 'RC + CR' : 'CallRail';
-
-  // This Month / MTD / Today / YTD — use pre-computed keys first, compute from arrays as fallback
-  const rcToday  = parseInt(snap['rc_today']||0) || (() => {
-    let daily = []; try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
-    return daily[new Date().getDate()-1] || 0;
-  })();
-  const rcMtd    = parseInt(snap['rc_mtd']||0) || (() => {
-    let daily = []; try { daily = JSON.parse(snap['rc_daily']||'[]'); } catch(e) {}
-    const today = new Date().getDate();
-    return daily.slice(0, today).reduce((s,v)=>s+(v||0), 0);
-  })();
-  const rcYtd    = parseInt(snap['rc_ytd']||0) || (() => {
-    let monthly = []; try { monthly = JSON.parse(snap['rc_monthly']||'[]'); } catch(e) {}
-    return Array.isArray(monthly) ? monthly.reduce((s,v)=>s+(v||0),0) : 0;
-  })();
-
-  // Use RC today/mtd/ytd to populate the period cells
-  // rc_today/rc_mtd/rc_ytd = all inbound calls (inc. missed)
-  // For "calls answered" we use rc_answered from the leaderboard sum after it loads
-  // For the hero rotating card, show inbound (total volume) labeled clearly
-  const todayVal = rcToday;
-  const mtdTotal = rcMtd;   // all inbound MTD — hero card labeled "Inbound Calls"
-  const ytdTotal = rcYtd;   // all inbound YTD
-
-  if(el('calls-mtd'))   el('calls-mtd').textContent   = mtdTotal > 0 ? mtdTotal.toLocaleString() : '0';
-  if(el('calls-today')) el('calls-today').textContent = todayVal > 0 ? todayVal.toLocaleString() : '0';
-  if(el('calls-ytd'))   el('calls-ytd').textContent   = ytdTotal > 0 ? ytdTotal.toLocaleString() : '0';
-
-  // Rotating period card — Today → MTD → YTD
-  startCallsPeriodRotation(todayVal, mtdTotal, ytdTotal);
-
-  // RC Agent leaderboard — primary: RC_Agents tab, fallback: rc_leaderboard snap
-  const lbEl = el('rc-leaderboard');
-  let agentRows = [];
-
-  try {
-    const rows = await fetchCSV('RC_Agents');
-    if(rows && rows.length > 1) {
-      const firstRow = rows[1] || [];
-      // Detect schema version by checking if row has ext column (new) or just name+answered (old)
-      const hasExtended = rows[0] && rows[0].length >= 10;
-      agentRows = rows.slice(1).filter(r => r && r[0]).map(r => {
-        if(hasExtended) {
-          // Schema (from Apps Script syncRCAgentsTab):
-          // 0:name, 1:ext, 2:inbound, 3:outbound, 4:answered, 5:missed,
-          // 6:ans_rate, 7:missed_pct, 8:avg_dur_sec, 9:booking_rate,
-          // 10:estimates_implied, 11:pinned, 12:category, 13:source, 14:report_date, 15:updated_at
-          return {
-            name:         String(r[0]||''),
-            ext:          String(r[1]||''),
-            inbound:      parseInt(r[2])||0,
-            outbound:     parseInt(r[3])||0,
-            answered:     parseInt(r[4])||0,
-            missed:       parseInt(r[5])||0,
-            ansRate:      parseInt(r[6])||0,
-            missedPct:    parseFloat(r[7])||0,
-            avgDur:       parseInt(r[8])||0,
-            booking_rate: parseInt(r[9])||0,
-            pinned:       String(r[11]||'').toLowerCase() === 'true',
-            category:     String(r[12]||'dispatch'),
-          };
-        } else {
-          // Legacy schema: name,answered,total,ans_rate,avg_dur_sec,pinned,category
-          return {
-            name:     String(r[0]||''),
-            answered: parseInt(r[1])||0,
-            total:    parseInt(r[2])||0,
-            ansRate:  parseInt(r[3])||0,
-            avgDur:   parseInt(r[4])||0,
-            pinned:   String(r[5]||'').toLowerCase() === 'true',
-            category: String(r[6]||'dispatch'),
-          };
-        }
-      });
-      console.log('[RC Agents] Loaded', agentRows.length, 'rows from RC_Agents tab');
-    }
-  } catch(e) {
-    console.warn('[RC Agents] Tab read failed:', e.message);
-  }
-
-  // Fallback: rc_leaderboard snap key
-  if(!agentRows.length) {
-    const PHANTOM = new Set(['Unknown','Service Coordinator','Call all','Voicemail','Auto-Receptionist','Queue']);
-    let lb = [];
-    try { lb = JSON.parse(snap['rc_leaderboard']||'[]'); } catch(e) {}
-    agentRows = lb.filter(a => (a.answered||0) > 0 && !PHANTOM.has(a.name))
-      .map(a => ({ name:a.name, answered:a.answered||0, total:a.total||0,
-                   ansRate:a.ansRate||0, avgDur:a.avgDur||0, pinned:false, category:'dispatch' }));
-  }
-
-  if(lbEl && agentRows.length) {
-    const dispatchers = agentRows.filter(a => a.category === 'dispatch');
-    const techs       = agentRows.filter(a => a.category === 'tech');
-    const spam        = agentRows.find(a => a.category === 'spam');
-
-    const pinned    = dispatchers.filter(a => a.pinned);
-    const nonPinned = dispatchers.filter(a => !a.pinned && a.answered > 0)
-                        .sort((a,b) => b.answered - a.answered);
-    const allDisp   = [...pinned, ...nonPinned];
-    const maxAns    = Math.max(...allDisp.map(a => a.answered), 1);
-    const colors    = ['#FFD700','#C0C0C0','#CD7F32','#00D4FF','#00FF88','#A855F7','#F97316'];
-
-    let html = '';
-
-    // Section: Dispatch agents — top 3 only, large display
-    if(allDisp.length) {
-      html += `<div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:rgba(0,212,255,.6);padding:2px 0 6px;border-bottom:1px solid rgba(0,212,255,.15);margin-bottom:6px">📞 Dispatchers</div>`;
-      html += allDisp.slice(0, 3).map((agent, i) => {
-        const pct    = Math.round(agent.answered / maxAns * 100);
-        const col    = colors[i] || '#6b7280';
-        const avgMin = Math.floor((agent.avgDur||0)/60);
-        const avgSec = String((agent.avgDur||0)%60).padStart(2,'0');
-        const avgStr = agent.avgDur > 0 ? `${avgMin}:${avgSec}` : 0;
-        const lookup = agent.name === 'Bob D.' ? 'Robert Danaher'
-          : agent.name === 'Victoria' ? 'Victoria Ellsworth'
-          : agent.name === 'Eric' ? 'Eric Stoffel'
-          : agent.name;
-        const photo  = getEmpPhoto(lookup, '');
-        const medal  = i===0?'①':i===1?'②':'③';
-        const hasData = agent.answered > 0;
-        const isStar  = i===0 && hasData;
-
-        // #1 agent gets elevated treatment: glow, larger photo, star badge
-        if(isStar) {
-          return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
-            background:linear-gradient(135deg,rgba(255,215,0,.10) 0%,rgba(255,215,0,.02) 100%);
-            border:1.5px solid rgba(255,215,0,.35);box-shadow:0 0 24px rgba(255,215,0,.12);margin-bottom:4px;position:relative">
-            <div style="position:absolute;top:-9px;left:12px;background:#FFD700;color:#1a1a1a;font-size:10px;font-weight:900;
-              padding:2px 8px;border-radius:99px;letter-spacing:.08em;box-shadow:0 2px 6px rgba(0,0,0,.3)">★ STAR AGENT</div>
-            ${photo
-              ? `<img src="${photo}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0;border:2px solid #FFD700;margin-top:4px" onerror="this.style.display='none'">`
-              : `<div style="width:52px;height:52px;border-radius:10px;background:rgba(255,215,0,.08);flex-shrink:0;border:2px solid #FFD700;margin-top:4px"></div>`}
-            <div style="flex:1;min-width:0;margin-top:4px">
-              <div style="font-size:18px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${agent.name}</div>
-              <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:5px;overflow:hidden">
-                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#FFD700,#FFA500);box-shadow:0 0 8px rgba(255,215,0,.5)"></div>
-              </div>
-            </div>
-            <div style="text-align:right;flex-shrink:0;min-width:64px;margin-top:4px">
-              <div style="font-family:var(--font-display);font-size:30px;font-weight:900;color:#FFD700;text-shadow:0 0 12px rgba(255,215,0,.4)">${agent.answered}</div>
-              <div style="font-size:15px;color:rgba(255,255,255,.5)">${agent.ansRate}% · ${avgStr}</div>
-            </div>
-          </div>`;
-        }
-
-        return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-          <div style="font-size:17px;width:18px;text-align:center;color:${col};font-weight:900;flex-shrink:0">${medal}</div>
-          ${photo
-            ? `<img src="${photo}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;border:2px solid ${col}66" onerror="this.style.display='none'">`
-            : `<div style="width:42px;height:42px;border-radius:8px;background:rgba(255,255,255,.06);flex-shrink:0;border:2px solid ${col}44"></div>`}
-          <div style="flex:1;min-width:0">
-            <div style="font-size:16px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${agent.name}</div>
-            <div style="height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:4px;overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${col}"></div>
-            </div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;min-width:64px">
-            <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:${hasData?col:'rgba(255,255,255,.25)'}">${hasData?agent.answered:'—'}</div>
-            <div style="font-size:15px;color:rgba(255,255,255,.45)">${hasData?agent.ansRate+'% · '+avgStr:'no calls'}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    // Section: Tech call-ins
-    if(techs.length) {
-      html += `<div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,107,53,.6);padding:6px 0 4px;border-bottom:1px solid rgba(255,107,53,.15);margin-bottom:4px;margin-top:6px">🔧 Tech Call-ins</div>`;
-      html += techs.map(t => {
-        const avgMin = Math.floor((t.avgDur||0)/60);
-        const avgSec = String((t.avgDur||0)%60).padStart(2,'0');
-        const photo  = getEmpPhoto(t.name, '');
-        return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0">
-          ${photo?`<img src="${photo}" style="width:16px;height:16px;border-radius:3px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:16px;flex-shrink:0"></div>'}
-          <div style="flex:1;font-size:17px;font-weight:600;color:rgba(255,255,255,.7)">${t.name}</div>
-          <div style="font-family:var(--font-mono);font-size:17px;color:var(--orange)">${t.total} calls</div>
-          <div style="font-size:17px;color:rgba(255,255,255,.4);min-width:28px;text-align:right">${t.answered>0?avgMin+':'+avgSec:'—'}</div>
-        </div>`;
-      }).join('');
-    }
-
-    // Section: Spam/hangup
-    if(spam && spam.total > 0) {
-      if(el('calls-spam-ct')) el('calls-spam-ct').textContent = spam.total.toLocaleString();
-    }
-
-    lbEl.innerHTML = html;
-
-    // Rotating call leader card
-    const topAgent = allDisp.length ? allDisp[0] : null;
-    if(topAgent && topAgent.answered > 0) {
-      // For team totals, use rc_answered (answered calls only) not rc_mtd (all inbound)
-      // rc_mtd = all inbound calls this month (includes missed/voicemail/spam)
-      // rc_answered = calls that were actually answered
-      const rcAnsweredMtd = (() => {
-        // Sum answered from leaderboard — this is the most accurate answered-only MTD total
-        // since it comes from per-agent breakdown of the same RC dataset
-        const lbAnsweredTotal = agentRows
-          .filter(a => a.category !== 'spam')
-          .reduce((s,a) => s + (a.answered||0), 0);
-        // If that's plausible, use it; otherwise fall back to rc_answered snap
-        return lbAnsweredTotal > 0 ? lbAnsweredTotal : (parseInt(snap['rc_answered']||0)||0);
-      })();
-      startCallLeaderRotation(topAgent, topAgent.answered, rcAnsweredMtd, ytdTotal);
-    }
-  } else if(lbEl) {
-    lbEl.innerHTML = '';
-  }
-
-  renderCallsChart(); // no-op stubs, kept for legacy
-}
-
 function renderCallsChart() {
   // Legacy — heatmap/trend chart removed from S13, now uses renderS13AgentRace
   renderS13AgentRace();
@@ -3724,7 +3568,95 @@ function goScene(idx) {
     if(hasPlanData) { updateS12(); scheduleNextScene('s12'); }
     else { nextScene(); }
   }
+  else if (sceneId==='s13') {
+    const hasData = num(state.snap['hcp_pmt_ytd_net']||0) > 0 || num(state.snap['hcp_pmt_hvac']||0) > 0;
+    if(hasData) { updateS13(); scheduleNextScene('s13'); }
+    else { nextScene(); }
+  }
 }
+
+function updateS13() {
+  const snap = state.snap;
+  const fmtK = n => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : n >= 1000 ? '$'+(n/1000).toFixed(0)+'K' : '$'+Math.round(n);
+
+  // YTD net from payments report
+  const ytdNet  = num(snap['hcp_pmt_ytd_net']  || 0);
+  const hvac    = num(snap['hcp_pmt_hvac']     || 0);
+  const plmb    = num(snap['hcp_pmt_plumbing'] || 0);
+  const office  = num(snap['hcp_pmt_office']   || 0);
+
+  // MTD — sum current month from monthly_json
+  let mtd = 0;
+  try {
+    const monthly = JSON.parse(snap['hcp_pmt_monthly_json']||'[]');
+    const mo = new Date().getMonth();
+    if(monthly[mo]) mtd = (monthly[mo].HVAC||0) + (monthly[mo].Plumbing||0) + (monthly[mo].Office||0);
+  } catch(e) {}
+
+  // Jobs paid-in-full (from jobs_month report)
+  let jobsYTD = 0;
+  try {
+    const jobs = JSON.parse(snap['hcp_jobs_month_json']||'[]');
+    jobsYTD = jobs.reduce((s,r) => s + (parseFloat(r.revenue)||0), 0);
+  } catch(e) {}
+
+  // Set top numbers
+  setEl('s13-mtd',      mtd > 0     ? fmtK(mtd)    : '—');
+  setEl('s13-ytd',      ytdNet > 0  ? fmtK(ytdNet)  : '—');
+  setEl('s13-jobs-ytd', jobsYTD > 0 ? fmtK(jobsYTD) : '—');
+  if(jobsYTD > 0 && ytdNet > 0) {
+    const gap = ytdNet - jobsYTD;
+    setEl('s13-jobs-sub', `${fmtK(gap)} in partial pmts`);
+  }
+
+  // Dept bars
+  const deptMax = Math.max(hvac, plmb, 1);
+  setEl('s13-hvac', hvac > 0 ? fmtK(hvac) : '—');
+  setEl('s13-plmb', plmb > 0 ? fmtK(plmb) : '—');
+  const hvacBar = el('s13-hvac-bar');
+  const plmbBar = el('s13-plmb-bar');
+  if(hvacBar) setTimeout(()=>{ hvacBar.style.width = (hvac/deptMax*100).toFixed(0)+'%'; }, 200);
+  if(plmbBar) setTimeout(()=>{ plmbBar.style.width = (plmb/deptMax*100).toFixed(0)+'%'; }, 400);
+  const total = hvac + plmb + office;
+  if(total > 0) setEl('s13-pct', `HVAC ${Math.round(hvac/total*100)}% · Plumbing ${Math.round(plmb/total*100)}%`);
+
+  // Monthly stacked bars
+  const barsEl = el('s13-monthly-bars');
+  if(barsEl) {
+    try {
+      const monthly = JSON.parse(snap['hcp_pmt_monthly_json']||'[]');
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const maxVal = Math.max(...monthly.map(m=>(m.HVAC||0)+(m.Plumbing||0)+(m.Office||0)), 1);
+      const curMo  = new Date().getMonth();
+
+      if(monthly.some(m=>(m.HVAC||0)+(m.Plumbing||0)>0)) {
+        barsEl.innerHTML = monthly.map((m,i) => {
+          const h = m.HVAC||0, p = m.Plumbing||0, o = m.Office||0, t = h+p+o;
+          if(t <= 0) return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px">
+            <div style="height:4px;width:100%"></div>
+            <div style="font-size:clamp(8px,.9vw,11px);color:rgba(255,255,255,.2)">${MONTHS[i]}</div>
+          </div>`;
+          const hPct = (h/maxVal*100).toFixed(1);
+          const pPct = (p/maxVal*100).toFixed(1);
+          const isCur = i === curMo;
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+            <div style="font-size:clamp(7px,.85vw,10px);color:${isCur?'#00D4FF':'rgba(255,255,255,.5)'};font-weight:${isCur?'700':'400'}">${fmtK(t)}</div>
+            <div style="width:100%;display:flex;flex-direction:column;gap:1px;flex:1;justify-content:flex-end">
+              <div style="background:rgba(0,212,255,.85);border-radius:2px 2px 0 0;height:${hPct}%;min-height:${h>0?2:0}px;transition:height 1s ease"></div>
+              <div style="background:rgba(255,107,53,.85);border-radius:0;height:${pPct}%;min-height:${p>0?2:0}px;transition:height 1s ease"></div>
+            </div>
+            <div style="font-size:clamp(7px,.85vw,10px);color:${isCur?'#00D4FF':'rgba(255,255,255,.35)'};font-weight:${isCur?'700':'400'}">${MONTHS[i]}</div>
+          </div>`;
+        }).join('');
+      }
+    } catch(e) { console.warn('[S13]', e); }
+  }
+
+  // Source label with report date
+  const rptDate = snap['hcp_report_date'];
+  if(rptDate) setEl('s13-source', 'HCP Payments Export · ' + new Date(rptDate).toLocaleDateString());
+}
+
 
 function nextScene() {
   goScene((state.currentScene + 1) % SCENES.length);
