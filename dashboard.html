@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.62</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.63</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.62</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.63</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.62</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.63</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -551,22 +551,77 @@ tr:hover td{background:#fafafa}
     <div class="panel active" id="tab-jobs">
       <div class="metrics" id="jobMetrics"></div>
 
-      <!-- REVENUE RECONCILIATION CARD -->
-      <div id="rev-recon-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden">
+      <!-- HCP REPORTS UPLOAD CARD -->
+      <div id="hcp-reports-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
-          <div style="font-size:13px;font-weight:700;color:#1f2937">📊 Revenue Reconciliation — HCP Emailed Report</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1f2937">📊 HCP Report Uploads — Revenue Analysis</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload HCP emailed exports to compare against API data and power the Revenue Report wallboard scene</div>
+          </div>
           <div style="display:flex;align-items:center;gap:8px">
-            <label style="padding:5px 12px;background:#1A3A5C;color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer" title="Upload the 'Jobs by completed day' CSV from your HCP email report">
-              📂 Upload HCP Report
-              <input type="file" accept=".csv" style="display:none" onchange="loadRevenueReport(this.files[0])">
-            </label>
-            <span id="recon-status" style="font-size:11px;color:#9ca3af"></span>
-            <button onclick="toggleReconCard()" id="recon-toggle-btn" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer">Hide ▲</button>
+            <span id="hcp-reports-saved" style="font-size:11px;color:#059669"></span>
+            <button onclick="toggleHCPReportsCard()" id="hcp-reports-toggle" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer">Hide ▲</button>
           </div>
         </div>
-        <div id="recon-body" style="padding:16px">
-          <div id="recon-content" style="color:#9ca3af;font-size:12px;text-align:center;padding:12px 0">
-            Upload your HCP emailed revenue report (.csv) to reconcile against dashboard numbers
+        <div id="hcp-reports-body" style="padding:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+
+            <!-- Payments Detail -->
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">💳 Payments Detail</div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:8px">HCP → Reporting → Payments → Generate report (detail CSV)</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="padding:5px 12px;background:#1A3A5C;color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">
+                  📂 Upload
+                  <input type="file" accept=".csv" style="display:none" onchange="loadHCPReport('payments_detail', this.files[0])">
+                </label>
+                <span id="hcp-payments-detail-status" style="font-size:11px;color:#9ca3af">Not uploaded</span>
+              </div>
+            </div>
+
+            <!-- Payments Summary -->
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">📋 Payments Summary</div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:8px">HCP → Reporting → Payments → Generate report (summary CSV)</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="padding:5px 12px;background:#1A3A5C;color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">
+                  📂 Upload
+                  <input type="file" accept=".csv" style="display:none" onchange="loadHCPReport('payments_summary', this.files[0])">
+                </label>
+                <span id="hcp-payments-summary-status" style="font-size:11px;color:#9ca3af">Not uploaded</span>
+              </div>
+            </div>
+
+            <!-- Jobs by Month -->
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">📅 Jobs by Month</div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:8px">HCP → Reporting → Jobs → Monthly (paid in full)</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="padding:5px 12px;background:#1A3A5C;color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">
+                  📂 Upload
+                  <input type="file" accept=".csv" style="display:none" onchange="loadHCPReport('jobs_month', this.files[0])">
+                </label>
+                <span id="hcp-jobs-month-status" style="font-size:11px;color:#9ca3af">Not uploaded</span>
+              </div>
+            </div>
+
+            <!-- Jobs by Day -->
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">📆 Jobs by Day</div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:8px">HCP → Reporting → Jobs → Daily (paid in full)</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="padding:5px 12px;background:#1A3A5C;color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">
+                  📂 Upload
+                  <input type="file" accept=".csv" style="display:none" onchange="loadHCPReport('jobs_day', this.files[0])">
+                </label>
+                <span id="hcp-jobs-day-status" style="font-size:11px;color:#9ca3af">Not uploaded</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Analysis output -->
+          <div id="hcp-analysis-content">
+            <div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">Upload reports above to see revenue analysis and power the companion Revenue Report scene</div>
           </div>
         </div>
       </div>
@@ -2826,7 +2881,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.62
+  // ATTRIBUTION ENGINE — v24.63
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4887,7 +4942,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.62',  // dashboard version that generated this push
+    dash_version: 'v24.63',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5533,7 +5588,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.62',
+        dash_version:        'v24.63',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5925,7 +5980,7 @@ const DEFAULT_SCENE_ORDER = [
   { id:'s10', label:'🎂 Birthdays',              enabled:true },
   { id:'s11', label:'🎉 Holidays',               enabled:true },
   { id:'s12', label:'📋 Service Plans',          enabled:true },
-  { id:'s13', label:'📞 Call Volume',            enabled:true },
+  { id:'s13', label:'💰 Revenue Report',         enabled:true },
   { id:'s5',  label:'📣 Announcements',          enabled:true },
 ];
 let _sceneOrder = null;
@@ -6819,14 +6874,365 @@ function renderAgentSummary() {
 // and compares it line-by-line against dashboard numbers
 // ============================================================
 
-function toggleReconCard() {
-  const body = $$('recon-body');
-  const btn  = $$('recon-toggle-btn');
+// ============================================================
+// HCP REPORTS UPLOAD SYSTEM
+// Parses Payments detail/summary and Jobs by Month/Day CSVs
+// Classifies dept revenue by employee name, saves to Sheets
+// Powers companion S13 Revenue Report scene
+// ============================================================
+
+// Known staff departments
+const STAFF_DEPT = {
+  'lukas schlosser':'HVAC','doug mcnamara':'HVAC','gannon blaiser':'HVAC',
+  'andy mitchell':'HVAC','andrew mitchell':'HVAC','eric stoffel':'HVAC',
+  'chris hogan':'HVAC',
+  'mark daniels':'Plumbing','gordon radant':'Plumbing','jon glenn':'Plumbing',
+  'jeff hohenauer':'Plumbing',
+};
+
+// Global store for uploaded HCP report data
+let _hcpReports = {
+  payments_detail:  null,  // parsed rows
+  payments_summary: null,  // {byType, gross, net, refunds}
+  jobs_month:       null,  // [{period, revenue, count}]
+  jobs_day:         null,  // [{period, revenue, count}]
+  uploadedAt:       {},    // type → ISO timestamp
+};
+
+function toggleHCPReportsCard() {
+  const body = $$('hcp-reports-body');
+  const btn  = $$('hcp-reports-toggle');
   if(!body) return;
   const hidden = body.style.display === 'none';
   body.style.display = hidden ? 'block' : 'none';
   if(btn) btn.textContent = hidden ? 'Hide ▲' : 'Show ▼';
 }
+
+function loadHCPReport(type, file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const lines = e.target.result.trim().split('\n')
+        .map(l => l.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
+      switch(type) {
+        case 'payments_detail':  parsePaymentsDetail(lines, file.name);  break;
+        case 'payments_summary': parsePaymentsSummary(lines, file.name); break;
+        case 'jobs_month':       parseJobsReport(lines, file.name, 'jobs_month'); break;
+        case 'jobs_day':         parseJobsReport(lines, file.name, 'jobs_day');   break;
+      }
+      _hcpReports.uploadedAt[type] = new Date().toISOString();
+      renderHCPAnalysis();
+      saveHCPReportsToSheets();
+    } catch(err) {
+      console.error('[HCPReports]', err);
+      showToast('Parse error: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parsePaymentsDetail(lines, filename) {
+  // Find header row
+  const hi = lines.findIndex(r => r.some(v => /payment received date/i.test(v)));
+  if(hi < 0) throw new Error('Not a Payments Detail report — expected "Payment Received Date" column');
+  const h = lines[hi].map(v => v.toLowerCase());
+  const iJob  = h.findIndex(v => v.includes('job id'));
+  const iDate = h.findIndex(v => v.includes('payment received'));
+  const iAmt  = h.findIndex(v => v.includes('payment amount'));
+  const iEmp  = h.findIndex(v => v.includes('assigned employee'));
+  const iType = h.findIndex(v => v.includes('payment type'));
+  const iComp = h.findIndex(v => v.includes('job completed'));
+
+  const cleanMoney = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
+
+  const rows = [];
+  for(let i = hi+1; i < lines.length; i++) {
+    const r = lines[i];
+    if(!r || !r[iJob]) continue;
+    rows.push({
+      jobId:   r[iJob],
+      date:    r[iDate]?.slice(0,10) || '',
+      amount:  cleanMoney(r[iAmt]),
+      empRaw:  r[iEmp] || '',
+      type:    r[iType] || '',
+      compDate: r[iComp]?.slice(0,10) || '',
+    });
+  }
+
+  // Classify department per row (split mixed crews proportionally)
+  rows.forEach(row => {
+    const names = row.empRaw.match(/"([^"]+)"/g)?.map(n => n.replace(/"/g,'').toLowerCase()) || [];
+    if(!names.length) { row.dept = 'Office'; row.hvacFrac = 0; row.plmbFrac = 0; return; }
+    const hvac = names.filter(n => STAFF_DEPT[n] === 'HVAC').length;
+    const plmb = names.filter(n => STAFF_DEPT[n] === 'Plumbing').length;
+    const tot  = hvac + plmb;
+    if(tot === 0) { row.dept = 'Office'; row.hvacFrac = 0; row.plmbFrac = 0; }
+    else { row.dept = hvac > 0 && plmb > 0 ? 'Mixed' : (hvac > 0 ? 'HVAC' : 'Plumbing');
+           row.hvacFrac = hvac/tot; row.plmbFrac = plmb/tot; }
+  });
+
+  _hcpReports.payments_detail = rows;
+  const total = rows.reduce((s,r)=>s+r.amount,0);
+  const status = $$('hcp-payments-detail-status');
+  if(status) { status.textContent = `✅ ${rows.length} rows · $${(total/1000).toFixed(0)}K`; status.style.color='#059669'; }
+  showToast(`✅ Payments Detail: ${rows.length} transactions loaded`, 'success');
+}
+
+function parsePaymentsSummary(lines, filename) {
+  const hi = lines.findIndex(r => r.some(v => /payment type/i.test(v)));
+  if(hi < 0) throw new Error('Not a Payments Summary report');
+  const cleanMoney = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
+  const byType = {};
+  let gross = 0, refunds = 0;
+  for(let i = hi+1; i < lines.length; i++) {
+    const r = lines[i];
+    if(!r || !r[0]) continue;
+    const type = r[0].trim();
+    const amt  = cleanMoney(r[1]);
+    byType[type] = amt;
+    if(amt < 0) refunds += amt; else gross += amt;
+  }
+  _hcpReports.payments_summary = { byType, gross, refunds, net: gross + refunds };
+  const status = $$('hcp-payments-summary-status');
+  if(status) { status.textContent = `✅ Net $${((gross+refunds)/1000).toFixed(0)}K`; status.style.color='#059669'; }
+  showToast(`✅ Payments Summary loaded`, 'success');
+}
+
+function parseJobsReport(lines, filename, type) {
+  const hi = lines.findIndex(r => r.some(v => /job revenue/i.test(v)));
+  if(hi < 0) throw new Error('Not a Jobs report — expected "Job revenue" column');
+  const cleanMoney = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
+  const rows = [];
+  for(let i = hi+1; i < lines.length; i++) {
+    const r = lines[i];
+    if(!r || !r[0]) continue;
+    if(/total/i.test(r[0])) continue;
+    rows.push({ period: r[0].trim(), revenue: cleanMoney(r[1]), count: parseInt(r[2])||0 });
+  }
+  _hcpReports[type] = rows;
+  const total = rows.reduce((s,r)=>s+r.revenue,0);
+  const elId  = type === 'jobs_month' ? 'hcp-jobs-month-status' : 'hcp-jobs-day-status';
+  const status = $$(elId);
+  if(status) { status.textContent = `✅ ${rows.length} periods · $${(total/1000).toFixed(0)}K`; status.style.color='#059669'; }
+  showToast(`✅ Jobs report loaded: ${rows.length} periods`, 'success');
+}
+
+function renderHCPAnalysis() {
+  const container = $$('hcp-analysis-content');
+  if(!container) return;
+
+  const R = _hcpReports;
+  const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
+  const fmtK = n => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+(n/1000).toFixed(0)+'K';
+
+  // Department totals from detail report
+  let deptTotals = { HVAC:0, Plumbing:0, Office:0 };
+  let monthlyByDept = Array.from({length:12}, () => ({HVAC:0,Plumbing:0,Office:0}));
+  let refundsTotal = 0;
+
+  if(R.payments_detail) {
+    R.payments_detail.forEach(row => {
+      const mo = parseInt((row.date||'').split('-')[1]||0) - 1;
+      const hvacAmt = row.amount * (row.hvacFrac||0);
+      const plmbAmt = row.amount * (row.plmbFrac||0);
+      const offAmt  = row.dept==='Office' ? row.amount : 0;
+      deptTotals.HVAC     += hvacAmt;
+      deptTotals.Plumbing += plmbAmt;
+      deptTotals.Office   += offAmt;
+      if(mo >= 0 && mo < 12) {
+        monthlyByDept[mo].HVAC     += hvacAmt;
+        monthlyByDept[mo].Plumbing += plmbAmt;
+        monthlyByDept[mo].Office   += offAmt;
+      }
+      if(row.amount < 0) refundsTotal += row.amount;
+    });
+  }
+
+  const gross = R.payments_summary?.gross || (R.payments_detail?.reduce((s,r)=>s+(r.amount>0?r.amount:0),0)||0);
+  const net   = R.payments_summary?.net   || (R.payments_detail?.reduce((s,r)=>s+r.amount,0)||0);
+  const jobsYTD = R.jobs_month ? R.jobs_month.reduce((s,r)=>s+r.revenue,0) : null;
+
+  // Dashboard API comparison
+  const apiYTD = (() => { let t=0; if(_invoiceMap) Object.values(_invoiceMap).forEach(pmts=>pmts.forEach(p=>t+=p.amount)); return t; })();
+  const now = new Date(); const curMo = now.getMonth(); const curYr = now.getFullYear();
+  const apiMTD = (() => { let t=0; if(_invoiceMap) Object.values(_invoiceMap).forEach(pmts=>pmts.forEach(p=>{ const d=new Date((p.date||'')+'T12:00:00'); if(d.getFullYear()===curYr&&d.getMonth()===curMo) t+=p.amount; })); return t; })();
+  const pmtMTD = R.payments_detail ? R.payments_detail.filter(r=>parseInt((r.date||'').split('-')[1]||0)-1===curMo&&parseInt((r.date||'').split('-')[0]||0)===curYr).reduce((s,r)=>s+r.amount,0) : null;
+
+  // Monthly bar HTML
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const maxMonth = Math.max(...monthlyByDept.map(m=>m.HVAC+m.Plumbing+m.Office), 1);
+  const monthBars = MONTHS.map((mo,i) => {
+    const h = monthlyByDept[i].HVAC, p = monthlyByDept[i].Plumbing, o = monthlyByDept[i].Office;
+    const t = h+p+o;
+    if(t <= 0) return '';
+    const hPct = (h/maxMonth*100).toFixed(1), pPct = (p/maxMonth*100).toFixed(1);
+    const isCurrent = i === curMo;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:9px;color:${isCurrent?'#1d4ed8':'#6b7280'};font-weight:${isCurrent?'700':'400'}">${fmtK(t)}</div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:1px;height:60px;justify-content:flex-end">
+        <div style="background:#00D4FF;border-radius:2px 2px 0 0;height:${hPct}%" title="HVAC: ${fmt(h)}"></div>
+        <div style="background:#FF6B35;border-radius:0;height:${pPct}%" title="Plumbing: ${fmt(p)}"></div>
+        ${o>0?`<div style="background:#9CA3AF;height:${(o/maxMonth*100).toFixed(1)}%"></div>`:''}
+      </div>
+      <div style="font-size:9px;color:${isCurrent?'#1d4ed8':'#9ca3af'};font-weight:${isCurrent?'700':'400'}">${mo}</div>
+    </div>`;
+  }).join('');
+
+  // Gap analysis
+  const gaps = [];
+  if(apiYTD > 0 && net > 0) {
+    const diff = net - apiYTD;
+    const absDiff = Math.abs(diff);
+    if(absDiff > 100) {
+      gaps.push(`<strong>${diff > 0 ? 'HCP Payments higher' : 'Dashboard API higher'} by ${fmt(absDiff)}</strong>`);
+      if(diff > 0) {
+        gaps.push('• Partial payments: money received on jobs not yet fully closed');
+        gaps.push('• Orphaned invoices: payments with no job_id (check console for "[Invoices] No job_id")');
+        gaps.push('• Refunds: HCP includes -' + fmt(Math.abs(refundsTotal)) + ' in refunds not in API total');
+      } else {
+        gaps.push('• API may include invoices outside the HCP report date range');
+        gaps.push('• Timezone differences may shift payments across month boundaries');
+      }
+    } else {
+      gaps.push('✅ Dashboard API and HCP Payments report are within $100 — numbers match well');
+    }
+  }
+
+  container.innerHTML = `
+    <!-- Top summary row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Payments YTD (Net)</div>
+        <div style="font-size:22px;font-weight:800;color:#059669;line-height:1">${fmtK(net)}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:3px">Refunds: ${fmt(refundsTotal)}</div>
+      </div>
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Dashboard API YTD</div>
+        <div style="font-size:22px;font-weight:800;color:#3B82F6;line-height:1">${apiYTD > 0 ? fmtK(apiYTD) : '—'}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:3px">${apiYTD > 0 ? fmt(Math.abs(net-apiYTD)) + ' gap' : 'pull report first'}</div>
+      </div>
+      ${jobsYTD ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Jobs Paid-In-Full YTD</div>
+        <div style="font-size:22px;font-weight:800;color:#D97706;line-height:1">${fmtK(jobsYTD)}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:3px">${fmt(net-jobsYTD)} in partial pmts</div>
+      </div>` : '<div></div>'}
+      <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Payments MTD</div>
+        <div style="font-size:22px;font-weight:800;color:#7C3AED;line-height:1">${pmtMTD !== null ? fmtK(pmtMTD) : '—'}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:3px">API MTD: ${apiMTD > 0 ? fmtK(apiMTD) : '—'}</div>
+      </div>
+    </div>
+
+    <!-- Dept totals + monthly bars -->
+    <div style="display:grid;grid-template-columns:220px 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:10px">BY DEPARTMENT (YTD)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12px;font-weight:700;color:#00D4FF">🌡 HVAC</span>
+              <span style="font-size:12px;font-weight:800;color:#111">${fmtK(deptTotals.HVAC)}</span>
+            </div>
+            <div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden">
+              <div style="height:100%;width:${(deptTotals.HVAC/Math.max(deptTotals.HVAC,deptTotals.Plumbing,1)*100).toFixed(0)}%;background:#00D4FF;border-radius:99px"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12px;font-weight:700;color:#FF6B35">🔧 Plumbing</span>
+              <span style="font-size:12px;font-weight:800;color:#111">${fmtK(deptTotals.Plumbing)}</span>
+            </div>
+            <div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden">
+              <div style="height:100%;width:${(deptTotals.Plumbing/Math.max(deptTotals.HVAC,deptTotals.Plumbing,1)*100).toFixed(0)}%;background:#FF6B35;border-radius:99px"></div>
+            </div>
+          </div>
+          ${deptTotals.Office > 0 ? `<div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12px;font-weight:700;color:#9CA3AF">🏢 Office</span>
+              <span style="font-size:12px;font-weight:800;color:#111">${fmtK(deptTotals.Office)}</span>
+            </div>
+          </div>` : ''}
+          <div style="padding-top:8px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280">
+            HVAC ${((deptTotals.HVAC/net)*100).toFixed(0)}% · Plumbing ${((deptTotals.Plumbing/net)*100).toFixed(0)}%
+          </div>
+        </div>
+      </div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:#374151">MONTHLY BREAKDOWN</div>
+          <div style="display:flex;gap:10px;font-size:10px">
+            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#00D4FF;display:inline-block;border-radius:1px"></span>HVAC</span>
+            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#FF6B35;display:inline-block;border-radius:1px"></span>Plumbing</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:flex-end;height:90px">
+          ${monthBars || '<div style="color:#9ca3af;font-size:12px;padding:20px">Upload Payments Detail report to see monthly breakdown</div>'}
+        </div>
+      </div>
+    </div>
+
+    ${gaps.length ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#92400E;margin-bottom:6px">📊 Gap Analysis — Why the numbers differ</div>
+      ${gaps.map(g=>`<div style="font-size:11px;color:#374151;margin-bottom:3px">${g}</div>`).join('')}
+    </div>` : ''}
+
+    <div style="font-size:10px;color:#9ca3af;text-align:right">
+      Source: HCP Payments Export · Uploaded ${new Date().toLocaleDateString()} · 
+      Mixed crews split proportionally by tech count · Chris Hogan → HVAC · Office Staff separate
+    </div>`;
+}
+
+async function saveHCPReportsToSheets() {
+  if(!_sheetsProxy) return;
+  const R = _hcpReports;
+
+  // Build the payload for companion S13
+  const deptTotals = { HVAC:0, Plumbing:0, Office:0 };
+  const monthly = Array.from({length:12}, () => ({HVAC:0,Plumbing:0,Office:0,total:0}));
+
+  if(R.payments_detail) {
+    R.payments_detail.forEach(row => {
+      const mo = parseInt((row.date||'').split('-')[1]||0) - 1;
+      const h = row.amount * (row.hvacFrac||0);
+      const p = row.amount * (row.plmbFrac||0);
+      const o = row.dept==='Office' ? row.amount : 0;
+      deptTotals.HVAC += h; deptTotals.Plumbing += p; deptTotals.Office += o;
+      if(mo >= 0 && mo < 12) {
+        monthly[mo].HVAC += h; monthly[mo].Plumbing += p;
+        monthly[mo].Office += o; monthly[mo].total += row.amount;
+      }
+    });
+  }
+
+  const gross = R.payments_summary?.gross || 0;
+  const net   = R.payments_summary?.net   || (R.payments_detail?.reduce((s,r)=>s+r.amount,0)||0);
+  const snap  = {
+    hcp_pmt_ytd_net:      Math.round(net),
+    hcp_pmt_ytd_gross:    Math.round(gross),
+    hcp_pmt_hvac:         Math.round(deptTotals.HVAC),
+    hcp_pmt_plumbing:     Math.round(deptTotals.Plumbing),
+    hcp_pmt_office:       Math.round(deptTotals.Office),
+    hcp_pmt_monthly_json: JSON.stringify(monthly),
+    hcp_jobs_month_json:  JSON.stringify(R.jobs_month||[]),
+    hcp_report_date:      new Date().toISOString(),
+  };
+
+  try {
+    const r = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncSnapshotKeys', keys: snap })
+    });
+    const d = await r.json().catch(()=>({}));
+    if(d.success) {
+      const saved = $$('hcp-reports-saved');
+      if(saved) { saved.textContent = `✅ Saved to Sheets ${new Date().toLocaleTimeString()}`; }
+      dashLog('success', `✅ HCP Reports saved to Sheets — HVAC: $${Math.round(deptTotals.HVAC/1000)}K Plumbing: $${Math.round(deptTotals.Plumbing/1000)}K`);
+    }
+  } catch(e) { console.warn('[HCPReports] Sheets save failed:', e.message); }
+}
+
+
 
 function loadRevenueReport(file) {
   if(!file) return;
