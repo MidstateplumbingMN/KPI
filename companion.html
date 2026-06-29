@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v2.97</title>
+<title>Midstate — KPI Command Center v2.98</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1520,7 +1520,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v2.97
+      v2.98
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1531,7 +1531,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v2.97';
+const COMPANION_VERSION = 'v2.98';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1936,6 +1936,7 @@ async function loadData() {
 
     state.loaded = true;
     state.error = null;
+    _freshDataLoaded = true; // companion has live data — victory mode can now fire
     setStatus('ok');
     updateAll();
     const now_ts = new Date();
@@ -4981,6 +4982,7 @@ function spawnVictoryConfetti() {
 }
 
 let _victoryFiredThisSession = false;
+let _freshDataLoaded = false; // set true after first successful Sheets refresh
 
 function checkVictoryMode() {
   const snap = state.snap;
@@ -4988,10 +4990,14 @@ function checkVictoryMode() {
   // Never fire if we've already celebrated this session
   if(_victoryFiredThisSession) return;
 
+  // Only fire after companion has received a fresh data load
+  // Prevents firing immediately on startup from stale Sheets cache
+  if(!_freshDataLoaded) return;
+
   // Require actual revenue to be present — don't fire on stale/empty data
   const revMonthly = num(snap['rev_monthly']||0);
   const revAnnual  = num(snap['rev_annual'] ||0);
-  if(revMonthly <= 0 && revAnnual <= 0) return; // no data yet
+  if(revMonthly <= 0 && revAnnual <= 0) return;
 
   const annualPct = num(snap['goal_annual_pct']||0);
 
@@ -4999,9 +5005,7 @@ function checkVictoryMode() {
   const monthPct = (() => {
     const raw = num(snap['goal_monthly_pct']||0);
     if(raw < 100) return raw;
-    // Must have actual monthly revenue
     if(revMonthly <= 0) return 0;
-    // Verify the push date is in the current month
     const pullDate = state.snap['pull_date'] || '';
     if(!pullDate) return raw;
     const pushed = new Date(pullDate);
@@ -5009,6 +5013,10 @@ function checkVictoryMode() {
     if(pushed.getMonth() !== now.getMonth() || pushed.getFullYear() !== now.getFullYear()) {
       return 0; // stale — pushed last month
     }
+    // Also require pull_date to be today — don't fire on yesterday's cached push
+    const today = now.toISOString().split('T')[0];
+    const pushedDate = pushed.toISOString().split('T')[0];
+    if(pushedDate !== today) return 0;
     return raw;
   })();
 
