@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.72</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.73</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.72</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.73</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.72</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.73</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2972,7 +2972,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.72
+  // ATTRIBUTION ENGINE — v24.73
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4907,7 +4907,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.72',  // dashboard version that generated this push
+    dash_version: 'v24.73',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5584,7 +5584,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.72',
+        dash_version:        'v24.73',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9495,16 +9495,33 @@ function getTYSales(){
   const to=$$('tyTo')?.value||$$('dateTo')?.value||'';
   const seenJobs=new Set();
   const paidJobs = _jobs.filter(j=>isJobPaid(j)&&!isJobCanceled(j));
+
+  // Diagnostic counters — helps identify exactly where jobs are being filtered out
+  let excludedByDate = 0, excludedByEquip = 0, matched = 0;
+
   const results = paidJobs.filter(j=>{
     if(seenJobs.has(j.id)) return false;
     const d=fmtKey(j.work_timestamps?.completed_at||j.schedule?.scheduled_start||j.created_at)||'';
-    if(from&&d<from) return false;
-    if(to&&d>to) return false;
-    if(!detectEquipmentSale(j)) return false;
+    if(from&&d<from) { excludedByDate++; return false; }
+    if(to&&d>to) { excludedByDate++; return false; }
+    if(!detectEquipmentSale(j)) { excludedByEquip++; return false; }
     seenJobs.add(j.id);
+    matched++;
     return true;
   }).sort((a,b)=>new Date(b.work_timestamps?.completed_at||b.created_at||0)-new Date(a.work_timestamps?.completed_at||a.created_at||0));
-  console.log('[TY Cards] getTYSales: paid jobs='+paidJobs.length+', equipment matches='+results.length+', range='+from+'→'+to);
+
+  console.log(`[TY Cards] getTYSales: paid jobs=${paidJobs.length} · excluded by date=${excludedByDate} · excluded by equipment match=${excludedByEquip} · matched=${matched} · range=${from||'(none)'}→${to||'(none)'}`);
+
+  // If zero matches despite having paid jobs, sample a few to show why they didn't match
+  if(matched === 0 && paidJobs.length > 0) {
+    console.warn('[TY Cards] No equipment matches found. Sampling first 5 paid jobs to show why:');
+    paidJobs.slice(0, 5).forEach(j => {
+      const lineItems = (j.line_items||[]).map(li=>li.name).filter(Boolean);
+      const hasLineItems = lineItems.length > 0;
+      console.log(`  Job ${j.id} | type="${getJobType(j)}" | desc="${(j.description||'').slice(0,60)}" | line_items=${hasLineItems?lineItems.join(', '):'(none — job may not include line_items in API response)'}`);
+    });
+  }
+
   return results;
 }
 
@@ -11778,7 +11795,14 @@ async function loadPlansFromSheets(){
         },
         name:         p.plan_name || 'Home Club Maintenance',
         total_amount: 1999, // $19.99 — plans don't store amount yet
-        sold_by:      p.sold_by_name ? { first_name: p.sold_by_name.split(' ')[0]||p.sold_by_name, last_name: p.sold_by_name.split(' ').slice(1).join(' ') } : null,
+        sold_by:      p.sold_by_name ? {
+          first_name: p.sold_by_name.split(' ')[0] || p.sold_by_name,
+          last_name:  p.sold_by_name.split(' ').slice(1).join(' '),
+          // Stable per-employee id — without this, every restored plan collapses
+          // into a single map entry keyed by "undefined" in syncReportToSheets,
+          // which then gets attributed to whichever name was processed first.
+          id: 'plan_emp_' + p.sold_by_name.replace(/\s+/g,'_').toLowerCase(),
+        } : null,
         created_at:   p.created_at ? p.created_at + 'T12:00:00.000Z' : new Date().toISOString(),
         end_date:     p.end_date   || '',
         start_date:   p.created_at || '',
