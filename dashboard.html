@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.73</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.75</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.73</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.75</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.73</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.75</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1037,10 +1037,13 @@ tr:hover td{background:#fafafa}
         <div style="background:#FDF2F8;border:1px solid #FBCFE8;border-radius:10px;padding:16px;margin-bottom:18px">
           <div style="font-size:12px;font-weight:700;color:#9D174D;margin-bottom:12px">Add Referral</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div>
-              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Customer Name (who referred)</div>
-              <input type="text" id="ref-customer-name" placeholder="e.g. Jane Smith"
+            <div style="position:relative">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Customer Name (who referred) <span style="color:#9ca3af;font-weight:400">— start typing to pick from existing customers</span></div>
+              <input type="text" id="ref-customer-name" placeholder="e.g. Jane Smith" autocomplete="off"
+                oninput="showReferralCustomerSuggestions()" onfocus="showReferralCustomerSuggestions()"
+                onblur="setTimeout(()=>{const b=$$('ref-customer-suggest');if(b)b.style.display='none';},150)"
                 style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
+              <div id="ref-customer-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:200px;overflow-y:auto"></div>
             </div>
             <div>
               <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Referred New Customer's Name</div>
@@ -1879,7 +1882,7 @@ function connect(){
     loadMotivations();
   });
   // Show last-known headline numbers immediately, before any live pull
-  if(_sheetsProxy) loadCachedSnapshotIntoUI();
+  if(_sheetsProxy) { loadCachedSnapshotIntoUI(); loadCachedTYSalesIntoUI(); }
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
   loadIS();
@@ -2934,6 +2937,7 @@ async function loadAll(){
 
       // Step 3 — everything else in parallel
       fetchTYCardsFromSheets();
+      syncTYSalesToSheets(); // cache the customer/equipment list so it's visible before next pull
       loadCalEmpFilter();
       loadKPIEmpFilter().then(()=>{ syncNewEmployeesToFilter(); });
       loadTYCards();
@@ -2972,7 +2976,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.73
+  // ATTRIBUTION ENGINE — v24.75
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4907,7 +4911,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.73',  // dashboard version that generated this push
+    dash_version: 'v24.75',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5584,7 +5588,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.73',
+        dash_version:        'v24.75',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9525,6 +9529,147 @@ function getTYSales(){
   return results;
 }
 
+// Combined customer list for the referral picker — live data if a pull has
+// happened this session, otherwise falls back to the cached sheet data.
+function getReferralCustomerOptions() {
+  const seen = new Set();
+  const out = [];
+  const add = (name, address, phone) => {
+    if(!name || seen.has(name)) return;
+    seen.add(name);
+    out.push({ name, address: address||'', phone: phone||'' });
+  };
+
+  if(_jobs.length) {
+    getTYSales().forEach(j => {
+      const cust = j.customer || {};
+      const name = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
+      const addr = j.address ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ') : '';
+      add(name, addr, cust.mobile_number || cust.home_number || '');
+    });
+  } else if(_tySalesCache.length) {
+    _tySalesCache.forEach(s => add(s.customerName, s.address, s.phone));
+  }
+  return out;
+}
+
+function showReferralCustomerSuggestions() {
+  const input = $$('ref-customer-name');
+  const box   = $$('ref-customer-suggest');
+  if(!input || !box) return;
+  const q = input.value.trim().toLowerCase();
+  if(q.length < 2) { box.style.display = 'none'; return; }
+
+  const options = getReferralCustomerOptions().filter(c => c.name.toLowerCase().includes(q)).slice(0, 8);
+  if(!options.length) { box.style.display = 'none'; return; }
+
+  box.innerHTML = options.map(c => `
+    <div onclick="selectReferralCustomer('${escHtml(c.name).replace(/'/g,"\\'")}','${escHtml(c.address).replace(/'/g,"\\'")}')"
+      style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:12px" 
+      onmouseover="this.style.background='#FDF2F8'" onmouseout="this.style.background='#fff'">
+      <div style="font-weight:600;color:#111827">${escHtml(c.name)}</div>
+      <div style="font-size:11px;color:#9ca3af">${escHtml(c.address)||'No address on file'}</div>
+    </div>`).join('');
+  box.style.display = 'block';
+}
+
+function selectReferralCustomer(name, address) {
+  const nameEl = $$('ref-customer-name');
+  const addrEl = $$('ref-address');
+  if(nameEl) nameEl.value = name;
+  if(addrEl) addrEl.value = address;
+  const box = $$('ref-customer-suggest');
+  if(box) box.style.display = 'none';
+}
+
+
+// dedicated Sheets cache so it's visible on next page load before any pull.
+async function syncTYSalesToSheets() {
+  if(!_sheetsProxy || !_jobs.length) return;
+  try {
+    const sales = getTYSales();
+    const flattened = sales.map(j => {
+      const equip = detectEquipmentSale(j);
+      const cust = j.customer || {};
+      const name = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
+      const addr = j.address ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ') : '';
+      const card = _tyCards[j.id] || {};
+      return {
+        jobId: j.id,
+        customerName: name,
+        address: addr,
+        phone: cust.mobile_number || cust.home_number || '',
+        equipLabel: equip?.label || '',
+        equipColor: equip?.color || '',
+        equipIcon: equip?.icon || '',
+        installDate: fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '',
+        revenue: getJobRevenue(j),
+        status: card.status || 'pending',
+      };
+    });
+    await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncTYSales', sales: flattened })
+    });
+    console.log('[TY Cards] Synced', flattened.length, 'sales to cache sheet');
+  } catch(e) { console.warn('[TY Cards] Cache sync failed:', e.message); }
+}
+
+// Show cached customer/equipment data immediately on connect, before any live
+// pull. Simplified read-only table — doesn't try to reconstruct full job
+// objects, just renders the flat cached fields directly.
+let _tySalesCache = []; // last-loaded customer list (cached or live) — reused by referral picker
+
+async function loadCachedTYSalesIntoUI() {
+  if(!_sheetsProxy || _jobs.length) return; // only show cache if no live data yet
+  try {
+    const res = await fetch(_sheetsProxy + '?action=getTYSalesCache', { redirect:'follow' });
+    const d = await res.json();
+    if(!d.success || !d.sales || !d.sales.length) return;
+
+    _tySalesCache = d.sales; // store for referral customer picker
+
+    const el = $$('tyContent');
+    if(!el) return;
+
+    const sales = d.sales;
+    const pending = sales.filter(s => s.status === 'pending').length;
+    const sent = sales.filter(s => s.status === 'sent').length;
+    const totalRev = sales.reduce((s,r) => s + (parseFloat(r.revenue)||0), 0);
+    const updatedAt = sales[0]?.updatedAt;
+    const ago = updatedAt ? formatRelativeTime(new Date(updatedAt)) : '';
+
+    el.innerHTML = `
+      <div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;margin-bottom:12px">
+        📦 Showing cached data from last pull ${ago} — pull a fresh report to refresh and enable status changes
+      </div>
+      <div class="metrics" style="margin-bottom:16px">
+        <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.length}</div></div>
+        <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending}</div></div>
+        <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent}</div></div>
+        <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(totalRev)}</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Customer</th><th>Address</th><th>Phone</th><th>Equipment</th><th>Install Date</th><th>Revenue</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            ${sales.map(s => `<tr>
+              <td style="font-weight:600">${escHtml(s.customerName)}</td>
+              <td style="font-size:11px;color:#6b7280">${escHtml(s.address)}</td>
+              <td style="font-size:11px;white-space:nowrap">${escHtml(s.phone)||'—'}</td>
+              <td><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:700;color:#fff;background:${s.equipColor||'#6b7280'}">${s.equipIcon||''} ${escHtml(s.equipLabel)||'?'}</span></td>
+              <td style="font-size:11px;white-space:nowrap">${s.installDate||'—'}</td>
+              <td style="font-size:11px">${dollars(parseFloat(s.revenue)||0)}</td>
+              <td><span style="font-size:10px;font-weight:700;color:${s.status==='sent'?'#166534':'#DC2626'}">${s.status==='sent'?'✅ Sent':'📬 Pending'}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) { console.warn('[TY Cards] Cached load failed:', e.message); }
+}
+
 
 function setTYRange(range) {
   const now = new Date();
@@ -9897,12 +10042,21 @@ function printReferralLetters(filter='pending') {
   const cards = filter === 'all' ? _referralCards : _referralCards.filter(c => c.status === filter);
   if(!cards.length) { alert(`No ${filter} referral letters to print.`); return; }
 
-  const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const logoUrl = _wbSettings?.logoUrl || 'https://midstateplumbingmn.github.io/KPI/images/logo.png';
+
+  const letterhead = `<div class="letterhead">
+    <img src="${logoUrl}" class="letterhead-logo" onerror="this.style.display='none'">
+    <div class="letterhead-text">
+      <div class="letterhead-name">Midstate Plumbing, Heating &amp; Cooling</div>
+      <div class="letterhead-contact">3500 Cannon St Ste 100, Hastings, MN 55033 &nbsp;·&nbsp; 651-480-1195</div>
+    </div>
+  </div>
+  <div class="letterhead-rule"></div>`;
 
   const letterHtml = cards.map(c => {
     const firstName = c.customerName.split(' ')[0] || c.customerName;
     return `<div class="letter-page">
-      <div class="letter-date">${today}</div>
+      ${letterhead}
       <div class="letter-address">
         ${escHtml(c.customerName)}<br>
         ${escHtml(c.address)}
@@ -9925,13 +10079,17 @@ function printReferralLetters(filter='pending') {
   win.document.write(`<!DOCTYPE html><html><head><title>Referral Thank You Letters — Midstate Plumbing</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-    @page{size:letter portrait;margin:1in}
+    @page{size:letter portrait;margin:0.75in}
     body{font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#1f2937;background:#fff}
     @media print{button{display:none!important}}
-    .letter-page{page-break-after:always;min-height:9in;display:flex;flex-direction:column}
+    .letter-page{page-break-after:always;min-height:9.5in;display:flex;flex-direction:column}
     .letter-page:last-child{page-break-after:auto}
-    .letter-date{margin-bottom:36px;font-size:13px;color:#374151}
-    .letter-address{margin-bottom:32px;font-size:13px;line-height:1.6;color:#1f2937}
+    .letterhead{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+    .letterhead-logo{height:56px;max-width:160px;object-fit:contain}
+    .letterhead-name{font-family:Arial,sans-serif;font-size:18px;font-weight:800;color:#1A3A5C;letter-spacing:.01em}
+    .letterhead-contact{font-family:Arial,sans-serif;font-size:10px;color:#6b7280;margin-top:2px}
+    .letterhead-rule{height:3px;background:#BE185D;margin-bottom:28px}
+    .letter-address{margin-bottom:28px;font-size:13px;line-height:1.6;color:#1f2937}
     .letter-greeting{margin-bottom:16px;font-size:14px;font-weight:700}
     .letter-body p{margin-bottom:14px;line-height:1.7;font-size:13px}
     .letter-sign{margin-top:18px;font-size:13px;line-height:1.6;color:#1f2937}
@@ -10023,6 +10181,7 @@ async function pushToCompanion(){
     // This is the primary payload — everything the companion displays
     // Built from already-computed in-memory values, not a re-fetch
     await syncReportToSheets(_jobs,_estimates,_employees,_plans,from,to);
+    syncTYSalesToSheets(); // refresh the cached customer/equipment list too
 
     // ── 2. Push spotlights, promos, announcements, wallboard settings ──
     // These are independent small payloads — always succeed fast
