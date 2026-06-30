@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.68</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.69</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.68</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.69</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.68</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.69</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1197,68 +1197,35 @@ tr:hover td{background:#fafafa}
       <!-- Header row -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-size:16px;font-weight:800;color:#1A3A5C">🏠 Service Plan Manager</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload HCP export · Assign who sold each plan · Saves to Google Sheets</div>
+          <div style="font-size:16px;font-weight:800;color:#1A3A5C">🏠 Service Plans Sold</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload HCP's "Service plans sold by employee" report — that's it, no per-customer assignment needed</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <label class="plan-upload-btn" for="planFileInput" style="padding:7px 14px;font-size:12px;cursor:pointer">
-            📁 Upload New Export
+            📁 Upload Report
             <input type="file" id="planFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handlePlanUpload(this)">
           </label>
-          <button onclick="autoAttributePlans(_uploadedPlans,_jobs,_estimates);renderPlans(_uploadedPlans)" style="padding:7px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer" title="Re-run auto-matching against latest job data">🎯 Auto-Match</button>
-          <button onclick="savePlanAttributions()" style="padding:7px 14px;background:#166534;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💾 Save Attributions</button>
           <button class="is-btn danger" style="font-size:11px" onclick="clearPlanUpload()">🗑 Clear</button>
         </div>
       </div>
 
-      <!-- Status + upload hint -->
-      <div id="planUploadStatus" style="font-size:12px;margin-bottom:10px"></div>
-
-      <!-- Filter bar -->
-      <div class="filter-bar" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <label style="font-weight:600;font-size:12px">Date From:</label>
-        <input type="date" id="planDateFrom" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px" onchange="applyPlanFilter()">
-        <label style="font-weight:600;font-size:12px">To:</label>
-        <input type="date" id="planDateTo" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px" onchange="applyPlanFilter()">
-        <label style="font-weight:600;font-size:12px">Plan:</label>
-        <select id="planTypeFilter" onchange="applyPlanFilter()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px">
-          <option value="">All Plans</option>
-        </select>
-        <label style="font-weight:600;font-size:12px">Status:</label>
-        <select id="planStatusFilter" onchange="applyPlanFilter()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px">
-          <option value="">All Statuses</option>
-          <option value="Active">Active</option>
-          <option value="Expired">Expired</option>
-          <option value="Pending renewal">Pending Renewal</option>
-          <option value="Expiring soon">Expiring Soon</option>
-        </select>
-        <label style="font-weight:600;font-size:12px">Sold By:</label>
-        <select id="planSoldByFilter" onchange="applyPlanFilter()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px">
-          <option value="">All</option>
-        </select>
-        <button class="clear-btn" onclick="clearPlanFilters()">Clear</button>
-        <span id="planFilterCount" style="font-size:11px;color:#6b7280;margin-left:4px"></span>
+      <!-- Status -->
+      <div id="planUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
+      <div style="font-size:11px;color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-bottom:14px">
+        📍 HCP → Reporting → Service Plans → Service plans sold by employee → set range Year to Date → export CSV
       </div>
 
-      <!-- Summary metrics -->
-      <div id="planMetrics" class="metrics" style="margin-bottom:12px"></div>
+      <!-- Total + leaderboard -->
+      <div id="planMetrics" class="metrics" style="margin-bottom:16px"></div>
 
-      <!-- Plans table — editable sold-by -->
-      <div class="tbl-wrap" id="planDataView">
+      <div class="tbl-wrap">
         <table id="plansTable">
           <thead>
             <tr>
-              <th style="width:28px">#</th>
-              <th>Customer</th>
-              <th>Plan</th>
-              <th style="width:90px">Start</th>
-              <th style="width:90px">End</th>
-              <th style="width:90px">Status</th>
-              <th style="width:160px">
-                Sold By
-                <button onclick="bulkAssignSoldBy()" title="Assign one person to all unassigned" style="margin-left:4px;font-size:9px;padding:1px 5px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer">Bulk ▼</button>
-              </th>
-              <th style="width:80px">Amount</th>
+              <th style="width:40px">#</th>
+              <th>Employee</th>
+              <th style="width:120px;text-align:right">Plans Sold</th>
+              <th style="width:160px">Share</th>
             </tr>
           </thead>
           <tbody id="plansBody"></tbody>
@@ -1785,7 +1752,6 @@ function connect(){
   loadAllSettingsFromSheets().then(() => {
     console.log('[Connect] Settings loaded from Sheets');
     loadPlansFromSheets();
-    loadPlanAttributions();
     loadTYCards();
     loadSpotlights();
     loadAnnouncements();
@@ -1801,7 +1767,7 @@ function connect(){
   loadKPIEmpFilter();
   loadUploadedPlans();
   // Restore plans from Sheets (authoritative) — overrides localStorage cache if Sheets has data
-  if(_sheetsProxy) { loadPlansFromSheets(); loadPlanAttributions(); }
+  if(_sheetsProxy) { loadPlansFromSheets(); }
   loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
@@ -2764,10 +2730,6 @@ async function loadAll(){
       }
     } else if(_uploadedPlans.length) {
       console.log('[Plans] Using',_uploadedPlans.length,'uploaded plans (CSV upload is definitive source)');
-      // Run auto-attribution matching using fresh job/estimate data
-      if(_uploadedPlans.length > 0 && (jobs.length > 0 || estimates.length > 0)) {
-        autoAttributePlans(_uploadedPlans, jobs, estimates);
-      }
     }
 
     // Identify installer IDs
@@ -2882,7 +2844,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.68
+  // ATTRIBUTION ENGINE — v24.69
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4428,179 +4390,53 @@ async function loadPlanAttributions() {
   } catch(e) { console.warn('[PlanAttr] load failed:', e.message); }
 }
 
-function bulkAssignSoldBy() {
-  const name = prompt('Assign to which team member? (Enter first and last name)\n\nLeaves already-assigned plans unchanged.');
-  if(!name?.trim()) return;
-  document.querySelectorAll('[data-plan-key]').forEach(sel => {
-    const current = sel.value;
-    if(!current || current === '—' || current === '') sel.value = name.trim();
-  });
-  showToast(`Set unassigned plans to ${name.trim()} — click Save Attributions to persist`, 'info');
-}
-
+// Simple leaderboard render — Employee | Plans Sold | Share bar
+// Replaces the old per-customer roster + fuzzy auto-match system.
+// Works directly off the aggregate "Sold by / Plans sold" HCP export.
 function renderPlans(plans) {
+  const status = $$('planUploadStatus');
   if(!plans || !plans.length) {
-    const status = $$('planUploadStatus');
-    if(status) status.innerHTML = '<span style="color:#9ca3af">Upload a service agreements CSV from HCP to get started. No sold-by column needed — you can assign team members here.</span>';
+    if(status) status.innerHTML = '<span style="color:#9ca3af">Upload the "Service plans sold by employee" report from HCP to get started.</span>';
+    const metricsEl = $$('planMetrics');
+    if(metricsEl) metricsEl.innerHTML = '';
+    const tb = $$('plansBody');
+    if(tb) tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#9ca3af">No data uploaded yet</td></tr>';
     return;
   }
 
-  // Populate filter dropdowns
-  const planTypes = [...new Set(plans.map(p=>getPlanName(p)||'').filter(Boolean))].sort();
-  const soldBys   = [...new Set(plans.map(p=>p.sold_by||'').filter(s=>s&&s!=='Unknown'))].sort();
-  const typeF  = $$('planTypeFilter');
-  const soldByF= $$('planSoldByFilter');
-  if(typeF) {
-    const cur = typeF.value;
-    typeF.innerHTML = '<option value="">All Plans</option>' + planTypes.map(t=>`<option value="${escHtml(t)}" ${cur===t?'selected':''}>${escHtml(t)}</option>`).join('');
-  }
-  if(soldByF) {
-    const cur = soldByF.value;
-    soldByF.innerHTML = '<option value="">All</option><option value="__unassigned__">Unassigned</option>' +
-      soldBys.map(s=>`<option value="${escHtml(s)}" ${cur===s?'selected':''}>${escHtml(s)}</option>`).join('');
-  }
+  // Group by sold-by name (each uploaded record = 1 plan)
+  const byTech = {};
+  plans.forEach(p => {
+    const name = p._soldByName || (typeof p.sold_by === 'string' ? p.sold_by : ((p.sold_by?.first_name||'')+' '+(p.sold_by?.last_name||'')).trim()) || 'Unknown';
+    byTech[name] = (byTech[name]||0) + 1;
+  });
+  const rows = Object.entries(byTech).sort((a,b) => b[1]-a[1]);
+  const total = plans.length;
+  const max = rows[0]?.[1] || 1;
 
-  // Default date range to current year if empty
-  const fromEl = $$('planDateFrom'), toEl = $$('planDateTo');
-  if(fromEl && !fromEl.value) fromEl.value = new Date().getFullYear() + '-01-01';
-  if(toEl   && !toEl.value)   toEl.value   = new Date().toISOString().split('T')[0];
-
-  // Summary metrics
-  const active  = plans.filter(p => (getPlanStatus(p)||'Active').toLowerCase().includes('active')).length;
-  const expired = plans.filter(p => (getPlanStatus(p)||'').toLowerCase().includes('expir')||getPlanStatus(p)==='Expired').length;
-  const assigned= plans.filter(p => p.sold_by && p.sold_by !== 'Unknown' && p.sold_by !== '—').length;
-  const unassigned = plans.length - assigned;
   const uploadedAt = plans.find(p=>p._uploadedAt)?._uploadedAt;
-  const uploadStr  = uploadedAt ? ` · Uploaded ${formatRelativeTime(new Date(uploadedAt))}` : '';
+  const uploadStr  = uploadedAt ? `Uploaded ${formatRelativeTime(new Date(uploadedAt))}` : '';
 
   const metricsEl = $$('planMetrics');
   if(metricsEl) metricsEl.innerHTML = `
-    <div class="metric"><div class="metric-label">Total Records</div><div class="metric-value">${plans.length}</div><div class="metric-sub">${uploadStr}</div></div>
-    <div class="metric"><div class="metric-label">Active</div><div class="metric-value" style="color:#166534">${active}</div><div class="metric-sub">Current memberships</div></div>
-    <div class="metric"><div class="metric-label">Assigned</div><div class="metric-value" style="color:#1d4ed8">${assigned}</div><div class="metric-sub">${unassigned} unassigned</div></div>
-    <div class="metric"><div class="metric-label">Expired / Other</div><div class="metric-value" style="color:#9ca3af">${expired}</div><div class="metric-sub"></div></div>`;
+    <div class="metric"><div class="metric-label">Total Plans Sold (YTD)</div><div class="metric-value" style="color:#166534">${total}</div><div class="metric-sub">${uploadStr}</div></div>
+    <div class="metric"><div class="metric-label">Top Seller</div><div class="metric-value" style="color:#1d4ed8;font-size:18px">${escHtml(rows[0]?.[0]||'—')}</div><div class="metric-sub">${rows[0]?.[1]||0} plans</div></div>
+    <div class="metric"><div class="metric-label">Team Members</div><div class="metric-value">${rows.length}</div><div class="metric-sub">with at least 1 plan</div></div>`;
 
-  applyPlanFilter();
-}
-
-function applyPlanFilter() {
-  const plans = _uploadedPlans;
-  if(!plans.length) return;
-  const fromVal   = $$('planDateFrom')?.value || '';
-  const toVal     = $$('planDateTo')?.value   || '';
-  const typeVal   = $$('planTypeFilter')?.value || '';
-  const statusVal = $$('planStatusFilter')?.value || '';
-  const soldByVal = $$('planSoldByFilter')?.value || '';
-
-  let filtered = plans.filter(p => {
-    const startRaw = p.created_at || p.start_date || '';
-    const startStr = startRaw ? startRaw.split('T')[0] : '';
-    if(fromVal && startStr && startStr < fromVal) return false;
-    if(toVal   && startStr && startStr > toVal)   return false;
-    if(typeVal   && getPlanName(p) !== typeVal)    return false;
-    if(statusVal && (getPlanStatus(p)||'Active') !== statusVal) return false;
-    if(soldByVal === '__unassigned__') { if(p.sold_by && p.sold_by !== 'Unknown' && p.sold_by !== '—') return false; }
-    else if(soldByVal && (p.sold_by||'') !== soldByVal) return false;
-    return true;
-  });
-
-  const countEl = $$('planFilterCount');
-  if(countEl) countEl.textContent = `Showing ${filtered.length} of ${plans.length}`;
-  renderPlanRows(filtered);
-}
-
-function clearPlanFilters() {
-  const yr = new Date().getFullYear();
-  const el2 = $$('planDateFrom'); if(el2) el2.value = yr + '-01-01';
-  const el3 = $$('planDateTo');   if(el3) el3.value = new Date().toISOString().split('T')[0];
-  const el4 = $$('planTypeFilter');   if(el4) el4.value = '';
-  const el5 = $$('planStatusFilter'); if(el5) el5.value = '';
-  const el6 = $$('planSoldByFilter'); if(el6) el6.value = '';
-  applyPlanFilter();
-}
-
-function renderPlanRows(plans) {
   const tb = $$('plansBody');
-  if(!tb) return;
-  if(!plans.length) {
-    tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af">No plans match the current filters</td></tr>';
-    return;
+  if(tb) {
+    tb.innerHTML = rows.map(([name, count], i) => {
+      const pct = Math.round(count/max*100);
+      return `<tr>
+        <td style="color:#9ca3af;font-size:11px">${i+1}</td>
+        <td style="font-weight:600">${escHtml(name)}</td>
+        <td style="text-align:right;font-weight:700;color:#1A3A5C">${count}</td>
+        <td><div style="height:8px;background:#f3f4f6;border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#7C3AED;border-radius:99px"></div></div></td>
+      </tr>`;
+    }).join('');
   }
 
-  // Team member options for sold-by dropdown
-  const TEAM = [
-    '','Robert Danaher','Victoria Ellsworth','Eric Stoffel','Jason Cornell',
-    'Jody Serres','Doug McNamara','Lukas Schlosser','Gannon Blaiser',
-    'Andy Mitchell','Mark Daniels','Gordon Radant','Jon Glenn','Jeff Hohenauer'
-  ];
-
-  tb.innerHTML = plans.map((p, i) => {
-    const key      = getPlanKey(p);
-    const custName = getPlanCust(p);
-    const planName = getPlanName(p) || '—';
-    const status   = getPlanStatus(p) || 'Active';
-    const startRaw = p.created_at || p.start_date || '';
-    const endRaw   = p.end_date || '';
-    const parseD   = d => { if(!d) return null; const s=String(d).trim(); const dt=new Date(s.includes('T')?s:s+'T12:00:00'); return isNaN(dt)?null:dt; };
-    const fmtD     = dt => dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-    const startStr = fmtD(parseD(startRaw));
-    const endStr   = fmtD(parseD(endRaw));
-    const amount   = p.total_amount ? '$'+((p.total_amount/100).toFixed(2)) : p.amount ? '$'+(parseFloat(p.amount)||0).toFixed(2) : '—';
-
-    const sv  = status.toLowerCase();
-    const badge = sv.includes('active') ? `<span class="badge bg">Active</span>`
-      : sv.includes('expir') ? `<span class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A">${status}</span>`
-      : sv.includes('cancel') ? `<span class="badge br">${status}</span>`
-      : `<span class="badge bgr">${status}</span>`;
-
-    // Attribution — saved attribution takes priority, then auto-match, then suggestion
-    const currentSoldBy    = _planAttributions[key] || p._soldByName || '';
-    const suggestedTech    = p._suggestedTech || '';
-    const matchConf        = p._matchConf || 0;
-    const matchReason      = p._matchReason || p._suggestReason || '';
-    const isManual         = !!_planAttributions[key];
-    const isAutoMatched    = !isManual && !!p._soldByName && matchConf >= 80;
-    const isSuggested      = !isManual && !isAutoMatched && !!suggestedTech;
-    const isAssigned       = !!(currentSoldBy && currentSoldBy !== 'Unknown' && currentSoldBy !== '—');
-
-    // Confidence badge
-    const confBadge = matchConf >= 80 ? `<span title="${matchReason}" style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 5px;border-radius:99px;margin-left:4px;cursor:help">🟢 ${matchConf}%</span>`
-      : matchConf >= 50 ? `<span title="${matchReason}" style="font-size:9px;background:#fef9c3;color:#92400e;padding:1px 5px;border-radius:99px;margin-left:4px;cursor:help">🟡 ${matchConf}%</span>`
-      : '';
-
-    const soldByOpts = TEAM.map(m =>
-      `<option value="${escHtml(m)}" ${currentSoldBy===m?'selected':''}>${m || '— unassigned —'}</option>`
-    ).join('');
-
-    // Suggestion accept button for medium-confidence matches
-    const suggestRow = isSuggested ? `
-      <div style="margin-top:3px;padding:3px 6px;background:#fef9c3;border:1px solid #fde68a;border-radius:4px;font-size:10px;color:#92400e;display:flex;align-items:center;gap:6px">
-        <span title="${escHtml(matchReason)}">🟡 Suggested: <strong>${escHtml(suggestedTech)}</strong></span>
-        <button onclick="(function(sel,name,key){sel.value=name;_planAttributions[key]=name;sel.style.background='#f0fdf4';sel.style.borderColor='#86efac';})(this.closest('td').querySelector('select'),'${escHtml(suggestedTech)}','${escHtml(key)}')" style="font-size:9px;padding:1px 6px;background:#166534;color:#fff;border:none;border-radius:3px;cursor:pointer">✓ Accept</button>
-        <button onclick="this.parentElement.remove()" style="font-size:9px;padding:1px 6px;background:#dc2626;color:#fff;border:none;border-radius:3px;cursor:pointer">✗</button>
-      </div>` : '';
-
-    return `<tr style="${!isAssigned&&!isSuggested?'background:#fffbeb':isSuggested?'background:#fefce8':''}">
-      <td style="color:#9ca3af;font-size:11px">${i+1}</td>
-      <td style="font-weight:500">${escHtml(custName)}</td>
-      <td style="color:#1A3A5C;font-size:12px;max-width:160px">${escHtml(planName)}</td>
-      <td style="color:#6b7280;font-size:12px">${startStr}</td>
-      <td style="color:#6b7280;font-size:12px">${endStr}</td>
-      <td>${badge}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:4px">
-          <select data-plan-key="${escHtml(key)}" data-sold-by="${escHtml(currentSoldBy)}"
-            style="font-size:12px;padding:3px 6px;border:1px solid ${isAssigned?'#d1d5db':'#FDE68A'};border-radius:5px;flex:1;background:${isAssigned?'#fff':'#fffbeb'}"
-            onchange="_planAttributions['${escHtml(key)}']=this.value;this.dataset.soldBy=this.value;this.style.background=this.value?'#f0fdf4':'#fffbeb';this.style.borderColor=this.value?'#86efac':'#FDE68A'">
-            ${soldByOpts}
-          </select>
-          ${isAutoMatched ? confBadge : ''}
-        </div>
-        ${suggestRow}
-      </td>
-      <td style="color:#6b7280;font-size:12px">${amount}</td>
-    </tr>`;
-  }).join('');
+  if(status) status.innerHTML = `<span style="color:#166534">✅ ${total} plans sold across ${rows.length} team members</span>`;
 }
 
 
@@ -4943,7 +4779,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.68',  // dashboard version that generated this push
+    dash_version: 'v24.69',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5620,7 +5456,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.68',
+        dash_version:        'v24.69',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11757,31 +11593,16 @@ async function processPlanFile(file){
     const isAgg = newPlans.length>0 && newPlans[0].source==='upload_aggregate';
 
     if(isAgg){
-      // Aggregate format: merge by tech name — replace existing counts for known techs,
-      // keep records for techs not in this upload (they may be from a different period)
-      // Strategy: group new plans by soldByName, then replace all existing plans for
-      // those techs in _uploadedPlans, keeping any techs not in the new file.
-      const newBySoldBy = {};
-      newPlans.forEach(p => {
-        const name = p._soldByName || getPlanSoldBy(p);
-        if(!newBySoldBy[name]) newBySoldBy[name] = [];
-        newBySoldBy[name].push(p);
-      });
-
-      // Remove existing plans for techs that ARE in the new upload (they'll be replaced)
-      const techsInUpload = new Set(Object.keys(newBySoldBy));
-      const kept = (_uploadedPlans||[]).filter(p => {
-        const name = p._soldByName || getPlanSoldBy(p);
-        return !techsInUpload.has(name);
-      });
-
-      _uploadedPlans = [...kept, ...newPlans];
+      // Aggregate format is a complete YTD "Sold by employee" snapshot from HCP —
+      // fully replace previous data rather than merging by tech name. Partial
+      // merging caused stale records to accumulate across uploads (the old
+      // 845-plan staleness issue). This report is self-contained — trust it fully.
+      _uploadedPlans = newPlans;
       _plans = _uploadedPlans;
       _plansUploadedThisSession = true; // mark as freshly uploaded this session
 
-      const totalNew = newPlans.length;
       const totalNow = _uploadedPlans.length;
-      if(status) status.innerHTML=`<span style="color:#166534">✅ Merged ${totalNew} plan records from "${file.name}" — ${totalNow} total active plans</span>`;
+      if(status) status.innerHTML=`<span style="color:#166534">✅ ${totalNow} plans loaded from "${file.name}"</span>`;
     } else {
       // Detailed format: merge by HCP customer ID when available, else by key fields
       const isDetailedAgreement = newPlans.length > 0 && newPlans[0].source === 'upload_detailed';
@@ -11848,7 +11669,6 @@ async function processPlanFile(file){
     }
 
     ($$('planUploadBox') || {style:{}}).style.display='none';
-    $$('planDataView').style.display='block';
     populateFilters(_jobs,_estimates,_uploadedPlans);
     renderPlans(_uploadedPlans);
   }catch(err){
@@ -12072,7 +11892,6 @@ function clearPlanUpload(){
   _uploadedPlans=[];_plans=[];
   saveUploadedPlans();
   ($$('planUploadBox') || {style:{}}).style.display='';
-  $$('planDataView').style.display='none';
   const inp=$$('planFileInput');if(inp)inp.value='';
   renderPlans([]);
 }
