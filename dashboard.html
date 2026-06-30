@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.66</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.68</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.66</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.68</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.66</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.68</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1697,6 +1697,7 @@ const DEPT_MAP = {
   'Gannon Blaiser':  'HVAC',
   'Andy Mitchell':   'HVAC',
   'Andrew Mitchell': 'HVAC',  // alias
+  'Chris Hogan':     'HVAC',
   // Dispatch
   'Robert Danaher':     'Dispatch',
   'Bob Danaher':        'Dispatch',
@@ -2881,7 +2882,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.66
+  // ATTRIBUTION ENGINE — v24.68
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4942,7 +4943,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.66',  // dashboard version that generated this push
+    dash_version: 'v24.68',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5500,20 +5501,34 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         const PLMB_TECHS    = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='Plumbing').map(([n])=>n));
 
         // Revenue from _invoiceMap (most accurate — all paid invoices)
+        // Mixed crews: split revenue proportionally by tech count per dept,
+        // same rule used for the HCP Payments report upload — prevents a job
+        // with both an HVAC and Plumbing tech from crediting 100% to whichever
+        // tech happens to be listed first in HCP's assigned_employees array.
         const deptRev = {HVAC:0, Plumbing:0};
         const deptMonthly = {HVAC:new Array(12).fill(0), Plumbing:new Array(12).fill(0)};
         const curY = new Date().getFullYear();
         Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
           const job = _jobs.find(j=>j.id===jobId);
           if(!job) return;
-          const tech = getAssigned(job);
-          const dept = DEPT_MAP[tech];
-          if(dept !== 'HVAC' && dept !== 'Plumbing') return;
+          const techs = getAssignedList(job).map(e =>
+            ((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'');
+          const hvacN = techs.filter(t => DEPT_MAP[t]==='HVAC').length;
+          const plmbN = techs.filter(t => DEPT_MAP[t]==='Plumbing').length;
+          const totN  = hvacN + plmbN;
+          if(totN === 0) return; // no HVAC/Plumbing tech on this job
+          const hvacFrac = hvacN/totN, plmbFrac = plmbN/totN;
           payments.forEach(p => {
             const d = new Date(p.date+'T12:00:00');
             if(isNaN(d)||d.getFullYear()!==curY) return;
-            deptRev[dept]             += p.amount;
-            deptMonthly[dept][d.getMonth()] += p.amount;
+            if(hvacFrac > 0) {
+              deptRev.HVAC += p.amount * hvacFrac;
+              deptMonthly.HVAC[d.getMonth()] += p.amount * hvacFrac;
+            }
+            if(plmbFrac > 0) {
+              deptRev.Plumbing += p.amount * plmbFrac;
+              deptMonthly.Plumbing[d.getMonth()] += p.amount * plmbFrac;
+            }
           });
         });
 
@@ -5535,10 +5550,17 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
           ? Math.round(deptConv.Plumbing.converted/deptConv.Plumbing.total*100) : 0;
 
         // Avg job = revenue / paid jobs in dept
+        // Mixed-crew jobs count fractionally toward each dept's job count too
         const deptPaidJobs = {HVAC:0, Plumbing:0};
         jobs.filter(isJobPaid).forEach(j => {
-          const dept = DEPT_MAP[getAssigned(j)];
-          if(dept==='HVAC'||dept==='Plumbing') deptPaidJobs[dept]++;
+          const techs = getAssignedList(j).map(e =>
+            ((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'');
+          const hvacN = techs.filter(t => DEPT_MAP[t]==='HVAC').length;
+          const plmbN = techs.filter(t => DEPT_MAP[t]==='Plumbing').length;
+          const totN  = hvacN + plmbN;
+          if(totN === 0) return;
+          deptPaidJobs.HVAC     += hvacN/totN;
+          deptPaidJobs.Plumbing += plmbN/totN;
         });
 
         const hvacAvg = deptPaidJobs.HVAC > 0 ? Math.round(deptRev.HVAC/deptPaidJobs.HVAC) : 0;
@@ -5598,7 +5620,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.66',
+        dash_version:        'v24.68',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6923,6 +6945,32 @@ function toggleHCPReportsCard() {
   if(btn) btn.textContent = hidden ? 'Hide ▲' : 'Show ▼';
 }
 
+// Proper CSV parser — handles quoted fields containing commas and brackets
+function parseCSVLines(text) {
+  const rows = [];
+  const lines = text.trim().split('\n');
+  for(const line of lines) {
+    const row = [];
+    let cur = '', inQ = false;
+    for(let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if(ch === '"' && !inQ) { inQ = true; }
+      else if(ch === '"' && inQ) {
+        if(line[i+1] === '"') { cur += '"'; i++; } // escaped quote
+        else inQ = false;
+      } else if(ch === ',' && !inQ) {
+        row.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    row.push(cur.trim());
+    rows.push(row);
+  }
+  return rows;
+}
+
 function detectHCPReportType(lines) {
   // Flatten all header text from first 5 rows for scanning
   const header = lines.slice(0, 5).map(r => r.join(' ')).join(' ').toLowerCase();
@@ -6962,8 +7010,8 @@ function loadHCPReport(type, file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const lines = e.target.result.trim().split('\n')
-        .map(l => l.split(',').map(v => v.trim().replace(/^"|"$/g,'')));
+      // Proper CSV parse — handles quoted fields containing commas
+      const lines = parseCSVLines(e.target.result);
 
       // Detect what was actually uploaded
       const detected = detectHCPReportType(lines);
