@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.70</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.72</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.70</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.72</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.70</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.72</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -993,6 +993,13 @@ tr:hover td{background:#fafafa}
     </div>
 
     <div class="panel" id="tab-ty">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button id="ty-toggle-installs" onclick="setTYMode('installs')" style="padding:7px 16px;border:1px solid #BE185D;border-radius:7px;background:#BE185D;color:#fff;font-size:12px;font-weight:700;cursor:pointer">🔧 System Installs</button>
+        <button id="ty-toggle-referrals" onclick="setTYMode('referrals')" style="padding:7px 16px;border:1px solid #BE185D;border-radius:7px;background:#fff;color:#BE185D;font-size:12px;font-weight:700;cursor:pointer">🎁 Referrals</button>
+      </div>
+
+      <!-- ════ SYSTEM INSTALLS (existing) ════ -->
+      <div id="ty-installs-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
           <div class="sec-head" style="margin:0">💌 Thank You Cards — System Installs</div>
@@ -1018,6 +1025,69 @@ tr:hover td{background:#fafafa}
       </div>
       <div id="ty-deploy-warning" style="display:none;margin-top:12px;padding:10px 14px;background:#FFF9C3;border:1px solid #F59E0B;border-radius:7px;font-size:12px;color:#78350F">
         <strong>⚠ Apps Script needs redeployment</strong> — pull a fresh report after deploying to create the TY_Cards tab.
+      </div>
+      </div>
+
+      <!-- ════ REFERRALS (new) ════ -->
+      <div id="ty-referrals-section" style="display:none">
+        <div class="sec-head" style="margin-bottom:4px">🎁 Referral Thank You Cards</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:14px">Log a customer referral, track the gift card, and print a personalized thank you letter.</div>
+
+        <!-- Add referral form -->
+        <div style="background:#FDF2F8;border:1px solid #FBCFE8;border-radius:10px;padding:16px;margin-bottom:18px">
+          <div style="font-size:12px;font-weight:700;color:#9D174D;margin-bottom:12px">Add Referral</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Customer Name (who referred)</div>
+              <input type="text" id="ref-customer-name" placeholder="e.g. Jane Smith"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
+            </div>
+            <div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Referred New Customer's Name</div>
+              <input type="text" id="ref-referred-name" placeholder="e.g. Tom Johnson"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Customer Mailing Address</div>
+            <input type="text" id="ref-address" placeholder="123 Main St, Hastings, MN 55033"
+              style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Gift Card Amount</div>
+              <select id="ref-amount-select" onchange="document.getElementById('ref-amount-custom').style.display=this.value==='custom'?'block':'none'"
+                style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px;background:#fff">
+                <option value="25">$25</option>
+                <option value="50" selected>$50</option>
+                <option value="75">$75</option>
+                <option value="100">$100</option>
+                <option value="custom">Custom amount...</option>
+              </select>
+              <input type="number" id="ref-amount-custom" placeholder="Enter amount" style="display:none;margin-top:6px;width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
+            </div>
+            <div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Date</div>
+              <input type="date" id="ref-date" style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
+            </div>
+          </div>
+          <button onclick="addReferralCard()" style="width:100%;padding:9px;background:linear-gradient(135deg,#BE185D,#9D174D);color:#fff;border:none;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer">
+            🎁 Add Referral
+          </button>
+        </div>
+
+        <!-- List + actions -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:12px;font-weight:700;color:#374151">Referral Log <span id="refCount" style="color:#9ca3af;font-weight:400"></span></div>
+          <div style="display:flex;gap:8px">
+            <button onclick="printReferralLetters('pending')" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:700">🖨 Print Pending Letters</button>
+            <button onclick="printReferralLetters('sent')" style="font-size:12px;padding:5px 12px;border:1px solid #059669;border-radius:5px;background:#fff;color:#059669;cursor:pointer;font-weight:700">🖨 Print Sent</button>
+            <button onclick="printReferralLetters('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
+          </div>
+        </div>
+        <div id="referralList" style="display:flex;flex-direction:column;gap:8px">
+          <div style="text-align:center;padding:30px;color:#9ca3af;font-size:12px">No referrals logged yet — add one above.</div>
+        </div>
       </div>
     </div>
 
@@ -1823,6 +1893,11 @@ function connect(){
   loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
+  // Show the main UI shell immediately — tabs, metric cards, etc.
+  // Cached numbers (if any) populate via loadCachedSnapshotIntoUI() above.
+  // Print/Summary Report buttons stay hidden until a live pull provides
+  // full job-level records for those exports to work with.
+  $$('main').style.display='block';
   setPr('month',{target:document.querySelector('.preset.active')});
 
   // Start auto-pull if enabled
@@ -2897,7 +2972,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.70
+  // ATTRIBUTION ENGINE — v24.72
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4832,7 +4907,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.70',  // dashboard version that generated this push
+    dash_version: 'v24.72',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5509,7 +5584,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.70',
+        dash_version:        'v24.72',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9656,6 +9731,198 @@ function exportTYMailingList(){
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download='midstate_ty_cards_'+new Date().toISOString().split('T')[0]+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+// ============================================================
+// REFERRAL THANK YOU CARDS
+// ============================================================
+let _referralCards = []; // [{id, customerName, address, referredName, amount, dateAdded, status, sentDate, note}]
+
+function setTYMode(mode) {
+  const installsBtn = $$('ty-toggle-installs'), referralsBtn = $$('ty-toggle-referrals');
+  const installsSec = $$('ty-installs-section'), referralsSec = $$('ty-referrals-section');
+  const isInstalls = mode === 'installs';
+  if(installsSec) installsSec.style.display = isInstalls ? '' : 'none';
+  if(referralsSec) referralsSec.style.display = isInstalls ? 'none' : '';
+  if(installsBtn) { installsBtn.style.background = isInstalls?'#BE185D':'#fff'; installsBtn.style.color = isInstalls?'#fff':'#BE185D'; }
+  if(referralsBtn) { referralsBtn.style.background = !isInstalls?'#BE185D':'#fff'; referralsBtn.style.color = !isInstalls?'#fff':'#BE185D'; }
+  if(!isInstalls) {
+    const dateEl = $$('ref-date');
+    if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+    if(!_referralCards.length) loadReferralCards();
+  }
+}
+
+async function loadReferralCards() {
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy + '?action=getReferralCards', { redirect:'follow' });
+    const d = await res.json();
+    if(d.success && Array.isArray(d.cards)) {
+      _referralCards = d.cards;
+      console.log('[Referrals] Loaded', _referralCards.length, 'from Sheets');
+      renderReferralList();
+    }
+  } catch(e) { console.warn('[Referrals] load failed:', e.message); }
+}
+
+function addReferralCard() {
+  const customerName = $$('ref-customer-name')?.value?.trim();
+  const referredName = $$('ref-referred-name')?.value?.trim();
+  const address       = $$('ref-address')?.value?.trim();
+  const amountSel     = $$('ref-amount-select')?.value;
+  const amount         = amountSel === 'custom' ? ($$('ref-amount-custom')?.value||'').trim() : amountSel;
+  const dateAdded      = $$('ref-date')?.value || new Date().toISOString().split('T')[0];
+
+  if(!customerName || !referredName || !address) {
+    showToast('Please fill in customer name, referred name, and address.', 'error');
+    return;
+  }
+  if(!amount || isNaN(parseFloat(amount))) {
+    showToast('Please enter a valid gift card amount.', 'error');
+    return;
+  }
+
+  const card = {
+    id: 'ref_' + Date.now(),
+    customerName, referredName, address,
+    amount: parseFloat(amount).toFixed(0),
+    dateAdded, status: 'pending', sentDate: '', note: '',
+  };
+  _referralCards.unshift(card);
+  saveReferralCardToSheets(card);
+  renderReferralList();
+
+  ['ref-customer-name','ref-referred-name','ref-address','ref-amount-custom'].forEach(id => {
+    const el = $$(id); if(el) el.value = '';
+  });
+  $$('ref-amount-select').value = '50';
+  $$('ref-amount-custom').style.display = 'none';
+  showToast(`🎁 Referral added for ${customerName}`, 'success');
+}
+
+async function saveReferralCardToSheets(card) {
+  if(!_sheetsProxy) return;
+  try {
+    await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'saveReferralCard', ...card })
+    });
+  } catch(e) { console.warn('[Referrals] save failed:', e.message); }
+}
+
+function markReferralSent(id) {
+  const card = _referralCards.find(c => c.id === id);
+  if(!card) return;
+  card.status = 'sent';
+  card.sentDate = new Date().toISOString().split('T')[0];
+  saveReferralCardToSheets(card);
+  renderReferralList();
+  showToast('Marked as sent', 'success');
+}
+
+function markReferralPending(id) {
+  const card = _referralCards.find(c => c.id === id);
+  if(!card) return;
+  card.status = 'pending'; card.sentDate = '';
+  saveReferralCardToSheets(card);
+  renderReferralList();
+}
+
+async function deleteReferral(id) {
+  if(!confirm('Delete this referral record?')) return;
+  _referralCards = _referralCards.filter(c => c.id !== id);
+  renderReferralList();
+  if(_sheetsProxy) {
+    try {
+      await fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+        body: JSON.stringify({ action:'deleteReferralCard', id })
+      });
+    } catch(e) { console.warn('[Referrals] delete failed:', e.message); }
+  }
+  showToast('Referral removed', 'warning');
+}
+
+function renderReferralList() {
+  const listEl = $$('referralList');
+  const countEl = $$('refCount');
+  if(!listEl) return;
+  if(countEl) countEl.textContent = _referralCards.length ? `(${_referralCards.length})` : '';
+
+  if(!_referralCards.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:12px">No referrals logged yet — add one above.</div>';
+    return;
+  }
+
+  listEl.innerHTML = _referralCards.map(c => {
+    const isSent = c.status === 'sent';
+    return `<div style="background:${isSent?'#F0FDF4':'#fff'};border:1px solid ${isSent?'#BBF7D0':'#e5e7eb'};border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:20px;flex-shrink:0">🎁</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#111827">${escHtml(c.customerName)} <span style="font-weight:400;color:#9ca3af">referred</span> ${escHtml(c.referredName)}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">${escHtml(c.address)} · $${escHtml(c.amount)} gift card · ${c.dateAdded}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${isSent?'#DCFCE7':'#FEF3C7'};color:${isSent?'#166534':'#92400E'}">${isSent?'✅ Sent':'📬 Pending'}</span>
+        ${isSent
+          ? `<button onclick="markReferralPending('${c.id}')" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer;color:#6b7280">Undo</button>`
+          : `<button onclick="markReferralSent('${c.id}')" style="font-size:11px;padding:4px 10px;background:#166534;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">Mark Sent</button>`}
+        <button onclick="deleteReferral('${c.id}')" style="font-size:11px;padding:4px 8px;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:5px;cursor:pointer">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Print individual referral thank you letters — one full page per referral,
+// with the customer's mailing address positioned for window envelopes.
+function printReferralLetters(filter='pending') {
+  const cards = filter === 'all' ? _referralCards : _referralCards.filter(c => c.status === filter);
+  if(!cards.length) { alert(`No ${filter} referral letters to print.`); return; }
+
+  const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  const letterHtml = cards.map(c => {
+    const firstName = c.customerName.split(' ')[0] || c.customerName;
+    return `<div class="letter-page">
+      <div class="letter-date">${today}</div>
+      <div class="letter-address">
+        ${escHtml(c.customerName)}<br>
+        ${escHtml(c.address)}
+      </div>
+      <div class="letter-greeting">Dear ${escHtml(firstName)},</div>
+      <div class="letter-body">
+        <p>We wanted to take a moment to say thank you. When <strong>${escHtml(c.referredName)}</strong> reached out to us and mentioned you sent them our way, it truly made our day. There's no higher compliment than a referral &mdash; it tells us you trust the work we do and the way we treat people, and that means everything to our team.</p>
+        <p>As a small thank-you, we've included a <strong>$${escHtml(c.amount)} gift card</strong> for you. It's not much, but we hope it puts a smile on your face the way your referral did for us.</p>
+        <p>We're grateful to have customers like you, and we'll always be here if you or anyone you know needs us down the road.</p>
+        <p>With sincere thanks,</p>
+      </div>
+      <div class="letter-sign">
+        The Midstate Plumbing, Heating &amp; Cooling Team<br>
+        651-480-1195
+      </div>
+    </div>`;
+  }).join('');
+
+  const win = window.open('','_blank','width=900,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><title>Referral Thank You Letters — Midstate Plumbing</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    @page{size:letter portrait;margin:1in}
+    body{font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#1f2937;background:#fff}
+    @media print{button{display:none!important}}
+    .letter-page{page-break-after:always;min-height:9in;display:flex;flex-direction:column}
+    .letter-page:last-child{page-break-after:auto}
+    .letter-date{margin-bottom:36px;font-size:13px;color:#374151}
+    .letter-address{margin-bottom:32px;font-size:13px;line-height:1.6;color:#1f2937}
+    .letter-greeting{margin-bottom:16px;font-size:14px;font-weight:700}
+    .letter-body p{margin-bottom:14px;line-height:1.7;font-size:13px}
+    .letter-sign{margin-top:18px;font-size:13px;line-height:1.6;color:#1f2937}
+  </style></head><body>
+  ${letterHtml}
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 function showAutoPullSettings(){
