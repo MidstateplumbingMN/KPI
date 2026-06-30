@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.69</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.70</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.69</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.70</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.69</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.70</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1737,6 +1737,56 @@ function saveAttr(){ /* Attribution saved to Sheets on pull */ }
 // ============================================================
 // AUTH
 // ============================================================
+// ============================================================
+// CACHED SNAPSHOT — show last-known numbers immediately on connect,
+// before requiring a fresh HCP pull. Reads the lightweight KPI_Dashboard
+// summary tab (already saved on every pull) — NOT full job/estimate records,
+// so the Jobs/Estimates/Attribution tables still need a real pull to populate.
+// ============================================================
+async function loadCachedSnapshotIntoUI() {
+  if(!_sheetsProxy) return;
+  try {
+    const url = `${_sheetsProxy}?action=getCSV&tab=KPI_Dashboard`;
+    const res = await fetch(url, {redirect:'follow'});
+    const text = await res.text();
+    if(!text.trim()) return;
+
+    const rows = text.trim().split('\n').map(l => {
+      // Simple 2-column key,value CSV — value may be quoted
+      const m = l.match(/^([^,]*),(.*)$/);
+      return m ? [m[1], m[2].replace(/^"|"$/g,'').replace(/""/g,'"')] : [l, ''];
+    });
+    const snap = {};
+    rows.slice(1).forEach(([k,v]) => { if(k) snap[k] = v; });
+
+    if(!snap.pull_date) return; // nothing meaningful cached yet
+
+    const rev    = parseFloat(snap.total_revenue)||0;
+    const jobs   = parseInt(snap.total_jobs)||0;
+    const avg    = parseFloat(snap.avg_job)||0;
+    const open   = parseInt(snap.open_is)||0;
+    const paid   = parseInt(snap.paid_jobs)||0;
+
+    if(rev > 0 || jobs > 0) {
+      $$('jobMetrics').innerHTML = `
+        <div class="metric"><div class="metric-label">Revenue (paid)</div><div class="metric-value">${dollars(rev)}</div><div class="metric-sub">${paid} paid & complete · cached</div></div>
+        <div class="metric"><div class="metric-label">Total jobs</div><div class="metric-value">${jobs}</div></div>
+        <div class="metric"><div class="metric-label">Avg job value</div><div class="metric-value">${dollars(avg)}</div></div>
+        <div class="metric"><div class="metric-label">Open/scheduled</div><div class="metric-value">${open}</div></div>`;
+    }
+
+    const pulledAt = new Date(snap.pull_date);
+    const ago = isNaN(pulledAt) ? '' : formatRelativeTime(pulledAt);
+    const dateRange = (snap.date_from && snap.date_to) ? ` (${snap.date_from} → ${snap.date_to})` : '';
+    $$('statusBar').innerHTML = `📦 Showing cached numbers from last pull ${ago}${dateRange} — <strong>click Pull report or Full Pull to refresh and load job-level detail</strong>`;
+    $$('statusBar').style.color = '#92400E';
+
+    console.log('[Cached Snapshot] Loaded last-known metrics from', snap.pull_date);
+  } catch(e) {
+    console.warn('[Cached Snapshot] Could not load:', e.message);
+  }
+}
+
 function connect(){
   const w=document.getElementById('workerUrl').value.trim().replace(/\/$/,'');
   const t=document.getElementById('apiToken').value.trim();
@@ -1758,6 +1808,8 @@ function connect(){
     loadHolidays();
     loadMotivations();
   });
+  // Show last-known headline numbers immediately, before any live pull
+  if(_sheetsProxy) loadCachedSnapshotIntoUI();
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
   loadAttr();
   loadIS();
@@ -2776,6 +2828,7 @@ async function loadAll(){
     $$('summaryBtn').style.display='';
     $$('refreshAllBtn').style.display='';
     $$('statusBar').textContent=`✓ ${jobs.length} jobs · ${estimates.length} estimates · ${plans.length} plans · ${employees.length} employees · ${from} → ${to}`;
+    $$('statusBar').style.color=''; // clear any "cached data" styling from a prior session
     $$('printDateRange').textContent=`${from} → ${to} · Generated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}`;
 
     // Mark all other tabs as needing a render — they'll render on first click
@@ -2844,7 +2897,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.69
+  // ATTRIBUTION ENGINE — v24.70
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4779,7 +4832,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.69',  // dashboard version that generated this push
+    dash_version: 'v24.70',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5456,7 +5509,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.69',
+        dash_version:        'v24.70',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
