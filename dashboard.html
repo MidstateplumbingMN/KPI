@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.77</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.78</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.77</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.78</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.77</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.78</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2977,7 +2977,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.77
+  // ATTRIBUTION ENGINE — v24.78
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4912,7 +4912,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.77',  // dashboard version that generated this push
+    dash_version: 'v24.78',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5589,7 +5589,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.77',
+        dash_version:        'v24.78',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10109,6 +10109,7 @@ function printReferralLetters(filter='pending') {
       <div class="letter-body">
         <p>We wanted to take a moment to say thank you. When <strong>${escHtml(c.referredName)}</strong> reached out to us and mentioned you sent them our way, it truly made our day. There's no higher compliment than a referral &mdash; it tells us you trust the work we do and the way we treat people, and that means everything to our team.</p>
         <p>As a small thank-you, we've included a <strong>$${escHtml(c.amount)} gift card</strong> for you. It's not much, but we hope it puts a smile on your face the way your referral did for us.</p>
+        <p>If you haven't already, we'd be truly grateful if you'd take a moment to leave us an honest review on Google &mdash; it helps other homeowners in the area find us.</p>
         <p>We're grateful to have customers like you, and we'll always be here if you or anyone you know needs us down the road.</p>
         <p>With sincere thanks,</p>
       </div>
