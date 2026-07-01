@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.75</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.77</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.75</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.77</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.75</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.77</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2485,6 +2485,7 @@ function showTab(t){
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
+    // renderTYCards handles both live (post-pull) and cached (pre-pull) display
     fetchTYCardsFromSheets().then(()=>renderTYCards());
   }
 }
@@ -2976,7 +2977,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.75
+  // ATTRIBUTION ENGINE — v24.77
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4911,7 +4912,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.75',  // dashboard version that generated this push
+    dash_version: 'v24.77',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5588,7 +5589,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.75',
+        dash_version:        'v24.77',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9615,59 +9616,18 @@ async function syncTYSalesToSheets() {
   } catch(e) { console.warn('[TY Cards] Cache sync failed:', e.message); }
 }
 
-// Show cached customer/equipment data immediately on connect, before any live
-// pull. Simplified read-only table — doesn't try to reconstruct full job
-// objects, just renders the flat cached fields directly.
-let _tySalesCache = []; // last-loaded customer list (cached or live) — reused by referral picker
-
+// Populate _tySalesCache from Sheets on connect.
+// Rendering is deferred to renderTYCards() which is called when the tab is opened,
+// so the data is ready but we don't write into a hidden panel.
 async function loadCachedTYSalesIntoUI() {
-  if(!_sheetsProxy || _jobs.length) return; // only show cache if no live data yet
+  if(!_sheetsProxy) return;
   try {
     const res = await fetch(_sheetsProxy + '?action=getTYSalesCache', { redirect:'follow' });
     const d = await res.json();
     if(!d.success || !d.sales || !d.sales.length) return;
-
-    _tySalesCache = d.sales; // store for referral customer picker
-
-    const el = $$('tyContent');
-    if(!el) return;
-
-    const sales = d.sales;
-    const pending = sales.filter(s => s.status === 'pending').length;
-    const sent = sales.filter(s => s.status === 'sent').length;
-    const totalRev = sales.reduce((s,r) => s + (parseFloat(r.revenue)||0), 0);
-    const updatedAt = sales[0]?.updatedAt;
-    const ago = updatedAt ? formatRelativeTime(new Date(updatedAt)) : '';
-
-    el.innerHTML = `
-      <div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;margin-bottom:12px">
-        📦 Showing cached data from last pull ${ago} — pull a fresh report to refresh and enable status changes
-      </div>
-      <div class="metrics" style="margin-bottom:16px">
-        <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.length}</div></div>
-        <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending}</div></div>
-        <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent}</div></div>
-        <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(totalRev)}</div></div>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Customer</th><th>Address</th><th>Phone</th><th>Equipment</th><th>Install Date</th><th>Revenue</th><th>Status</th>
-          </tr></thead>
-          <tbody>
-            ${sales.map(s => `<tr>
-              <td style="font-weight:600">${escHtml(s.customerName)}</td>
-              <td style="font-size:11px;color:#6b7280">${escHtml(s.address)}</td>
-              <td style="font-size:11px;white-space:nowrap">${escHtml(s.phone)||'—'}</td>
-              <td><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:700;color:#fff;background:${s.equipColor||'#6b7280'}">${s.equipIcon||''} ${escHtml(s.equipLabel)||'?'}</span></td>
-              <td style="font-size:11px;white-space:nowrap">${s.installDate||'—'}</td>
-              <td style="font-size:11px">${dollars(parseFloat(s.revenue)||0)}</td>
-              <td><span style="font-size:10px;font-weight:700;color:${s.status==='sent'?'#166534':'#DC2626'}">${s.status==='sent'?'✅ Sent':'📬 Pending'}</span></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  } catch(e) { console.warn('[TY Cards] Cached load failed:', e.message); }
+    _tySalesCache = d.sales;
+    console.log('[TY Cards] Loaded', d.sales.length, 'cached records');
+  } catch(e) { console.warn('[TY Cards] Cache load failed:', e.message); }
 }
 
 
@@ -9685,9 +9645,65 @@ function setTYRange(range) {
   renderTYCards();
 }
 
+// Render a read-only view from cached Sheets data when no live pull has happened
+function renderTYCardsFromCache(sales) {
+  const el = $$('tyContent');
+  if(!el || !sales.length) return;
+
+  const pending  = sales.filter(s => s.status === 'pending').length;
+  const sent     = sales.filter(s => s.status === 'sent').length;
+  const totalRev = sales.reduce((s,r) => s + (parseFloat(r.revenue)||0), 0);
+  const updatedAt = sales[0]?.updatedAt;
+  const ago = updatedAt ? formatRelativeTime(new Date(updatedAt)) : '';
+
+  el.innerHTML = `
+    <div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span>📦 Cached data from last pull ${ago} — pull a fresh report to update</span>
+      <span style="font-size:11px;color:#9ca3af">${sales.length} equipment installs</span>
+    </div>
+    <div class="metrics" style="margin-bottom:16px">
+      <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.length}</div></div>
+      <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending}</div></div>
+      <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent}</div></div>
+      <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(totalRev)}</div></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Customer</th><th>Address</th><th>Equipment</th>
+          <th>Install Date</th><th>Revenue</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${sales.map(s => `<tr>
+            <td style="font-weight:600">${escHtml(s.customerName)}</td>
+            <td style="font-size:11px;color:#6b7280">${escHtml(s.address)||'—'}</td>
+            <td><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:700;color:#fff;background:${s.equipColor||'#6b7280'}">${s.equipIcon||''} ${escHtml(s.equipLabel)||'?'}</span></td>
+            <td style="font-size:11px;white-space:nowrap">${s.installDate||'—'}</td>
+            <td style="font-size:11px">${dollars(parseFloat(s.revenue)||0)}</td>
+            <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;
+              background:${s.status==='sent'?'#DCFCE7':'#FEF3C7'};
+              color:${s.status==='sent'?'#166534':'#92400E'}">
+              ${s.status==='sent'?'✅ Sent':'📬 Pending'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function renderTYCards(){
   const el=$$('tyContent');
   if(!el) return;
+
+  // If no live pull yet — show cached data from Sheets with a "cached" badge
+  if(!_jobs.length) {
+    if(_tySalesCache.length) {
+      renderTYCardsFromCache(_tySalesCache);
+    } else {
+      el.innerHTML='<div style="text-align:center;padding:40px;color:#9ca3af">Pull a report to see equipment sales.<br><span style="font-size:11px">Or — data will appear here automatically once a pull has completed and been synced.</span></div>';
+    }
+    return;
+  }
+
   const sales=getTYSales();
   const pending=sales.filter(j=>!_tyCards[j.id]||_tyCards[j.id].status==='pending');
   const sent=sales.filter(j=>_tyCards[j.id]?.status==='sent');
@@ -9899,6 +9915,7 @@ function exportTYMailingList(){
 // REFERRAL THANK YOU CARDS
 // ============================================================
 let _referralCards = []; // [{id, customerName, address, referredName, amount, dateAdded, status, sentDate, note}]
+let _tySalesCache  = []; // flat cached records from TY_Sales_Cache Sheets tab
 
 function setTYMode(mode) {
   const installsBtn = $$('ty-toggle-installs'), referralsBtn = $$('ty-toggle-referrals');
@@ -10038,6 +10055,33 @@ function renderReferralList() {
 
 // Print individual referral thank you letters — one full page per referral,
 // with the customer's mailing address positioned for window envelopes.
+function formatMailingAddress(raw) {
+  if(!raw) return '';
+  const addr = raw.trim();
+  const parts = addr.split(',').map(s=>s.trim()).filter(Boolean);
+  const stateZipRe = /^([A-Z]{2})\.?\s+(\d{5}(?:-\d{4})?)$/i;
+
+  if(parts.length >= 4) {
+    return `${escHtml(parts[0])}<br>${escHtml(parts[1])}, ${escHtml(parts[2].toUpperCase())} ${escHtml(parts[3])}`;
+  }
+  if(parts.length === 3 && stateZipRe.test(parts[2])) {
+    const m = parts[2].match(stateZipRe);
+    return `${escHtml(parts[0])}<br>${escHtml(parts[1])}, ${escHtml(m[1].toUpperCase())} ${escHtml(m[2])}`;
+  }
+  // No reliable comma between street and city — try street-suffix heuristic
+  const suffixRe = '(?:St|Street|Ave|Avenue|Ln|Lane|Dr|Drive|Rd|Road|Blvd|Boulevard|Ct|Court|Cir|Circle|Way|Pl|Place|Ter|Terrace|Pkwy|Parkway|Hwy|Highway|Trail|Loop)';
+  const re = new RegExp('^(\\d+\\s+.*?\\b' + suffixRe + '\\.?)\\s+(?!\\d)(.+?),?\\s*([A-Z]{2}),?\\s+(\\d{5}(?:-\\d{4})?)$', 'i');
+  const m = addr.match(re);
+  if(m) {
+    const street = m[1].trim(), city = m[2].trim(), state = m[3].toUpperCase(), zip = m[4];
+    return `${escHtml(street)}<br>${escHtml(city)}, ${escHtml(state)} ${escHtml(zip)}`;
+  }
+  if(parts.length === 3) {
+    return `${escHtml(parts[0])}<br>${escHtml(parts[1])}, ${escHtml(parts[2])}`;
+  }
+  return escHtml(addr);
+}
+
 function printReferralLetters(filter='pending') {
   const cards = filter === 'all' ? _referralCards : _referralCards.filter(c => c.status === filter);
   if(!cards.length) { alert(`No ${filter} referral letters to print.`); return; }
@@ -10059,7 +10103,7 @@ function printReferralLetters(filter='pending') {
       ${letterhead}
       <div class="letter-address">
         ${escHtml(c.customerName)}<br>
-        ${escHtml(c.address)}
+        ${formatMailingAddress(c.address)}
       </div>
       <div class="letter-greeting">Dear ${escHtml(firstName)},</div>
       <div class="letter-body">
