@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.79</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.80</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.79</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.80</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.79</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.80</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2979,7 +2979,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.79
+  // ATTRIBUTION ENGINE — v24.80
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4837,9 +4837,14 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const topEmpConv=Object.values(map).filter(e=>!e.installer&&e.estimates>=3).sort((a,b)=>(b.converted/b.estimates)-(a.converted/a.estimates))[0];
 
   // Total plans
-  // Total plans: prefer uploaded plan count (authoritative) over KPI-derived count
+  // Total plans: uses the SAME number the dashboard's Service Plans tab displays
+  // ("Total Plans Sold (YTD)" = plans.length, unfiltered) so companion's
+  // "Total Active Plans" always matches the dashboard exactly — one source of
+  // truth for club memberships. Previously this filtered by isPlanActive(),
+  // which silently produced a different, smaller number than what the
+  // dashboard showed — fixed 2026-07-02 per explicit request.
   const kpiPlanCount = Object.values(map).reduce((s,e)=>s+e.plans,0);
-  const totalPlans = _uploadedPlans.length > 0 ? _uploadedPlans.filter(isPlanActive).length : kpiPlanCount;
+  const totalPlans = _uploadedPlans.length > 0 ? _uploadedPlans.length : kpiPlanCount;
 
   // Fetch weather forecast from weatherapi.com (1 day = free tier)
   let _weatherSnap = {};
@@ -4914,7 +4919,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.79',  // dashboard version that generated this push
+    dash_version: 'v24.80',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5591,7 +5596,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.79',
+        dash_version:        'v24.80',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
