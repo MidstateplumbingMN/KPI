@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.78</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.79</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -423,7 +423,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.78</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.79</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.78</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.79</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2645,21 +2645,23 @@ async function loadAll(){
       }
     }, 45000);
     const jSchedQ=`?scheduled_start_min=${from}T00:00:00Z&scheduled_start_max=${to}T23:59:59Z`;
-    // HCP estimates endpoint does NOT support scheduled_start_min/max — use created_at only
-    const cQ=`?created_at_min=${from}T00:00:00Z&created_at_max=${to}T23:59:59Z`;
     async function tryPlans(){
       // HCP does not expose service plans via REST API (all endpoints return 404)
       // Plans are detected from estimate options and job descriptions after load
       return [];
     }
-    // Estimate fetch strategy:
-    // - Short range (≤ 14 days): fetch estimates updated in last 30 days only (fast)
-    // - Long range (> 14 days / YTD): full fetch with created_at filter
-    // Estimates — always fetch full range by scheduled_start
-    // HCP spec only supports scheduled_start_min/max, no updated_at filter
+    // Estimates — filtered by scheduled_start, same as Jobs.
+    // FIXED (2026-07-02): previously filtered by created_at_min/max, but HCP's
+    // /estimates endpoint does not support that parameter at all (confirmed
+    // against housecall_v1.yaml) — HCP silently ignored it and returned every
+    // estimate on every pull (~12k records) regardless of date range, on both
+    // Quick Pull and Full Pull. scheduled_start_min/max is genuinely supported.
+    // TRADEOFF: unscheduled estimates (no scheduled_start set) have nothing to
+    // filter on, so they will only appear on a Full Pull, not a date-scoped
+    // Quick Pull — this is a deliberate, known behavior change, not a bug.
     async function fetchEstimates(){
-      stepLog('📋 Estimates (full range)...');
-      return await fetchAll('/estimates'+cQ, ['estimates','data','results']);
+      stepLog('📋 Estimates...');
+      return await fetchAll('/estimates'+jSchedQ, ['estimates','data','results']);
     }
     // Fetch jobs scheduled in the date range.
     // HCP API only supports scheduled_start_min/max for filtering jobs —
@@ -2977,7 +2979,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.78
+  // ATTRIBUTION ENGINE — v24.79
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4912,7 +4914,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.78',  // dashboard version that generated this push
+    dash_version: 'v24.79',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5589,7 +5591,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.78',
+        dash_version:        'v24.79',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
