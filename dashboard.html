@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.80</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.83</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -79,7 +79,7 @@ button{cursor:pointer;background:#fff}
 /* TABS */
 .tabs{display:flex;border-bottom:1.5px solid #e5e7eb;margin-bottom:18px;flex-wrap:wrap}
 .tabs{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px 0;background:#fff;border-bottom:2px solid #e5e7eb;margin-bottom:0}
-.tab{font-size:12px;padding:6px 13px;cursor:pointer;border:1.5px solid transparent;border-radius:7px 7px 0 0;background:#f3f4f6;color:#6b7280;font-weight:500;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:all .15s;margin-bottom:-2px;border-bottom:2px solid transparent}
+.tab{font-size:12px;padding:6px 13px;cursor:pointer;border:1px solid #e5e7eb;border-radius:7px 7px 0 0;background:#f8f9fb;color:#6b7280;font-weight:500;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:all .15s;margin-bottom:-2px;border-bottom:2px solid transparent}
 .tab:hover{background:#e9ecef;color:#374151}
 .tab.active{font-weight:700;background:#fff;border-color:#e5e7eb;border-bottom-color:#fff;color:#111}
 /* Each tab has a unique left-border accent color when active */
@@ -97,6 +97,10 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="ty"]:hover{background:#FDF2F8;color:#BE185D}
 .tab[data-tab="orders"].active{border-top:3px solid #E8640A;color:#E8640A}
 .tab[data-tab="orders"]:hover{background:#FFF7ED;color:#E8640A}
+.tab[data-tab="announcements"].active{border-top:3px solid #4F46E5;color:#4F46E5}
+.tab[data-tab="announcements"]:hover{background:#EEF2FF;color:#4F46E5}
+.tab[data-tab="wallboard"].active{border-top:3px solid #64748B;color:#64748B}
+.tab[data-tab="wallboard"]:hover{background:#F1F5F9;color:#64748B}
 /* Hover accent previews */
 .tab[data-tab="jobs"]:hover{background:#EBF0F7;color:#1A3A5C}
 .tab[data-tab="estimates"]:hover{background:#e0f2fe;color:#0891b2}
@@ -113,6 +117,28 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="spotlight"]:hover{background:#FFFBEB;color:#F59E0B}
 .tab[data-tab="promos"].active{border-top:3px solid #EC4899;color:#EC4899}
 .tab[data-tab="promos"]:hover{background:#FDF2F8;color:#EC4899}
+/* Resting-state accent — a thin, muted top-border per tab so each one is
+   visually distinct even before you hover or click it, not just after.
+   Deliberately lighter/thinner than the .active (3px, full color) and
+   :hover (tinted background) states above, so the active tab still reads
+   as clearly "selected" rather than just another tab in the row. */
+.tab:not(.active){border-top:2px solid transparent}
+.tab[data-tab="jobs"]:not(.active){border-top-color:#c7d3e0}
+.tab[data-tab="estimates"]:not(.active){border-top-color:#a5dff0}
+.tab[data-tab="attr"]:not(.active){border-top-color:#d8c9f7}
+.tab[data-tab="kpi"]:not(.active){border-top-color:#a0e0d8}
+.tab[data-tab="goals"]:not(.active){border-top-color:#f5c298}
+.tab[data-tab="cal"]:not(.active){border-top-color:#a9c6f5}
+.tab[data-tab="is"]:not(.active){border-top-color:#f0b3b3}
+.tab[data-tab="contest"]:not(.active){border-top-color:#f0cb94}
+.tab[data-tab="unpaid"]:not(.active){border-top-color:#e5a3a3}
+.tab[data-tab="plans"]:not(.active){border-top-color:#9bdcb9}
+.tab[data-tab="ty"]:not(.active){border-top-color:#f2b8d1}
+.tab[data-tab="orders"]:not(.active){border-top-color:#f5c298}
+.tab[data-tab="announcements"]:not(.active){border-top-color:#c1c4f5}
+.tab[data-tab="wallboard"]:not(.active){border-top-color:#c7ced6}
+.tab[data-tab="spotlight"]:not(.active){border-top-color:#f7d99b}
+.tab[data-tab="promos"]:not(.active){border-top-color:#f5b8d5}
 .tab .badge-count{font-size:10px;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700;line-height:1.4}
 .panel{display:none}.panel.active{display:block}
 /* METRICS */
@@ -423,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.80</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.83</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -452,10 +478,10 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.80</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.83</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
-      <button class="pull-btn" id="fullPullBtn" onclick="loadAll()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
+      <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
       <button class="sec-btn no-print" id="printBtn" style="display:none" onclick="openPrintSelector()">🖨 Print / PDF</button>
       <button class="sec-btn no-print" id="summaryBtn" style="display:none" onclick="openSummaryReport()">📊 Summary Report</button>
       <button class="sec-btn no-print refresh-all-btn" id="refreshAllBtn" style="display:none" onclick="refreshAll()">↻ Refresh all</button>
@@ -1271,21 +1297,35 @@ tr:hover td{background:#fafafa}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
           <div style="font-size:16px;font-weight:800;color:#1A3A5C">🏠 Service Plans Sold</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload HCP's "Service plans sold by employee" report — that's it, no per-customer assignment needed</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload either HCP report below — the file is auto-detected, no need to pick a type</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <label class="plan-upload-btn" for="planFileInput" style="padding:7px 14px;font-size:12px;cursor:pointer">
             📁 Upload Report
             <input type="file" id="planFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handlePlanUpload(this)">
           </label>
-          <button class="is-btn danger" style="font-size:11px" onclick="clearPlanUpload()">🗑 Clear</button>
+          <button class="is-btn danger" style="font-size:11px" onclick="clearPlanUpload()">🗑 Clear YTD</button>
+          <button class="is-btn danger" style="font-size:11px" onclick="clearActivePlans()">🗑 Clear Active</button>
         </div>
       </div>
 
       <!-- Status -->
       <div id="planUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
+      <div style="font-size:11px;color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-bottom:8px">
+        📍 For the per-tech leaderboard below: HCP → Reporting → Service Plans → Service plans sold by employee → set range Year to Date → export CSV
+      </div>
       <div style="font-size:11px;color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-bottom:14px">
-        📍 HCP → Reporting → Service Plans → Service plans sold by employee → set range Year to Date → export CSV
+        📍 For the Total Active Plans count: HCP → Reporting → Service Plans → Service agreements → export the full active-agreements CSV
+      </div>
+
+      <!-- Total Active Plans — separate metric, never summed with the YTD leaderboard below -->
+      <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.05em">Total Active Plans</div>
+          <div style="font-size:10px;color:#7c6a9c;margin-top:2px">All currently active plans, regardless of when sold — separate from YTD sold-by-employee below</div>
+          <div id="activePlansSub" style="font-size:10px;color:#9ca3af;margin-top:2px">No data uploaded yet</div>
+        </div>
+        <div id="activePlansTotal" style="font-size:32px;font-weight:900;color:#5B21B6">0</div>
       </div>
 
       <!-- Total + leaderboard -->
@@ -1658,7 +1698,9 @@ const INSTALLER_NAMES = ['Andy Mitchell','Gannon Blaiser'];
 // ── ALL STATE VARIABLES DECLARED HERE ────────────────────────
 // Must be declared before connect() and all init functions
 // (let has no hoisting — declaring late causes temporal dead zone errors)
-let _uploadedPlans   = [];       // service plan CSV upload — authoritative source
+let _uploadedPlans   = [];       // service plan CSV upload — YTD "Sold by employee" aggregate — authoritative source for the per-tech leaderboard
+let _activePlans     = [];       // separate: detailed HCP service agreement export — ALL currently active plans regardless of when sold. Tracked independently so it never mixes with / double-counts against _uploadedPlans.
+let _activePlansUploadedThisSession = false;
 let _plansUploadedThisSession = false;
 let _planAttributions = {};      // planKey → techName, loaded from SP_Attribution Sheets tab
 let _spotlights      = [];
@@ -1875,6 +1917,7 @@ function connect(){
   loadAllSettingsFromSheets().then(() => {
     console.log('[Connect] Settings loaded from Sheets');
     loadPlansFromSheets();
+    loadActivePlansFromSheets();
     loadTYCards();
     loadSpotlights();
     loadAnnouncements();
@@ -1892,7 +1935,7 @@ function connect(){
   loadKPIEmpFilter();
   loadUploadedPlans();
   // Restore plans from Sheets (authoritative) — overrides localStorage cache if Sheets has data
-  if(_sheetsProxy) { loadPlansFromSheets(); }
+  if(_sheetsProxy) { loadPlansFromSheets(); loadActivePlansFromSheets(); }
   loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
@@ -2615,6 +2658,27 @@ async function quickPull() {
   window._isQuickPull = false;
 }
 
+async function fullPull() {
+  // FIXED (2026-07-02): Full Pull previously called loadAll() directly, which
+  // just reads whatever is currently in the dateFrom/dateTo fields — if a
+  // Quick Pull ran earlier, those fields were still sitting on a 7-day
+  // window, so "Full Pull" silently also only fetched 7 days despite its
+  // "Full YTD pull" label/tooltip. Full Pull now explicitly resets the date
+  // range to Jan 1 → today before pulling, matching its stated behavior.
+  const today = new Date();
+  const from  = new Date(today.getFullYear(), 0, 1);
+  const fmt   = d => d.toISOString().split('T')[0];
+
+  const fromEl = $$('dateFrom');
+  const toEl   = $$('dateTo');
+  if(fromEl) fromEl.value = fmt(from);
+  if(toEl)   toEl.value   = fmt(today);
+
+  window._isQuickPull = false;
+  dashLog('info', `↻ Full Pull — YTD (${fmt(from)} → ${fmt(today)})`);
+  await loadAll();
+}
+
 async function loadAll(){
   // Abort any in-flight pull before starting a new one
   if(_pullController) {
@@ -2979,7 +3043,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.80
+  // ATTRIBUTION ENGINE — v24.83
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4919,7 +4983,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.80',  // dashboard version that generated this push
+    dash_version: 'v24.83',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5596,7 +5660,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.80',
+        dash_version:        'v24.83',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -12106,6 +12170,102 @@ function saveUploadedPlans(){
   } catch(e) { console.warn('[Plans] save failed:', e.message); }
 }
 
+// Persists _activePlans (the "total active, any sale date" dataset from the
+// detailed HCP service agreement export) to its OWN Sheets tab — kept
+// entirely separate from Service_Plans (the YTD-by-employee data above) so
+// the two never mix. Also pushes a simple total_active_plans count as a
+// KPI_Dashboard snapshot key so companion.html can display it directly
+// without needing to parse the full active-plans list client-side.
+function saveActivePlans(){
+  if(!_sheetsProxy) return;
+  const now = new Date().toISOString();
+  const flattened = _activePlans.map(p => ({
+    customer_name: getPlanCust(p),
+    plan_name:     getPlanName(p) || 'Home Club Maintenance',
+    sold_by_name:  p._soldByName || '',
+    created_at:    p.created_at || p.start_date || '',
+    end_date:      p.end_date   || '',
+    status:        getPlanStatus(p) || 'Active',
+    phone:         p.customer?.mobile_number || p.customer?.home_number || p.phone || '',
+    email:         p.customer?.email || p.email || '',
+    address:       p.customer?.address || p.address || '',
+    hcp_id:        p.hcp_id || p.customer?.id || '',
+    _uploadedAt:   p._uploadedAt || now,
+  }));
+  try {
+    fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      redirect:'follow',
+      body: JSON.stringify({ action:'syncActivePlans', plans: flattened, lastUploadedAt: now })
+    }).then(()=>{
+      // Also push the simple count to KPI_Dashboard so companion can read it
+      // without fetching/parsing the full active-plans list.
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+        body: JSON.stringify({ action:'syncSnapshotKeys', keys: { total_active_plans: _activePlans.length } })
+      }).catch(e => console.warn('[ActivePlans] snapshot key push failed:', e.message));
+    });
+  } catch(e) { console.warn('[ActivePlans] save failed:', e.message); }
+}
+
+// Restores _activePlans from its own Sheets tab on page load — mirrors
+// loadPlansFromSheets() but for the separate active-agreement dataset.
+async function loadActivePlansFromSheets(){
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy+'?action=getActivePlans', {redirect:'follow'});
+    const data = await res.json();
+    if(data.success && data.plans && data.plans.length > 0){
+      const plans = data.plans.map((p, i) => ({
+        id:           'active_plan_' + (p.hcp_id || i),
+        customer: {
+          first_name:  p.customer_name ? p.customer_name.split(' ')[0] : '—',
+          last_name:   p.customer_name ? p.customer_name.split(' ').slice(1).join(' ') : '',
+          id:          'active_cust_' + (p.hcp_id || i),
+          display_name: p.customer_name || '',
+          mobile_number: p.phone || '',
+          email:        p.email || '',
+          address:      p.address || '',
+        },
+        name:         p.plan_name || 'Home Club Maintenance',
+        total_amount: 1999,
+        _soldByName:  p.sold_by_name || '',
+        created_at:   p.created_at ? p.created_at + 'T12:00:00.000Z' : new Date().toISOString(),
+        end_date:     p.end_date   || '',
+        status:       p.status     || 'Active',
+        hcp_id:       p.hcp_id     || '',
+        phone:        p.phone      || '',
+        email:        p.email      || '',
+        address:      p.address    || '',
+        source:       'sheets_active',
+        _uploadedAt:  p._uploadedAt || data.lastUploadedAt || null,
+      }));
+      _activePlans = plans;
+      console.log('[ActivePlans] Restored', plans.length, 'active plans from Sheets');
+      renderActivePlansMetric();
+    }
+  } catch(e) { console.warn('[ActivePlans] Sheets restore failed:', e.message); }
+}
+
+// Updates the "Total Active Plans" metric card with the current _activePlans count.
+function renderActivePlansMetric(){
+  const el = $$('activePlansTotal');
+  if(el) el.textContent = _activePlans.length || 0;
+  const sub = $$('activePlansSub');
+  if(sub) {
+    const uploadedAt = _activePlans.find(p=>p._uploadedAt)?._uploadedAt;
+    sub.textContent = uploadedAt ? `Uploaded ${formatRelativeTime(new Date(uploadedAt))}` : 'No data uploaded yet';
+  }
+}
+
+function clearActivePlans(){
+  if(!confirm('Clear uploaded active service plan data?')) return;
+  _activePlans = [];
+  saveActivePlans();
+  renderActivePlansMetric();
+}
+
+
 // Drag and drop support
 document.addEventListener('DOMContentLoaded',function(){
   const box=$$('planUploadBox');
@@ -12152,21 +12312,28 @@ async function processPlanFile(file){
       // fully replace previous data rather than merging by tech name. Partial
       // merging caused stale records to accumulate across uploads (the old
       // 845-plan staleness issue). This report is self-contained — trust it fully.
+      // This is the YTD-by-employee dataset — kept entirely separate from
+      // _activePlans (the "total active, any sale date" dataset below) so the
+      // two numbers never mix or get double-counted.
       _uploadedPlans = newPlans;
       _plans = _uploadedPlans;
       _plansUploadedThisSession = true; // mark as freshly uploaded this session
 
       const totalNow = _uploadedPlans.length;
-      if(status) status.innerHTML=`<span style="color:#166534">✅ ${totalNow} plans loaded from "${file.name}"</span>`;
+      if(status) status.innerHTML=`<span style="color:#166534">✅ ${totalNow} YTD plans loaded from "${file.name}"</span>`;
+      saveUploadedPlans();
     } else {
       // Detailed format: merge by HCP customer ID when available, else by key fields
       const isDetailedAgreement = newPlans.length > 0 && newPlans[0].source === 'upload_detailed';
 
       if(isDetailedAgreement){
-        // HCP service agreement export = complete list of ALL active plans
-        // Always replace entirely — no merging needed.
+        // HCP service agreement export = complete list of ALL currently active
+        // plans, regardless of when they were sold. This is a DIFFERENT metric
+        // from the YTD-by-employee data above ("sold this year" vs. "active
+        // right now, any sale date") — tracked in its own _activePlans array,
+        // its own Sheets tab, and its own companion display so the two never
+        // get summed together or overwrite each other.
         // Preserve existing attributions (_planAttributions) so sold-by assignments survive.
-        // Apply existing attributions to new plans so they carry over.
         newPlans.forEach(p => {
           const key = getPlanKey(p);
           if(_planAttributions[key]) {
@@ -12174,11 +12341,11 @@ async function processPlanFile(file){
             p.sold_by = { first_name: _planAttributions[key].split(' ')[0], last_name: _planAttributions[key].split(' ').slice(1).join(' ') };
           }
         });
-        _uploadedPlans = newPlans;
-        _plans = _uploadedPlans;
-        _plansUploadedThisSession = true;
-        const attributed = newPlans.filter(p => p._soldByName).length;
-        if(status) status.innerHTML = `<span style="color:#166534">✅ Loaded ${newPlans.length} active agreements from "${file.name}" — ${attributed} already attributed</span>`;
+        _activePlans = newPlans;
+        _activePlansUploadedThisSession = true;
+        if(status) status.innerHTML = `<span style="color:#166534">✅ Loaded ${newPlans.length} active agreements from "${file.name}"</span>`;
+        saveActivePlans();
+        renderActivePlansMetric();
       } else {
         const existingKeys = new Set((_uploadedPlans||[]).map(p => {
           const soldBy = getPlanSoldBy(p);
@@ -12196,31 +12363,8 @@ async function processPlanFile(file){
         _uploadedPlans = [...(_uploadedPlans||[]), ...deduped];
         _plans = _uploadedPlans;
         if(status) status.innerHTML=`<span style="color:#166534">✅ Added ${deduped.length} new plan${deduped.length!==1?'s':''} from "${file.name}" (${newPlans.length-deduped.length} duplicates skipped) — ${_uploadedPlans.length} total</span>`;
+        saveUploadedPlans();
       }
-    }
-
-    saveUploadedPlans();
-
-    // Push merged data to Google Sheets — syncPlans handles dedup server-side too
-    if(_sheetsProxy) {
-      const plansPayload = _uploadedPlans.map(p => ({
-        plan_name:     getPlanName(p)||'Home Club Maintenance',
-        customer_name: getPlanCust(p)||'',
-        sold_by_name:  getPlanSoldBy(p)||'',
-        created_at:    p.created_at||new Date().toISOString(),
-        end_date:      p.end_date||'',
-        status:        getPlanStatus(p)||'Active',
-        phone:         p.customer?.phone||'',
-        email:         p.customer?.email||'',
-        address:       p.customer?.address||'',
-        hcp_id:        p.hcp_id||'',
-      }));
-      fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-        body: JSON.stringify({ action:'syncPlans', plans: plansPayload })
-      }).then(()=>{
-        dashLog('success', `Service Plans: ${_uploadedPlans.length} total records synced to Sheets`);
-      }).catch(e => dashLog('warn','Plans Sheets sync failed: '+e.message));
     }
 
     ($$('planUploadBox') || {style:{}}).style.display='none';
