@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.00</title>
+<title>Midstate — KPI Command Center v3.01</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1526,7 +1526,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.00
+      v3.01
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1537,7 +1537,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.00';
+const COMPANION_VERSION = 'v3.01';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2620,58 +2620,24 @@ function renderConvByDept(kpi, deptIdx, totalCount) {
 async function updateS4() {
   if(!state.loaded || Object.keys(state.snap).length === 0) return;
 
-  // Load dept performance data — primary: Dept_Performance tab (fetchCSV)
-  // Fallback: KPI_Dashboard snap keys
-  let hvacRev=0, plmbRev=0;
-  let hvacConv={total:0,converted:0,pct:0};
-  let plmbConv={total:0,converted:0,pct:0};
-  let hvacAvg=0, plmbAvg=0;
-  let hvacMonthly=[], plmbMonthly=[];
-
-  let loadedFromTab = false;
-  try {
-    const rows = await fetchCSV('Dept_Performance');
-    if(rows && rows.length > 1) {
-      // Headers: dept, rev_ytd, est_total, est_converted, conv_pct, avg_job, monthly_json
-      rows.slice(1).forEach(r => {
-        if(!r || !r[0]) return;
-        const dept      = String(r[0]).trim();
-        const rev       = parseFloat(r[1])||0;
-        const estTotal  = parseInt(r[2])||0;
-        const estConv   = parseInt(r[3])||0;
-        const convPct   = parseInt(r[4])||0;
-        const avgJob    = parseFloat(r[5])||0;
-        let monthly = [];
-        try { monthly = JSON.parse(r[6]||'[]'); } catch(e) {}
-
-        if(dept === 'HVAC') {
-          hvacRev = rev; hvacConv = {total:estTotal, converted:estConv, pct:convPct};
-          hvacAvg = avgJob; hvacMonthly = monthly;
-        } else if(dept === 'Plumbing') {
-          plmbRev = rev; plmbConv = {total:estTotal, converted:estConv, pct:convPct};
-          plmbAvg = avgJob; plmbMonthly = monthly;
-        }
-      });
-      if(hvacRev > 0 || plmbRev > 0) {
-        loadedFromTab = true;
-        console.log('[S4] Dept data from Dept_Performance tab — HVAC:$'+hvacRev+' conv:'+hvacConv.pct+'% | Plumbing:$'+plmbRev+' conv:'+plmbConv.pct+'%');
-      }
-    }
-  } catch(e) {
-    console.warn('[S4] Dept_Performance tab read failed:', e.message);
-  }
-
-  // Fallback: KPI_Dashboard snap
-  if(!loadedFromTab) {
-    const snap = state.snap;
-    hvacRev = num(snap['dept_hvac_rev']||0);
-    plmbRev = num(snap['dept_plumbing_rev']||0);
-    try { hvacConv = JSON.parse(snap['dept_hvac_conv']||'{}'); } catch(e) {}
-    try { plmbConv = JSON.parse(snap['dept_plumbing_conv']||'{}'); } catch(e) {}
-    try { hvacMonthly = JSON.parse(snap['dept_hvac_monthly']||'[]'); } catch(e) {}
-    try { plmbMonthly = JSON.parse(snap['dept_plumbing_monthly']||'[]'); } catch(e) {}
-    console.log('[S4] Dept data from KPI_Dashboard snap (fallback)');
-  }
+  // FIXED (2026-07-08): previously tried a "Dept_Performance" sheet tab
+  // first, falling back to KPI_Dashboard snap keys only if that tab was
+  // empty. That tab is never actually kept up to date — the Apps Script
+  // function that would write to it (syncDeptPerformanceTab) exists but
+  // has never been wired to any dispatch action, in this codebase's
+  // entire history, not just after the refactor. So the tab either sat
+  // empty, or — worse — held old frozen data from whenever it was last
+  // manually populated, and companion was silently preferring that stale
+  // number over the correct, freshly-computed one (this is exactly what
+  // caused Department Performance to show ~9,374 combined estimates
+  // while the accurate current-period total showed 1,398). Always use
+  // the snap values now — they're recomputed fresh on every real pull.
+  const snap = state.snap;
+  let hvacRev = num(snap['dept_hvac_rev']||0);
+  let plmbRev = num(snap['dept_plumbing_rev']||0);
+  let hvacConv={total:0,converted:0,pct:0}, plmbConv={total:0,converted:0,pct:0};
+  try { hvacConv = JSON.parse(snap['dept_hvac_conv']||'{}'); } catch(e) {}
+  try { plmbConv = JSON.parse(snap['dept_plumbing_conv']||'{}'); } catch(e) {}
 
   const maxRev = Math.max(hvacRev, plmbRev, 1);
 
