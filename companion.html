@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.01</title>
+<title>Midstate — KPI Command Center v3.04</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -937,7 +937,7 @@ html, body {
             <div style="font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:.18em;color:var(--blue);margin-bottom:8px">Month to Date</div>
             <div style="font-size:18px;color:rgba(255,255,255,.5);margin-bottom:18px" id="s1-hero-month">June 2026</div>
             <div style="font-size:clamp(60px,8.5vw,108px);font-family:var(--font-display);color:#fff;line-height:.95;font-weight:900" id="s1-revenue">$0</div>
-            <div style="font-size:20px;color:rgba(255,255,255,.55);margin-top:10px">Revenue Collected</div>
+            <div style="font-size:20px;color:rgba(255,255,255,.55);margin-top:10px">Revenue Collected <span style="font-size:14px;color:rgba(255,255,255,.35)">· live pull</span></div>
           </div>
 
           <!-- Goal progress -->
@@ -1426,17 +1426,17 @@ html, body {
           <div class="card" style="padding:16px 20px;background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(0,212,255,.02));border-top:3px solid var(--blue);text-align:center">
             <div style="font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);margin-bottom:6px">MTD Collected</div>
             <div id="s13-mtd" style="font-family:var(--font-display);font-size:clamp(26px,4vw,54px);color:#fff;line-height:1;font-weight:900">$—</div>
-            <div id="s13-mtd-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">payments this month</div>
+            <div id="s13-mtd-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">payments this month · uploaded report</div>
           </div>
           <div class="card" style="padding:16px 20px;background:linear-gradient(135deg,rgba(0,255,136,.08),rgba(0,255,136,.02));border-top:3px solid var(--green);text-align:center">
             <div style="font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--green);margin-bottom:6px">YTD Net Revenue</div>
             <div id="s13-ytd" style="font-family:var(--font-display);font-size:clamp(26px,4vw,54px);color:#fff;line-height:1;font-weight:900">$—</div>
-            <div id="s13-ytd-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">after refunds · HCP Payments</div>
+            <div id="s13-ytd-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">after refunds · uploaded HCP Payments report</div>
           </div>
           <div class="card" style="padding:16px 20px;background:linear-gradient(135deg,rgba(255,107,53,.08),rgba(255,107,53,.02));border-top:3px solid var(--orange);text-align:center">
             <div style="font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--orange);margin-bottom:6px">Jobs Paid-In-Full YTD</div>
             <div id="s13-jobs-ytd" style="font-family:var(--font-display);font-size:clamp(26px,4vw,54px);color:#fff;line-height:1;font-weight:900">$—</div>
-            <div id="s13-jobs-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">fully closed jobs only</div>
+            <div id="s13-jobs-sub" style="font-size:clamp(10px,1.2vw,13px);color:rgba(255,255,255,.6);margin-top:4px">fully closed jobs only · uploaded report</div>
           </div>
         </div>
 
@@ -1526,7 +1526,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.01
+      v3.04
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1537,7 +1537,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.01';
+const COMPANION_VERSION = 'v3.04';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2357,8 +2357,16 @@ function renderMonthlyBars() {
     return;
   }
 
+  // Defensive: always exactly 12 numeric entries, regardless of source. Guards
+  // against an out-of-bounds LABELS[i] access below if upstream data was ever
+  // malformed (e.g. more than 12 entries), which would otherwise throw mid-loop
+  // and silently abort the render — leaving the chart blank with no error.
+  months = Array.from({length:12}, (_, i) => Number(months[i])||0);
+
   const noteEl = el('monthly-range-note');
   if(noteEl) noteEl.textContent = months.filter(v=>v>0).length + ' months';
+
+  try {
 
   const LABELS   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const TARGET   = 250000;
@@ -2490,6 +2498,13 @@ function renderMonthlyBars() {
   svg.style.height = '100%';
   svg.style.display = 'block';
   svg.innerHTML = out;
+
+  } catch(err) {
+    console.error('[renderMonthlyBars] Failed to draw chart:', err);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" fill="rgba(255,255,255,.2)" font-size="13" text-anchor="middle" dominant-baseline="middle">Chart error — check console</text>`;
+    return;
+  }
 
   // ResizeObserver — re-render when container resizes (fullscreen toggle etc)
   if(!_monthlyResizeObs && window.ResizeObserver) {
@@ -3766,6 +3781,13 @@ function tickRefresh() {
 // UTILITY
 // ============================================================
 function el(id) { return document.getElementById(id); }
+// FIXED (2026-07-08): setEl() was called 11 times across the file (mainly
+// updateS13, the Revenue Report scene) but was never actually defined
+// anywhere — every call threw "setEl is not defined", which silently
+// aborted updateS13() on its very first line, leaving the entire Revenue
+// Report scene blank after every pull + push. Defining it here as the
+// obviously-intended helper: get an element by id and set its text.
+function setEl(id, value) { const e = document.getElementById(id); if (e) e.textContent = value; }
 
 // ============================================================
 // INIT
