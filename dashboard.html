@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.87</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.88</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.87</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.88</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.87</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.88</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3054,7 +3054,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.87
+  // ATTRIBUTION ENGINE — v24.88
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4996,7 +4996,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.87',  // dashboard version that generated this push
+    dash_version: 'v24.88',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5112,46 +5112,18 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === todayLocal;
       }).length;
     })(),
-    // Department revenue — written by Apps Script computeDeptRevenue (reads Invoices tab)
-    // Placeholders here; real values injected by syncRCSnapshotKeys after computeDeptRevenue runs
-    dept_hvac_rev:     0,
-    dept_plumbing_rev: 0,
-
-    // Department conversion — computed from _estimates in memory (same pull, always current)
-    // DEPT_MAP matches tech name to dept — same logic as getDept()
-    // Department conversion — computed from estimates using canonical getAssignedList()
-    // Uses same employee extraction as renderKPI() to ensure consistent name matching
-    dept_hvac_conv: (() => {
-      const hvacTechs = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='HVAC').map(([n])=>n));
-      let total=0, converted=0;
-      estimates.forEach(e => {
-        // Use getAssignedList — handles assigned_employees[], e.employee, e.pro, e.technician
-        const emp = getAssignedList(e)[0];
-        if(!emp) return;
-        const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim() || emp.name || '';
-        if(!tech || !hvacTechs.has(tech)) return;
-        total++;
-        if(isConv(e)) converted++;
-      });
-      const pct = total > 0 ? Math.round(converted/total*100) : 0;
-      console.log(`[DeptConv] HVAC: ${total} estimates, ${converted} converted, ${pct}%`);
-      return JSON.stringify({total, converted, pct});
-    })(),
-    dept_plumbing_conv: (() => {
-      const plmbTechs = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='Plumbing').map(([n])=>n));
-      let total=0, converted=0;
-      estimates.forEach(e => {
-        const emp = getAssignedList(e)[0];
-        if(!emp) return;
-        const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim() || emp.name || '';
-        if(!tech || !plmbTechs.has(tech)) return;
-        total++;
-        if(isConv(e)) converted++;
-      });
-      const pct = total > 0 ? Math.round(converted/total*100) : 0;
-      console.log(`[DeptConv] Plumbing: ${total} estimates, ${converted} converted, ${pct}%`);
-      return JSON.stringify({total, converted, pct});
-    })(),
+    // Department revenue AND conversion are intentionally NOT computed here.
+    // FIXED (2026-07-09): both used to be computed from this pull's narrow
+    // in-memory jobs/estimates/invoices — accurate only when a Full Pull
+    // happened to be the most recent pull, wrong (too small, 0% conversion)
+    // after any Quick Pull. They're now computed entirely server-side by the
+    // computeDeptRevenue action (triggered further down in this function),
+    // which reads the FULL retained Invoices and Estimates sheet tabs — see
+    // syncDeptRevenueFromInvoices in apps_script_remainder.js. Omitting the
+    // keys here (rather than sending 0/narrow placeholders) lets
+    // syncDashboardSnapshot's preserve-existing-values behavior keep whatever
+    // computeDeptRevenue last correctly computed, instead of overwriting it
+    // on every single pull.
 
     daily_converted: (() => {
       const todayLocal = `${now_snap.getFullYear()}-${String(now_snap.getMonth()+1).padStart(2,'0')}-${String(now_snap.getDate()).padStart(2,'0')}`;
@@ -5551,123 +5523,28 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       }, 4000);
     }
 
-    // Compute dept performance entirely client-side from _jobs + _estimates + _invoiceMap
-    // Then write to dedicated Dept_Performance tab — companion reads it directly via fetchCSV
-    // This bypasses the Estimates tab dependency that was causing conv=0
+    // FIXED (2026-07-09): this used to compute dept revenue/conversion
+    // client-side from _jobs/_estimates/_invoiceMap, with a comment noting
+    // it was done this way to bypass an unreliable Estimates tab. It worked
+    // by accident, because at the time _estimates always held the FULL
+    // unfiltered ~12k-record dataset regardless of pull range (a bug in
+    // fetchEstimates(), fixed 2026-07-08 — see that fix's history). Once
+    // estimates were correctly scoped to the pull's actual date range, this
+    // block started computing "YTD" dept stats from whatever narrow window
+    // the last pull covered — a Quick Pull with zero matching estimates
+    // that week would show 0%/0 estimates, and revenue was computed from
+    // _invoiceMap, which is equally narrow for a Quick Pull. Now that
+    // syncJobs/syncEstimates/syncInvoices all retain full YTD history in
+    // Sheets (merge-by-key, fixed 2026-07-08), the Estimates tab this was
+    // originally trying to avoid is reliable again — so this now just
+    // triggers the server-side computeDeptRevenue action, which reads the
+    // full retained Invoices AND Estimates tabs directly (see
+    // syncDeptRevenueFromInvoices in apps_script_remainder.js).
     if(_sheetsProxy) {
-      (() => {
-        const HVAC_TECHS    = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='HVAC').map(([n])=>n));
-        const PLMB_TECHS    = new Set(Object.entries(DEPT_MAP).filter(([,d])=>d==='Plumbing').map(([n])=>n));
-
-        // Revenue from _invoiceMap (most accurate — all paid invoices)
-        // Mixed crews: split revenue proportionally by tech count per dept,
-        // same rule used for the HCP Payments report upload — prevents a job
-        // with both an HVAC and Plumbing tech from crediting 100% to whichever
-        // tech happens to be listed first in HCP's assigned_employees array.
-        const deptRev = {HVAC:0, Plumbing:0};
-        const deptMonthly = {HVAC:new Array(12).fill(0), Plumbing:new Array(12).fill(0)};
-        const curY = new Date().getFullYear();
-        Object.entries(_invoiceMap).forEach(([jobId, payments]) => {
-          const job = _jobs.find(j=>j.id===jobId);
-          if(!job) return;
-          const techs = getAssignedList(job).map(e =>
-            ((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'');
-          const hvacN = techs.filter(t => DEPT_MAP[t]==='HVAC').length;
-          const plmbN = techs.filter(t => DEPT_MAP[t]==='Plumbing').length;
-          const totN  = hvacN + plmbN;
-          if(totN === 0) return; // no HVAC/Plumbing tech on this job
-          const hvacFrac = hvacN/totN, plmbFrac = plmbN/totN;
-          payments.forEach(p => {
-            const d = new Date(p.date+'T12:00:00');
-            if(isNaN(d)||d.getFullYear()!==curY) return;
-            if(hvacFrac > 0) {
-              deptRev.HVAC += p.amount * hvacFrac;
-              deptMonthly.HVAC[d.getMonth()] += p.amount * hvacFrac;
-            }
-            if(plmbFrac > 0) {
-              deptRev.Plumbing += p.amount * plmbFrac;
-              deptMonthly.Plumbing[d.getMonth()] += p.amount * plmbFrac;
-            }
-          });
-        });
-
-        // Conversion from _estimates (all 12,520 in memory — most complete)
-        const deptConv = {HVAC:{total:0,converted:0}, Plumbing:{total:0,converted:0}};
-        estimates.forEach(e => {
-          const emp  = getAssignedList(e)[0];
-          if(!emp) return;
-          const tech = ((emp.first_name||'')+' '+(emp.last_name||'')).trim()||emp.name||'';
-          const dept = DEPT_MAP[tech];
-          if(dept !== 'HVAC' && dept !== 'Plumbing') return;
-          deptConv[dept].total++;
-          if(isConv(e)) deptConv[dept].converted++;
-        });
-
-        const hvacConvPct = deptConv.HVAC.total > 0
-          ? Math.round(deptConv.HVAC.converted/deptConv.HVAC.total*100) : 0;
-        const plmbConvPct = deptConv.Plumbing.total > 0
-          ? Math.round(deptConv.Plumbing.converted/deptConv.Plumbing.total*100) : 0;
-
-        // Avg job = revenue / paid jobs in dept
-        // Mixed-crew jobs count fractionally toward each dept's job count too
-        const deptPaidJobs = {HVAC:0, Plumbing:0};
-        jobs.filter(isJobPaid).forEach(j => {
-          const techs = getAssignedList(j).map(e =>
-            ((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'');
-          const hvacN = techs.filter(t => DEPT_MAP[t]==='HVAC').length;
-          const plmbN = techs.filter(t => DEPT_MAP[t]==='Plumbing').length;
-          const totN  = hvacN + plmbN;
-          if(totN === 0) return;
-          deptPaidJobs.HVAC     += hvacN/totN;
-          deptPaidJobs.Plumbing += plmbN/totN;
-        });
-
-        const hvacAvg = deptPaidJobs.HVAC > 0 ? Math.round(deptRev.HVAC/deptPaidJobs.HVAC) : 0;
-        const plmbAvg = deptPaidJobs.Plumbing > 0 ? Math.round(deptRev.Plumbing/deptPaidJobs.Plumbing) : 0;
-
-        const depts = [
-          {
-            dept:          'HVAC',
-            rev_ytd:       Math.round(deptRev.HVAC),
-            est_total:     deptConv.HVAC.total,
-            est_converted: deptConv.HVAC.converted,
-            conv_pct:      hvacConvPct,
-            avg_job:       hvacAvg,
-            monthly_json:  JSON.stringify(deptMonthly.HVAC.map(Math.round)),
-          },
-          {
-            dept:          'Plumbing',
-            rev_ytd:       Math.round(deptRev.Plumbing),
-            est_total:     deptConv.Plumbing.total,
-            est_converted: deptConv.Plumbing.converted,
-            conv_pct:      plmbConvPct,
-            avg_job:       plmbAvg,
-            monthly_json:  JSON.stringify(deptMonthly.Plumbing.map(Math.round)),
-          },
-        ];
-
-        dashLog('info', `[DeptPerf] HVAC $${Math.round(deptRev.HVAC).toLocaleString()} conv=${hvacConvPct}% | Plumbing $${Math.round(deptRev.Plumbing).toLocaleString()} conv=${plmbConvPct}%`);
-
-        // Write to dedicated Dept_Performance tab
-        fetch(_sheetsProxy, {
-          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-          body: JSON.stringify({ action:'syncDeptPerformance', depts })
-        }).catch(()=>{});
-
-        // Also write to KPI_Dashboard for snap-based fallback
-        const deptSnapKeys = {
-          dept_hvac_rev:       Math.round(deptRev.HVAC),
-          dept_plumbing_rev:   Math.round(deptRev.Plumbing),
-          dept_hvac_conv:      JSON.stringify({total:deptConv.HVAC.total, converted:deptConv.HVAC.converted, pct:hvacConvPct}),
-          dept_plumbing_conv:  JSON.stringify({total:deptConv.Plumbing.total, converted:deptConv.Plumbing.converted, pct:plmbConvPct}),
-          dept_hvac_monthly:   JSON.stringify(deptMonthly.HVAC.map(Math.round)),
-          dept_plumbing_monthly: JSON.stringify(deptMonthly.Plumbing.map(Math.round)),
-        };
-        fetch(_sheetsProxy, {
-          method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-          body: JSON.stringify({ action:'syncSnapshotKeys', keys: deptSnapKeys })
-        }).catch(()=>{});
-      })();
+      fetch(_sheetsProxy, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+        body: JSON.stringify({ action:'computeDeptRevenue' })
+      }).catch(()=>{});
     }
 
       // Push critical KPI keys as a dedicated small POST — bypasses giant syncReport timeout
@@ -5679,7 +5556,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.87',
+        dash_version:        'v24.88',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
