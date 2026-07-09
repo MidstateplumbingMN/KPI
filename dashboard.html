@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.86</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.87</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.86</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.87</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.86</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.87</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1918,6 +1918,7 @@ function connect(){
     console.log('[Connect] Settings loaded from Sheets');
     loadPlansFromSheets();
     loadActivePlansFromSheets();
+    restoreJobsEstimatesFromSheets();
     loadTYCards();
     loadSpotlights();
     loadAnnouncements();
@@ -2107,8 +2108,9 @@ function fmtDateDB(val){
 }
 
 function dollars(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function getJobTotal(j){return centsToD(j.total_amount??j.invoice_total??0);}
+function getJobTotal(j){ if(j._restored) return j._total||0; return centsToD(j.total_amount??j.invoice_total??0);}
 function getEstTotal(e){
+  if(e._restored) return e._value||0;
   if(e.options&&e.options.length){
     const appr=e.options.filter(o=>{
       const s=(o.approval_status||o.status||'').toLowerCase();
@@ -2127,6 +2129,7 @@ function getEstTotal(e){
   return centsToD(e.total_amount??e.invoice_total??0);
 }
 function getAssigned(x){
+  if(x._restored) return x._assigned||'—';
   const l=x.assigned_employees||[];
   const s=x.employee||x.pro||x.technician;
   const e=l.length?l[0]:s;
@@ -2134,18 +2137,21 @@ function getAssigned(x){
   return((e.first_name||'')+' '+(e.last_name||'')).trim()||e.name||'—';
 }
 function getAssignedList(x){
+  if(x._restored) return x._assigned && x._assigned!=='—' ? [{name:x._assigned, id:'restored_'+x._assigned, first_name:x._assigned, last_name:''}] : [];
   const l=x.assigned_employees||[];
   if(l.length)return l;
   const s=x.employee||x.pro||x.technician;
   return s?[s]:[];
 }
 function getCust(x){
+  if(x._restored) return x._customerName||'—';
   if(x.customer){const c=x.customer;return((c.first_name||'')+' '+(c.last_name||'')).trim()||c.name||c.company_name||'—';}
   return x.customer_name||x.client_name||'—';
 }
 function getCustId(x){return x.customer?.id||x.customer_id||'';}
 function getDeptFromTags(emp){ return getDept(emp); }
 function getDept(x){
+  if(x._restored) return x._dept||'Other';
   // Primary: look up DEPT_MAP by assigned tech name — authoritative
   const techName = getAssigned(x);
   if(techName && techName !== '—' && DEPT_MAP[techName]) return DEPT_MAP[techName];
@@ -2161,10 +2167,11 @@ function getRawStatus(x){return(x.work_status||x.status||'').toLowerCase();}
 function hasCompletedAt(j){return !!(j.work_timestamps?.completed_at||j.completed_at);}
 
 // outstanding_balance is in CENTS per HCP spec — divide by 100 for dollars
-function outstandingDollars(x){ return (parseFloat(x.outstanding_balance)||0) / 100; }
+function outstandingDollars(x){ if(x._restored) return x._outstanding||0; return (parseFloat(x.outstanding_balance)||0) / 100; }
 
 // Normalize HCP's many statuses into your 6
 function getNormStatus(x){
+  if(x._restored) return x._status||'Scheduled';
   const s=getRawStatus(x);
   // outstanding_balance === 0 cents means fully paid
   const balCents = parseFloat(x.outstanding_balance)||0;
@@ -2180,6 +2187,7 @@ function getNormStatus(x){
 }
 
 function isJobComplete(j){
+  if(j._restored) return j._status==='Paid'||j._status==='Unpaid';
   const s=getRawStatus(j);
   if(s.includes('refund')||s.includes('void')||s.includes('cancel'))return false;
   // Status string is the ONLY signal — do NOT use completed_at as a fallback.
@@ -2188,6 +2196,7 @@ function isJobComplete(j){
   return s.includes('complete')||s.includes('completed');
 }
 function isJobPaid(j){
+  if(j._restored) return j._status==='Paid';
   // Invoice is the authoritative payment record.
   // If the job has attached invoice payments, use those — sum must cover the full job total.
   if(j._payments && j._payments.length > 0){
@@ -2202,8 +2211,8 @@ function isJobPaid(j){
   // No invoice data — fall back to status + outstanding_balance
   return isJobComplete(j) && (parseFloat(j.outstanding_balance)||0) === 0;
 }
-function isJobRefunded(j){ const s=getRawStatus(j); return s.includes('refund')||s.includes('void'); }
-function isJobCanceled(j){ const s=getRawStatus(j); return s.includes('cancel')||s.includes('deleted'); }
+function isJobRefunded(j){ if(j._restored) return j._status==='Refunded'; const s=getRawStatus(j); return s.includes('refund')||s.includes('void'); }
+function isJobCanceled(j){ if(j._restored) return j._status==='Canceled'; const s=getRawStatus(j); return s.includes('cancel')||s.includes('deleted'); }
 function isJobExcluded(j){ return isJobRefunded(j)||isJobCanceled(j); }
 
 // Job type ID → name lookup (populated during pull from /job_fields/job_types)
@@ -2287,6 +2296,7 @@ function jBadge(j){
 }
 
 function isConv(e){
+  if(e._restored) return !!e._converted;
   // An estimate is converted only if it resulted in a booked/paid job
   // "complete" status means the visit happened — NOT that they bought
   if(e.options&&e.options.length){
@@ -2306,6 +2316,7 @@ function isApprovedStatus(s){
          v==='created job from estimate'||v==='converted';
 }
 function getEstDisplayStatus(e){
+  if(e._restored) return e._status||'';
   if(e.options&&e.options.length){
     const conv=e.options.find(o=>isApprovedStatus(o.approval_status||o.status||''));
     if(conv){
@@ -3043,7 +3054,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.86
+  // ATTRIBUTION ENGINE — v24.87
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3876,8 +3887,10 @@ function renderJobs(jobs,estimates){
   });
   const avg=paidCount?rev/paidCount:0;
   const open=jobs.filter(j=>{const n=getNormStatus(j);return n==='Scheduled'||n==='Incomplete';});
+  const isRestored = jobs.length>0 && jobs[0]._restored;
+  const srcTag = isRestored ? 'restored from Sheets' : 'live pull';
   $$('jobMetrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Revenue (paid) <span style="font-weight:400;color:#9ca3af;font-size:10px">· live pull</span></div><div class="metric-value">${dollars(rev)}</div><div class="metric-sub">${paidCount} paid & complete</div></div>
+    <div class="metric"><div class="metric-label">Revenue (paid) <span style="font-weight:400;color:#9ca3af;font-size:10px">· ${srcTag}</span></div><div class="metric-value">${dollars(rev)}</div><div class="metric-sub">${paidCount} paid & complete</div></div>
     <div class="metric"><div class="metric-label">Total jobs</div><div class="metric-value">${jobs.length}</div></div>
     <div class="metric"><div class="metric-label">Avg job value</div><div class="metric-value">${dollars(avg)}</div></div>
     <div class="metric"><div class="metric-label">Open/scheduled</div><div class="metric-value">${open.length}</div></div>`;
@@ -4983,7 +4996,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.86',  // dashboard version that generated this push
+    dash_version: 'v24.87',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5666,7 +5679,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.86',
+        dash_version:        'v24.87',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -12251,6 +12264,113 @@ async function loadActivePlansFromSheets(){
       renderActivePlansMetric();
     }
   } catch(e) { console.warn('[ActivePlans] Sheets restore failed:', e.message); }
+}
+
+// Restores _jobs/_estimates from what Google Sheets has retained (now that
+// syncJobs/syncEstimates merge rather than replace — see apps_script_remainder.js
+// history) so the dashboard can display real, current-looking data immediately
+// on login, WITHOUT triggering a live pull. Added 2026-07-08 per explicit
+// request: "I don't want a full pull on log in. I just want google sheets
+// to retain the info and the dashboard to interact with it. Display the
+// last values."
+//
+// The objects built here are NOT full HCP job/estimate objects — the Sheet
+// only stores the already-resolved values (dept, status, revenue total,
+// etc.), not raw HCP fields like schedule/customer sub-objects. Every
+// restored object carries `_restored:true` plus its pre-resolved values as
+// `_total`, `_dept`, `_status`, etc. — the core helper functions
+// (getJobTotal, getDept, getNormStatus, isJobPaid, getAssigned, isConv,
+// getEstDisplayStatus, and others) all check for `_restored` first and
+// return these pre-resolved values directly, so the existing Jobs/Estimates
+// tables, filters, sorting, and KPI/revenue calculations all work
+// unchanged on restored data — see the `_restored` branches added
+// throughout the job/estimate helper functions above.
+//
+// Only runs if _jobs/_estimates are currently empty — never overwrites a
+// richer, already-loaded live pull with this flattened Sheets version.
+async function restoreJobsEstimatesFromSheets(){
+  if(!_sheetsProxy) return;
+  if(_jobs.length || _estimates.length) return; // don't clobber a live pull already in memory
+
+  try {
+    const [jRes, eRes] = await Promise.all([
+      fetch(_sheetsProxy+'?action=getJobsFromSheet', {redirect:'follow'}),
+      fetch(_sheetsProxy+'?action=getEstimatesFromSheet', {redirect:'follow'}),
+    ]);
+    const jData = await jRes.json();
+    const eData = await eRes.json();
+
+    if(jData.success && jData.jobs && jData.jobs.length){
+      _jobs = jData.jobs.map(r => ({
+        _restored: true,
+        id: 'sheet_job_' + r.job_number,
+        job_number: r.job_number,
+        invoice_number: r.invoice_number,
+        _customerName: r.customer_name,
+        _dept: r.dept,
+        _status: r.status,
+        _assigned: r.assigned_to,
+        _total: r.total,
+        _outstanding: r.outstanding,
+        description: r.description,
+        customer_phone: r.customer_phone,
+        customer_email: r.customer_email,
+        address: r.address,
+        revenue_to: r.revenue_to,
+        attribution_source: r.attribution_source,
+        // Raw-compatible fields for any render code that reads dates directly
+        // rather than through a helper (fmtD()'s M/D/YYYY output parses fine)
+        schedule: { scheduled_start: r.scheduled || null },
+        work_timestamps: { completed_at: r.completed || null },
+        scheduled: r.scheduled, completed: r.completed, payment_date: r.payment_date,
+      }));
+      // Populate _jobAttribution so the "Revenue To" column shows correctly
+      // for restored jobs too — real attribution runs off the raw HCP job
+      // shape, which restored jobs don't have, so this synthesizes a
+      // minimal entry from the resolved revenue_to/attribution_source
+      // values already stored in the Sheet.
+      jData.jobs.forEach(r => {
+        if(r.revenue_to) {
+          _jobAttribution['sheet_job_' + r.job_number] = {
+            techName: r.revenue_to, source: r.attribution_source || 'restored',
+            confidence: 100, recommendation: {text:'From retained Sheets data', icon:'📋', key:'restored'}, candidates: [],
+          };
+        }
+      });
+      console.log('[Restore] Loaded', _jobs.length, 'jobs from Sheets (retained data, no live pull)');
+    }
+
+    if(eData.success && eData.estimates && eData.estimates.length){
+      _estimates = eData.estimates.map(r => ({
+        _restored: true,
+        id: 'sheet_est_' + r.estimate_number,
+        estimate_number: r.estimate_number,
+        _customerName: r.customer_name,
+        customer_id: r.customer_id,
+        customer_phone: r.customer_phone,
+        customer_email: r.customer_email,
+        _dept: r.dept,
+        _assigned: r.tech,
+        _status: r.status,
+        _converted: r.converted,
+        converted_how: r.converted_how,
+        _value: r.value,
+        option_count: r.option_count,
+        notes: r.notes,
+        // Raw-compatible fields for any render code that reads dates directly
+        schedule: { scheduled_start: r.scheduled_date || null },
+        created_at: r.created || null,
+        scheduled_date: r.scheduled_date, created: r.created,
+      }));
+      console.log('[Restore] Loaded', _estimates.length, 'estimates from Sheets (retained data, no live pull)');
+    }
+
+    if(_jobs.length || _estimates.length){
+      renderJobs(_jobs, _estimates);
+      renderEstimates(_estimates);
+      dashLog('info', `📋 Restored ${_jobs.length} jobs, ${_estimates.length} estimates from Sheets — click Quick/Full Pull to refresh from HCP`);
+    }
+  } catch(e) { console.warn('[Restore] Jobs/Estimates Sheets restore failed:', e.message); }
 }
 
 // Updates the "Total Active Plans" metric card with the current _activePlans count.
