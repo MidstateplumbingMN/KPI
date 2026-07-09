@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.90</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.91</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.90</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.91</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.90</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.91</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1898,38 +1898,9 @@ async function loadCachedSnapshotIntoUI() {
 
     console.log('[Cached Snapshot] Loaded last-known metrics from', snap.pull_date);
 
-    // Restore uploaded HCP report summaries (Payments/Jobs reports) from the
-    // same snap already fetched above. Added 2026-07-09 per explicit request:
-    // uploaded reports should be retained across reloads, not require
-    // re-uploading every session just to see the numbers again. Full row-level
-    // detail isn't retained (only the pre-aggregated monthly/dept totals that
-    // were already being saved), so a fresh upload still gives the most
-    // precise breakdown — but the summary cards and monthly chart now work
-    // immediately from what Sheets already has.
-    if(snap.hcp_pmt_ytd_net || snap.hcp_pmt_hvac) {
-      _hcpReports.payments_summary = {
-        gross: parseFloat(snap.hcp_pmt_ytd_gross)||0,
-        net:   parseFloat(snap.hcp_pmt_ytd_net)||0,
-      };
-      try {
-        const monthly = JSON.parse(snap.hcp_pmt_monthly_json||'[]');
-        if(Array.isArray(monthly) && monthly.length === 12) _hcpReports._restoredMonthlyByDept = monthly;
-      } catch(e) {}
-      try {
-        const jm = JSON.parse(snap.hcp_jobs_month_json||'[]');
-        if(Array.isArray(jm) && jm.length) _hcpReports.jobs_month = jm;
-      } catch(e) {}
-      _hcpReports._restoredAt = snap.hcp_report_date || snap.pull_date;
-
-      // Update status badges to show restored (not "Not uploaded")
-      ['payments-detail','jobs-month'].forEach(id => {
-        const el = $$('hcp-'+id+'-status');
-        if(el) { el.textContent = '📋 Restored from Sheets'; el.style.color = '#059669'; }
-      });
-
-      renderHCPAnalysis();
-      console.log('[HCPReports] Restored summary data from Sheets —', snap.hcp_report_date || 'date unknown');
-    }
+    // Full HCP report detail (Payments Detail/Summary, Jobs by Month/Day) is
+    // restored separately — see loadHCPReportsFullFromSheets(), called
+    // alongside this function during connect.
   } catch(e) {
     console.warn('[Cached Snapshot] Could not load:', e.message);
   }
@@ -1952,6 +1923,7 @@ function connect(){
     loadPlansFromSheets();
     loadActivePlansFromSheets();
     restoreJobsEstimatesFromSheets();
+    loadHCPReportsFullFromSheets();
     loadTYCards();
     loadSpotlights();
     loadAnnouncements();
@@ -3087,7 +3059,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.90
+  // ATTRIBUTION ENGINE — v24.91
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5029,7 +5001,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.90',  // dashboard version that generated this push
+    dash_version: 'v24.91',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5600,7 +5572,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.90',
+        dash_version:        'v24.91',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -7038,12 +7010,99 @@ function loadHCPReport(type, file) {
       _hcpReports.uploadedAt[type] = new Date().toISOString();
       renderHCPAnalysis();
       saveHCPReportsToSheets();
+      pushHCPReportFullDetail(type); // full row-level retention — see function below
     } catch(err) {
       console.error('[HCPReports]', err);
       showToast('Parse error: ' + err.message, 'error');
     }
   };
   reader.readAsText(file);
+}
+
+// Pushes the FULL row-level data for one uploaded HCP report type to its
+// own dedicated Sheets tab (HCP_Payments_Detail / HCP_Payments_Summary /
+// HCP_Jobs_Month / HCP_Jobs_Day) — a full replace, since a fresh upload for
+// a type is always the new authoritative data for that type. Added
+// 2026-07-09 per explicit request: retain the actual uploaded data (not
+// just a summary), and have a new upload update it.
+async function pushHCPReportFullDetail(type) {
+  if(!_sheetsProxy) return;
+  let rows = [];
+  if(type === 'payments_detail' && _hcpReports.payments_detail) {
+    rows = _hcpReports.payments_detail;
+  } else if(type === 'payments_summary' && _hcpReports.payments_summary) {
+    rows = Object.entries(_hcpReports.payments_summary.byType||{}).map(([t,amount]) => ({type:t, amount}));
+  } else if((type === 'jobs_month' || type === 'jobs_day') && _hcpReports[type]) {
+    rows = _hcpReports[type];
+  }
+  if(!rows.length) return;
+  try {
+    const r = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncHCPReport', type, rows })
+    });
+    const d = await r.json().catch(()=>({}));
+    if(d.success) console.log(`[HCPReports] Full detail saved: ${type} — ${d.written} rows`);
+    else console.warn(`[HCPReports] Full detail save failed for ${type}:`, d.error);
+  } catch(e) { console.warn(`[HCPReports] Full detail save error for ${type}:`, e.message); }
+}
+
+// Restores the FULL row-level data for all 4 HCP report types from their
+// dedicated Sheets tabs, reconstructing _hcpReports exactly as if freshly
+// uploaded. Called on connect. Falls back gracefully (leaves that type
+// empty) if a given tab has no data yet — e.g. before its first upload.
+async function loadHCPReportsFullFromSheets() {
+  if(!_sheetsProxy) return;
+  const types = ['payments_detail','payments_summary','jobs_month','jobs_day'];
+  try {
+    const results = await Promise.all(types.map(async type => {
+      try {
+        const res = await fetch(_sheetsProxy+'?action=getHCPReport&type='+type, {redirect:'follow'});
+        return { type, data: await res.json() };
+      } catch(e) { return { type, data: null }; }
+    }));
+
+    let anyLoaded = false;
+    results.forEach(({type, data}) => {
+      if(!data?.success || !data.rows?.length) return;
+      anyLoaded = true;
+
+      if(type === 'payments_detail') {
+        _hcpReports.payments_detail = data.rows.map(r => ({
+          jobId: r.jobId, date: r.date, amount: Number(r.amount)||0,
+          empRaw: r.empRaw, type: r.type, compDate: r.compDate,
+          dept: r.dept, hvacFrac: Number(r.hvacFrac)||0, plmbFrac: Number(r.plmbFrac)||0,
+        }));
+        const el = $$('hcp-payments-detail-status');
+        if(el) { el.textContent = `📋 ${data.rows.length} rows restored from Sheets`; el.style.color = '#059669'; }
+      } else if(type === 'payments_summary') {
+        const byType = {};
+        let gross = 0, refunds = 0;
+        data.rows.forEach(r => {
+          const amt = Number(r.amount)||0;
+          byType[r.type] = amt;
+          if(amt < 0) refunds += amt; else gross += amt;
+        });
+        _hcpReports.payments_summary = { byType, gross, refunds, net: gross+refunds };
+        const el = $$('hcp-payments-summary-status');
+        if(el) { el.textContent = `📋 Restored from Sheets`; el.style.color = '#059669'; }
+      } else if(type === 'jobs_month' || type === 'jobs_day') {
+        _hcpReports[type] = data.rows.map(r => ({
+          period: r.period, revenue: Number(r.revenue)||0,
+          count: Number(r.count)||0, monthIdx: Number(r.monthIdx),
+        }));
+        const elId = type === 'jobs_month' ? 'hcp-jobs-month-status' : 'hcp-jobs-day-status';
+        const el = $$(elId);
+        if(el) { el.textContent = `📋 ${data.rows.length} periods restored from Sheets`; el.style.color = '#059669'; }
+      }
+      if(data.lastUploadedAt) _hcpReports.uploadedAt[type] = data.lastUploadedAt;
+    });
+
+    if(anyLoaded) {
+      renderHCPAnalysis();
+      console.log('[HCPReports] Full detail restored from Sheets for:', results.filter(r=>r.data?.rows?.length).map(r=>r.type).join(', '));
+    }
+  } catch(e) { console.warn('[HCPReports] Full detail restore failed:', e.message); }
 }
 
 function parsePaymentsDetail(lines, filename) {
