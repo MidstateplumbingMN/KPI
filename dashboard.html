@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.88</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.90</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.88</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.90</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.88</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.90</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1897,6 +1897,39 @@ async function loadCachedSnapshotIntoUI() {
     $$('statusBar').style.color = '#92400E';
 
     console.log('[Cached Snapshot] Loaded last-known metrics from', snap.pull_date);
+
+    // Restore uploaded HCP report summaries (Payments/Jobs reports) from the
+    // same snap already fetched above. Added 2026-07-09 per explicit request:
+    // uploaded reports should be retained across reloads, not require
+    // re-uploading every session just to see the numbers again. Full row-level
+    // detail isn't retained (only the pre-aggregated monthly/dept totals that
+    // were already being saved), so a fresh upload still gives the most
+    // precise breakdown — but the summary cards and monthly chart now work
+    // immediately from what Sheets already has.
+    if(snap.hcp_pmt_ytd_net || snap.hcp_pmt_hvac) {
+      _hcpReports.payments_summary = {
+        gross: parseFloat(snap.hcp_pmt_ytd_gross)||0,
+        net:   parseFloat(snap.hcp_pmt_ytd_net)||0,
+      };
+      try {
+        const monthly = JSON.parse(snap.hcp_pmt_monthly_json||'[]');
+        if(Array.isArray(monthly) && monthly.length === 12) _hcpReports._restoredMonthlyByDept = monthly;
+      } catch(e) {}
+      try {
+        const jm = JSON.parse(snap.hcp_jobs_month_json||'[]');
+        if(Array.isArray(jm) && jm.length) _hcpReports.jobs_month = jm;
+      } catch(e) {}
+      _hcpReports._restoredAt = snap.hcp_report_date || snap.pull_date;
+
+      // Update status badges to show restored (not "Not uploaded")
+      ['payments-detail','jobs-month'].forEach(id => {
+        const el = $$('hcp-'+id+'-status');
+        if(el) { el.textContent = '📋 Restored from Sheets'; el.style.color = '#059669'; }
+      });
+
+      renderHCPAnalysis();
+      console.log('[HCPReports] Restored summary data from Sheets —', snap.hcp_report_date || 'date unknown');
+    }
   } catch(e) {
     console.warn('[Cached Snapshot] Could not load:', e.message);
   }
@@ -3054,7 +3087,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.88
+  // ATTRIBUTION ENGINE — v24.90
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4996,7 +5029,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.88',  // dashboard version that generated this push
+    dash_version: 'v24.90',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5519,28 +5552,39 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
             jobs:[], estimates:estsPayload, invoices:[], kpi:[],
             attribution:[], summary:{}, dashboardSnapshot:null,
           })
-        }).catch(()=>{});
+        }).then(() => {
+          // FIXED (2026-07-09): computeDeptRevenue used to fire immediately
+          // (0ms), but this estimates payload — which computeDeptRevenue's
+          // conversion calculation depends on — doesn't even get SENT until
+          // this 4-second delayed call, and the Apps Script server hasn't
+          // finished writing it until this fetch's promise resolves. Firing
+          // computeDeptRevenue immediately meant it always read whatever
+          // estimates data existed BEFORE this pull, never the fresh data —
+          // explaining why dept revenue (from Invoices, sent immediately in
+          // the main sync) was correct while dept conversion/estimates/sold
+          // (from Estimates, sent here) stayed stuck at 0. Chaining this
+          // inside the estimates fetch's .then() guarantees the Estimates
+          // tab write is complete before computeDeptRevenue reads it.
+          if(_sheetsProxy) {
+            fetch(_sheetsProxy, {
+              method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+              body: JSON.stringify({ action:'computeDeptRevenue' })
+            }).catch(()=>{});
+          }
+        }).catch(()=>{
+          // Estimates send failed — still try computeDeptRevenue so revenue
+          // (from Invoices, already sent) isn't blocked by an estimates hiccup
+          if(_sheetsProxy) {
+            fetch(_sheetsProxy, {
+              method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+              body: JSON.stringify({ action:'computeDeptRevenue' })
+            }).catch(()=>{});
+          }
+        });
       }, 4000);
-    }
-
-    // FIXED (2026-07-09): this used to compute dept revenue/conversion
-    // client-side from _jobs/_estimates/_invoiceMap, with a comment noting
-    // it was done this way to bypass an unreliable Estimates tab. It worked
-    // by accident, because at the time _estimates always held the FULL
-    // unfiltered ~12k-record dataset regardless of pull range (a bug in
-    // fetchEstimates(), fixed 2026-07-08 — see that fix's history). Once
-    // estimates were correctly scoped to the pull's actual date range, this
-    // block started computing "YTD" dept stats from whatever narrow window
-    // the last pull covered — a Quick Pull with zero matching estimates
-    // that week would show 0%/0 estimates, and revenue was computed from
-    // _invoiceMap, which is equally narrow for a Quick Pull. Now that
-    // syncJobs/syncEstimates/syncInvoices all retain full YTD history in
-    // Sheets (merge-by-key, fixed 2026-07-08), the Estimates tab this was
-    // originally trying to avoid is reliable again — so this now just
-    // triggers the server-side computeDeptRevenue action, which reads the
-    // full retained Invoices AND Estimates tabs directly (see
-    // syncDeptRevenueFromInvoices in apps_script_remainder.js).
-    if(_sheetsProxy) {
+    } else if(_sheetsProxy) {
+      // No estimates this pull (e.g. a very narrow range with zero results) —
+      // still trigger computeDeptRevenue so revenue stays fresh
       fetch(_sheetsProxy, {
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
         body: JSON.stringify({ action:'computeDeptRevenue' })
@@ -5556,7 +5600,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.88',
+        dash_version:        'v24.90',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -7113,7 +7157,12 @@ function renderHCPAnalysis() {
   const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
   const fmtK = n => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+(n/1000).toFixed(0)+'K';
 
-  // Department totals from detail report
+  // Department totals — from the row-level detail report if it's in memory
+  // this session, otherwise reconstructed from the already-persisted
+  // hcp_pmt_monthly_json aggregate (per-month HVAC/Plumbing/Office totals —
+  // same shape either way, so the rest of this function doesn't need to care
+  // which source it came from). Added 2026-07-09 so uploaded report data
+  // survives a page reload without needing to re-upload.
   let deptTotals = { HVAC:0, Plumbing:0, Office:0 };
   let monthlyByDept = Array.from({length:12}, () => ({HVAC:0,Plumbing:0,Office:0}));
   let refundsTotal = 0;
@@ -7134,6 +7183,18 @@ function renderHCPAnalysis() {
       }
       if(row.amount < 0) refundsTotal += row.amount;
     });
+  } else if(R._restoredMonthlyByDept) {
+    monthlyByDept = R._restoredMonthlyByDept;
+    monthlyByDept.forEach(m => {
+      deptTotals.HVAC     += m.HVAC||0;
+      deptTotals.Plumbing += m.Plumbing||0;
+      deptTotals.Office   += m.Office||0;
+    });
+    // Refunds aren't in the aggregate — approximate as net minus gross
+    // (gross = all positive payments, net = gross + refunds, since refund
+    // rows are negative — so net - gross recovers the refund total)
+    const g = R.payments_summary?.gross||0, n = R.payments_summary?.net||0;
+    refundsTotal = n - g;
   }
 
   const gross = R.payments_summary?.gross || (R.payments_detail?.reduce((s,r)=>s+(r.amount>0?r.amount:0),0)||0);
@@ -7265,7 +7326,7 @@ function renderHCPAnalysis() {
     </div>` : ''}
 
     <div style="font-size:10px;color:#9ca3af;text-align:right">
-      Source: HCP Payments Export · Uploaded ${new Date().toLocaleDateString()} · 
+      Source: HCP Payments Export · ${R.payments_detail ? 'Uploaded ' + new Date().toLocaleDateString() : 'Restored from Sheets' + (R._restoredAt ? ' · ' + formatRelativeTime(new Date(R._restoredAt)) : '')} · 
       Mixed crews split proportionally by tech count · Chris Hogan → HVAC · Office Staff separate
     </div>`;
 }
@@ -10210,10 +10271,10 @@ async function pushToCompanion(){
     ].filter(Boolean);
     await Promise.all(smallPushes);
 
-    // ── 3. Trigger dept revenue recompute (server-side, uses Invoices tab) ──
-    fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
-      body:JSON.stringify({action:'computeDeptRevenue'})
-    }).catch(()=>{});
+    // Dept revenue/conversion recompute is now triggered automatically from
+    // within syncReportToSheets() above, correctly sequenced to fire only
+    // after the estimates payload has actually finished syncing (see the
+    // 2026-07-09 fix there) — no separate trigger needed here anymore.
 
     dashLog('success','📺 Companion updated — all data pushed to Sheets');
     $$('statusBar').textContent='✅ Companion data pushed — wallboard will refresh within 30 seconds';
