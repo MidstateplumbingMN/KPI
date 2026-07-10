@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.09</title>
+<title>Midstate — KPI Command Center v3.10</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1526,7 +1526,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.09
+      v3.10
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1537,7 +1537,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.09';
+const COMPANION_VERSION = 'v3.10';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3670,8 +3670,8 @@ function updateS13() {
         }
         updateS13._barRetry = null;
 
-        const labelH   = 16;               // space for the $ total label above each bar
-        const monthH   = 20;               // space for the month name below each bar — bigger per request
+        const labelH   = 26;               // space for the $ total label above each bar — bigger font needs more room
+        const monthH   = 24;               // space for the month name below each bar
         const chartH   = Math.max(20, totalH - labelH - monthH - 4);
 
         barsEl.innerHTML = monthly.map((m,i) => {
@@ -3690,11 +3690,12 @@ function updateS13() {
             pPx = Math.floor(pPx * scale);
           }
 
-          // Per-department $ label shown ON the segment itself, but only if
-          // the segment is tall enough to actually fit readable text —
-          // avoids overlapping/illegible labels on thin slivers.
-          const hLabel = hPx >= 16 ? `<div style="font-size:clamp(7px,.8vw,9px);font-weight:700;color:#04202b">${fmtK(h)}</div>` : '';
-          const pLabel = pPx >= 16 ? `<div style="font-size:clamp(7px,.8vw,9px);font-weight:700;color:#3d1200">${fmtK(p)}</div>` : '';
+          // Per-department $ label shown ON the segment itself — sized for
+          // wallboard readability from across a room (per request). Only
+          // shown if the segment is tall enough to actually fit that larger
+          // text — avoids overlapping/illegible labels on thin slivers.
+          const hLabel = hPx >= 26 ? `<div style="font-size:clamp(11px,1.3vw,15px);font-weight:800;color:#04202b;white-space:nowrap">${fmtK(h)}</div>` : '';
+          const pLabel = pPx >= 26 ? `<div style="font-size:clamp(11px,1.3vw,15px);font-weight:800;color:#3d1200;white-space:nowrap">${fmtK(p)}</div>` : '';
 
           // Stacking order (per request): HVAC on top, Plumbing on the
           // bottom — previously Plumbing (the lower-revenue department)
@@ -3702,12 +3703,12 @@ function updateS13() {
           // weighted. column-reverse lays out DOM-first-child at the
           // bottom, so Plumbing is listed first here to put it at the base.
           return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%">
-            <div style="height:${labelH}px;display:flex;align-items:flex-end;font-size:clamp(8px,.9vw,11px);color:${isCur?'#00D4FF':'rgba(255,255,255,.5)'};font-weight:${isCur?'700':'400'}">${t>0?fmtK(t):''}</div>
+            <div style="height:${labelH}px;display:flex;align-items:flex-end;font-size:clamp(14px,1.7vw,20px);color:${isCur?'#00D4FF':'rgba(255,255,255,.75)'};font-weight:${isCur?'800':'600'};white-space:nowrap">${t>0?fmtK(t):''}</div>
             <div style="height:${chartH}px;width:100%;display:flex;flex-direction:column-reverse;align-items:center;border-bottom:1px solid rgba(255,255,255,.15);overflow:hidden">
               <div style="width:80%;background:${isCur?'#FF9166':'rgba(255,107,53,.85)'};height:${pPx}px;display:flex;align-items:center;justify-content:center;overflow:hidden">${pLabel}</div>
               <div style="width:80%;background:${isCur?'#00D4FF':'rgba(0,212,255,.85)'};border-radius:2px 2px 0 0;height:${hPx}px;display:flex;align-items:center;justify-content:center;overflow:hidden">${hLabel}</div>
             </div>
-            <div style="height:${monthH}px;display:flex;align-items:flex-start;font-size:clamp(11px,1.3vw,15px);color:${isCur?'#00D4FF':'rgba(255,255,255,.6)'};font-weight:${isCur?'800':'600'}">${MONTHS[i]}</div>
+            <div style="height:${monthH}px;display:flex;align-items:flex-start;font-size:clamp(13px,1.5vw,18px);color:${isCur?'#00D4FF':'rgba(255,255,255,.65)'};font-weight:${isCur?'800':'600'}">${MONTHS[i]}</div>
           </div>`;
         }).join('');
       }
