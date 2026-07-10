@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.05</title>
+<title>Midstate — KPI Command Center v3.06</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1526,7 +1526,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.05
+      v3.06
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1537,7 +1537,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.05';
+const COMPANION_VERSION = 'v3.06';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1770,22 +1770,45 @@ async function fetchCSV(tabName) {
   }
 }
 
+// FIXED (2026-07-09): this parser used to toggle quote-state on every single
+// '"' character, which does NOT correctly handle CSV's standard escape
+// sequence for a literal quote inside a quoted field (a doubled "" ). Any
+// JSON value stored in KPI_Dashboard — dept_hvac_conv, dept_plumbing_conv,
+// hcp_pmt_monthly_json, monthly_revenue, rc_leaderboard, holidays_json, etc.
+// — gets CSV-escaped by Apps Script's getCSV action as "{""total"":45,...}"
+// specifically BECAUSE it contains commas and quotes. The old parser
+// stripped every quote character instead of un-escaping the doubled ones,
+// turning {"total":45,"converted":22,"pct":49} into the INVALID JSON
+// {total:45,converted:22,pct:49} (unquoted keys) — which JSON.parse then
+// threw on, silently defaulting to zeros wherever the error was caught
+// (explains Department Performance showing 0% conversion/0 estimates while
+// revenue, a plain unquoted number, displayed fine) or crashing the whole
+// scene wherever it wasn't caught (the earlier setEl/monthly-chart bug's
+// underlying data-corruption cause). This rewrite properly recognizes ""
+// as an escaped literal quote and handles commas/newlines inside quoted
+// fields correctly per standard CSV escaping rules.
 function parseCSV(text) {
   const rows = [];
-  const lines = text.split('\n');
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const cols = [];
-    let inQuote = false, cur = '';
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQuote = !inQuote; }
-      else if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
-      else { cur += ch; }
+  let field = '', row = [], inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i+1];
+    if (inQuote) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }       // escaped literal quote
+      else if (ch === '"') { inQuote = false; }                     // closing quote
+      else { field += ch; }                                        // literal char, incl. commas/newlines
+    } else {
+      if (ch === '"') { inQuote = true; }                          // opening quote
+      else if (ch === ',') { row.push(field.trim()); field = ''; }
+      else if (ch === '\r') { /* skip — \n below handles the row break */ }
+      else if (ch === '\n') {
+        row.push(field.trim()); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      }
+      else { field += ch; }
     }
-    cols.push(cur.trim());
-    rows.push(cols);
   }
+  if (field !== '' || row.length > 0) { row.push(field.trim()); rows.push(row); }
   return rows; // first row is header
 }
 
