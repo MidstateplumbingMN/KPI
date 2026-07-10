@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.06</title>
+<title>Midstate — KPI Command Center v3.08</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1526,7 +1526,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.06
+      v3.08
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1537,7 +1537,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.06';
+const COMPANION_VERSION = 'v3.08';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3647,26 +3647,47 @@ function updateS13() {
       let monthly = JSON.parse(raw);
       if(!Array.isArray(monthly)) throw new Error('parsed value is not an array: ' + typeof monthly);
       const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const maxVal = Math.max(...monthly.map(m=>(m.HVAC||0)+(m.Plumbing||0)+(m.Office||0)), 1);
+      const maxVal = Math.max(...monthly.map(m=>(m.HVAC||0)+(m.Plumbing||0)), 1);
       const curMo  = new Date().getMonth();
 
       if(monthly.some(m=>(m.HVAC||0)+(m.Plumbing||0)>0)) {
+        // FIXED (2026-07-09): previously used CSS percentage heights
+        // (height:X%) on deeply-nested flex:1 children — unreliable across
+        // browsers, and was making every month's bar render at effectively
+        // the same (near-minimum) height regardless of real revenue
+        // differences. Now measures the container's actual pixel height
+        // directly and computes explicit pixel heights for each bar segment
+        // — the same robust approach already used for the Goal Progress
+        // monthly chart (renderMonthlyBars). Also improved visual clarity
+        // per request: a visible baseline, thicker bars, and a stronger
+        // highlight on the current month.
+        const rect = barsEl.getBoundingClientRect();
+        const totalH = rect.height;
+        if(totalH < 30) {
+          // Not laid out yet (e.g. scene just became visible) — retry shortly
+          if(!updateS13._barRetry) {
+            updateS13._barRetry = setTimeout(() => { updateS13._barRetry = null; updateS13(); }, 150);
+          }
+          return;
+        }
+        updateS13._barRetry = null;
+
+        const labelH   = 14;               // space for the $ value label above each bar
+        const monthH   = 14;               // space for the month name below each bar
+        const chartH   = Math.max(20, totalH - labelH - monthH - 4);
+
         barsEl.innerHTML = monthly.map((m,i) => {
-          const h = m.HVAC||0, p = m.Plumbing||0, o = m.Office||0, t = h+p+o;
-          if(t <= 0) return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px">
-            <div style="height:4px;width:100%"></div>
-            <div style="font-size:clamp(8px,.9vw,11px);color:rgba(255,255,255,.2)">${MONTHS[i]}</div>
-          </div>`;
-          const hPct = (h/maxVal*100).toFixed(1);
-          const pPct = (p/maxVal*100).toFixed(1);
+          const h = m.HVAC||0, p = m.Plumbing||0, t = h+p;
           const isCur = i === curMo;
-          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-            <div style="font-size:clamp(7px,.85vw,10px);color:${isCur?'#00D4FF':'rgba(255,255,255,.5)'};font-weight:${isCur?'700':'400'}">${fmtK(t)}</div>
-            <div style="width:100%;display:flex;flex-direction:column;gap:1px;flex:1;justify-content:flex-end">
-              <div style="background:rgba(0,212,255,.85);border-radius:2px 2px 0 0;height:${hPct}%;min-height:${h>0?2:0}px;transition:height 1s ease"></div>
-              <div style="background:rgba(255,107,53,.85);border-radius:0;height:${pPct}%;min-height:${p>0?2:0}px;transition:height 1s ease"></div>
+          const hPx = t > 0 ? Math.max(h>0?2:0, Math.round(chartH * (h/maxVal))) : 0;
+          const pPx = t > 0 ? Math.max(p>0?2:0, Math.round(chartH * (p/maxVal))) : 0;
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%">
+            <div style="height:${labelH}px;display:flex;align-items:flex-end;font-size:clamp(7px,.85vw,10px);color:${isCur?'#00D4FF':'rgba(255,255,255,.5)'};font-weight:${isCur?'700':'400'}">${t>0?fmtK(t):''}</div>
+            <div style="height:${chartH}px;width:100%;display:flex;flex-direction:column-reverse;align-items:center;border-bottom:1px solid rgba(255,255,255,.15)">
+              <div style="width:80%;background:${isCur?'#00D4FF':'rgba(0,212,255,.85)'};border-radius:2px 2px 0 0;height:${hPx}px;transition:height .8s ease"></div>
+              <div style="width:80%;background:${isCur?'#FF9166':'rgba(255,107,53,.85)'};height:${pPx}px;transition:height .8s ease"></div>
             </div>
-            <div style="font-size:clamp(7px,.85vw,10px);color:${isCur?'#00D4FF':'rgba(255,255,255,.35)'};font-weight:${isCur?'700':'400'}">${MONTHS[i]}</div>
+            <div style="height:${monthH}px;display:flex;align-items:flex-start;font-size:clamp(7px,.85vw,10px);color:${isCur?'#00D4FF':'rgba(255,255,255,.4)'};font-weight:${isCur?'700':'400'}">${MONTHS[i]}</div>
           </div>`;
         }).join('');
       }
@@ -4751,11 +4772,22 @@ async function loadWallboardData() {
     if(sceneOrderRow && sceneOrderRow[1]) {
       try {
         const order = JSON.parse(sceneOrderRow[1]);
-        if(Array.isArray(order) && order.length > 0) {
+        // Defensive validation (2026-07-09): only accept if every entry is
+        // a proper scene ID string (e.g. 's2') — protects against a stale
+        // or malformed wb_scene_order value (this key has previously held
+        // full {id,label,enabled} objects due to a since-fixed key-collision
+        // bug on the dashboard side) ever corrupting the live rotation.
+        // A single bad entry here used to break every scene lookup and
+        // send goScene/nextScene into infinite mutual recursion.
+        const isValid = Array.isArray(order) && order.length > 0 &&
+          order.every(id => typeof id === 'string' && /^s\d+$/.test(id));
+        if(isValid) {
           SCENES.length = 0;
           order.forEach(id => SCENES.push(id));
           buildDots();
           console.log('[Companion] Scene order from dashboard:', SCENES.join(','));
+        } else if(Array.isArray(order) && order.length > 0) {
+          console.warn('[Companion] Ignored invalid wb_scene_order data (expected string IDs, got):', JSON.stringify(order).slice(0,200));
         }
       } catch(e) {}
     }
