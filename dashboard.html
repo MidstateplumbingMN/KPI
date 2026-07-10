@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.91</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.93</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.91</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.93</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.91</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.93</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1838,12 +1838,27 @@ async function fetchConfirmedAttrFromSheets(){
     const res=await fetch(_sheetsProxy+'?action=getConfirmedAttribution',{redirect:'follow',mode:'cors'});
     if(!res.ok) return;
     const data=await res.json();
-    if(data.success&&data.attributions){
+    // FIXED (2026-07-09): Apps Script's getConfirmedAttribution() returns
+    // {confirmed:{...}} — this was checking data.attributions, a key that
+    // never existed in the response, so this merge silently never ran.
+    // Confirmed attributions were saving to Sheets correctly the whole
+    // time (see confirmAttribution/saveAttrConfirmation) but were never
+    // actually restored on the next connect — every fresh session looked
+    // like every confirmation had been "lost," even though it was sitting
+    // right there in the Attribution sheet.
+    if(data.success&&data.confirmed){
       // Merge Sheets data — Sheets wins for manually confirmed ones
-      Object.entries(data.attributions).forEach(([jobId,a])=>{
-        if(a.confirmed) _attr[jobId]=a;
+      Object.entries(data.confirmed).forEach(([jobId,a])=>{
+        _attr[jobId]={
+          techId: a.techId||null, techName: a.techName||'',
+          confirmed:true, source: a.source||'manual',
+          reason: a.reason||'', notes: a.notes||'',
+          auto: (a.original_auto_tech || a.original_auto_source)
+            ? { techName: a.original_auto_tech||'', source: a.original_auto_source||'' }
+            : null,
+        };
       });
-      // Attribution saved to Sheets via syncReportToSheets
+      console.log('[Attr] Restored', Object.keys(data.confirmed).length, 'confirmed attributions from Sheets');
     }
   }catch(e){console.warn('[Attr Sheets load]',e.message);}
 }
@@ -3059,7 +3074,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.91
+  // ATTRIBUTION ENGINE — v24.93
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -3576,27 +3591,38 @@ function renderAttr(jobs,estimates){
     let optionsHtml='';
 
     // Build the tech selector — one decision: who gets credit for THIS job?
-    // Show all non-installer employees as the selection, pre-selected to best candidate.
+    // Show all non-installer employees as the selection.
+    // FIXED (2026-07-09): pre-selection used to always default to the best
+    // estimate-match candidate, even when this job already had a confirmed
+    // or auto-assigned tech (attr.techId) — meaning the picker could show a
+    // DIFFERENT tech highlighted than the one actually currently credited,
+    // with no clear indication of who was really assigned. Now prefers the
+    // already-assigned tech (attr.techId) when one exists, falling back to
+    // the best candidate match only for jobs with no assignment yet.
     const bestSeller = candidates[0]?.seller || null;
-    const bestSellerId = bestSeller ? (bestSeller.id || '') : '';
+    const assignedId = attr?.techId || (bestSeller ? (bestSeller.id||'') : '');
+    const bestSellerId = assignedId;
     const allTechs = _employees.filter(e => !INSTALLER_IDS.has(e.id) && !KPI_EXCLUDE.has(((e.first_name||'')+' '+(e.last_name||'')).trim()));
 
     // If the best match seller isn't in _employees (e.g. historical), still include them
     const techsForSelect = [...allTechs];
     if(bestSellerId && !techsForSelect.find(e => e.id === bestSellerId)){
-      const phantom = { id: bestSellerId, first_name: bestSeller.first_name||bestSeller.name||'', last_name: bestSeller.last_name||'' };
+      const phantom = { id: bestSellerId, first_name: bestSeller?.first_name||bestSeller?.name||attr?.techName||'', last_name: bestSeller?.last_name||'' };
       techsForSelect.unshift(phantom);
     }
 
     const techRadios = techsForSelect.map(e => {
       const n = ((e.first_name||'')+' '+(e.last_name||'')).trim() || e.name || '?';
       const isSelected = e.id === bestSellerId;
+      const selLabel = attr?.techId === e.id
+        ? (attr.source==='manual' ? 'Currently assigned' : 'Auto-assigned')
+        : 'Best match';
       return `<label class="attr-option" style="${isSelected?'background:#EAF3DE;border-color:#86efac':''}">
         <input type="radio" name="attr_${j.id}" value="${e.id}" data-name="${n}" ${isSelected?'checked':''}>
         <div style="flex:1">
           <div class="attr-option-name">${escHtml(n)}</div>
         </div>
-        ${isSelected?'<span style="font-size:10px;color:#166534;font-weight:600">Best match</span>':''}
+        ${isSelected?`<span style="font-size:10px;color:#166534;font-weight:600">${selLabel}</span>`:''}
       </label>`;
     }).join('');
 
@@ -3703,6 +3729,7 @@ function renderAttr(jobs,estimates){
             <span style="font-size:11px;background:${confidenceBg};color:${confidenceColor};padding:2px 8px;border-radius:99px;font-weight:600">${sourceLabel}</span>
             ${confidence>0?`<span style="font-size:11px;color:${confidenceColor};font-weight:600">${confidence}% confidence</span>`:''}
           </div>
+          ${attr?.techName ? `<div style="margin-top:5px;font-size:13px;color:#111827"><strong>Assigned to:</strong> ${escHtml(attr.techName)}</div>` : ''}
           ${autoInfo}
         </div>
         <div class="attr-amount">${total?dollars(total):'$0.00'}</div>
@@ -5001,7 +5028,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.91',  // dashboard version that generated this push
+    dash_version: 'v24.93',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5572,7 +5599,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.91',
+        dash_version:        'v24.93',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5856,8 +5883,14 @@ async function loadAllSettingsFromSheets() {
     // KPI employee filter
     if(s.hcp_kpi_emps) try { const v=JSON.parse(s.hcp_kpi_emps); if(Array.isArray(v)) _kpiSelectedEmps=new Set(v); } catch(e){}
 
-    // Scene order
-    if(s.wb_scene_order) try { const v=JSON.parse(s.wb_scene_order); if(Array.isArray(v)) _sceneOrder=v; } catch(e){}
+    // Scene order — dashboard's own admin UI needs the full objects
+    // (id/label/enabled) to restore drag-and-drop state; this is a
+    // SEPARATE key from wb_scene_order, which companion.html reads as a
+    // plain array of enabled scene ID strings. FIXED (2026-07-09): these
+    // used to collide on the same key (wb_scene_order) with two different,
+    // incompatible shapes — see saveSceneOrder()'s fix note for the full
+    // explanation. This read now matches that fix.
+    if(s.wb_scene_order_full) try { const v=JSON.parse(s.wb_scene_order_full); if(Array.isArray(v)) _sceneOrder=v; } catch(e){}
 
     // Auto-pull config
     if(s.hcp_autopull) try { Object.assign(_autoPull||{}, JSON.parse(s.hcp_autopull)); } catch(e){}
@@ -6019,7 +6052,22 @@ function resetSceneOrder() {
   renderSceneOrder();
 }
 async function saveSceneOrder() {
-  saveSettingToSheets('wb_scene_order', JSON.stringify(_sceneOrder));
+  // FIXED (2026-07-09): this used to save BOTH the full _sceneOrder objects
+  // ({id,label,enabled}) AND a plain array of enabled scene ID strings
+  // under the SAME key (wb_scene_order) — one via saveSettingToSheets, one
+  // via a separate syncSettings push. Only one write could actually win,
+  // and companion.html always expects the plain-string version (it does
+  // SCENES.push(id) directly, assuming each entry is a scene ID like 's2').
+  // When the full-object version won instead, companion's scene rotation
+  // broke completely — every scene ID resolved to a DOM lookup for a
+  // literal "[object Object]" id, which never exists, so nextScene()/
+  // goScene() looped on each other forever (Maximum call stack exceeded).
+  // This was masked for a long time by an unrelated CSV-parsing bug that
+  // happened to make JSON.parse fail before it could even reach that
+  // point — fixing that bug (2026-07-09, parseCSV) is what exposed this
+  // one. Now using two distinct keys so both consumers get the shape they
+  // actually expect, with no collision.
+  saveSettingToSheets('wb_scene_order_full', JSON.stringify(_sceneOrder));
   const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
   if(_sheetsProxy) {
     try {
