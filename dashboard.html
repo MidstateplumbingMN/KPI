@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.93</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.95</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.93</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.95</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.93</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.95</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1690,6 +1690,41 @@ tr:hover td{background:#fafafa}
 let _workerUrl='', _token='', _sheetsProxy='https://script.google.com/macros/s/AKfycbw9FhysS8t5afvqHQ5Cw18nad_a6bO6BIEsRQu2qGLpk5xrF-vcUBSLhIyM2NPW2qmM/exec';
 let _selectedEmps=new Set(); // empty = all selected
 let _jobs=[], _estimates=[], _employees=[], _plans=[];
+
+// FIXED (2026-07-09): every pull used to blindly REPLACE _jobs/_estimates
+// with just that pull's results — fine for a Full Pull (covers everything),
+// but a Quick Pull (last 7 days) would wipe out the rest of the year's data
+// that was sitting in memory (whether from an earlier pull this session, or
+// from restoreJobsEstimatesFromSheets() on login). This meant "Year to
+// Date" on the KPI tab only ever reflected whatever the MOST RECENT pull
+// happened to cover — after a Quick Pull, that's 7 days, which is how a
+// single tech's short-term numbers (e.g. Gordon's) could misleadingly show
+// as "#1" even though it wasn't representative of the full year at all.
+// This merges by job_number/estimate_number instead — matching the same
+// approach already used server-side for Sheets retention (see syncJobs/
+// syncEstimates in apps_script_remainder.js) — so a Quick Pull only
+// refreshes the jobs/estimates it actually covers, and everything else
+// already loaded stays right where it was. The dashboard's date-range
+// filters (KPI Period, Jobs/Estimates tab filters, etc.) then correctly
+// filter this complete, accumulated dataset for display — exactly the
+// "pull gathers and stores, display filters and reflects that period"
+// model requested. syncReportToSheets() is called with each pull's own
+// fresh (unmerged) jobs/estimates directly, not _jobs/_estimates, so this
+// change does not affect what gets synced to Sheets — only what's kept in
+// memory for the dashboard's own display.
+function mergeIntoJobsEstimates(newJobs, newEstimates) {
+  const jobMap = new Map();
+  _jobs.forEach(j => { const key = j.job_number || j.id; if(key) jobMap.set(String(key), j); });
+  (newJobs||[]).forEach(j => { const key = j.job_number || j.id; if(key) jobMap.set(String(key), j); });
+  _jobs = Array.from(jobMap.values());
+
+  const estMap = new Map();
+  _estimates.forEach(e => { const key = e.estimate_number || e.id; if(key) estMap.set(String(key), e); });
+  (newEstimates||[]).forEach(e => { const key = e.estimate_number || e.id; if(key) estMap.set(String(key), e); });
+  _estimates = Array.from(estMap.values());
+
+  console.log(`[Merge] _jobs now ${_jobs.length} total, _estimates now ${_estimates.length} total (this pull: ${newJobs?.length||0} jobs, ${newEstimates?.length||0} estimates)`);
+}
 let _invoiceMap = {}; // job_id → [{date, amount, number}] — populated by invoice fetch
 let _attr = {};
 const INSTALLER_IDS = new Set();
@@ -2881,7 +2916,8 @@ async function loadAll(){
     }
 
     const employees=Array.isArray(empRaw)?empRaw:(empRaw.employees||empRaw.data||empRaw.results||[]);
-    _jobs=jobs;_estimates=estimates;_employees=employees;
+    mergeIntoJobsEstimates(jobs, estimates);
+    _employees=employees;
     // _plans = uploaded CSV data if available (definitive source of truth)
     //        = HCP API result if available and no upload exists
     //        = HCP estimate scan if nothing else found
@@ -3074,7 +3110,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.93
+  // ATTRIBUTION ENGINE — v24.95
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5028,7 +5064,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.93',  // dashboard version that generated this push
+    dash_version: 'v24.95',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5599,7 +5635,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.93',
+        dash_version:        'v24.95',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -12410,9 +12446,39 @@ async function restoreJobsEstimatesFromSheets(){
       console.log('[Restore] Loaded', _estimates.length, 'estimates from Sheets (retained data, no live pull)');
     }
 
+    // FIXED (2026-07-09): _employees is only ever populated by a real live
+    // pull — this restore function never touched it, so on a session with
+    // only restored data (no pull yet), _employees stayed empty. KPI tab
+    // rendering builds one card per entry in _employees before attributing
+    // any job/estimate revenue to it — with an empty roster, no cards ever
+    // get created, so the KPI tab renders empty and clicking Period
+    // Selection / Refresh appeared to do nothing (each click just
+    // re-produced the same empty result). Builds a synthetic roster from
+    // DEPT_MAP (the already-known tech list used throughout the app) as a
+    // fallback — a real live pull still fully replaces this with the
+    // actual HCP employee records, exactly as before.
+    if(!_employees.length && (_jobs.length || _estimates.length)) {
+      const seen = new Set();
+      const ALIAS_SKIP = new Set(['Andrew Mitchell','Bob Danaher','Victoria']); // prefer canonical name
+      Object.entries(DEPT_MAP).forEach(([name, dept]) => {
+        if(KPI_EXCLUDE.has(name) || ALIAS_SKIP.has(name) || seen.has(name)) return;
+        seen.add(name);
+        const parts = name.split(' ');
+        _employees.push({
+          id: 'restored_emp_' + name.replace(/\s+/g,'_').toLowerCase(),
+          first_name: parts[0] || name,
+          last_name: parts.slice(1).join(' ') || '',
+          role: dept === 'HVAC' || dept === 'Plumbing' ? 'field tech' : dept.toLowerCase(),
+        });
+      });
+      console.log('[Restore] Built synthetic roster of', _employees.length, 'employees from DEPT_MAP (no live pull yet)');
+    }
+
     if(_jobs.length || _estimates.length){
       renderJobs(_jobs, _estimates);
       renderEstimates(_estimates);
+      buildAttribution(_jobs, _estimates);
+      renderKPI(_jobs, _estimates, _employees, _plans);
       dashLog('info', `📋 Restored ${_jobs.length} jobs, ${_estimates.length} estimates from Sheets — click Quick/Full Pull to refresh from HCP`);
     }
   } catch(e) { console.warn('[Restore] Jobs/Estimates Sheets restore failed:', e.message); }
