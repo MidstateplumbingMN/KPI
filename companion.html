@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.10</title>
+<title>Midstate — KPI Command Center v3.12</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -445,7 +445,7 @@ html, body {
 }
 .motivation-quote {
   font-family: var(--font-display);
-  font-size: 56px; line-height: 1.1;
+  font-size: 92px; line-height: 1.1;
   letter-spacing: .02em;
   margin-bottom: 24px;
   background: linear-gradient(135deg, #fff, var(--blue));
@@ -453,7 +453,7 @@ html, body {
   background-clip: text;
 }
 .motivation-author {
-  font-size: 17px; color: #fff;
+  font-size: 22px; color: #fff;
   text-transform: uppercase; letter-spacing: .2em;
 }
 .motivation-stats {
@@ -1526,7 +1526,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.10
+      v3.12
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1537,7 +1537,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.10';
+const COMPANION_VERSION = 'v3.12';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2762,13 +2762,15 @@ function showAnnouncement(idx, quotes) {
 
   if (quoteEl) {
     quoteEl.textContent = msg;
-    // Scale font size based on message length
+    // Scale font size based on message length — bumped up significantly
+    // (was 56px max) per request: short shout-outs should be readable
+    // across a room, longer ones still shrink to fit rather than overflow.
     const len = msg.length;
-    const fs = len < 60  ? '56px'
-              : len < 120 ? '44px'
-              : len < 200 ? '34px'
-              : len < 300 ? '26px'
-              : '20px';
+    const fs = len < 60  ? '92px'
+              : len < 120 ? '72px'
+              : len < 200 ? '54px'
+              : len < 300 ? '40px'
+              : '30px';
     quoteEl.style.fontSize = fs;
   }
   if (authorEl) authorEl.textContent = '— ' + (item.author || item.a || 'Midstate Team');
@@ -2776,7 +2778,8 @@ function showAnnouncement(idx, quotes) {
   if (photoWrap) {
     const photoUrl = item.photoUrl ? item.photoUrl.trim() : '';
     if (photoUrl) {
-      photoWrap.innerHTML = `<img src="${photoUrl}" style="max-width:420px;max-height:320px;width:auto;height:auto;border-radius:16px;object-fit:contain;border:3px solid var(--blue);box-shadow:0 0 40px rgba(0,212,255,.3);margin-bottom:24px" onerror="this.style.display='none'">`;
+      // Photo size roughly doubled per request (was 420x320)
+      photoWrap.innerHTML = `<img src="${photoUrl}" style="max-width:640px;max-height:480px;width:auto;height:auto;border-radius:20px;object-fit:contain;border:4px solid var(--blue);box-shadow:0 0 50px rgba(0,212,255,.35);margin-bottom:28px" onerror="this.style.display='none'">`;
       photoWrap.style.display = 'block';
     } else {
       photoWrap.style.display = 'none';
@@ -4131,7 +4134,10 @@ function updateS7() {
   // If only 1 spotlight — no rotation needed, hold for full scene duration
   if (_spItems.length === 1) return;
 
-  // Rotate through spotlights — 8s per spotlight
+  // Rotate through spotlights — 11s per spotlight (increased from 8s per
+  // request, so each one gets more time to actually read, especially when
+  // there are several in rotation — the total scene duration already
+  // scales automatically with spotlight count since this is self-managed)
   // When all shown, advance to next scene
   _cubeTimer = setInterval(() => {
     _cubeIdx++;
@@ -4146,7 +4152,7 @@ function updateS7() {
     // Rotate cube to next face
     rotateCubeToNext();
     updateCubeDots();
-  }, 8000);
+  }, 11000);
 
   // Override scene auto-advance — scene7 controls its own timing
   overrideSceneTimer();
@@ -4737,10 +4743,10 @@ function updateS10() {
         <div style="display:flex;gap:32px;margin-top:16px">
           ${(state.birthdays||[]).slice(0,4).map(b=>`
             <div style="text-align:center">
-              ${b.photoUrl?`<img src="${convertDriveUrl(b.photoUrl)}" style="max-width:80px;max-height:80px;width:auto;height:auto;border-radius:8px;object-fit:contain;border:2px solid var(--purple);margin-bottom:8px">`
-                :`<div style="width:64px;height:64px;border-radius:50%;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px">👤</div>`}
-              <div style="font-size:17px;color:#fff">${b.name}</div>
-              <div style="font-size:15px;color:rgba(255,255,255,.9)">${b.birthday||'🎂 --'}</div>
+              ${b.photoUrl?`<img src="${convertDriveUrl(b.photoUrl)}" style="max-width:140px;max-height:140px;width:auto;height:auto;border-radius:12px;object-fit:contain;border:3px solid var(--purple);margin-bottom:10px">`
+                :`<div style="width:120px;height:120px;border-radius:50%;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:48px;margin:0 auto 10px">👤</div>`}
+              <div style="font-size:22px;color:#fff;font-weight:700">${b.name}</div>
+              <div style="font-size:18px;color:rgba(255,255,255,.9)">${b.birthday||'🎂 --'}</div>
             </div>`).join('')}
         </div>
       </div>`;
