@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.14</title>
+<title>Midstate — KPI Command Center v3.15</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -727,21 +727,21 @@ html, body {
   position: absolute; bottom: -14px; left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #fff; font-size: 26px; font-weight: 800;
-  padding: 8px 26px; border-radius: 99px;
+  color: #fff; font-size: 32px; font-weight: 800;
+  padding: 10px 30px; border-radius: 99px;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(245,158,11,.4);
   letter-spacing: .04em;
 }
 .spotlight-info { flex: 1; z-index: 1; }
 .spotlight-header-label {
-  font-size: 26px; color: #f59e0b;
-  text-transform: uppercase; letter-spacing: .2em;
-  margin-bottom: 14px;
+  font-size: clamp(28px, 2vw, 36px); color: #f59e0b;
+  text-transform: uppercase; letter-spacing: .15em;
+  margin-bottom: 16px; font-weight: 700;
 }
 .spotlight-name {
   font-family: var(--font-display);
-  font-size: clamp(90px, 8vw, 148px); line-height: 1;
+  font-size: clamp(110px, 9vw, 170px); line-height: 1;
   background: linear-gradient(135deg, #fff 40%, #f59e0b);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -749,12 +749,13 @@ html, body {
 }
 .spotlight-praise {
   margin-top: 28px;
-  padding: 26px 32px;
+  padding: 30px 36px;
   background: rgba(245,158,11,.08);
   border-left: 5px solid #f59e0b;
   border-radius: 0 14px 14px 0;
-  font-size: clamp(28px, 2.4vw, 42px); color: #fff;
-  font-style: italic; line-height: 1.5;
+  font-size: clamp(42px, 3.5vw, 58px); color: #fff;
+  font-weight: 600;
+  font-style: italic; line-height: 1.4;
 }
 .spotlight-confetti {
   position: absolute; inset: 0; pointer-events: none; z-index: 0;
@@ -1467,7 +1468,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.14
+      v3.15
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1478,7 +1479,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.14';
+const COMPANION_VERSION = 'v3.15';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
