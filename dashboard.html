@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.01</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.05</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.01</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.05</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.01</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.05</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2621,6 +2621,93 @@ async function hcpGet(path){
   if(!res.ok){const txt=await res.text().catch(()=>'');throw new Error('HTTP '+res.status+' on '+path+(txt?' → '+txt.slice(0,200):''));}
   return res.json();
 }
+
+// Mirrors hcpGet, but for write operations (POST) through the same
+// Cloudflare Worker proxy. Added 2026-07-16 to support automatically
+// logging a private note on an HCP job (e.g. "payment reminder sent").
+// NOTE: every existing use of _workerUrl in this app is read-only (GET) —
+// this is the first write call. If the Worker is configured as strictly
+// read-only, this will fail (likely a 405/CORS error) and the Worker
+// itself would need to be updated to allow POST through to HCP — that's
+// outside this file, so if sendPaymentReminder's note-adding silently
+// fails, check the Worker's method allowlist first.
+async function hcpPost(path, body){
+  const res = await fetch(_workerUrl+'/api'+path, {
+    method: 'POST',
+    headers: {
+      Authorization:_token, 'X-HCP-Token':_token.replace(/^(Bearer|Token)\s+/i,'').trim(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if(!res.ok){const txt=await res.text().catch(()=>'');throw new Error('HTTP '+res.status+' on '+path+(txt?' → '+txt.slice(0,200):''));}
+  return res.json();
+}
+
+// Sends the payment request message to the customer via a pre-filled
+// mailto: draft (opens in Bob's own email client for review before
+// sending — deliberately not a fully-automated send, so nothing goes out
+// to a customer without a human actually clicking Send). On click, also
+// automatically logs a private note on the HCP job recording that the
+// reminder went out, and marks the unpaid status as "Contacted" —
+// per explicit request to automate the note without a separate manual step.
+async function sendPaymentReminder(jobId){
+  const j = _jobs.find(x=>x.id===jobId);
+  if(!j) { showToast('Job not found','error'); return; }
+  const cust  = j.customer || {};
+  const email = cust.email || '';
+  if(!email) { showToast('No email on file for this customer','error'); return; }
+
+  const total       = getJobTotal(j);
+  const completedAt = j.work_timestamps?.completed_at || j.completed_at || '';
+  const firstName   = getCust(j).split(' ')[0] || getCust(j);
+  const dept        = getDept(j);
+  const dateStr     = completedAt ? fmtD(completedAt) : '';
+
+  // Plain-text version of the same message shown in the "Payment request
+  // message" preview — mailto: bodies can't contain HTML/formatting.
+  const bodyPlain =
+`Hi ${firstName},
+
+I'm following up regarding your recent ${dept} service completed on ${dateStr}. Your invoice of ${dollars(total)} is currently due.
+
+We kindly ask that you complete payment within 30 days of service completion. Please give us a call at 651-480-1195 or reply to this message to arrange payment. We accept check, credit card, and online payment.
+
+If you have any questions about your invoice or would like to discuss payment options, please don't hesitate to reach out — we're happy to help.
+
+Thank you for choosing Midstate Plumbing, Heating & Cooling. We appreciate your business.
+
+Best regards,
+Bob Danaher
+Midstate Plumbing, Heating & Cooling
+651-480-1195`;
+
+  const subject = encodeURIComponent(`Payment Reminder — Invoice ${dollars(total)} Due`);
+  const bodyEnc = encodeURIComponent(bodyPlain);
+  window.location.href = `mailto:${email}?subject=${subject}&body=${bodyEnc}`;
+
+  // Auto-log a private note on the HCP job — best-effort; a failure here
+  // (e.g. if the Worker doesn't support writes yet) doesn't block the
+  // email draft itself, which has already opened above.
+  try {
+    if(_workerUrl && _token){
+      await hcpPost(`/jobs/${jobId}/notes`, {
+        content: `Payment reminder email sent ${new Date().toLocaleDateString()} — Invoice ${dollars(total)} due (${dept}, completed ${dateStr}).`
+      });
+      dashLog('success', `📝 Private note added to job — payment reminder logged`);
+    }
+  } catch(e) {
+    console.warn('[sendPaymentReminder] Could not add HCP note:', e.message);
+    dashLog('warn', `Email drafted, but could not auto-log the note on the job: ${e.message}`);
+  }
+
+  // Mark as contacted, matching the existing manual status tracking
+  _unpaidStatus[jobId] = 'contacted';
+  saveUnpaidState();
+  openUnpaidDetail(jobId); // refresh the detail panel to show updated status
+  showToast('✉️ Email drafted — review and send in your email client', 'success');
+}
+
 async function fetchAll(path, keys, opts={}) {
   const PAGE_SIZE = 200; // HCP max page size
   const sep = path.includes('?') ? '&' : '?';
@@ -3110,7 +3197,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.01
+  // ATTRIBUTION ENGINE — v25.05
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5064,7 +5151,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.01',  // dashboard version that generated this push
+    dash_version: 'v25.05',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5635,7 +5722,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.01',
+        dash_version:        'v25.05',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11670,6 +11757,118 @@ function printUnpaidByTech(techFilter=null){
   win.document.close();
 }
 
+// Formal "Final Notice of Past Due Account" collections letter — added
+// per explicit request, using the exact wording provided. Per the
+// Terms & Conditions ("Payment is due in full on the day of service
+// completion"), every unpaid job is already technically overdue from
+// its completion date — this notice's own deadline is a SEPARATE, fresh
+// 10-calendar-day window starting from the date the notice itself is
+// sent, per the letter's own stated terms ("within ten (10) calendar
+// days of the date of this notice"). That deadline is computed here and
+// stated explicitly in the letter (in addition to the original wording)
+// so there's no ambiguity for the customer about the actual date.
+//
+// NOTE (updated 2026-07-16): HCP DOES track a distinct billing address
+// separate from the job's service address — customer.addresses is an
+// array where each entry is tagged type:'billing' or type:'service'
+// (commonly populated via a QuickBooks sync). getBillingAddressDisplay()
+// below uses the real billing entry when one exists, and only falls back
+// to the service address for customers who don't have a distinct one on
+// file.
+// Returns the customer's actual BILLING address if HCP has one on file
+// (customer.addresses is an array where each entry is tagged
+// type:'billing' or type:'service' — often populated via a QuickBooks
+// sync, per explicit confirmation this exists for some customers).
+// Falls back to the job's service address if no distinct billing address
+// is found, which is the common case for a customer with only one
+// address on file.
+function getBillingAddressDisplay(j){
+  const addrs = j?.customer?.addresses;
+  if(Array.isArray(addrs)){
+    const billing = addrs.find(a => a?.type === 'billing');
+    if(billing) return [billing.street, billing.street_line_2, billing.city, billing.state, billing.zip].filter(Boolean).join(', ');
+  }
+  return getJobAddressDisplay(j); // fall back to service address
+}
+
+function printFinalNotice(jobId){
+  const j = _jobs.find(x=>x.id===jobId);
+  if(!j) { showToast('Job not found','error'); return; }
+
+  const custName    = getCust(j);
+  const address     = getJobAddressDisplay(j);       // Property / service address
+  const billingAddr = getBillingAddressDisplay(j);    // Actual billing address if HCP/QuickBooks has one, else same as above
+  const total      = getJobTotal(j);
+  const invoiceNum = j.invoice_number || j.job_number || j.id || '';
+  const cust       = j.customer || {};
+  const phone      = cust.mobile_number || cust.home_number || '';
+  const email      = cust.email || '';
+
+  const noticeDate   = new Date();
+  const deadlineDate = new Date(noticeDate.getTime() + 10*864e5); // 10 calendar days
+  const fmtLong = d => d.toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+
+  const win = window.open('','_blank','width=850,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><title>Final Notice — ${escHtml(custName)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    @page{size:letter portrait;margin:0.9in}
+    body{font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#1f2937;line-height:1.7;background:#fff}
+    @media print{button{display:none!important}}
+    .fn-title{font-family:Arial,sans-serif;font-size:17px;font-weight:800;letter-spacing:.04em;text-align:center;margin-bottom:24px;text-decoration:underline}
+    .fn-field{margin-bottom:6px}
+    .fn-field label{font-weight:700}
+    .fn-fields{margin-bottom:22px}
+    .fn-balance{font-weight:800;color:#DC2626;font-size:15px}
+    .fn-body p{margin-bottom:14px}
+    .fn-deadline{font-weight:700}
+    .fn-sign{margin-top:36px}
+    .fn-print-btn{position:fixed;top:12px;right:12px;font-family:Arial,sans-serif;font-size:12px;padding:8px 16px;background:#1A3A5C;color:#fff;border:none;border-radius:5px;cursor:pointer}
+  </style></head><body>
+    <button class="fn-print-btn" onclick="window.print()">🖨 Print</button>
+    <div class="fn-title">FINAL NOTICE OF PAST DUE ACCOUNT</div>
+    <div class="fn-fields">
+      <div class="fn-field"><label>Date:</label> ${fmtLong(noticeDate)}</div>
+      <div class="fn-field"><label>Customer Name:</label> ${escHtml(custName)}</div>
+      <div class="fn-field"><label>Property Address:</label> ${escHtml(address)}</div>
+      <div class="fn-field"><label>Mailing Address:</label> ${escHtml(billingAddr)}</div>
+      <div class="fn-field"><label>Invoice Number(s):</label> ${escHtml(String(invoiceNum))}</div>
+      <div class="fn-field"><label>Outstanding Balance:</label> <span class="fn-balance">${dollars(total)}</span></div>
+    </div>
+    <div class="fn-body">
+      <p>Dear ${escHtml(custName)},</p>
+      <p>Our records indicate the above balance remains unpaid despite previous invoices and payment reminders.</p>
+      <p>Payment in full is requested within ten (10) calendar days of the date of this notice — <span class="fn-deadline">by ${fmtLong(deadlineDate)}</span>.</p>
+      <p>If payment has already been made, please contact our office so we can update our records. If you believe there is an error regarding this balance, please notify us immediately.</p>
+      <p>If payment is not received by the deadline, your account may be referred to a licensed collection agency and we reserve the right to pursue any other remedies available under applicable law to recover the outstanding balance.</p>
+      <p>If you are experiencing financial hardship, please contact our office before the payment deadline to discuss possible payment arrangements.</p>
+      <p>To avoid additional collection activity, please remit payment promptly or contact us to resolve this matter.</p>
+      <p>Thank you for your immediate attention to this matter.</p>
+    </div>
+    <div class="fn-sign">
+      Sincerely,<br><br>
+      Midstate Plumbing &amp; Heating<br>
+      Phone: 651-480-1195<br>
+      Email: eric@midstateplumbing.com
+    </div>
+  <script>window.onload=function(){window.print();}<\/script></body></html>`);
+  win.document.close();
+
+  // Same automated-note behavior as the email reminder — logs that this
+  // formal notice was sent, and marks status as "Contacted".
+  (async () => {
+    try {
+      if(_workerUrl && _token){
+        await hcpPost(`/jobs/${jobId}/notes`, {
+          content: `FINAL NOTICE sent ${fmtLong(noticeDate)} — Invoice ${dollars(total)} due by ${fmtLong(deadlineDate)}.`
+        });
+      }
+    } catch(e) { console.warn('[printFinalNotice] Could not add HCP note:', e.message); }
+    _unpaidStatus[jobId] = 'contacted';
+    saveUnpaidState();
+  })();
+}
+
 function renderUnpaid(){
   if(!_jobs.length){
     const el=$$('unpaidList');
@@ -12088,8 +12287,9 @@ function openUnpaidDetail(jobId){
     <!-- Action buttons -->
     <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
       ${phone?`<a href="tel:${phone}" class="is-btn primary" style="text-decoration:none;text-align:center">📞 Call</a>`:''}
-      ${email?`<a href="mailto:${email}?subject=Your recent service with Midstate Plumbing" class="is-btn" style="text-decoration:none;text-align:center">✉ Email</a>`:''}
+      ${email?`<button class="is-btn" onclick="sendPaymentReminder('${j.id}')">✉ Email payment reminder</button>`:''}
       <button class="is-btn email" onclick="printUnpaidTicket('${j.id}')">🖨 Print ticket</button>
+      <button class="is-btn" style="border-color:#DC2626;color:#DC2626" onclick="printFinalNotice('${j.id}')">⚠ Print Final Notice</button>
       <button class="is-btn" onclick="closeUnpaidDetail()">Close</button>
     </div>
 
