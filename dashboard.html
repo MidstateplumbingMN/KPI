@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v24.98</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v24.99</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.98</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v24.99</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.98</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v24.99</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3110,7 +3110,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v24.98
+  // ATTRIBUTION ENGINE — v24.99
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5064,7 +5064,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v24.98',  // dashboard version that generated this push
+    dash_version: 'v24.99',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5635,7 +5635,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v24.98',
+        dash_version:        'v24.99',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11533,6 +11533,145 @@ function getUnpaidJobs(){
   }).sort((a,b)=>getJobTotal(b)-getJobTotal(a));
 }
 
+// Returns a display-ready address string for a job, regardless of whether
+// it's a live-pulled job (raw {street,city,state,zip} object) or a
+// restored-from-Sheets job (already a flat string) — see the _restored
+// handling added elsewhere in this file for the same underlying reason.
+function getJobAddressDisplay(j){
+  if(!j) return '';
+  if(typeof j.address === 'string') return j.address;
+  if(j.address) return [j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', ');
+  return '';
+}
+
+// Printable "Outstanding Balances by Technician" report — added per
+// explicit request: each tech should be able to get a printout of just
+// their own unpaid jobs, with customer name, contact info, and amount
+// owed, to follow up on themselves. Grouped by tech; when printing "all",
+// each tech's section starts on its own page so the report can be handed
+// out or torn apart per-tech.
+function printUnpaidByTech(techFilter=null){
+  // Deliberately bypasses the on-screen dept/emp dropdown filters (unlike
+  // getUnpaidJobs(), which reads them) so this report always reflects
+  // either everyone or the one tech explicitly requested, regardless of
+  // whatever filter happens to be selected on screen at the time.
+  const allUnpaid = _jobs.filter(j => isJobComplete(j) && !isJobPaid(j) && !isJobRefunded(j));
+  const jobs = techFilter ? allUnpaid.filter(j => (getAssigned(j)||'Unassigned')===techFilter) : allUnpaid;
+
+  if(!jobs.length){ alert(techFilter ? `No unpaid jobs for ${techFilter}.` : 'No unpaid jobs to print.'); return; }
+
+  const byTech = {};
+  jobs.forEach(j => {
+    const tech = getAssigned(j) || 'Unassigned';
+    if(!byTech[tech]) byTech[tech] = [];
+    byTech[tech].push(j);
+  });
+  const techNames = Object.keys(byTech).sort((a,b) => {
+    const totalA = byTech[a].reduce((s,j)=>s+getJobTotal(j),0);
+    const totalB = byTech[b].reduce((s,j)=>s+getJobTotal(j),0);
+    return totalB - totalA;
+  });
+
+  const logoUrl = _wbSettings?.logoUrl || 'https://midstateplumbingmn.github.io/KPI/images/logo.png';
+  const today = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+
+  const letterhead = `<div class="rpt-letterhead">
+    <img src="${logoUrl}" class="rpt-logo" onerror="this.style.display='none'">
+    <div class="rpt-letterhead-text">
+      <div class="rpt-company">Midstate Plumbing, Heating &amp; Cooling</div>
+      <div class="rpt-contact">3500 Cannon St Ste 100, Hastings, MN 55033 &nbsp;·&nbsp; 651-480-1195</div>
+    </div>
+  </div>
+  <div class="rpt-rule"></div>`;
+
+  const pages = techNames.map(tech => {
+    const techJobs = byTech[tech].sort((a,b) => getJobTotal(b)-getJobTotal(a));
+    const techTotal = techJobs.reduce((s,j)=>s+getJobTotal(j),0);
+
+    const rows = techJobs.map(j => {
+      const cust = j.customer || {};
+      const custName = getCust(j);
+      const phone = cust.mobile_number || cust.home_number || '';
+      const email = cust.email || '';
+      const addr = getJobAddressDisplay(j);
+      const total = getJobTotal(j);
+      const completedAt = j.work_timestamps?.completed_at || j.completed_at || '';
+      const daysSince = completedAt ? Math.floor((Date.now()-new Date(completedAt))/864e5) : null;
+      const jobNum = j.job_number || j.id || '';
+      return `<tr>
+        <td>
+          <div class="rpt-cust-name">${escHtml(custName)}</div>
+          ${addr?`<div class="rpt-cust-sub">${escHtml(addr)}</div>`:''}
+        </td>
+        <td>
+          ${phone?`<div class="rpt-cust-sub">📞 ${escHtml(phone)}</div>`:''}
+          ${email?`<div class="rpt-cust-sub">✉️ ${escHtml(email)}</div>`:''}
+        </td>
+        <td class="rpt-num">${escHtml(String(jobNum))}</td>
+        <td class="rpt-num">${daysSince!==null?daysSince+'d':'—'}</td>
+        <td class="rpt-amount">${dollars(total)}</td>
+        <td class="rpt-signoff"></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="rpt-page">
+      ${letterhead}
+      <div class="rpt-title-row">
+        <div>
+          <div class="rpt-title">Outstanding Balances</div>
+          <div class="rpt-subtitle">For: <strong>${escHtml(tech)}</strong></div>
+        </div>
+        <div class="rpt-title-right">
+          <div class="rpt-date">Generated ${today}</div>
+          <div class="rpt-total">${dollars(techTotal)} <span>total outstanding · ${techJobs.length} job${techJobs.length!==1?'s':''}</span></div>
+        </div>
+      </div>
+      <table class="rpt-table">
+        <thead><tr>
+          <th>Customer</th><th>Contact</th><th>Job #</th><th>Days</th><th>Amount</th><th>✓ Collected</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="rpt-footnote">Please follow up on each balance above and check off once collected. Return to office or update in the dashboard when resolved.</div>
+    </div>`;
+  }).join('');
+
+  const win = window.open('','_blank','width=1000,height=1200');
+  win.document.write(`<!DOCTYPE html><html><head><title>Outstanding Balances by Technician — Midstate Plumbing</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    @page{size:letter landscape;margin:0.6in}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1f2937;background:#fff}
+    @media print{button{display:none!important}}
+    .rpt-page{page-break-after:always}
+    .rpt-page:last-child{page-break-after:auto}
+    .rpt-letterhead{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+    .rpt-logo{height:48px;max-width:150px;object-fit:contain}
+    .rpt-company{font-size:16px;font-weight:800;color:#1A3A5C}
+    .rpt-contact{font-size:10px;color:#6b7280;margin-top:2px}
+    .rpt-rule{height:3px;background:#DC2626;margin-bottom:20px}
+    .rpt-title-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px}
+    .rpt-title{font-size:22px;font-weight:800;color:#111827}
+    .rpt-subtitle{font-size:15px;color:#374151;margin-top:2px}
+    .rpt-title-right{text-align:right}
+    .rpt-date{font-size:11px;color:#9ca3af}
+    .rpt-total{font-size:20px;font-weight:800;color:#DC2626;margin-top:4px}
+    .rpt-total span{font-size:11px;font-weight:400;color:#6b7280}
+    .rpt-table{width:100%;border-collapse:collapse}
+    .rpt-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border-bottom:2px solid #e5e7eb;padding:8px 10px}
+    .rpt-table td{padding:10px;border-bottom:1px solid #f0f0f0;vertical-align:top}
+    .rpt-cust-name{font-weight:700;color:#111827;font-size:13px}
+    .rpt-cust-sub{font-size:11px;color:#4b5563;margin-top:2px}
+    .rpt-num{white-space:nowrap;color:#4b5563}
+    .rpt-amount{font-weight:800;color:#DC2626;font-size:14px;white-space:nowrap}
+    .rpt-signoff{width:70px}
+    .rpt-signoff::after{content:'';display:block;width:24px;height:24px;border:2px solid #9ca3af;border-radius:4px}
+    .rpt-footnote{margin-top:20px;font-size:11px;color:#6b7280;font-style:italic}
+  </style></head><body>${pages}
+  <script>window.onload=function(){window.print();}<\/script></body></html>`);
+  win.document.close();
+}
+
 function renderUnpaid(){
   if(!_jobs.length){
     const el=$$('unpaidList');
@@ -11571,7 +11710,10 @@ function renderUnpaid(){
   const kpiEl=$$('unpaidTechKPI');
   if(kpiEl){
     kpiEl.innerHTML=techRows.length?`
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;width:100%;margin-bottom:4px">Outstanding by Technician — click to filter</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:4px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280">Outstanding by Technician — click to filter</div>
+        <button onclick="event.stopPropagation();printUnpaidByTech()" style="font-size:11px;padding:4px 12px;border:1px solid #1A3A5C;border-radius:5px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:600">🖨 Print All by Tech</button>
+      </div>
       ${techRows.map(t=>{
         const urg=t.oldest>14?{c:'#DC2626',bg:'#FEF2F2'}:t.oldest>7?{c:'#D97706',bg:'#FFFBEB'}:{c:'#166534',bg:'#F0FDF4'};
         const active=$$('unpaidEmpFilter')?.value===t.tech;
@@ -11585,6 +11727,7 @@ function renderUnpaid(){
             <div style="font-weight:800;font-size:14px;color:#DC2626">${dollars(t.total)}</div>
             <div style="font-size:10px;font-weight:600;color:${urg.c};background:${urg.bg};padding:1px 6px;border-radius:99px">oldest ${t.oldest}d</div>
           </div>
+          <button onclick="event.stopPropagation();printUnpaidByTech('${escHtml(t.tech).replace(/'/g,"\\'")}')" title="Print ${escHtml(t.tech)}'s outstanding balances" style="flex-shrink:0;font-size:13px;padding:4px 7px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;cursor:pointer;color:#6b7280">🖨</button>
         </div>`;
       }).join('')}`:'';
   }
