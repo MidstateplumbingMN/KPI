@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.18</title>
+<title>Midstate — KPI Command Center v3.19</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1428,7 +1428,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.18
+      v3.19
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1439,7 +1439,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.18';
+const COMPANION_VERSION = 'v3.19';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -3439,14 +3439,22 @@ function goScene(idx) {
   if (SCENES[state.currentScene] === 's11') { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
   if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
 
-  // Hide all
-  SCENES.forEach((id, i) => {
-    const s = el(id);
-    if (!s) return;
+  // Hide all — iterate over EVERY scene element that exists in the page,
+  // not just the ones in the current (possibly custom, reduced) rotation
+  // order. FIXED (2026-07-29): this used to loop over SCENES only — if a
+  // scene was removed from a custom scene order set on the dashboard
+  // (e.g. Goal Progress), it was simply never iterated over again, so its
+  // hide logic never re-ran. If that scene happened to be visible from
+  // before the custom order was applied, it stayed visible forever,
+  // permanently stacked underneath whatever scene actually is in
+  // rotation. Querying all .scene elements directly guarantees every
+  // scene gets hidden on every transition, regardless of whether it's
+  // currently part of the active rotation.
+  document.querySelectorAll('.scene').forEach((s) => {
     s.classList.remove('visible');
-    setTimeout(() => { if (state.currentScene !== i) s.style.display = 'none'; }, 800);
-    el('dot'+i)?.classList.remove('active');
+    setTimeout(() => { if (el(SCENES[state.currentScene]) !== s) s.style.display = 'none'; }, 800);
   });
+  SCENES.forEach((id, i) => { el('dot'+i)?.classList.remove('active'); });
 
   // Show new
   state.currentScene = idx;
