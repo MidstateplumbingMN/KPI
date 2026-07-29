@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.05</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.06</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.05</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.06</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.05</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.06</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1972,7 +1972,7 @@ function connect(){
     console.log('[Connect] Settings loaded from Sheets');
     loadPlansFromSheets();
     loadActivePlansFromSheets();
-    restoreJobsEstimatesFromSheets();
+    restoreJobsEstimatesFromSheets().then(() => loadUnpaidJobsFromSheetsFull());
     loadHCPReportsFullFromSheets();
     loadTYCards();
     loadSpotlights();
@@ -2704,6 +2704,7 @@ Midstate Plumbing, Heating & Cooling
   // Mark as contacted, matching the existing manual status tracking
   _unpaidStatus[jobId] = 'contacted';
   saveUnpaidState();
+  pushUnpaidJobToSheet(jobId);
   openUnpaidDetail(jobId); // refresh the detail panel to show updated status
   showToast('✉️ Email drafted — review and send in your email client', 'success');
 }
@@ -3113,6 +3114,12 @@ async function loadAll(){
 
     // Render the visible tab first so the user sees something immediately
     stepLog('🖥️ Rendering...');
+    // Re-attach unpaid tracking state (status/notes/payments) to whichever
+    // job objects are now current — a live pull can replace a previously
+    // restored job's synthetic id with the real HCP id for the same
+    // job_number, which would otherwise orphan anything saved against the
+    // old id. Fire-and-forget; doesn't need to block rendering.
+    loadUnpaidJobsFromSheetsFull();
     if(activeTab==='jobs')        renderJobs(jobs,estimates);
     else if(activeTab==='estimates') renderEstimates(estimates);
     else if(activeTab==='attr')   renderAttr(jobs,estimates);
@@ -3197,7 +3204,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.05
+  // ATTRIBUTION ENGINE — v25.06
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5151,7 +5158,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.05',  // dashboard version that generated this push
+    dash_version: 'v25.06',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5722,7 +5729,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.05',
+        dash_version:        'v25.06',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11609,6 +11616,74 @@ function saveUnpaidState(){
   }catch(e){}
 }
 
+// Pushes ONE job's full unpaid-tracking record (status/note/payments plus
+// enough customer/job context to be readable on its own) to the dedicated
+// Unpaid_Jobs sheet tab. Added 2026-07-16 per explicit request: "unpaid
+// jobs need to be tracked in google sheet as well... status is stored in
+// google sheets." Keyed by job_number (stable across a job's lifetime),
+// NOT the job's internal .id field, which can differ between a
+// restored-from-Sheets job (synthetic id) and the same job once a live
+// pull replaces it with the real HCP id — job_number stays the same
+// either way, so this is what correctly ties a saved status back to the
+// right job over time.
+async function pushUnpaidJobToSheet(jobId){
+  if(!_sheetsProxy) return;
+  const j = _jobs.find(x=>x.id===jobId);
+  if(!j || !j.job_number) return; // can't key a job with no job number — skip rather than risk a collision
+  const cust = j.customer || {};
+  const payload = {
+    jobNumber:     j.job_number,
+    customerName:  getCust(j),
+    address:       getJobAddressDisplay(j),
+    phone:         cust.mobile_number || cust.home_number || '',
+    email:         cust.email || '',
+    tech:          getAssigned(j) || '',
+    dept:          getDept(j) || '',
+    amount:        getJobTotal(j),
+    completedDate: j.work_timestamps?.completed_at || j.completed_at || '',
+    status:        _unpaidStatus[jobId] || 'pending',
+    note:          _unpaidNotes[jobId] || '',
+    payments:      _unpaidPayments[jobId] || [],
+  };
+  try {
+    await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'saveUnpaidJob', ...payload })
+    });
+  } catch(e) { console.warn('[UnpaidJobs] Sheet push failed:', e.message); }
+}
+
+// Restores status/note/payment state for every tracked unpaid job from
+// the dedicated Unpaid_Jobs sheet tab, keyed by job_number — for each
+// stored record, finds the matching CURRENT job in _jobs (by job_number,
+// not .id, for the same stability reason noted above) and populates
+// _unpaidStatus/_unpaidNotes/_unpaidPayments using THAT job's current
+// .id. Records with no matching current job (e.g. since paid/resolved
+// and no longer in the unpaid list) are simply skipped — nothing to
+// restore them onto.
+async function loadUnpaidJobsFromSheetsFull(){
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy+'?action=getUnpaidJobsFromSheet', {redirect:'follow'});
+    const data = await res.json();
+    if(!data.success || !data.jobs) return;
+
+    let restored = 0;
+    Object.entries(data.jobs).forEach(([jobNumber, rec]) => {
+      const current = _jobs.find(x => String(x.job_number) === String(jobNumber));
+      if(!current) return; // job not currently loaded (e.g. already resolved) — nothing to attach this to
+      if(rec.status) _unpaidStatus[current.id] = rec.status;
+      if(rec.note)   _unpaidNotes[current.id]  = rec.note;
+      if(rec.payments && rec.payments.length) _unpaidPayments[current.id] = rec.payments;
+      restored++;
+    });
+    if(restored) {
+      console.log('[UnpaidJobs] Restored tracking state for', restored, 'jobs from Sheets');
+      if(document.querySelector('.tab.active')?.dataset?.tab === 'unpaid') renderUnpaid();
+    }
+  } catch(e) { console.warn('[UnpaidJobs] Sheet restore failed:', e.message); }
+}
+
 function getUnpaidJobs(){
   const dept=$$('unpaidDeptFilter')?.value||'';
   const emp=$$('unpaidEmpFilter')?.value||'';
@@ -11866,6 +11941,7 @@ function printFinalNotice(jobId){
     } catch(e) { console.warn('[printFinalNotice] Could not add HCP note:', e.message); }
     _unpaidStatus[jobId] = 'contacted';
     saveUnpaidState();
+    pushUnpaidJobToSheet(jobId);
   })();
 }
 
@@ -12363,6 +12439,7 @@ function closeUnpaidDetail(){
 function setUnpaidStatus(jobId, status){
   _unpaidStatus[jobId]=status;
   saveUnpaidState();
+  pushUnpaidJobToSheet(jobId);
   // Re-open the detail to refresh buttons
   const j=_jobs.find(x=>x.id===jobId);
   if(j) openUnpaidDetail(jobId);
@@ -12373,6 +12450,7 @@ function saveUnpaidNote(jobId){
   if(!el) return;
   _unpaidNotes[jobId]=el.value;
   saveUnpaidState();
+  pushUnpaidJobToSheet(jobId);
   el.style.border='1px solid #16a34a';
   setTimeout(()=>{if(el)el.style.border='1px solid #d1d5db';},1500);
 }
@@ -12389,6 +12467,7 @@ function logUnpaidPayment(jobId, total){
   const totalPaid=_unpaidPayments[jobId].reduce((s,p)=>s+p.amount,0);
   if(totalPaid>=total) _unpaidStatus[jobId]='collected';
   saveUnpaidState();
+  pushUnpaidJobToSheet(jobId);
   openUnpaidDetail(jobId); // refresh
 }
 
