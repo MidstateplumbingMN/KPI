@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.12</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.13</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -117,6 +117,8 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="spotlight"]:hover{background:#FFFBEB;color:#F59E0B}
 .tab[data-tab="promos"].active{border-top:3px solid #EC4899;color:#EC4899}
 .tab[data-tab="promos"]:hover{background:#FDF2F8;color:#EC4899}
+.tab[data-tab="videos"].active{border-top:3px solid #2563EB;color:#2563EB}
+.tab[data-tab="videos"]:hover{background:#EFF6FF;color:#2563EB}
 /* Resting-state accent — a thin, muted top-border per tab so each one is
    visually distinct even before you hover or click it, not just after.
    Deliberately lighter/thinner than the .active (3px, full color) and
@@ -139,6 +141,7 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="wallboard"]:not(.active){border-top-color:#c7ced6}
 .tab[data-tab="spotlight"]:not(.active){border-top-color:#f7d99b}
 .tab[data-tab="promos"]:not(.active){border-top-color:#f5b8d5}
+.tab[data-tab="videos"]:not(.active){border-top-color:#a8c8f5}
 .tab .badge-count{font-size:10px;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700;line-height:1.4}
 .panel{display:none}.panel.active{display:block}
 /* METRICS */
@@ -449,7 +452,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.12</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.13</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +481,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.12</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.13</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -569,6 +572,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="announcements" onclick="showTab('announcements')">💬 Announcements</button>
       <button class="tab" data-tab="wallboard" onclick="showTab('wallboard')">🎛 Wallboard</button>
       <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
+      <button class="tab" data-tab="videos" onclick="showTab('videos')">🎬 Videos</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
       <button class="tab" data-tab="debug"  onclick="showTab('debug')">🔧 Debug</button>
     </div>
@@ -1290,6 +1294,60 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
+    <!-- VIDEOS -->
+    <div class="panel" id="tab-videos">
+      <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:24px;height:100%">
+
+        <!-- LEFT: Add Video -->
+        <div>
+          <div class="sec-head" style="margin-bottom:16px">🎬 Add Video</div>
+          <div style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1px solid #BFDBFE;border-radius:12px;padding:20px;margin-bottom:16px">
+
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#1E3A8A;text-transform:uppercase;letter-spacing:.05em">Title (optional)</label>
+              <input type="text" id="vid-title" placeholder="e.g. Meet Our New Van!"
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #BFDBFE;border-radius:7px;font-size:13px">
+            </div>
+
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;font-weight:700;color:#1E3A8A;text-transform:uppercase;letter-spacing:.05em">Video URL</label>
+              <div style="display:flex;gap:6px;margin-top:4px">
+                <input type="text" id="vid-url" placeholder=".mp4, .webm, or .mov video URL..."
+                  style="flex:1;padding:8px 10px;border:1px solid #BFDBFE;border-radius:7px;font-size:12px">
+                <button type="button" id="gh-picker-btn-vid-url" onclick="showImagePicker('vid-url','')"
+                  style="padding:7px 12px;background:#2563EB;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">📁 Browse</button>
+              </div>
+              <div style="font-size:10px;color:#9ca3af;margin-top:3px">Plays full-screen, once, then the wallboard continues automatically</div>
+            </div>
+
+            <div style="margin-bottom:16px">
+              <label style="font-size:11px;font-weight:700;color:#1E3A8A;text-transform:uppercase;letter-spacing:.05em">Caption (optional)</label>
+              <input type="text" id="vid-caption" placeholder="e.g. Our team in action this week"
+                style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #BFDBFE;border-radius:7px;font-size:13px">
+            </div>
+
+            <button onclick="submitVideo()" style="width:100%;padding:10px;background:linear-gradient(135deg,#2563EB,#1E40AF);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+              🎬 Add to Wallboard
+            </button>
+          </div>
+          <div style="font-size:11px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px">
+            To show this on the wallboard rotation, go to <strong>🎛 Wallboard</strong> and make sure <strong>🎬 Video</strong> is enabled in the scene order.
+          </div>
+        </div>
+
+        <!-- RIGHT: Active Videos -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div class="sec-head" style="margin:0">Active Videos</div>
+            <span style="font-size:11px;color:#9ca3af">Live on companion</span>
+          </div>
+          <div id="videos-list" style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto">
+            <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px">No videos yet. Add one above.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- SERVICE PLANS -->
     <div class="panel" id="tab-plans">
 
@@ -1976,6 +2034,7 @@ function connect(){
     loadHCPReportsFullFromSheets();
     loadTYCards();
     loadSpotlights();
+    loadVideos();
     loadAnnouncements();
     loadHolidays();
     loadMotivations();
@@ -2591,6 +2650,7 @@ function showTab(t){
   if(t==='announcements'){ loadAnnouncements(); }
   if(t==='wallboard'){ loadWallboardSettings(); loadSceneOrder(); }
   if(t==='promos'){ loadSpotlights(); }
+  if(t==='videos'){ loadVideos(); }
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
@@ -3204,7 +3264,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.12
+  // ATTRIBUTION ENGINE — v25.13
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5158,7 +5218,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.12',  // dashboard version that generated this push
+    dash_version: 'v25.13',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5729,7 +5789,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.12',
+        dash_version:        'v25.13',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6136,6 +6196,7 @@ const DEFAULT_SCENE_ORDER = [
   { id:'s11', label:'🎉 Holidays',               enabled:true },
   { id:'s12', label:'📋 Service Plans',          enabled:true },
   { id:'s13', label:'💰 Revenue Report',         enabled:true },
+  { id:'s15', label:'🎬 Video',                  enabled:true },
   { id:'s5',  label:'📣 Announcements',          enabled:true },
 ];
 let _sceneOrder = null;
@@ -11266,7 +11327,7 @@ function saveSpotlights(allowEmpty){
       method:'POST',
       headers:{'Content-Type':'text/plain'},
       redirect:'follow',
-      body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos})
+      body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos,allowEmpty:!!allowEmpty})
     })
     .then(r=>r.json())
     .then(d=>{ if(d.success) showToast('✅ Synced to companion','success'); })
@@ -11524,6 +11585,98 @@ function renderPromoList(){
     </div>`;
   }).join('');
 }
+
+// ============================================================
+// VIDEOS — dedicated full-screen video wallboard scene
+// ============================================================
+let _videos = [];
+
+function submitVideo(){
+  const title   = document.getElementById('vid-title')?.value?.trim()||'';
+  const url     = convertGoogleDriveUrl(document.getElementById('vid-url')?.value?.trim()||'');
+  const caption = document.getElementById('vid-caption')?.value?.trim()||'';
+
+  if(!url){ showToast('Please enter a video URL.','error'); return; }
+
+  const video = {
+    id: Date.now(),
+    title, url, caption,
+    createdAt: new Date().toISOString(),
+  };
+  _videos.unshift(video);
+  saveVideosToSheets();
+  renderVideoList();
+  ['vid-title','vid-url','vid-caption'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  showToast('🎬 Video added to wallboard!','success');
+}
+
+function deleteVideo(id){
+  if(!confirm('Remove this video from the wallboard?')) return;
+  _videos = _videos.filter(v=>v.id!==id);
+  saveVideosToSheets(true);
+  renderVideoList();
+  showToast('Video removed','warning');
+}
+
+function renderVideoList(){
+  const el = document.getElementById('videos-list');
+  if(!el) return;
+  const countEl = document.getElementById('videoCount');
+  if(countEl) countEl.textContent = `${_videos.length} video${_videos.length!==1?'s':''}`;
+  if(!_videos.length){
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No videos yet. Add one above.</div>';
+    return;
+  }
+  el.innerHTML = _videos.map(v => `
+    <div style="background:#fff;border:1px solid #BFDBFE;border-left:3px solid #2563EB;border-radius:10px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;color:#111827;font-size:13px">${v.title ? escHtml(v.title) : '(untitled video)'}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:3px;overflow-wrap:break-word">${escHtml(v.url)}</div>
+          ${v.caption ? `<div style="font-size:11px;color:#2563EB;margin-top:3px;font-style:italic">"${escHtml(v.caption)}"</div>` : ''}
+        </div>
+        <button onclick="deleteVideo(${v.id})" style="font-size:16px;background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px;flex-shrink:0">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+async function saveVideosToSheets(allowEmpty){
+  // Same intentional-empty-delete pattern as saveSpotlights — see that
+  // function's history for why both the client and server sides need
+  // this flag honored correctly for a delete-to-zero to actually persist.
+  if(!allowEmpty && (!_videos || _videos.length === 0)){
+    showToast('⚠️ Nothing to save — no videos yet','warn');
+    return;
+  }
+  if(!_sheetsProxy) return;
+  try {
+    const r = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'saveVideos', videos:_videos, allowEmpty:!!allowEmpty })
+    });
+    const d = await r.json().catch(()=>({}));
+    if(d.success) showToast('✅ Synced to companion','success');
+  } catch(e) { console.warn('[Videos] Save failed:', e.message); }
+}
+
+function loadVideos(){
+  renderVideoList(); // render whatever is in memory immediately
+  if(!_sheetsProxy) return;
+  fetch(_sheetsProxy+'?action=getVideos', {redirect:'follow'})
+    .then(r => r.json())
+    .then(data => {
+      if(data.success && data.videos) {
+        _videos = data.videos;
+        renderVideoList();
+        console.log('[Videos] Loaded', _videos.length, 'videos from Sheets');
+      }
+    })
+    .catch(e => console.warn('[Videos] Fetch failed:', e.message));
+}
+
 
 // ============================================================
 // TOAST NOTIFICATIONS
