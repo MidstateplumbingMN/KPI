@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.22</title>
+<title>Midstate — KPI Command Center v3.23</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1195,6 +1195,10 @@ html, body {
         </div>
       </div>
     </div><!-- end s14 -->
+    <!-- SCENE 15: VIDEO -->
+    <div class="scene" id="s15" style="align-items:center;justify-content:center">
+      <div id="video-display" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative"></div>
+    </div><!-- end s15 -->
     <div class="scene" id="s7">
       <div class="spotlight-confetti" id="confettiWrap"></div>
       <div class="scene-title" style="position:absolute;bottom:52px;left:0;right:0;z-index:1">// Employee Spotlight</div>
@@ -1428,7 +1432,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.22
+      v3.23
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1439,7 +1443,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.22';
+const COMPANION_VERSION = 'v3.23';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1493,6 +1497,7 @@ const CONFIG = {
     s9: 20000,  // Weather
     s10: 20000, // Birthdays
     s11: 0,     // Holidays — self-managed (8s per holiday)
+    s15: 0,     // Video — self-managed (waits for video to finish)
   },
 
   // KPI_Scores column mapping (0-indexed)
@@ -1562,7 +1567,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s6','s4','s3','s12','s13','s7','s8','s9','s10','s11','s5'];
+const SCENES = ['s1','s2','s6','s4','s3','s12','s13','s7','s8','s9','s10','s11','s15','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -3459,6 +3464,7 @@ function goScene(idx) {
   if (SCENES[state.currentScene] === 's7') { if (_cubeTimer) { clearTimeout(_cubeTimer); _cubeTimer = null; } }
   if (SCENES[state.currentScene] === 's2') { if (window._gapRotTimer) { clearInterval(window._gapRotTimer); window._gapRotTimer = null; } }
   if (SCENES[state.currentScene] === 's8') { if (_promoTimer) { clearTimeout(_promoTimer); _promoTimer = null; } }
+  if (SCENES[state.currentScene] === 's15') { if (_videoTimer) { clearTimeout(_videoTimer); _videoTimer = null; } }
   if (SCENES[state.currentScene] === 's11') { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
   if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
 
@@ -3526,6 +3532,10 @@ function goScene(idx) {
   else if (sceneId==='s13') {
     const hasData = num(state.snap['hcp_pmt_ytd_net']||0) > 0 || num(state.snap['hcp_pmt_hvac']||0) > 0;
     if(hasData) { updateS13(); scheduleNextScene('s13'); }
+    else { nextScene(); }
+  }
+  else if (sceneId==='s15') {
+    if (_videos && _videos.length) { updateS15(); } // self-managed
     else { nextScene(); }
   }
 }
@@ -3869,6 +3879,10 @@ async function init() {
 // ============================================================
 let _spotlights = [];
 let _promos = [];
+let _videos = [];
+let _videoIdx = 0;
+let _videoTimer = null;
+let _videoAdvanceFn = null; // current advanceVideo callback, so a video's onended can trigger it directly
 let _spIdx = 0;
 let _spItems = []; // combined auto + manual items
 let _spRotateTimer = null;
@@ -3954,6 +3968,23 @@ async function loadSpotlightData() {
           .map(r => ({ id:r[0], message:r[1]||'', author:r[2]||'Midstate Team', type:r[3]||'motivation', photoUrl:r[4]||'' }));
         console.log('[Announcements] Loaded', state.announcements.length, 'via CSV fallback');
       } catch(e) { state.announcements = []; }
+    }
+  }
+
+  // ── Videos ──
+  if(!_videos?.length) {
+    const proxyData = await proxyGet('getVideos');
+    if(proxyData?.videos?.length) {
+      _videos = proxyData.videos;
+      console.log('[Videos] Loaded', _videos.length, 'via proxy');
+    } else {
+      try {
+        const rows = await fetchCSV('Videos');
+        _videos = rows.slice(1).filter(r => r && r[0]).map(r => ({
+          id:r[0], title:r[1]||'', url:r[2]||'', caption:r[3]||'', createdAt:r[4]||''
+        }));
+        console.log('[Videos] Loaded', _videos.length, 'via CSV fallback');
+      } catch(e) { _videos = []; }
     }
   }
 }
@@ -4256,6 +4287,62 @@ function onPromoVideoEnded() {
   if (_promoAdvanceFn) { _promoAdvanceFn(); }
   else { resumeGlobalRotation(); nextScene(); } // single-promo case has no advance fn
 }
+
+// ============================================================
+// SCENE 15 — VIDEO (full-screen, plays once, then advances)
+// ============================================================
+function updateS15() {
+  const container = el('video-display');
+  if (!container) { nextScene(); return; }
+  if (!_videos || !_videos.length) { nextScene(); return; }
+
+  _videoIdx = 0;
+  showVideoSlide(_videoIdx, _videos);
+  overrideSceneTimer(); // this scene always waits for the video itself, never a fixed timer
+
+  function advanceVideo() {
+    _videoIdx++;
+    if (_videoIdx >= _videos.length) {
+      _videoTimer = null;
+      resumeGlobalRotation();
+      nextScene();
+      return;
+    }
+    showVideoSlide(_videoIdx, _videos);
+  }
+  _videoAdvanceFn = advanceVideo;
+}
+
+// Called by the <video> element's onended handler (see showVideoSlide) —
+// a video scene has no fixed-duration fallback at all (unlike Spotlight/
+// Promotions/Announcements, which fall back to a timer for a photo/no-
+// media item) since every entry here is expected to be a video.
+function onVideoEnded() {
+  if (_videoTimer) { clearTimeout(_videoTimer); _videoTimer = null; }
+  if (_videoAdvanceFn) { _videoAdvanceFn(); }
+  else { resumeGlobalRotation(); nextScene(); }
+}
+
+function showVideoSlide(idx, videos) {
+  const container = el('video-display');
+  if (!container) return;
+  const v = videos[idx];
+  const url = (v.url||'').trim();
+  if (!url) { onVideoEnded(); return; } // skip a blank entry rather than getting stuck
+
+  container.innerHTML = `
+    <video src="${url}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain" autoplay muted playsinline onended="onVideoEnded()" onerror="onVideoEnded()"></video>
+    ${(v.title || v.caption) ? `
+      <div style="position:absolute;bottom:60px;left:0;right:0;text-align:center;z-index:2">
+        ${v.title ? `<div style="font-family:var(--font-display);font-size:clamp(28px,3vw,44px);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.8)">${v.title}</div>` : ''}
+        ${v.caption ? `<div style="font-size:clamp(16px,1.6vw,22px);color:rgba(255,255,255,.85);margin-top:6px;text-shadow:0 2px 8px rgba(0,0,0,.8)">${v.caption}</div>` : ''}
+      </div>` : ''}
+    ${videos.length > 1 ? `
+      <div style="position:absolute;top:20px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:2">
+        ${videos.map((_,i)=>`<div style="width:9px;height:9px;border-radius:50%;background:${i===idx?'#2563EB':'rgba(255,255,255,.25)'};box-shadow:${i===idx?'0 0 8px #2563EB':'none'}"></div>`).join('')}
+      </div>` : ''}`;
+}
+
 
 function showPromoSlide(idx, promos) {
   const container = el('promo-display');
