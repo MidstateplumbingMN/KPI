@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.23</title>
+<title>Midstate — KPI Command Center v3.25</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -71,6 +71,8 @@ html, body {
   transform-origin: top left;
   overflow: hidden;
   background: var(--bg);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 /* ---- ANIMATED BACKGROUND ---- */
@@ -1005,27 +1007,27 @@ html, body {
 
     <!-- SCENE 12: SERVICE PLANS -->
     <div class="scene" id="s12">
-      <div class="scene-title">// Service Plan Leaders</div>
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0">
-        <!-- Left: Podium top 3 -->
+      <div class="scene-title">// Service Plan Leaders — 2025 vs 2026</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1.3fr;gap:16px;min-height:0">
+        <!-- Left: Top 4 ranked (by 2026) -->
         <div class="card" style="display:flex;flex-direction:column;padding:20px;gap:0">
-          <div style="font-size:16px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">🏆 Top 3</div>
-          <div id="plans-podium" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px"></div>
+          <div style="font-size:16px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">🏆 Top 4 — Ranked by 2026</div>
+          <div id="plans-top4" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)">
+            <div style="font-size:14px;color:rgba(255,255,255,.7)">Total Active Plans</div>
+            <div id="active-plans-total" style="font-family:var(--font-display);font-size:32px;color:#22D3EE;font-weight:900">0</div>
+          </div>
         </div>
-        <!-- Right: Full team list -->
+        <!-- Right: 2025 vs 2026 comparison chart -->
         <div class="card" style="display:flex;flex-direction:column;padding:20px;gap:0">
-          <div style="font-size:16px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">📋 Full Team</div>
-          <div id="plans-list" style="flex:1;overflow:hidden"></div>
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:20px">
-            <div style="flex:1">
-              <div style="font-size:14px;color:rgba(255,255,255,.7)">Plans Sold (YTD)</div>
-              <div id="plans-total" style="font-family:var(--font-display);font-size:32px;color:#A855F7;font-weight:900">0</div>
-            </div>
-            <div style="flex:1">
-              <div style="font-size:14px;color:rgba(255,255,255,.7)">Total Active Plans</div>
-              <div id="active-plans-total" style="font-family:var(--font-display);font-size:32px;color:#22D3EE;font-weight:900">0</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:16px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em">📊 2025 vs 2026</div>
+            <div style="display:flex;gap:14px;font-size:13px">
+              <span style="display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.7)"><span style="width:11px;height:11px;border-radius:3px;background:#8B5CF6;display:inline-block"></span>2025</span>
+              <span style="display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.7)"><span style="width:11px;height:11px;border-radius:3px;background:#22D3EE;display:inline-block"></span>2026</span>
             </div>
           </div>
+          <div id="plans-chart" style="flex:1;display:flex;align-items:flex-end;gap:24px;padding:0 8px;min-height:0"></div>
         </div>
       </div>
     </div>
@@ -1432,7 +1434,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.23
+      v3.25
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1443,7 +1445,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.23';
+const COMPANION_VERSION = 'v3.25';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2816,73 +2818,90 @@ function updateS14() {
 // SCENE 12 — SERVICE PLANS LEADERBOARD
 // ============================================================
 function updateS12() {
-  const allKpi = (state.kpi||[]).filter(r => {
-    const name = r[CONFIG.KPI_COLS.name]||'';
-    return name && !name.startsWith('job_') && !KPI_EXCLUDE.has(name);
-  });
+  // FIXED (2026-08-05): replaced the old KPI_Scores/CSV-upload-derived
+  // leaderboard with the manually-entered 2025/2026 counts, per explicit
+  // request. Ranked by 2026 (the current year) — 2025 is shown alongside
+  // for comparison, not used for ranking.
+  const byPlans = (_manualPlans||[])
+    .filter(e => (e.y2025>0 || e.y2026>0) && !KPI_EXCLUDE.has(e.name))
+    .sort((a,b) => b.y2026 - a.y2026);
 
-  // Dedup Robert/Bob, show only plan sellers
-  const planMap = {};
-  allKpi.forEach(r => {
-    let name = r[CONFIG.KPI_COLS.name]||'';
-    if(name === 'Robert Danaher') name = 'Bob Danaher'; // same person
-    const plans = num(r[CONFIG.KPI_COLS.plans]||0);
-    if(!planMap[name]) planMap[name] = { name, plans:0, photo:r[CONFIG.KPI_COLS.photo]||'' };
-    planMap[name].plans += plans;
-  });
-  const byPlans = Object.values(planMap)
-    .filter(e => e.plans > 0 && !KPI_EXCLUDE.has(e.name))
-    .sort((a,b) => b.plans - a.plans);
+  const top4 = byPlans.slice(0,4);
+  const maxVal = Math.max(1, ...top4.map(e => Math.max(e.y2025, e.y2026)));
 
-  const total = byPlans.reduce((s,e) => s+e.plans, 0);
-  const maxPlans = byPlans[0]?.plans || 1;
-
-  // Podium — top 3
-  const podiumEl = el('plans-podium');
-  if(podiumEl) {
-    const medals = ['🥇','🥈','🥉'];
-    podiumEl.innerHTML = byPlans.slice(0,3).map((e,i) => {
-      const pct = Math.round(e.plans/maxPlans*100);
-      const photo = getEmpPhoto(e.name, e.photo);
-      return `<div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(168,85,247,.08);border-radius:10px;border:1px solid rgba(168,85,247,.2)">
-        <div style="font-size:28px;flex-shrink:0">${medals[i]}</div>
-        ${photo?`<img src="${photo}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
-          <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:4px"><div style="height:100%;width:${pct}%;background:#A855F7;border-radius:2px"></div></div>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:#A855F7;flex-shrink:0">${e.plans}</div>
-      </div>`;
-    }).join('');
-  }
-
-  // Full team list (all staff)
-  const listEl = el('plans-list');
+  // Top 4 ranked list
+  const listEl = el('plans-top4');
   if(listEl) {
-    listEl.innerHTML = byPlans.map((e,i) => {
-      const photo = getEmpPhoto(e.name, e.photo);
-      const dept  = empDept(e.name);
-      const col   = e.plans > 0 ? '#A855F7' : 'rgba(255,255,255,.3)';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div style="font-size:15px;color:rgba(255,255,255,.5);width:18px;text-align:center">${i+1}</div>
-        ${photo?`<img src="${photo}" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:28px;height:28px;border-radius:5px;background:rgba(255,255,255,.08);flex-shrink:0"></div>'}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:17px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
-          <div style="font-size:17px;color:rgba(255,255,255,.6)">${dept}</div>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:800;color:${col}">${e.plans}</div>
-      </div>`;
-    }).join('') || '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.5)">No plan data — pull a YTD report</div>';
+    if(!top4.length) {
+      listEl.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.5)">No plan data yet — enter counts in Dashboard → Service Plans</div>';
+    } else {
+      const medals = ['🥇','🥈','🥉','4️⃣'];
+      listEl.innerHTML = top4.map((e,i) => {
+        const photo = getEmpPhoto(e.name, '');
+        const delta = e.y2026 - e.y2025;
+        const deltaStr = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '—';
+        const deltaColor = delta > 0 ? '#22D3EE' : delta < 0 ? '#FF6B6B' : 'rgba(255,255,255,.4)';
+        return `<div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(168,85,247,.08);border-radius:10px;border:1px solid rgba(168,85,247,.2)">
+          <div style="font-size:24px;flex-shrink:0">${medals[i]}</div>
+          ${photo?`<img src="${photo}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">'25: ${e.y2025} · '26: ${e.y2026}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:#22D3EE">${e.y2026}</div>
+            <div style="font-size:11px;font-weight:700;color:${deltaColor}">${deltaStr}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
   }
 
-  const totalEl = el('plans-total');
-  if(totalEl) totalEl.textContent = total;
+  // Grouped bar chart — 2025 vs 2026, top 4 only. Uses explicit pixel
+  // heights (measured from the actual container) rather than CSS
+  // percentage heights, which are unreliable in nested flex layouts —
+  // same approach already proven for the other bar charts on this board.
+  const chartEl = el('plans-chart');
+  if(chartEl) {
+    if(!top4.length) {
+      chartEl.innerHTML = '';
+    } else {
+      const rect = chartEl.getBoundingClientRect();
+      const totalH = rect.height;
+      if(totalH < 30) {
+        if(!updateS12._chartRetry) {
+          updateS12._chartRetry = setTimeout(() => { updateS12._chartRetry = null; updateS12(); }, 150);
+        }
+      } else {
+        updateS12._chartRetry = null;
+        const labelH = 26; // space for value label above bars
+        const nameH  = 22; // space for employee name below bars
+        const chartH = Math.max(20, totalH - labelH - nameH - 4);
 
-  // Total Active Plans — a SEPARATE metric from the YTD-sold total above.
-  // Sourced from the total_active_plans snapshot key (pushed by
-  // dashboard.html after an active-agreement CSV upload), not from the
-  // KPI_Scores-derived `total` computed above — these two numbers are
-  // intentionally never summed together.
+        chartEl.innerHTML = top4.map(e => {
+          const h25 = Math.round(chartH * (e.y2025/maxVal));
+          const h26 = Math.round(chartH * (e.y2026/maxVal));
+          const firstName = e.name.split(' ')[0];
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;min-width:0">
+            <div style="height:${labelH}px;display:flex;align-items:flex-end;gap:8px">
+              <span style="font-size:13px;font-weight:700;color:#8B5CF6">${e.y2025}</span>
+              <span style="font-size:13px;font-weight:700;color:#22D3EE">${e.y2026}</span>
+            </div>
+            <div style="height:${chartH}px;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:6px">
+              <div style="width:28%;max-width:36px;background:#8B5CF6;border-radius:4px 4px 0 0;height:${h25}px"></div>
+              <div style="width:28%;max-width:36px;background:#22D3EE;border-radius:4px 4px 0 0;height:${h26}px"></div>
+            </div>
+            <div style="height:${nameH}px;display:flex;align-items:flex-start;font-size:13px;font-weight:600;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${firstName}</div>
+          </div>`;
+        }).join('');
+      }
+    }
+  }
+
+  // Total Active Plans — a SEPARATE metric, sourced from the
+  // total_active_plans snapshot key (pushed by dashboard.html after an
+  // active-agreement CSV upload) — unrelated to the manual 2025/2026
+  // counts above, intentionally never combined with them.
   const activeTotalEl = el('active-plans-total');
   if(activeTotalEl) activeTotalEl.textContent = num(state.snap['total_active_plans']||0);
 }
@@ -3525,7 +3544,7 @@ function goScene(idx) {
     else { nextScene(); }
   }
   else if (sceneId==='s12') {
-    const hasPlanData = (state.kpi||[]).some(r => num(r[CONFIG.KPI_COLS.plans]||0) > 0);
+    const hasPlanData = (_manualPlans||[]).some(e => e.y2025 > 0 || e.y2026 > 0);
     if(hasPlanData) { updateS12(); scheduleNextScene('s12'); }
     else { nextScene(); }
   }
@@ -3880,6 +3899,7 @@ async function init() {
 let _spotlights = [];
 let _promos = [];
 let _videos = [];
+let _manualPlans = [];
 let _videoIdx = 0;
 let _videoTimer = null;
 let _videoAdvanceFn = null; // current advanceVideo callback, so a video's onended can trigger it directly
@@ -3985,6 +4005,23 @@ async function loadSpotlightData() {
         }));
         console.log('[Videos] Loaded', _videos.length, 'via CSV fallback');
       } catch(e) { _videos = []; }
+    }
+  }
+
+  // ── Manual Service Plans (2025/2026) ──
+  if(!_manualPlans?.length) {
+    const proxyData = await proxyGet('getManualPlans');
+    if(proxyData?.plans?.length) {
+      _manualPlans = proxyData.plans;
+      console.log('[ManualPlans] Loaded', _manualPlans.length, 'via proxy');
+    } else {
+      try {
+        const rows = await fetchCSV('Manual_Plans');
+        _manualPlans = rows.slice(1).filter(r => r && r[0]).map(r => ({
+          name:r[0]||'', y2025:Number(r[1])||0, y2026:Number(r[2])||0
+        }));
+        console.log('[ManualPlans] Loaded', _manualPlans.length, 'via CSV fallback');
+      } catch(e) { _manualPlans = []; }
     }
   }
 }
@@ -4331,7 +4368,7 @@ function showVideoSlide(idx, videos) {
   if (!url) { onVideoEnded(); return; } // skip a blank entry rather than getting stuck
 
   container.innerHTML = `
-    <video src="${url}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain" autoplay muted playsinline onended="onVideoEnded()" onerror="onVideoEnded()"></video>
+    <video src="${url}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;backface-visibility:hidden;will-change:transform" autoplay muted playsinline onended="onVideoEnded()" onerror="onVideoEnded()"></video>
     ${(v.title || v.caption) ? `
       <div style="position:absolute;bottom:60px;left:0;right:0;text-align:center;z-index:2">
         ${v.title ? `<div style="font-family:var(--font-display);font-size:clamp(28px,3vw,44px);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.8)">${v.title}</div>` : ''}
