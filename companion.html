@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.21</title>
+<title>Midstate — KPI Command Center v3.22</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1428,7 +1428,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.21
+      v3.22
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1439,7 +1439,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.21';
+const COMPANION_VERSION = 'v3.22';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -2603,6 +2603,7 @@ async function updateS4() {
 // ---- SCENE 5: ANNOUNCEMENTS & MOTIVATION ----
 let _annIdx = 0;
 let _annTimer = null;
+let _annAdvanceFn = null; // current rotateAnn callback, so a video's onended can trigger it directly
 
 function updateS5() {
   const now = new Date();
@@ -2634,7 +2635,18 @@ function updateS5() {
   showAnnouncement(_annIdx, quotes);
 
   const PER_ANN = 12000;
-  startProgressFor(PER_ANN * quotes.length);
+  startProgressFor(PER_ANN * quotes.length); // approximate — doesn't account for video-length items, which is an acceptable minor inaccuracy for the progress bar
+
+  // Schedules the advance past the CURRENT item — a fixed 12s timer for a
+  // photo (or no media), or, if the current item's media is a video,
+  // does nothing here and instead waits for the video's 'ended' event
+  // (wired via onended in showAnnouncement) so a video always plays
+  // exactly once before advancing, regardless of its length.
+  function scheduleAnnAdvance() {
+    const item = quotes[_annIdx % quotes.length];
+    if (item && isVideoUrl(item.photoUrl)) return; // advance comes from onAnnouncementVideoEnded() instead
+    _annTimer = setTimeout(rotateAnn, PER_ANN);
+  }
 
   function rotateAnn() {
     _annIdx++;
@@ -2649,10 +2661,17 @@ function updateS5() {
     setTimeout(() => {
       showAnnouncement(_annIdx, quotes);
       if (card) { card.style.opacity = '1'; }
+      scheduleAnnAdvance();
     }, 400);
-    _annTimer = setTimeout(rotateAnn, PER_ANN);
   }
-  _annTimer = setTimeout(rotateAnn, PER_ANN);
+  _annAdvanceFn = rotateAnn;
+  scheduleAnnAdvance();
+}
+
+// Called by the <video> element's onended handler (see showAnnouncement)
+function onAnnouncementVideoEnded() {
+  if (_annTimer) { clearTimeout(_annTimer); _annTimer = null; }
+  if (_annAdvanceFn) _annAdvanceFn();
 }
 
 function showAnnouncement(idx, quotes) {
@@ -2683,7 +2702,9 @@ function showAnnouncement(idx, quotes) {
     const photoUrl = item.photoUrl ? item.photoUrl.trim() : '';
     if (photoUrl) {
       // Photo size roughly doubled per request (was 420x320)
-      photoWrap.innerHTML = `<img src="${photoUrl}" style="max-width:640px;max-height:480px;width:auto;height:auto;border-radius:20px;object-fit:contain;border:4px solid var(--blue);box-shadow:0 0 50px rgba(0,212,255,.35);margin-bottom:28px" onerror="this.style.display='none'">`;
+      photoWrap.innerHTML = isVideoUrl(photoUrl)
+        ? `<video src="${photoUrl}" style="max-width:640px;max-height:480px;width:auto;height:auto;border-radius:20px;object-fit:contain;border:4px solid var(--blue);box-shadow:0 0 50px rgba(0,212,255,.35);margin-bottom:28px" autoplay muted playsinline onended="onAnnouncementVideoEnded()" onerror="this.style.display='none'"></video>`
+        : `<img src="${photoUrl}" style="max-width:640px;max-height:480px;width:auto;height:auto;border-radius:20px;object-fit:contain;border:4px solid var(--blue);box-shadow:0 0 50px rgba(0,212,255,.35);margin-bottom:28px" onerror="this.style.display='none'">`;
       photoWrap.style.display = 'block';
     } else {
       photoWrap.style.display = 'none';
@@ -3435,9 +3456,9 @@ function buildDots() {
 
 function goScene(idx) {
   // Stop self-managed timers when leaving those scenes
-  if (SCENES[state.currentScene] === 's7') { if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; } }
+  if (SCENES[state.currentScene] === 's7') { if (_cubeTimer) { clearTimeout(_cubeTimer); _cubeTimer = null; } }
   if (SCENES[state.currentScene] === 's2') { if (window._gapRotTimer) { clearInterval(window._gapRotTimer); window._gapRotTimer = null; } }
-  if (SCENES[state.currentScene] === 's8') { if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; } }
+  if (SCENES[state.currentScene] === 's8') { if (_promoTimer) { clearTimeout(_promoTimer); _promoTimer = null; } }
   if (SCENES[state.currentScene] === 's11') { if (_holidayTimer) { clearInterval(_holidayTimer); _holidayTimer = null; } }
   if (state.sceneTimer) { clearTimeout(state.sceneTimer); clearInterval(state.sceneTimer); state.sceneTimer = null; }
 
@@ -3986,7 +4007,15 @@ let _cubeAngle = 0;
 let _deptRotateTimer = null;
 let _deptIdx = 0;      // current Y rotation in degrees
 let _cubeIdx = 0;        // which spotlight is currently showing
-let _cubeTimer = null;   // rotation interval
+// Shared helper: detects whether a media URL is a video (vs. an image),
+// based on file extension. Used across Spotlight, Announcements/
+// Motivation, and Promotions to decide whether to render <video> or <img>.
+function isVideoUrl(url) {
+  if(!url) return false;
+  return /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url.trim());
+}
+
+let _cubeTimer = null;   // rotation timer (setTimeout — self-scheduling, video-aware)
 let _cubeFaceMap = {};   // which face index holds which spotlight
 
 const CUBE_FACES = ['front','right','back','left'];
@@ -4023,7 +4052,9 @@ function buildSpotlightFaceHTML(item) {
   return `
     <div class="spotlight-photo-wrap" style="flex-shrink:0">
       ${photoSrc
-        ? `<img src="${photoSrc}" class="spotlight-photo" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        ? (isVideoUrl(photoSrc)
+            ? `<video src="${photoSrc}" class="spotlight-photo" autoplay muted playsinline onended="onSpotlightVideoEnded()" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"></video>`
+            : `<img src="${photoSrc}" class="spotlight-photo" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`)
         : ''}
       <div class="spotlight-initials" style="${photoSrc?'display:none':'display:flex'}">${initial}</div>
       <div class="spotlight-badge">${item.type||'⭐ Spotlight'}</div>
@@ -4039,7 +4070,7 @@ function updateS7() {
   _spItems = buildSpotlightItems();
 
   // Clear previous timer
-  if (_cubeTimer) { clearInterval(_cubeTimer); _cubeTimer = null; }
+  if (_cubeTimer) { clearTimeout(_cubeTimer); _cubeTimer = null; }
 
   // No spotlights — show placeholder
   if (!_spItems.length) {
@@ -4064,31 +4095,45 @@ function updateS7() {
   updateCubeDots();
   spawnConfetti();
 
-  // If only 1 spotlight — no rotation needed, hold for full scene duration
-  if (_spItems.length === 1) return;
-
-  // Rotate through spotlights — 11s per spotlight (increased from 8s per
-  // request, so each one gets more time to actually read, especially when
-  // there are several in rotation — the total scene duration already
-  // scales automatically with spotlight count since this is self-managed)
-  // When all shown, advance to next scene
-  _cubeTimer = setInterval(() => {
-    _cubeIdx++;
-
-    if (_cubeIdx >= _spItems.length) {
-      clearInterval(_cubeTimer); _cubeTimer = null;
-      resumeGlobalRotation();
-      setTimeout(() => nextScene(), 800);
-      return;
-    }
-
-    // Rotate cube to next face
-    rotateCubeToNext();
-    updateCubeDots();
-  }, 11000);
-
-  // Override scene auto-advance — scene7 controls its own timing
+  // Scene 7 always controls its own timing now (video-aware — see
+  // scheduleSpotlightAdvance below), even for a single spotlight, since a
+  // single video-only spotlight still needs to wait for playback to
+  // finish before advancing to the next scene.
   overrideSceneTimer();
+  scheduleSpotlightAdvance();
+}
+
+// Schedules the advance past the CURRENT spotlight — a fixed 11s timer
+// for a photo (or no media), matching the previous per-spotlight
+// duration; or, if the current item's media is a video, does nothing
+// here and instead waits for the video's 'ended' event (wired via
+// onended on the <video> element in buildSpotlightFaceHTML) so a video
+// always plays exactly once before advancing, regardless of its length.
+function scheduleSpotlightAdvance() {
+  const item = _spItems[_cubeIdx];
+  if (item && isVideoUrl(item.photoUrl)) return; // advance comes from onSpotlightVideoEnded() instead
+  _cubeTimer = setTimeout(advanceSpotlight, 11000);
+}
+
+function advanceSpotlight() {
+  _cubeTimer = null;
+  _cubeIdx++;
+
+  if (_cubeIdx >= _spItems.length) {
+    resumeGlobalRotation();
+    setTimeout(() => nextScene(), 800);
+    return;
+  }
+
+  rotateCubeToNext();
+  updateCubeDots();
+  scheduleSpotlightAdvance();
+}
+
+// Called by the <video> element's onended handler (see buildSpotlightFaceHTML)
+function onSpotlightVideoEnded() {
+  if (_cubeTimer) { clearTimeout(_cubeTimer); _cubeTimer = null; }
+  advanceSpotlight();
 }
 
 function rotateCubeToNext() {
@@ -4160,32 +4205,56 @@ function updateS8Promo() {
 
   _promoIdx = 0;
   showPromoSlide(_promoIdx, active);
-  startProgressFor(10000 * active.length); // set full duration once
+  startProgressFor(10000 * active.length); // approximate — doesn't account for video-length items
 
-  if (_promoTimer) { clearInterval(_promoTimer); _promoTimer = null; }
+  if (_promoTimer) { clearTimeout(_promoTimer); _promoTimer = null; }
+
+  // Schedules the advance past the CURRENT promo — a fixed 10s timer for
+  // an image (or no media), or, if the current promo's media is a video,
+  // does nothing here and instead waits for the video's 'ended' event
+  // (wired via onended in showPromoSlide) so a video always plays exactly
+  // once before advancing, regardless of its length.
+  function schedulePromoAdvance() {
+    const p = active[_promoIdx];
+    if (p && isVideoUrl(p.imageUrl)) return; // advance comes from onPromoVideoEnded() instead
+    _promoTimer = setTimeout(advancePromo, 10000);
+  }
+
+  function advancePromo() {
+    _promoIdx++;
+    if (_promoIdx >= active.length) {
+      _promoTimer = null;
+      resumeGlobalRotation();
+      nextScene();
+      return;
+    }
+    // Flip transition
+    const card = el('promo-flip-card');
+    if (card) card.classList.add('flipping');
+    setTimeout(() => {
+      showPromoSlide(_promoIdx, active);
+      if (card) card.classList.remove('flipping');
+      schedulePromoAdvance();
+    }, 520);
+  }
+  _promoAdvanceFn = advancePromo;
 
   if (active.length > 1) {
-    _promoTimer = setInterval(() => {
-      _promoIdx++;
-      if (_promoIdx >= active.length) {
-        clearInterval(_promoTimer); _promoTimer = null;
-        resumeGlobalRotation();
-        nextScene();
-        return;
-      }
-      // Flip transition
-      const card = el('promo-flip-card');
-      if (card) card.classList.add('flipping');
-      setTimeout(() => {
-        showPromoSlide(_promoIdx, active);
-        if (card) card.classList.remove('flipping');
-      }, 520);
-    }, 10000);
+    schedulePromoAdvance();
   } else {
-    // Single promo — hold then advance
+    // Single promo — hold then advance, unless it's a video (wait for onended)
+    if (isVideoUrl(active[0].imageUrl)) return;
     state.sceneTimer = setTimeout(() => { resumeGlobalRotation(); nextScene(); }, 10000);
     startProgressFor(10000);
   }
+}
+
+// Called by the <video> element's onended handler (see showPromoSlide)
+function onPromoVideoEnded() {
+  if (_promoTimer) { clearTimeout(_promoTimer); _promoTimer = null; }
+  if (state.sceneTimer) { clearTimeout(state.sceneTimer); state.sceneTimer = null; }
+  if (_promoAdvanceFn) { _promoAdvanceFn(); }
+  else { resumeGlobalRotation(); nextScene(); } // single-promo case has no advance fn
 }
 
 function showPromoSlide(idx, promos) {
@@ -4218,7 +4287,7 @@ function showPromoSlide(idx, promos) {
         </div>
         ${p.offer?`<div style="font-size:${p.offer.length>30?'24px':'30px'};font-weight:800;color:#fff;line-height:1.3;word-break:break-word">${p.offer}</div>`:''}
         ${p.desc?`<div style="font-size:16px;color:rgba(255,255,255,.85);line-height:1.6">${p.desc}</div>`:''}
-        ${p.imageUrl ? (/\.(mp4|webm|mov)$/i.test(p.imageUrl) ? `<video src="${p.imageUrl}" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:contain;margin-top:4px" autoplay muted loop playsinline></video>` : `<img src="${p.imageUrl}" style="max-width:100%;max-height:180px;border-radius:12px;object-fit:contain;margin-top:4px" onerror="this.style.display='none'">`) : ''}
+        ${p.imageUrl ? (isVideoUrl(p.imageUrl) ? `<video src="${p.imageUrl}" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:contain;margin-top:4px" autoplay muted playsinline onended="onPromoVideoEnded()"></video>` : `<img src="${p.imageUrl}" style="max-width:100%;max-height:180px;border-radius:12px;object-fit:contain;margin-top:4px" onerror="this.style.display='none'">`) : ''}
         ${promos.length > 1 ? `<div style="display:flex;gap:10px;margin-top:12px">
           ${promos.map((_,i)=>`<div style="width:10px;height:10px;border-radius:50%;
             background:${i===idx?col:'rgba(255,255,255,.2)'};transition:all .4s"></div>`).join('')}
@@ -4229,6 +4298,7 @@ function showPromoSlide(idx, promos) {
 
 let _promoIdx = 0;
 let _promoTimer = null;
+let _promoAdvanceFn = null; // current advancePromo callback, so a video's onended can trigger it directly
 
 async function updateS9() {
   const snap = state.snap;
@@ -5214,4 +5284,4 @@ window.addEventListener('load', init);
 ╚═══════════════════════════════════════════════════════════════╝
 -->
 </body>
-</html>a
+</html>
