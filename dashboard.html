@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.13</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.14</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.13</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.14</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -481,7 +481,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.13</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.14</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1355,51 +1355,47 @@ tr:hover td{background:#fafafa}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
           <div style="font-size:16px;font-weight:800;color:#1A3A5C">🏠 Service Plans Sold</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload either HCP report below — the file is auto-detected, no need to pick a type</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Enter each employee's plan count directly below — top 4 (by 2026) show on the wallboard with a 2025 vs 2026 comparison chart</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <label class="plan-upload-btn" for="planFileInput" style="padding:7px 14px;font-size:12px;cursor:pointer">
-            📁 Upload Report
-            <input type="file" id="planFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handlePlanUpload(this)">
-          </label>
-          <button class="is-btn danger" style="font-size:11px" onclick="clearPlanUpload()">🗑 Clear YTD</button>
-          <button class="is-btn danger" style="font-size:11px" onclick="clearActivePlans()">🗑 Clear Active</button>
-        </div>
+        <button onclick="saveManualPlansToSheets()" style="padding:8px 16px;background:#5B21B6;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💾 Save & Push to Wallboard</button>
       </div>
 
-      <!-- Status -->
-      <div id="planUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
-      <div style="font-size:11px;color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-bottom:8px">
-        📍 For the per-tech leaderboard below: HCP → Reporting → Service Plans → Service plans sold by employee → set range Year to Date → export CSV
-      </div>
       <div style="font-size:11px;color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-bottom:14px">
-        📍 For the Total Active Plans count: HCP → Reporting → Service Plans → Service agreements → export the full active-agreements CSV
+        📍 For the Total Active Plans count below: HCP → Reporting → Service Plans → Service agreements → export the full active-agreements CSV
       </div>
 
-      <!-- Total Active Plans — separate metric, never summed with the YTD leaderboard below -->
+      <!-- Total Active Plans — separate metric, upload-based, unchanged -->
       <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
         <div>
           <div style="font-size:11px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.05em">Total Active Plans</div>
-          <div style="font-size:10px;color:#7c6a9c;margin-top:2px">All currently active plans, regardless of when sold — separate from YTD sold-by-employee below</div>
+          <div style="font-size:10px;color:#7c6a9c;margin-top:2px">All currently active plans, regardless of when sold — separate from the manual 2025/2026 counts below</div>
           <div id="activePlansSub" style="font-size:10px;color:#9ca3af;margin-top:2px">No data uploaded yet</div>
         </div>
-        <div id="activePlansTotal" style="font-size:32px;font-weight:900;color:#5B21B6">0</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div id="activePlansTotal" style="font-size:32px;font-weight:900;color:#5B21B6">0</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label class="plan-upload-btn" for="planFileInput" style="padding:6px 12px;font-size:11px;cursor:pointer">
+              📁 Upload Active Agreements
+              <input type="file" id="planFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handlePlanUpload(this)">
+            </label>
+            <button class="is-btn danger" style="font-size:10px" onclick="clearActivePlans()">🗑 Clear Active</button>
+          </div>
+        </div>
       </div>
+      <div id="planUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
 
-      <!-- Total + leaderboard -->
-      <div id="planMetrics" class="metrics" style="margin-bottom:16px"></div>
-
+      <!-- Manual 2025/2026 entry table -->
+      <div class="sec-head" style="margin-bottom:10px">✏️ 2025 &amp; 2026 Plans Sold — Manual Entry</div>
       <div class="tbl-wrap">
-        <table id="plansTable">
+        <table id="manualPlansTable">
           <thead>
             <tr>
-              <th style="width:40px">#</th>
               <th>Employee</th>
-              <th style="width:120px;text-align:right">Plans Sold</th>
-              <th style="width:160px">Share</th>
+              <th style="width:120px;text-align:center">2025</th>
+              <th style="width:120px;text-align:center">2026</th>
             </tr>
           </thead>
-          <tbody id="plansBody"></tbody>
+          <tbody id="manualPlansBody"></tbody>
         </table>
       </div>
 
@@ -2035,6 +2031,7 @@ function connect(){
     loadTYCards();
     loadSpotlights();
     loadVideos();
+    loadManualPlans();
     loadAnnouncements();
     loadHolidays();
     loadMotivations();
@@ -2637,7 +2634,7 @@ function showTab(t){
     else if(t==='cal'||t==='calendar') { renderCalendar(); loadCalEmpFilter(); }
     else if(t==='is')    renderIS();
     else if(t==='unpaid') renderUnpaid();
-    else if(t==='plans') renderPlans(_plans);
+    else if(t==='plans') loadManualPlans();
     else if(t==='contest') renderContest();
   }
 
@@ -3264,7 +3261,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.13
+  // ATTRIBUTION ENGINE — v25.14
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4828,9 +4825,17 @@ async function loadPlanAttributions() {
 // Replaces the old per-customer roster + fuzzy auto-match system.
 // Works directly off the aggregate "Sold by / Plans sold" HCP export.
 function renderPlans(plans) {
-  const status = $$('planUploadStatus');
+  // NOTE (2026-08-05): this function is now effectively retired — the
+  // YTD-sold-by-employee leaderboard it used to drive was replaced with
+  // manual entry (see loadManualPlans/renderManualPlansTable). Left in
+  // place only because a few call sites still reference _uploadedPlans
+  // for unrelated reasons; its writes to plansTable/plansBody/planMetrics
+  // are harmless no-ops now (those elements no longer exist in the DOM).
+  // Deliberately no longer touches planUploadStatus — that div is now
+  // dedicated to Active Plans upload feedback (see handlePlanUpload),
+  // and this function's old "upload the report" messaging would
+  // overwrite/conflict with that.
   if(!plans || !plans.length) {
-    if(status) status.innerHTML = '<span style="color:#9ca3af">Upload the "Service plans sold by employee" report from HCP to get started.</span>';
     const metricsEl = $$('planMetrics');
     if(metricsEl) metricsEl.innerHTML = '';
     const tb = $$('plansBody');
@@ -4848,12 +4853,9 @@ function renderPlans(plans) {
   const total = plans.length;
   const max = rows[0]?.[1] || 1;
 
-  const uploadedAt = plans.find(p=>p._uploadedAt)?._uploadedAt;
-  const uploadStr  = uploadedAt ? `Uploaded ${formatRelativeTime(new Date(uploadedAt))}` : '';
-
   const metricsEl = $$('planMetrics');
   if(metricsEl) metricsEl.innerHTML = `
-    <div class="metric"><div class="metric-label">Total Plans Sold (YTD)</div><div class="metric-value" style="color:#166534">${total}</div><div class="metric-sub">${uploadStr}</div></div>
+    <div class="metric"><div class="metric-label">Total Plans Sold (YTD)</div><div class="metric-value" style="color:#166534">${total}</div></div>
     <div class="metric"><div class="metric-label">Top Seller</div><div class="metric-value" style="color:#1d4ed8;font-size:18px">${escHtml(rows[0]?.[0]||'—')}</div><div class="metric-sub">${rows[0]?.[1]||0} plans</div></div>
     <div class="metric"><div class="metric-label">Team Members</div><div class="metric-value">${rows.length}</div><div class="metric-sub">with at least 1 plan</div></div>`;
 
@@ -4869,8 +4871,6 @@ function renderPlans(plans) {
       </tr>`;
     }).join('');
   }
-
-  if(status) status.innerHTML = `<span style="color:#166534">✅ ${total} plans sold across ${rows.length} team members</span>`;
 }
 
 
@@ -5218,7 +5218,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.13',  // dashboard version that generated this push
+    dash_version: 'v25.14',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5789,7 +5789,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.13',
+        dash_version:        'v25.14',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11675,6 +11675,88 @@ function loadVideos(){
       }
     })
     .catch(e => console.warn('[Videos] Fetch failed:', e.message));
+}
+
+// ============================================================
+// SERVICE PLANS — manual 2025/2026 entry (replaces the old
+// CSV-upload-driven YTD-sold-by-employee leaderboard, per explicit
+// request). Total Active Plans (separate, upload-based) is unaffected.
+// ============================================================
+let _manualPlans = [];
+
+// Roster for the manual entry table — same canonical name list (DEPT_MAP,
+// minus KPI_EXCLUDE and known aliases) already used elsewhere to build a
+// synthetic employee roster, so this stays consistent with the rest of
+// the app rather than introducing a separate source of truth for names.
+function getManualPlansRoster() {
+  const ALIAS_SKIP = new Set(['Andrew Mitchell','Bob Danaher','Victoria']);
+  const seen = new Set();
+  const roster = [];
+  Object.keys(DEPT_MAP).forEach(name => {
+    if(KPI_EXCLUDE.has(name) || ALIAS_SKIP.has(name) || seen.has(name)) return;
+    seen.add(name);
+    roster.push(name);
+  });
+  return roster;
+}
+
+function renderManualPlansTable(){
+  const body = document.getElementById('manualPlansBody');
+  if(!body) return;
+  const roster = getManualPlansRoster();
+  // Merge roster with any saved rows (in case someone was saved who's no
+  // longer in DEPT_MAP, or vice versa) — union of both, roster order first.
+  const byName = {};
+  _manualPlans.forEach(p => { byName[p.name] = p; });
+  const allNames = [...roster, ...Object.keys(byName).filter(n => !roster.includes(n))];
+
+  body.innerHTML = allNames.map(name => {
+    const row = byName[name] || {name, y2025:0, y2026:0};
+    const safeId = name.replace(/[^a-zA-Z0-9]/g,'_');
+    return `<tr>
+      <td style="font-weight:600;color:#111827">${escHtml(name)}</td>
+      <td style="text-align:center"><input type="number" min="0" id="mp2025_${safeId}" value="${row.y2025||0}" style="width:80px;text-align:center;padding:5px;border:1px solid #d1d5db;border-radius:5px;font-size:13px"></td>
+      <td style="text-align:center"><input type="number" min="0" id="mp2026_${safeId}" value="${row.y2026||0}" style="width:80px;text-align:center;padding:5px;border:1px solid #d1d5db;border-radius:5px;font-size:13px"></td>
+    </tr>`;
+  }).join('');
+}
+
+function saveManualPlansToSheets(){
+  const roster = getManualPlansRoster();
+  const byName = {};
+  _manualPlans.forEach(p => { byName[p.name] = p; });
+  const allNames = [...roster, ...Object.keys(byName).filter(n => !roster.includes(n))];
+
+  _manualPlans = allNames.map(name => {
+    const safeId = name.replace(/[^a-zA-Z0-9]/g,'_');
+    const y2025 = parseInt(document.getElementById('mp2025_'+safeId)?.value)||0;
+    const y2026 = parseInt(document.getElementById('mp2026_'+safeId)?.value)||0;
+    return {name, y2025, y2026};
+  });
+
+  if(!_sheetsProxy){ showToast('Not connected to Sheets','error'); return; }
+  fetch(_sheetsProxy, {
+    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+    body: JSON.stringify({ action:'saveManualPlans', plans:_manualPlans })
+  })
+  .then(r=>r.json())
+  .then(d=>{ if(d.success) showToast('✅ Saved & pushed to wallboard','success'); else showToast('Save failed','error'); })
+  .catch(e=>showToast('Save failed: '+e.message,'error'));
+}
+
+function loadManualPlans(){
+  renderManualPlansTable(); // render roster immediately, even before Sheets responds
+  if(!_sheetsProxy) return;
+  fetch(_sheetsProxy+'?action=getManualPlans', {redirect:'follow'})
+    .then(r => r.json())
+    .then(data => {
+      if(data.success && data.plans) {
+        _manualPlans = data.plans;
+        renderManualPlansTable();
+        console.log('[ManualPlans] Loaded', _manualPlans.length, 'rows from Sheets');
+      }
+    })
+    .catch(e => console.warn('[ManualPlans] Fetch failed:', e.message));
 }
 
 
