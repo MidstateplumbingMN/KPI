@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.08</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.09</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.08</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.09</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.08</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.09</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3204,7 +3204,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.08
+  // ATTRIBUTION ENGINE — v25.09
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5158,7 +5158,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.08',  // dashboard version that generated this push
+    dash_version: 'v25.09',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5729,7 +5729,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.08',
+        dash_version:        'v25.09',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11158,18 +11158,50 @@ function saveItemsToSheets(key) {
 }
 
 // Load motivations from Sheets on connect
+// FIXED (2026-07-29): loadMotivations() used to only read from the
+// Settings sheet (hcp_motivations) — but that key never actually
+// received data before today's saveItemsToSheets fix (it was calling a
+// non-existent action). Every motivation ever saved before that fix
+// only ever reached KPI_Dashboard's motivations_json key (which is what
+// companion reads), never Settings — so existing motivations would
+// still be invisible on the dashboard's own list even after fixing the
+// save path, since fixing a save doesn't retroactively move data that
+// already landed somewhere else. Now reads motivations_json from
+// KPI_Dashboard first (the same source companion uses, and where the
+// real data has been living), falling back to the Settings-sheet read
+// for anything saved through the now-fixed path that hasn't also been
+// pushed to KPI_Dashboard for some reason.
 function loadMotivations() {
   renderItemList('motivation');
   if(!_sheetsProxy) return;
-  fetch(_sheetsProxy+'?action=loadSettings', {redirect:'follow'})
-    .then(r=>r.json())
-    .then(d=>{
-      if(d.success && d.settings?.hcp_motivations) {
+
+  fetch(`${_sheetsProxy}?action=getCSV&tab=KPI_Dashboard`, {redirect:'follow'})
+    .then(r=>r.text())
+    .then(text=>{
+      if(!text.trim()) return;
+      const rows = text.trim().split('\n').map(l => {
+        const m = l.match(/^([^,]*),(.*)$/);
+        return m ? [m[1], m[2].replace(/^"|"$/g,'').replace(/""/g,'"')] : [l, ''];
+      });
+      const snap = {};
+      rows.slice(1).forEach(([k,v]) => { if(k) snap[k] = v; });
+      if(snap.motivations_json) {
         try {
-          const m = JSON.parse(d.settings.hcp_motivations);
-          if(Array.isArray(m)) { _motivations = m; renderItemList('motivation'); }
+          const m = JSON.parse(snap.motivations_json);
+          if(Array.isArray(m) && m.length) { _motivations = m; renderItemList('motivation'); return; }
         } catch(e) {}
       }
+      // Fallback — Settings sheet, for anything saved via the fixed path only
+      fetch(_sheetsProxy+'?action=loadSettings', {redirect:'follow'})
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.success && d.settings?.hcp_motivations) {
+            try {
+              const m = JSON.parse(d.settings.hcp_motivations);
+              if(Array.isArray(m)) { _motivations = m; renderItemList('motivation'); }
+            } catch(e) {}
+          }
+        }).catch(()=>{});
     }).catch(()=>{});
 }
 
@@ -11336,7 +11368,16 @@ function submitSpotlight(){
   const typeEl = document.getElementById('sl-type');
   const customTypeEl = document.getElementById('sl-type-custom');
   let type = typeEl?.value||'⭐ Top Performer';
-  if(type==='__custom__' && customTypeEl) type = customTypeEl.value?.trim()||'Custom';
+  if(type==='__custom__') {
+    const customText = customTypeEl?.value?.trim()||'';
+    // FIXED (2026-07-29): this used to silently fall back to the literal
+    // word "Custom" if the text field was empty, which could post a
+    // spotlight with a meaningless generic label instead of what was
+    // actually intended. Now blocks submission and asks for the actual
+    // text instead of guessing.
+    if(!customText){ showToast('Please type your custom accomplishment text.','error'); customTypeEl?.focus(); return; }
+    type = customText;
+  }
   
   const dept = document.getElementById('sl-dept')?.value||'';
   const photoRaw = document.getElementById('sl-photo')?.value?.trim()||'';
