@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.09</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.11</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -449,7 +449,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.09</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.11</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -478,7 +478,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.09</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.11</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1174,7 +1174,7 @@ tr:hover td{background:#fafafa}
 
             <!-- Photo — GitHub picker -->
             <div style="margin-bottom:12px">
-              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Photo</label>
+              <label style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Photo or Video</label>
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
                 <input type="text" id="sl-photo" placeholder="https://midstateplumbingmn.github.io/KPI/images/Doug.JPG"
                   style="flex:1;padding:8px 10px;border:1px solid #FDE68A;border-radius:7px;font-size:12px"
@@ -1505,11 +1505,11 @@ tr:hover td{background:#fafafa}
                 style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px">
             </div>
             <div style="margin-bottom:8px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Image <span style="color:#9ca3af">(optional)</span>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Image or Video <span style="color:#9ca3af">(optional)</span>
                 <button type="button" onclick="showImagePicker('mot-photo','mot-photo-preview')"
                   style="font-size:10px;padding:2px 7px;background:#EDE9FE;color:#7C3AED;border:1px solid #DDD6FE;border-radius:4px;cursor:pointer;margin-left:4px">📁 Browse</button>
               </div>
-              <input type="text" id="mot-photo" placeholder="URL or select from GitHub"
+              <input type="text" id="mot-photo" placeholder="Image/video URL or select from GitHub"
                 style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px"
                 oninput="previewPhoto(this.value,'mot-photo-preview','mot-photo-img')">
               <div id="mot-photo-preview" style="display:none;margin-top:6px;align-items:center;gap:8px">
@@ -3204,7 +3204,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.09
+  // ATTRIBUTION ENGINE — v25.11
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5158,7 +5158,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.09',  // dashboard version that generated this push
+    dash_version: 'v25.11',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5729,7 +5729,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.09',
+        dash_version:        'v25.11',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6020,7 +6020,10 @@ async function loadAllSettingsFromSheets() {
     // used to collide on the same key (wb_scene_order) with two different,
     // incompatible shapes — see saveSceneOrder()'s fix note for the full
     // explanation. This read now matches that fix.
-    if(s.wb_scene_order_full) try { const v=JSON.parse(s.wb_scene_order_full); if(Array.isArray(v)) _sceneOrder=v; } catch(e){}
+    if(s.wb_scene_order_full) try {
+      const v=JSON.parse(s.wb_scene_order_full);
+      if(Array.isArray(v)) { _sceneOrder=v; if(document.getElementById('tab-wallboard')?.classList.contains('active')) renderSceneOrder(); }
+    } catch(e){}
 
     // Auto-pull config
     if(s.hcp_autopull) try { Object.assign(_autoPull||{}, JSON.parse(s.hcp_autopull)); } catch(e){}
@@ -6138,10 +6141,23 @@ const DEFAULT_SCENE_ORDER = [
 let _sceneOrder = null;
 
 function loadSceneOrder() {
-  try {
-    const saved = null; // loaded from Sheets on connect
-    _sceneOrder = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
-  } catch(e) { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
+  // FIXED (2026-07-30): this used to unconditionally reset _sceneOrder to
+  // DEFAULT_SCENE_ORDER every single time — "const saved = null; // loaded
+  // from Sheets on connect" was a leftover stub that never actually read
+  // anything. _sceneOrder is already correctly populated at connect time
+  // from wb_scene_order_full (see loadAllSettingsFromSheets) — this
+  // function was discarding that real, custom order every time the
+  // Wallboard settings tab was opened, which is exactly the kind of
+  // workflow (pull → push → check Wallboard tab) that would make it look
+  // like a pull/push had reset the scene order, when it was actually this
+  // tab-visit stub doing it. Now only falls back to defaults if nothing
+  // has been loaded at all yet (e.g. first-ever connect, or Sheets restore
+  // genuinely failed) — otherwise it just re-renders whatever is already
+  // the real, current order.
+  if(!_sceneOrder) {
+    try { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
+    catch(e) { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
+  }
   renderSceneOrder();
 }
 
