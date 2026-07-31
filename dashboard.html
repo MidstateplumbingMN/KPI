@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.17</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.18</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.17</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.18</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -481,7 +481,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.17</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.18</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1924,7 +1924,7 @@ function loadAttr(){
 async function fetchConfirmedAttrFromSheets(){
   if(!_sheetsProxy) return;
   try{
-    const res=await fetch(_sheetsProxy+'?action=getConfirmedAttribution',{redirect:'follow',mode:'cors'});
+    const res=await fetch(_sheetsProxy+'?action=getConfirmedAttribution&cb='+Date.now(), {redirect:'follow',mode:'cors', cache:'no-store'});
     if(!res.ok) return;
     const data=await res.json();
     // FIXED (2026-07-09): Apps Script's getConfirmedAttribution() returns
@@ -3280,7 +3280,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.17
+  // ATTRIBUTION ENGINE — v25.18
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -4824,7 +4824,7 @@ async function savePlanAttributions() {
 async function loadPlanAttributions() {
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy + '?action=getPlanAttributions', { redirect:'follow' });
+    const res = await fetch(_sheetsProxy+'?action=getPlanAttributions&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const d = await res.json();
     if(d.success && d.attributions) {
       _planAttributions = d.attributions;
@@ -5237,7 +5237,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.17',  // dashboard version that generated this push
+    dash_version: 'v25.18',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5808,7 +5808,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.17',
+        dash_version:        'v25.18',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5907,7 +5907,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       // Health check — only on explicit Push to Companion, not on auto-pull sync
       if(!opts.skipHealthCheck) {
         setTimeout(() => {
-          fetch(_sheetsProxy + '?action=healthCheck', { redirect:'follow' })
+          fetch(_sheetsProxy+'?action=healthCheck&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
             .then(r => r.json())
             .then(d => {
               if(d.missing?.length || d.empty?.length) {
@@ -6072,7 +6072,14 @@ async function fetchYTDMonthlyRevenue() {
 async function loadSettingsFromSheets() {
   if(!_sheetsProxy) return {};
   try {
-    const res = await fetch(_sheetsProxy + '?action=loadSettings', { redirect:'follow' });
+    // Cache-busting: without this, a browser (or any intermediate caching
+    // layer) can silently serve a stale cached response for this exact
+    // GET request, even after a genuine hard page reload — the page
+    // itself reloads fresh, but the fetch call underneath it can still
+    // return old cached data. This is very likely why settings appeared
+    // to "not save" even when the underlying Sheets data was confirmed
+    // correct via direct inspection.
+    const res = await fetch(_sheetsProxy + '?action=loadSettings&cb=' + Date.now(), { redirect:'follow', cache:'no-store' });
     const d = await res.json();
     if(d.success) return d.settings || {};
   } catch(e) { console.warn('[Settings] Load failed:', e.message); }
@@ -7364,7 +7371,7 @@ async function loadHCPReportsFullFromSheets() {
   try {
     const results = await Promise.all(types.map(async type => {
       try {
-        const res = await fetch(_sheetsProxy+'?action=getHCPReport&type='+type, {redirect:'follow'});
+        const res = await fetch(_sheetsProxy+'?action=getHCPReport&type='+type+'&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
         return { type, data: await res.json() };
       } catch(e) { return { type, data: null }; }
     }));
@@ -10016,7 +10023,7 @@ async function syncTYSalesToSheets() {
 async function loadCachedTYSalesIntoUI() {
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy + '?action=getTYSalesCache', { redirect:'follow' });
+    const res = await fetch(_sheetsProxy+'?action=getTYSalesCache&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const d = await res.json();
     if(!d.success || !d.sales || !d.sales.length) return;
     _tySalesCache = d.sales;
@@ -10330,7 +10337,7 @@ function setTYMode(mode) {
 async function loadReferralCards() {
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy + '?action=getReferralCards', { redirect:'follow' });
+    const res = await fetch(_sheetsProxy+'?action=getReferralCards&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const d = await res.json();
     if(d.success && Array.isArray(d.cards)) {
       _referralCards = d.cards;
@@ -10831,7 +10838,7 @@ function loadWallboardSettings(){
   renderBdayList();
   // Fetch from Sheets
   if(_sheetsProxy){
-    fetch(_sheetsProxy+'?action=getWallboardSettings',{redirect:'follow'})
+    fetch(_sheetsProxy+'?action=getWallboardSettings&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
       .then(r=>r.json())
       .then(d=>{
         if(d.success){
@@ -10946,7 +10953,7 @@ function loadAnnouncements(){
   _announcements = _announcements || [];
   renderAnnList(); // render whatever is in memory immediately
   if(!_sheetsProxy) return;
-  fetch(_sheetsProxy+'?action=getAnnouncements', {redirect:'follow'})
+  fetch(_sheetsProxy+'?action=getAnnouncements&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
     .then(r => r.json())
     .then(d => {
       if(d.success && d.announcements) {
@@ -11321,7 +11328,7 @@ function loadMotivations() {
         } catch(e) {}
       }
       // Fallback — Settings sheet, for anything saved via the fixed path only
-      fetch(_sheetsProxy+'?action=loadSettings', {redirect:'follow'})
+      fetch(_sheetsProxy+'?action=loadSettings&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
         .then(r=>r.json())
         .then(d=>{
           if(d.success && d.settings?.hcp_motivations) {
@@ -11342,7 +11349,7 @@ function loadSpotlights(){
   renderSpotlightList(); // render whatever is in memory immediately
   renderPromoList();
   if(!_sheetsProxy) return;
-  fetch(_sheetsProxy+'?action=getSpotlights', {redirect:'follow'})
+  fetch(_sheetsProxy+'?action=getSpotlights&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
     .then(r => r.json())
     .then(data => {
       if(data.success) {
@@ -11717,7 +11724,7 @@ async function saveVideosToSheets(allowEmpty){
 function loadVideos(){
   renderVideoList(); // render whatever is in memory immediately
   if(!_sheetsProxy) return;
-  fetch(_sheetsProxy+'?action=getVideos', {redirect:'follow'})
+  fetch(_sheetsProxy+'?action=getVideos&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
     .then(r => r.json())
     .then(data => {
       if(data.success && data.videos) {
@@ -11799,7 +11806,7 @@ function saveManualPlansToSheets(){
 function loadManualPlans(){
   renderManualPlansTable(); // render roster immediately, even before Sheets responds
   if(!_sheetsProxy) return;
-  fetch(_sheetsProxy+'?action=getManualPlans', {redirect:'follow'})
+  fetch(_sheetsProxy+'?action=getManualPlans&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
     .then(r => r.json())
     .then(data => {
       if(data.success && data.plans) {
@@ -12020,7 +12027,7 @@ async function pushUnpaidJobToSheet(jobId){
 async function loadUnpaidJobsFromSheetsFull(){
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy+'?action=getUnpaidJobsFromSheet', {redirect:'follow'});
+    const res = await fetch(_sheetsProxy+'?action=getUnpaidJobsFromSheet&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const data = await res.json();
     if(!data.success || !data.jobs) return;
 
@@ -12927,7 +12934,7 @@ function loadUploadedPlans(){
 async function loadPlansFromSheets(){
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy+'?action=getPlans', {redirect:'follow'});
+    const res = await fetch(_sheetsProxy+'?action=getPlans&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const data = await res.json();
     if(data.success && data.plans && data.plans.length > 0){
       // Convert Sheets records back to plan objects the dashboard understands
@@ -13087,7 +13094,7 @@ function saveActivePlans(){
 async function loadActivePlansFromSheets(){
   if(!_sheetsProxy) return;
   try {
-    const res = await fetch(_sheetsProxy+'?action=getActivePlans', {redirect:'follow'});
+    const res = await fetch(_sheetsProxy+'?action=getActivePlans&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const data = await res.json();
     if(data.success && data.plans && data.plans.length > 0){
       const plans = data.plans.map((p, i) => ({
@@ -13149,8 +13156,8 @@ async function restoreJobsEstimatesFromSheets(){
 
   try {
     const [jRes, eRes] = await Promise.all([
-      fetch(_sheetsProxy+'?action=getJobsFromSheet', {redirect:'follow'}),
-      fetch(_sheetsProxy+'?action=getEstimatesFromSheet', {redirect:'follow'}),
+      fetch(_sheetsProxy+'?action=getJobsFromSheet&cb='+Date.now(), {redirect:'follow', cache:'no-store'}),
+      fetch(_sheetsProxy+'?action=getEstimatesFromSheet&cb='+Date.now(), {redirect:'follow', cache:'no-store'}),
     ]);
     const jData = await jRes.json();
     const eData = await eRes.json();
@@ -13900,7 +13907,7 @@ function loadIS(){
 async function fetchISFromSheets(){
   if(!_sheetsProxy) return; // No proxy configured yet
   try{
-    const res=await fetch(_sheetsProxy+'?action=getISData',{redirect:'follow',mode:'cors'});
+    const res=await fetch(_sheetsProxy+'?action=getISData&cb='+Date.now(), {redirect:'follow',mode:'cors', cache:'no-store'});
     const data=await res.json();
     if(data.success){
       // Merge Sheets data into local state (Sheets wins)
@@ -14282,7 +14289,7 @@ function loadISEmailState(){
 async function fetchISEmailStateFromSheets(){
   if(!_sheetsProxy) return;
   try{
-    const res=await fetch(_sheetsProxy+'?action=getISEmailState',{redirect:'follow'});
+    const res=await fetch(_sheetsProxy+'?action=getISEmailState&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const data=await res.json();
     if(data.success){
       // Sheets state wins — shared across all users
