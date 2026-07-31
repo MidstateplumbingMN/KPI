@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.14</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.16</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.14</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.16</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -481,7 +481,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.14</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.16</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2020,34 +2020,53 @@ function connect(){
   if(!s){err.textContent='Enter Google Sheets Proxy URL.';err.style.display='block';return;}
   _workerUrl=w; _token=t; _sheetsProxy=s;
 
+  // FIXED (2026-08-06): connect() used to fire 20+ Sheets-restore fetch
+  // calls essentially all at once (loadAllSettingsFromSheets, plans,
+  // active plans, jobs/estimates restore, unpaid jobs, HCP reports ×4,
+  // TY cards, spotlights, videos, manual plans, announcements, holidays,
+  // motivations, attribution, IS state, etc.) — all hitting the same
+  // Apps Script Web App URL within milliseconds of each other. Google
+  // Apps Script Web Apps have limited concurrent-request handling, and
+  // exceeding it causes RANDOM, intermittent failures — the same action
+  // succeeding on one call and failing on the next, which is exactly
+  // what was observed (e.g. getHCPReport succeeding for 2 of 4 types and
+  // failing for the other 2, same function, same deployment). An
+  // overloaded/rejected Apps Script response can also lack proper CORS
+  // headers, which is why the browser reported these as CORS errors
+  // rather than a clearer rate-limit or timeout message. Also removed
+  // loadPlansFromSheets()/loadActivePlansFromSheets() being called
+  // TWICE each (once here, once again below) — pure duplication that
+  // was making the pile-up worse for no reason.
+  //
+  // Fix: stagger these calls across ~2 seconds using small delays,
+  // instead of a full rewrite to strict sequential awaiting (most of
+  // these loader functions are fire-and-forget internally, not actually
+  // awaitable, so true sequencing would require touching each one —
+  // staggering the call TIMING is the safer, lower-risk fix that still
+  // keeps every function's internals untouched).
+  function stagger(fn, delayMs) { setTimeout(fn, delayMs); }
+
   // Load all user preferences from Sheets — replaces localStorage reads
   // This runs asynchronously so UI is not blocked
   loadAllSettingsFromSheets().then(() => {
     console.log('[Connect] Settings loaded from Sheets');
-    loadPlansFromSheets();
-    loadActivePlansFromSheets();
-    restoreJobsEstimatesFromSheets().then(() => loadUnpaidJobsFromSheetsFull());
-    loadHCPReportsFullFromSheets();
-    loadTYCards();
-    loadSpotlights();
-    loadVideos();
-    loadManualPlans();
-    loadAnnouncements();
-    loadHolidays();
-    loadMotivations();
+    stagger(() => { loadPlansFromSheets(); loadActivePlansFromSheets(); }, 0);
+    stagger(() => { restoreJobsEstimatesFromSheets().then(() => loadUnpaidJobsFromSheetsFull()); }, 300);
+    stagger(() => loadHCPReportsFullFromSheets(), 700);
+    stagger(() => loadTYCards(), 1100);
+    stagger(() => { loadSpotlights(); loadVideos(); }, 1400);
+    stagger(() => { loadManualPlans(); loadAnnouncements(); }, 1700);
+    stagger(() => { loadHolidays(); loadMotivations(); }, 2000);
   });
-  // Show last-known headline numbers immediately, before any live pull
+  // Show last-known headline numbers immediately, before any live pull —
+  // these two are the most important for perceived responsiveness, so
+  // they still fire right away rather than being staggered.
   if(_sheetsProxy) { loadCachedSnapshotIntoUI(); loadCachedTYSalesIntoUI(); }
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
-  loadAttr();
-  loadIS();
-  loadISEmailState();
-  loadEmpFilter();
-  loadCalEmpFilter();
-  loadKPIEmpFilter();
-  loadUploadedPlans();
-  // Restore plans from Sheets (authoritative) — overrides localStorage cache if Sheets has data
-  if(_sheetsProxy) { loadPlansFromSheets(); loadActivePlansFromSheets(); }
+  stagger(() => loadAttr(), 100);
+  stagger(() => { loadIS(); loadISEmailState(); }, 200);
+  stagger(() => { loadEmpFilter(); loadCalEmpFilter(); loadKPIEmpFilter(); }, 400);
+  stagger(() => loadUploadedPlans(), 500);
   loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
@@ -3261,7 +3280,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.14
+  // ATTRIBUTION ENGINE — v25.16
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5218,7 +5237,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.14',  // dashboard version that generated this push
+    dash_version: 'v25.16',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5789,7 +5808,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.14',
+        dash_version:        'v25.16',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6124,8 +6143,13 @@ function saveSetting(key, value) {
 }
 
 function saveSettingToSheets(key, value) {
-  if(!_sheetsProxy) return;
-  fetch(_sheetsProxy, {
+  if(!_sheetsProxy) return Promise.resolve();
+  // Returns the fetch promise so a caller that needs to GUARANTEE this
+  // completes before doing anything else (e.g. showing a "saved" message,
+  // or before the user might navigate away) can await it. Existing
+  // callers that don't await this continue to work exactly as before —
+  // fire-and-forget, unaffected by this change.
+  return fetch(_sheetsProxy, {
     method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({ action:'syncSettings', settings:{ [key]: typeof value==='object'?JSON.stringify(value):String(value) } })
   }).catch(()=>{});
@@ -6274,7 +6298,19 @@ async function saveSceneOrder() {
   // point — fixing that bug (2026-07-09, parseCSV) is what exposed this
   // one. Now using two distinct keys so both consumers get the shape they
   // actually expect, with no collision.
-  saveSettingToSheets('wb_scene_order_full', JSON.stringify(_sceneOrder));
+  // FIXED (2026-08-06): saveSettingToSheets() used to be fire-and-forget —
+  // this function fired it and moved on immediately, without waiting for
+  // it to actually complete, before doing the second write and showing
+  // the success toast. That meant the toast could appear "saved" while
+  // this FIRST write (wb_scene_order_full, the one the dashboard's own
+  // toggle list reads back on next login) was still in flight — and a
+  // refresh right after seeing that toast (a completely natural thing to
+  // do) could cancel the still-pending request before it ever reached
+  // Sheets. companion's copy (wb_scene_order, saved second and properly
+  // awaited) would still be correct, but the dashboard's own list would
+  // revert to defaults on the next login. Now awaits both writes before
+  // declaring success.
+  await saveSettingToSheets('wb_scene_order_full', JSON.stringify(_sceneOrder));
   const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
   if(_sheetsProxy) {
     try {
