@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.18</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.19</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.18</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.19</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -481,7 +481,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.18</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.19</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3280,7 +3280,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.18
+  // ATTRIBUTION ENGINE — v25.19
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5237,7 +5237,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.18',  // dashboard version that generated this push
+    dash_version: 'v25.19',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5808,7 +5808,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.18',
+        dash_version:        'v25.19',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6099,6 +6099,15 @@ async function loadAllSettingsFromSheets() {
     // KPI employee filter
     if(s.hcp_kpi_emps) try { const v=JSON.parse(s.hcp_kpi_emps); if(Array.isArray(v)) _kpiSelectedEmps=new Set(v); } catch(e){}
 
+    // DIAGNOSTIC (2026-08-06): every likely cause so far (save race
+    // condition, conditional re-render, stale cache, duplicate sheet
+    // rows) has been individually checked and ruled out with direct
+    // evidence, yet the symptom persists — so instead of guessing again,
+    // this logs each step of the restore explicitly to show exactly
+    // where it's actually breaking.
+    console.log('[SceneOrder DEBUG] settings object keys:', Object.keys(s));
+    console.log('[SceneOrder DEBUG] s.wb_scene_order_full raw value:', s.wb_scene_order_full);
+
     // Scene order — dashboard's own admin UI needs the full objects
     // (id/label/enabled) to restore drag-and-drop state; this is a
     // SEPARATE key from wb_scene_order, which companion.html reads as a
@@ -6108,8 +6117,11 @@ async function loadAllSettingsFromSheets() {
     // explanation. This read now matches that fix.
     if(s.wb_scene_order_full) try {
       const v=JSON.parse(s.wb_scene_order_full);
+      console.log('[SceneOrder DEBUG] parsed value:', v);
+      console.log('[SceneOrder DEBUG] is array?', Array.isArray(v));
       if(Array.isArray(v)) {
         _sceneOrder=v;
+        console.log('[SceneOrder DEBUG] _sceneOrder assigned, enabled states:', v.map(x=>x.id+':'+x.enabled).join(', '));
         // FIXED (2026-08-06): this used to only re-render if the Wallboard
         // tab happened to already be active at the exact moment this async
         // settings load completed. If the user was on any other tab (very
@@ -6124,8 +6136,10 @@ async function loadAllSettingsFromSheets() {
         // just updates hidden DOM content) guarantees the toggle list is
         // never left showing outdated state once real data has arrived.
         renderSceneOrder();
+        console.log('[SceneOrder DEBUG] renderSceneOrder() called');
       }
-    } catch(e){}
+    } catch(e){ console.log('[SceneOrder DEBUG] JSON.parse threw:', e.message); }
+    else { console.log('[SceneOrder DEBUG] s.wb_scene_order_full was falsy — key missing or empty from settings response'); }
 
     // Auto-pull config
     if(s.hcp_autopull) try { Object.assign(_autoPull||{}, JSON.parse(s.hcp_autopull)); } catch(e){}
@@ -6262,7 +6276,9 @@ function loadSceneOrder() {
   // has been loaded at all yet (e.g. first-ever connect, or Sheets restore
   // genuinely failed) — otherwise it just re-renders whatever is already
   // the real, current order.
+  console.log('[SceneOrder DEBUG] loadSceneOrder() called. _sceneOrder currently:', _sceneOrder ? _sceneOrder.map(x=>x.id+':'+x.enabled).join(', ') : 'null');
   if(!_sceneOrder) {
+    console.log('[SceneOrder DEBUG] _sceneOrder was null/falsy — falling back to DEFAULT_SCENE_ORDER (all enabled)');
     try { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
     catch(e) { _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER)); }
   }
@@ -6270,8 +6286,9 @@ function loadSceneOrder() {
 }
 
 function renderSceneOrder() {
+  console.log('[SceneOrder DEBUG] renderSceneOrder() executing with:', _sceneOrder ? _sceneOrder.map(x=>x.id+':'+x.enabled).join(', ') : 'null');
   const list = document.getElementById('sceneOrderList');
-  if(!list || !_sceneOrder) return;
+  if(!list || !_sceneOrder) { console.log('[SceneOrder DEBUG] render aborted — list element or _sceneOrder missing'); return; }
   list.innerHTML = _sceneOrder.map((s,i) => `
     <div draggable="true" data-idx="${i}" ondragstart="sceneDragStart(event,${i})" ondragover="sceneDragOver(event)" ondrop="sceneDrop(event,${i})"
       style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${s.enabled?'#f0f9ff':'#f9fafb'};border:1px solid ${s.enabled?'#bae6fd':'#e5e7eb'};border-radius:6px;cursor:grab">
