@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.19</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.21</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -452,7 +452,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.19</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.21</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -481,7 +481,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.19</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.21</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3280,7 +3280,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.19
+  // ATTRIBUTION ENGINE — v25.21
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5237,7 +5237,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.19',  // dashboard version that generated this push
+    dash_version: 'v25.21',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5808,7 +5808,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.19',
+        dash_version:        'v25.21',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9843,10 +9843,20 @@ async function fetchTYCardsFromSheets(){
     if(!res.ok) throw new Error('Proxy fetch failed: ' + res.status);
     const data = await res.json();
     if(!data.success || !data.cards) throw new Error('No cards in response');
+    // FIXED (2026-08-06): Apps Script now returns cards keyed by job_number
+    // (stable), not the internal job .id (which can change between a
+    // restored-from-Sheets session and a later live pull for the exact
+    // same job — see saveTYCard's history in CustomersTY.js). For each
+    // returned entry, find the CURRENT job with that job_number and key
+    // _tyCards by ITS current .id — this is what makes a card correctly
+    // stay "sent" even after the underlying job's internal id changes,
+    // instead of silently reappearing as pending.
     let restored = 0;
-    Object.entries(data.cards).forEach(([jobId, card]) => {
-      if(jobId) {
-        _tyCards[jobId] = { ..._tyCards[jobId]||{}, ...card };
+    Object.entries(data.cards).forEach(([jobNumber, card]) => {
+      const currentJob = _jobs.find(j => String(j.job_number) === String(jobNumber));
+      const key = currentJob ? currentJob.id : jobNumber; // fall back to the raw key if no current job matches yet (e.g. jobs not loaded)
+      if(key) {
+        _tyCards[key] = { ..._tyCards[key]||{}, ...card };
         restored++;
       }
     });
@@ -9865,11 +9875,16 @@ async function fetchTYCardsFromSheets(){
       let restored = 0;
       lines.slice(1).forEach(line => {
         const cols   = parseCSVLine(line);
-        const jobId  = (cols[0]||'').replace(/^"|"$/g,'').trim();
-        const status = (cols[1]||'').replace(/^"|"$/g,'').trim() || 'pending';
-        const sentDate=(cols[2]||'').replace(/^"|"$/g,'').trim();
-        const note   = (cols[3]||'').replace(/^"|"$/g,'').trim();
-        if(jobId && jobId !== 'jobId') { _tyCards[jobId]={..._tyCards[jobId]||{},status,sentDate,note}; restored++; }
+        const jobNumber = (cols[1]||cols[0]||'').replace(/^"|"$/g,'').trim(); // Job # is column B now
+        const status = (cols[10]||'').replace(/^"|"$/g,'').trim() || 'pending';
+        const sentDate=(cols[11]||'').replace(/^"|"$/g,'').trim();
+        const note   = (cols[13]||'').replace(/^"|"$/g,'').trim();
+        if(jobNumber && jobNumber !== 'Job #') {
+          const currentJob = _jobs.find(j => String(j.job_number) === String(jobNumber));
+          const key = currentJob ? currentJob.id : jobNumber;
+          _tyCards[key]={..._tyCards[key]||{},status,sentDate,note};
+          restored++;
+        }
       });
       if(restored) console.log('[TY Cards] Restored', restored, 'from CSV fallback');
     } catch(e2) { console.warn('[TY Cards] CSV fallback also failed:', e2.message); }
@@ -10351,7 +10366,7 @@ function setTYMode(mode) {
   }
 }
 
-async function loadReferralCards() {
+async function loadReferralCards(isRetry) {
   if(!_sheetsProxy) return;
   try {
     const res = await fetch(_sheetsProxy+'?action=getReferralCards&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
@@ -10361,7 +10376,19 @@ async function loadReferralCards() {
       console.log('[Referrals] Loaded', _referralCards.length, 'from Sheets');
       renderReferralList();
     }
-  } catch(e) { console.warn('[Referrals] load failed:', e.message); }
+  } catch(e) {
+    console.warn('[Referrals] load failed:', e.message);
+    // Apps Script Web Apps can occasionally return a transient HTML error
+    // page instead of JSON under momentary load (seen affecting multiple
+    // unrelated actions in the same session, not specific to this one) —
+    // one automatic retry after a short pause turns a one-off blip into a
+    // silent recovery instead of the list just looking empty.
+    if(!isRetry) {
+      setTimeout(() => loadReferralCards(true), 2000);
+    } else {
+      console.warn('[Referrals] Retry also failed — giving up for this load.');
+    }
+  }
 }
 
 function addReferralCard() {
