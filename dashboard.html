@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.28</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.29</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.28</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.29</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.28</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.29</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1379,7 +1379,9 @@ tr:hover td{background:#fafafa}
             <option value="estimate_only">📋 Estimate, no job</option>
             <option value="matched_no_activity">Matched, no activity</option>
             <option value="unmatched">No customer match</option>
+            <option value="no_phone">No caller ID</option>
           </select>
+          <button onclick="saveAdCallsToSheets(true)" style="font-size:12px;padding:7px 14px;border:1px solid #1A3A5C;border-radius:6px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:700">💾 Save to Sheets</button>
           <button onclick="exportAdCallResults()" style="font-size:12px;padding:7px 14px;border:1px solid #059669;border-radius:6px;background:#fff;color:#059669;cursor:pointer;font-weight:700">📥 Export Results</button>
         </div>
       </div>
@@ -3338,7 +3340,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.28
+  // ATTRIBUTION ENGINE — v25.29
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5295,7 +5297,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.28',  // dashboard version that generated this push
+    dash_version: 'v25.29',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5866,7 +5868,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.28',
+        dash_version:        'v25.29',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13475,7 +13477,12 @@ async function processAdCallFile(file){
     renderAdCallResults();
     saveAdCallsToSheets();
     const converted = calls.filter(c=>c.matchStatus==='converted').length;
-    if(status) status.innerHTML=`<span style="color:#166534">✅ ${calls.length} calls loaded from "${file.name}" — ${converted} matched to a job</span>`;
+    const noPhone = calls.filter(c=>c.matchStatus==='no_phone').length;
+    // Shows the raw row count found in the file right alongside how many
+    // were actually loaded as calls — if these ever differ, that gap is
+    // rows the parser is skipping (e.g. a subtotal/blank row), and this
+    // makes that visible immediately rather than requiring a re-check.
+    if(status) status.innerHTML=`<span style="color:#166534">✅ ${calls.length} calls found in "${file.name}" (${rows.length} total rows read) — ${converted} matched to a job${noPhone?`, ${noPhone} with no caller ID`:''}</span>`;
   } catch(e){
     if(status) status.innerHTML=`<span style="color:#dc2626">Error reading file: ${e.message}</span>`;
   }
@@ -13502,14 +13509,24 @@ function mapAdCallRows(rows){
 
   if(phoneCol < 0) return [];
 
+  // FIXED (2026-08-07): this used to filter out any row without a usable
+  // phone number (blocked/unavailable caller ID) — meaning those calls
+  // silently vanished from the dataset entirely rather than being
+  // counted. In the real export this was tested against, that was 415
+  // of 558 calls — the vast majority — which meant the total call count
+  // and every downstream percentage were being calculated against a
+  // denominator missing 74% of the actual data. Now every row with ANY
+  // data is kept; a missing/blocked phone number becomes its own
+  // matchStatus ('no_phone') further down in matchCallsToJobs, rather
+  // than being excluded before it's ever counted.
   return rows.slice(headerIdx+1)
-    .filter(r => r[phoneCol] && String(r[phoneCol]).trim() && String(r[phoneCol]).trim() !== '--')
+    .filter(r => r.some(c => String(c||'').trim() && String(c||'').trim() !== '--')) // drop only genuinely empty rows
     .map(r => ({
       dateRaw:   dateCol>=0 ? String(r[dateCol]||'').trim() : '',
       date:      dateCol>=0 ? new Date(String(r[dateCol]||'').replace(/\u202f/g,' ')) : null,
       duration:  durationCol>=0 ? Number(r[durationCol])||0 : 0,
-      phone:     normalizePhone(String(r[phoneCol]||'')),
-      phoneRaw:  String(r[phoneCol]||'').trim(),
+      phone:     (r[phoneCol] && String(r[phoneCol]).trim() && String(r[phoneCol]).trim()!=='--') ? normalizePhone(String(r[phoneCol])) : '',
+      phoneRaw:  (r[phoneCol] && String(r[phoneCol]).trim() && String(r[phoneCol]).trim()!=='--') ? String(r[phoneCol]).trim() : '(blocked/no caller ID)',
       status:    statusCol>=0 ? String(r[statusCol]||'').trim() : '',
       source:    sourceCol>=0 ? String(r[sourceCol]||'').trim() : '',
       campaign:  campaignCol>=0 ? String(r[campaignCol]||'').trim() : '(unlabeled)',
@@ -13556,7 +13573,7 @@ const AD_CALL_MATCH_WINDOW_DAYS = 120;
 //   unmatched             — phone number doesn't match any HCP customer at all
 function matchCallsToJobs(calls){
   calls.forEach(call => {
-    if(!call.phone){ call.matchStatus='unmatched'; return; }
+    if(!call.phone){ call.matchStatus='no_phone'; return; }
 
     const candidateJobs = _jobs.filter(j => getJobPhones(j).includes(call.phone));
     const candidateEsts  = (_estimates||[]).filter(e => getJobPhones(e).includes(call.phone));
@@ -13607,6 +13624,7 @@ const AD_CALL_STATUS_LABELS = {
   estimate_only:        {label:'📋 Estimate, no job',       color:'#1d4ed8'},
   matched_no_activity:  {label:'Matched, no activity',      color:'#D97706'},
   unmatched:            {label:'No customer match',         color:'#9ca3af'},
+  no_phone:             {label:'No caller ID',              color:'#9ca3af'},
 };
 
 // Shared by the on-screen display, CSV/XLSX export, and the printable
@@ -13615,7 +13633,7 @@ const AD_CALL_STATUS_LABELS = {
 // numbers rather than three separately-maintained calculations.
 function computeAdCallSummary(){
   const total = _adCalls.length;
-  const byStatus = {converted:[], estimate_only:[], matched_no_activity:[], unmatched:[]};
+  const byStatus = {converted:[], estimate_only:[], matched_no_activity:[], unmatched:[], no_phone:[]};
   _adCalls.forEach(c => { (byStatus[c.matchStatus]||byStatus.unmatched).push(c); });
 
   const pct = (n) => total ? Math.round(n/total*100) : 0;
@@ -13624,13 +13642,17 @@ function computeAdCallSummary(){
   // estimate/job near this call" both mean the same thing practically —
   // nothing was booked from that call. An estimate can't exist without a
   // customer record, so these two cases are really one outcome viewed
-  // from two different starting points.
+  // from two different starting points. "No caller ID" is kept SEPARATE
+  // from this — it's a data-availability gap (we had no phone number to
+  // even attempt matching), not a confirmed non-conversion, so folding it
+  // into "Nothing Booked" would overstate that number with calls we
+  // genuinely can't assess either way.
   const nothingBooked = byStatus.matched_no_activity.length + byStatus.unmatched.length;
 
   const byCampaign = {};
   _adCalls.forEach(c => {
     const camp = c.campaign || '(unlabeled)';
-    if(!byCampaign[camp]) byCampaign[camp] = {calls:0, converted:0, estimate_only:0, matched_no_activity:0, unmatched:0, revenue:0};
+    if(!byCampaign[camp]) byCampaign[camp] = {calls:0, converted:0, estimate_only:0, matched_no_activity:0, unmatched:0, no_phone:0, revenue:0};
     byCampaign[camp].calls++;
     byCampaign[camp][c.matchStatus] = (byCampaign[camp][c.matchStatus]||0)+1;
     if(c.matchStatus==='converted') byCampaign[camp].revenue += (c.jobValue||0);
@@ -13649,6 +13671,7 @@ function computeAdCallSummary(){
     estimateOnly: byStatus.estimate_only.length, estimateOnlyPct: pct(byStatus.estimate_only.length),
     matchedNoActivity: byStatus.matched_no_activity.length, matchedNoActivityPct: pct(byStatus.matched_no_activity.length),
     unmatched: byStatus.unmatched.length, unmatchedPct: pct(byStatus.unmatched.length),
+    noPhone: byStatus.no_phone.length, noPhonePct: pct(byStatus.no_phone.length),
     nothingBooked, nothingBookedPct: pct(nothingBooked),
     campaigns,
   };
@@ -13666,6 +13689,7 @@ function renderAdCallResults(){
     <div class="metric"><div class="metric-label">Revenue Attributed</div><div class="metric-value" style="color:#166534">${dollars(s.totalRevenue)}</div></div>
     <div class="metric"><div class="metric-label">Estimate, No Job</div><div class="metric-value" style="color:#1d4ed8">${s.estimateOnly}</div><div class="metric-sub">${s.estimateOnlyPct}% of calls</div></div>
     <div class="metric"><div class="metric-label">Nothing Booked</div><div class="metric-value" style="color:#DC2626">${s.nothingBooked}</div><div class="metric-sub">${s.nothingBookedPct}% of calls — ${s.unmatched} no record, ${s.matchedNoActivity} known customer</div></div>
+    <div class="metric"><div class="metric-label">No Caller ID</div><div class="metric-value" style="color:#9ca3af">${s.noPhone}</div><div class="metric-sub">${s.noPhonePct}% of calls — can't be checked</div></div>
   ` : '';
 
   const campaignEl = $$('adCallCampaignBreakdown');
@@ -13819,16 +13843,25 @@ function clearAdCallMatch(idx){
   saveAdCallsToSheets();
 }
 
-async function saveAdCallsToSheets(){
-  if(!_sheetsProxy) return;
+async function saveAdCallsToSheets(explicit){
+  if(!_sheetsProxy){ if(explicit) showToast('Not connected to Sheets','error'); return; }
+  if(!_adCalls.length){ if(explicit) showToast('Nothing to save yet — upload a call file first.','error'); return; }
   try {
     const res = await fetch(_sheetsProxy, {
       method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
       body: JSON.stringify({ action:'saveAdCalls', calls:_adCalls })
     });
     const d = await res.json().catch(()=>({}));
-    if(!d.success) console.warn('[AdCalls] Save failed:', d.error);
-  } catch(e) { console.warn('[AdCalls] Save failed:', e.message); }
+    if(!d.success){
+      console.warn('[AdCalls] Save failed:', d.error);
+      if(explicit) showToast('Save failed: '+(d.error||'unknown error'),'error');
+    } else if(explicit) {
+      showToast(`✅ Saved ${_adCalls.length} calls to Sheets`,'success');
+    }
+  } catch(e) {
+    console.warn('[AdCalls] Save failed:', e.message);
+    if(explicit) showToast('Save failed: '+e.message,'error');
+  }
 }
 
 async function loadAdCallsFromSheets(){
@@ -13870,7 +13903,7 @@ function printAdCallSummary(){
     .header{border-bottom:3px solid #059669;padding-bottom:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}
     .title{font-size:20px;font-weight:800;color:#059669}
     .sub{font-size:11px;color:#6b7280;margin-top:2px}
-    .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
     .sum-box{border:1px solid #d1d5db;border-radius:8px;padding:14px;text-align:center}
     .sum-val{font-size:30px;font-weight:800;line-height:1.1}
     .sum-label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
@@ -13909,6 +13942,12 @@ function printAdCallSummary(){
       <div class="sum-pct">${s.nothingBookedPct}% of calls</div>
       <div class="sum-detail">${s.unmatched} no customer record · ${s.matchedNoActivity} known customer, no booking</div>
     </div>
+    <div class="sum-box" style="border-color:#d1d5db;background:#F9FAFB">
+      <div class="sum-val" style="color:#6b7280">${s.noPhone}</div>
+      <div class="sum-label">No Caller ID</div>
+      <div class="sum-pct">${s.noPhonePct}% of calls</div>
+      <div class="sum-detail">Blocked/unavailable — can't be checked</div>
+    </div>
   </div>
 
   <div style="background:#F0FDF4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
@@ -13937,6 +13976,7 @@ function printAdCallSummary(){
 
   <div class="footer">
     <div>"Nothing Booked" = no estimate or job resulted from this call — either the number matched no customer on file, or it matched a known customer with no booking activity near the call date.</div>
+    <div>"No Caller ID" = the call export didn't include a phone number for this call (blocked/unavailable) — these can't be matched either way and are excluded from the Nothing Booked total.</div>
     <div style="margin-top:4px">Matching window: ${AD_CALL_MATCH_WINDOW_DAYS} days after each call. ${s.total} total calls analyzed.</div>
   </div>
   <script>window.onload=function(){window.print();}<\/script>
@@ -13973,10 +14013,10 @@ async function exportAdCallResults(){
   // Sheet 2 — per-campaign results, exactly what the marketing team
   // needs to see performance by campaign rather than a raw call list
   const campaignAoa = [
-    ['Campaign','Total Calls','Converted','Est. Only','Nothing Booked','  — No Record','  — Known, No Booking','Conversion Rate','Revenue'],
-    ...summary.campaigns.map(c => [c.name, c.calls, c.converted, c.estimate_only||0, c.nothingBooked, c.unmatched||0, c.matched_no_activity||0, c.convRate+'%', c.revenue]),
+    ['Campaign','Total Calls','Converted','Est. Only','Nothing Booked','  — No Record','  — Known, No Booking','No Caller ID','Conversion Rate','Revenue'],
+    ...summary.campaigns.map(c => [c.name, c.calls, c.converted, c.estimate_only||0, c.nothingBooked, c.unmatched||0, c.matched_no_activity||0, c.no_phone||0, c.convRate+'%', c.revenue]),
     [],
-    ['TOTAL', summary.total, summary.converted, summary.estimateOnly, summary.nothingBooked, summary.unmatched, summary.matchedNoActivity, summary.total?Math.round(summary.converted/summary.total*100)+'%':'0%', summary.totalRevenue],
+    ['TOTAL', summary.total, summary.converted, summary.estimateOnly, summary.nothingBooked, summary.unmatched, summary.matchedNoActivity, summary.noPhone, summary.total?Math.round(summary.converted/summary.total*100)+'%':'0%', summary.totalRevenue],
   ];
 
   const wb = XLSX.utils.book_new();
