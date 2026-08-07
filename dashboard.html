@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.21</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.25</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -119,6 +119,8 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="promos"]:hover{background:#FDF2F8;color:#EC4899}
 .tab[data-tab="videos"].active{border-top:3px solid #2563EB;color:#2563EB}
 .tab[data-tab="videos"]:hover{background:#EFF6FF;color:#2563EB}
+.tab[data-tab="adcalls"].active{border-top:3px solid #059669;color:#059669}
+.tab[data-tab="adcalls"]:hover{background:#ECFDF5;color:#059669}
 /* Resting-state accent — a thin, muted top-border per tab so each one is
    visually distinct even before you hover or click it, not just after.
    Deliberately lighter/thinner than the .active (3px, full color) and
@@ -142,6 +144,7 @@ button{cursor:pointer;background:#fff}
 .tab[data-tab="spotlight"]:not(.active){border-top-color:#f7d99b}
 .tab[data-tab="promos"]:not(.active){border-top-color:#f5b8d5}
 .tab[data-tab="videos"]:not(.active){border-top-color:#a8c8f5}
+.tab[data-tab="adcalls"]:not(.active){border-top-color:#a7e0c9}
 .tab .badge-count{font-size:10px;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700;line-height:1.4}
 .panel{display:none}.panel.active{display:block}
 /* METRICS */
@@ -452,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.21</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.25</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -481,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.21</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.25</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -573,6 +576,7 @@ tr:hover td{background:#fafafa}
       <button class="tab" data-tab="wallboard" onclick="showTab('wallboard')">🎛 Wallboard</button>
       <button class="tab" data-tab="promos" onclick="showTab('promos')">🎯 Promotions</button>
       <button class="tab" data-tab="videos" onclick="showTab('videos')">🎬 Videos</button>
+      <button class="tab" data-tab="adcalls" onclick="showTab('adcalls')">📞 Ad Calls</button>
       <button class="tab" data-tab="debug" onclick="showTab('debug')">🔧 Raw Data</button>
       <button class="tab" data-tab="debug"  onclick="showTab('debug')">🔧 Debug</button>
     </div>
@@ -1048,6 +1052,13 @@ tr:hover td{background:#fafafa}
           <button onclick="printTYCards('pending')" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:700">🖨 Print Pending</button>
           <button onclick="printTYCards('sent')" style="font-size:12px;padding:5px 12px;border:1px solid #059669;border-radius:5px;background:#fff;color:#059669;cursor:pointer;font-weight:700">🖨 Print Sent</button>
           <button onclick="printTYCards('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
+          <label style="font-size:12px;color:#6b7280;margin-left:6px">Sort by status</label>
+          <select id="tyStatusFilter" onchange="renderTYCards()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;color:#374151;cursor:pointer">
+            <option value="">All statuses</option>
+            <option value="pending">⚠ Needs card</option>
+            <option value="sent">✅ Sent</option>
+            <option value="skip">Skipped</option>
+          </select>
         </div>
       </div>
       <div id="tyContent">
@@ -1345,6 +1356,51 @@ tr:hover td{background:#fafafa}
             <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px">No videos yet. Add one above.</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- AD CALL CONVERSIONS -->
+    <div class="panel" id="tab-adcalls">
+      <div class="is-modal-overlay" id="adCallOverlay" onclick="closeAdCallDetail()" style="display:none"></div>
+      <div class="is-modal" id="adCallDetail" style="display:none;max-width:640px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#1A3A5C">📞 Ad Call Conversions</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">Upload a CallRail/Google Ads call export — each caller's phone number is matched against your HCP customers to check whether it turned into an actual job</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="plan-upload-btn" for="adCallFileInput" style="padding:7px 14px;font-size:12px;cursor:pointer">
+            📁 Upload Call Export
+            <input type="file" id="adCallFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleAdCallUpload(this)">
+          </label>
+          <select id="adCallMatchFilter" onchange="renderAdCallResults()" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#374151;cursor:pointer">
+            <option value="">All calls</option>
+            <option value="converted">✅ Converted to job</option>
+            <option value="matched">Matched, no job yet</option>
+            <option value="unmatched">No customer match</option>
+          </select>
+          <button onclick="exportAdCallResults()" style="font-size:12px;padding:7px 14px;border:1px solid #059669;border-radius:6px;background:#fff;color:#059669;cursor:pointer;font-weight:700">📥 Export Results</button>
+        </div>
+      </div>
+      <div id="adCallUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
+      <div id="adCallMetrics" class="metrics" style="margin-bottom:16px"></div>
+      <div id="adCallCampaignBreakdown" style="margin-bottom:16px"></div>
+      <div class="tbl-wrap">
+        <table id="adCallTable">
+          <thead>
+            <tr>
+              <th>Call Date</th>
+              <th>Phone</th>
+              <th>Campaign</th>
+              <th>Duration</th>
+              <th>Match Status</th>
+              <th style="text-align:right">Job Value</th>
+            </tr>
+          </thead>
+          <tbody id="adCallBody">
+            <tr><td colspan="6" style="text-align:center;padding:30px;color:#9ca3af">Upload a call export to get started.</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -2667,6 +2723,7 @@ function showTab(t){
   if(t==='wallboard'){ loadWallboardSettings(); loadSceneOrder(); }
   if(t==='promos'){ loadSpotlights(); }
   if(t==='videos'){ loadVideos(); }
+  if(t==='adcalls' && !_adCalls.length){ loadAdCallsFromSheets(); }
   if(t==='ty'){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
@@ -3280,7 +3337,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.21
+  // ATTRIBUTION ENGINE — v25.25
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5237,7 +5294,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.21',  // dashboard version that generated this push
+    dash_version: 'v25.25',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5808,7 +5865,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.21',
+        dash_version:        'v25.25',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10141,6 +10198,7 @@ function renderTYCards(){
   const pending=sales.filter(j=>!_tyCards[j.id]||_tyCards[j.id].status==='pending');
   const sent=sales.filter(j=>_tyCards[j.id]?.status==='sent');
   const skipped=sales.filter(j=>_tyCards[j.id]?.status==='skip');
+  const statusFilter = $$('tyStatusFilter')?.value || '';
 
   // Badge
   const badge=document.querySelector('.tab[data-tab="ty"] .badge-count');
@@ -10167,7 +10225,7 @@ function renderTYCards(){
     const equipLabel=getEquipmentLabel(j);
     const cust=j.customer||{};
     const name=[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(j);
-    const addr=j.address?[j.address.street,j.address.city,j.address.state].filter(Boolean).join(', '):'';
+    const addr=j.address?[j.address.street,j.address.city,j.address.state,j.address.zip].filter(Boolean).join(', '):'';
     const phone=cust.mobile_number||cust.home_number||'';
     const installDate = fmtDY(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at);
     const paidDate    = j._payments?.length ? j._payments[j._payments.length-1].date : null;
@@ -10200,6 +10258,20 @@ function renderTYCards(){
   }
 
   let html = metrics;
+
+  if(statusFilter) {
+    // A specific status is selected — show it as one flat, always-expanded list
+    const filtered = statusFilter==='pending' ? pending : statusFilter==='sent' ? sent : skipped;
+    const label = statusFilter==='pending' ? '⚠ Needs Thank You Card' : statusFilter==='sent' ? '✅ Card Sent' : 'Skipped';
+    const labelColor = statusFilter==='pending' ? '#DC2626' : statusFilter==='sent' ? '#059669' : '#6b7280';
+    const labelBg = statusFilter==='pending' ? '#FEF2F2' : statusFilter==='sent' ? '#F0FDF4' : '#F9FAFB';
+    html += `<div style="font-size:13px;font-weight:800;color:${labelColor};margin-bottom:8px;padding:6px 10px;background:${labelBg};border-radius:6px">${label} (${filtered.length})</div>`;
+    html += filtered.length
+      ? filtered.map(j=>tyRow(j,true)).join('')
+      : `<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No customers with this status.</div>`;
+    el.innerHTML = html;
+    return;
+  }
 
   // NEEDS CARD section
   if(pending.length){
@@ -13351,6 +13423,398 @@ document.addEventListener('DOMContentLoaded',function(){
 function handlePlanUpload(input){
   const file=input?.files?.[0];
   if(file) processPlanFile(file);
+}
+
+// ============================================================
+// AD CALL CONVERSIONS — upload a CallRail/Google Ads call export,
+// match each caller's phone number against HCP customer/job data to
+// determine whether the call actually turned into booked/paid work.
+// ============================================================
+let _adCalls = [];
+
+function handleAdCallUpload(input){
+  const file=input?.files?.[0];
+  if(file) processAdCallFile(file);
+}
+
+function adCallKey(c){ return (c.phone||'')+'|'+(c.dateRaw||''); }
+
+async function processAdCallFile(file){
+  const status=$$('adCallUploadStatus');
+  if(status) status.innerHTML='<span style="color:#6b7280">Reading file...</span>';
+  try{
+    let rows=[];
+    if(file.name.match(/\.xlsx?$/i)){
+      rows=await parseExcelFile(file);
+    } else {
+      const text=await file.text();
+      rows=parseCSVFile(text);
+    }
+    const calls = mapAdCallRows(rows);
+    if(!calls.length){
+      if(status) status.innerHTML='<span style="color:#dc2626">Could not find call data. Make sure the file has columns for phone number and call date/time.</span>';
+      return;
+    }
+    if(!_jobs.length){
+      if(status) status.innerHTML='<span style="color:#dc2626">⚠ No job data loaded yet — pull a report or wait for the restore to finish, then re-upload to match correctly.</span>';
+    }
+    matchCallsToJobs(calls);
+
+    // Preserve any prior manual confirmations when re-uploading an
+    // updated export — matched by phone+call-time, since that's the only
+    // stable identifier a call export gives us.
+    const priorByKey = {};
+    _adCalls.forEach(c => { if(c.confirmed) priorByKey[adCallKey(c)] = c.confirmed; });
+    calls.forEach(c => {
+      const prior = priorByKey[adCallKey(c)];
+      if(prior){ c.confirmed = prior; c.matchStatus='converted'; c.jobValue=prior.value; c.jobStatus='manually confirmed'; }
+    });
+
+    _adCalls = calls;
+    renderAdCallResults();
+    saveAdCallsToSheets();
+    const converted = calls.filter(c=>c.matchStatus==='converted').length;
+    if(status) status.innerHTML=`<span style="color:#166534">✅ ${calls.length} calls loaded from "${file.name}" — ${converted} matched to a job</span>`;
+  } catch(e){
+    if(status) status.innerHTML=`<span style="color:#dc2626">Error reading file: ${e.message}</span>`;
+  }
+}
+
+// Handles the CallRail/Google Ads "Call details" export format: a title
+// row, a date-range row, then a header row, then data. Finds the header
+// row dynamically (rather than assuming a fixed row number) by looking
+// for a column that mentions "phone" — this keeps it working even if the
+// export format shifts slightly (extra columns, reordered fields).
+function mapAdCallRows(rows){
+  let headerIdx = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('phone')));
+  if(headerIdx < 0) return [];
+  const headers = rows[headerIdx].map(h=>String(h||'').toLowerCase().trim());
+
+  function findCol(...kws){ for(const kw of kws){ const i=headers.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; }
+
+  const dateCol     = findCol('start time','call date','date');
+  const durationCol = findCol('duration');
+  const phoneCol     = findCol('caller phone','phone number','phone');
+  const statusCol    = findCol('status');
+  const sourceCol    = findCol('call source','source');
+  const campaignCol  = findCol('campaign');
+
+  if(phoneCol < 0) return [];
+
+  return rows.slice(headerIdx+1)
+    .filter(r => r[phoneCol] && String(r[phoneCol]).trim() && String(r[phoneCol]).trim() !== '--')
+    .map(r => ({
+      dateRaw:   dateCol>=0 ? String(r[dateCol]||'').trim() : '',
+      date:      dateCol>=0 ? new Date(String(r[dateCol]||'').replace(/\u202f/g,' ')) : null,
+      duration:  durationCol>=0 ? Number(r[durationCol])||0 : 0,
+      phone:     normalizePhone(String(r[phoneCol]||'')),
+      phoneRaw:  String(r[phoneCol]||'').trim(),
+      status:    statusCol>=0 ? String(r[statusCol]||'').trim() : '',
+      source:    sourceCol>=0 ? String(r[sourceCol]||'').trim() : '',
+      campaign:  campaignCol>=0 ? String(r[campaignCol]||'').trim() : '(unlabeled)',
+    }));
+}
+
+function normalizePhone(raw){
+  const digits = String(raw||'').replace(/\D/g,'');
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+// For each call, find a matching HCP customer by phone number, then
+// check for a job created within a reasonable window after the call —
+// that's the actual "did this specific ad call turn into work" signal.
+// A phone match alone isn't enough (an existing customer could call for
+// an unrelated reason weeks apart from any new job), so this looks for
+// temporal proximity too, preferring the highest-value/most-progressed
+// job if more than one falls in the window.
+const AD_CALL_MATCH_WINDOW_DAYS = 120;
+
+function matchCallsToJobs(calls){
+  calls.forEach(call => {
+    if(!call.phone){ call.matchStatus='unmatched'; return; }
+
+    const candidateJobs = _jobs.filter(j => {
+      const cust = j.customer||{};
+      const mobile = normalizePhone(cust.mobile_number||'');
+      const home    = normalizePhone(cust.home_number||'');
+      return (mobile && mobile===call.phone) || (home && home===call.phone);
+    });
+
+    if(!candidateJobs.length){ call.matchStatus='unmatched'; return; }
+
+    call.customerName = getCust(candidateJobs[0]);
+
+    if(!call.date || isNaN(call.date)){
+      // No usable call date to compare against — treat any customer
+      // match as "matched" rather than guessing at conversion timing
+      call.matchStatus='matched';
+      return;
+    }
+
+    const windowMs = AD_CALL_MATCH_WINDOW_DAYS*24*60*60*1000;
+    const inWindow = candidateJobs.filter(j => {
+      const created = j.scheduled_start ? new Date(j.scheduled_start) : (j.created_at ? new Date(j.created_at) : null);
+      if(!created || isNaN(created)) return false;
+      const delta = created - call.date;
+      return delta >= -2*24*60*60*1000 && delta <= windowMs; // allow 2 days before (call logged slightly after job created) through the full window after
+    });
+
+    if(!inWindow.length){ call.matchStatus='matched'; return; }
+
+    // Prefer the highest-value job in the window as the representative outcome
+    inWindow.sort((a,b) => getJobTotal(b)-getJobTotal(a));
+    const bestJob = inWindow[0];
+    call.matchStatus = 'converted';
+    call.jobValue = getJobTotal(bestJob);
+    call.jobStatus = bestJob._restored ? (bestJob._status||'') : (bestJob.work_status||'');
+  });
+}
+
+function renderAdCallResults(){
+  const filter = $$('adCallMatchFilter')?.value || '';
+  const filtered = filter ? _adCalls.filter(c=>c.matchStatus===filter) : _adCalls;
+
+  const total = _adCalls.length;
+  const converted = _adCalls.filter(c=>c.matchStatus==='converted');
+  const matched = _adCalls.filter(c=>c.matchStatus==='matched').length;
+  const unmatched = _adCalls.filter(c=>c.matchStatus==='unmatched').length;
+  const totalRevenue = converted.reduce((s,c)=>s+(c.jobValue||0),0);
+  const convRate = total ? Math.round(converted.length/total*100) : 0;
+
+  const metricsEl = $$('adCallMetrics');
+  if(metricsEl) metricsEl.innerHTML = total ? `
+    <div class="metric"><div class="metric-label">Total Calls</div><div class="metric-value">${total}</div></div>
+    <div class="metric"><div class="metric-label">Converted to Job</div><div class="metric-value" style="color:#166534">${converted.length}</div><div class="metric-sub">${convRate}% of calls</div></div>
+    <div class="metric"><div class="metric-label">Revenue Attributed</div><div class="metric-value" style="color:#166534">${dollars(totalRevenue)}</div></div>
+    <div class="metric"><div class="metric-label">No Customer Match</div><div class="metric-value" style="color:#9ca3af">${unmatched}</div><div class="metric-sub">${matched} matched, no job yet</div></div>
+  ` : '';
+
+  // Campaign breakdown — conversion rate and revenue per campaign
+  const byCampaign = {};
+  _adCalls.forEach(c => {
+    const camp = c.campaign || '(unlabeled)';
+    if(!byCampaign[camp]) byCampaign[camp] = {calls:0, converted:0, revenue:0};
+    byCampaign[camp].calls++;
+    if(c.matchStatus==='converted'){ byCampaign[camp].converted++; byCampaign[camp].revenue += (c.jobValue||0); }
+  });
+  const campaignEl = $$('adCallCampaignBreakdown');
+  if(campaignEl){
+    const rows = Object.entries(byCampaign).sort((a,b)=>b[1].revenue-a[1].revenue);
+    campaignEl.innerHTML = rows.length ? `
+      <div class="sec-head" style="margin-bottom:8px">By Campaign</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Campaign</th><th style="text-align:right">Calls</th><th style="text-align:right">Converted</th><th style="text-align:right">Revenue</th></tr></thead>
+        <tbody>${rows.map(([camp,d])=>`<tr>
+          <td>${escHtml(camp)}</td>
+          <td style="text-align:right">${d.calls}</td>
+          <td style="text-align:right;color:${d.converted?'#166534':'#9ca3af'}">${d.converted}</td>
+          <td style="text-align:right;font-weight:700">${dollars(d.revenue)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>` : '';
+  }
+
+  const body = $$('adCallBody');
+  if(body){
+    body.innerHTML = filtered.length ? filtered.map(c => {
+      const idx = _adCalls.indexOf(c);
+      const statusBadge = c.matchStatus==='converted'
+        ? `<span style="color:#166534;font-weight:700">✅ Converted${c.jobStatus?' — '+escHtml(c.jobStatus):''}</span>`
+        : c.matchStatus==='matched'
+        ? `<span style="color:#D97706;font-weight:600">Matched, no job yet</span>`
+        : `<span style="color:#9ca3af">No customer match</span>`;
+      const confirmedBadge = c.confirmed
+        ? `<span style="margin-left:6px;font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">✓ reviewed</span>` : '';
+      return `<tr onclick="openAdCallDetail(${idx})" style="cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+        <td>${c.dateRaw||'—'}</td>
+        <td>${escHtml(c.phoneRaw||'—')}</td>
+        <td style="font-size:12px">${escHtml(c.campaign||'—')}</td>
+        <td>${c.duration?c.duration+'s':'—'}</td>
+        <td>${statusBadge}${confirmedBadge}</td>
+        <td style="text-align:right;font-weight:700">${c.jobValue?dollars(c.jobValue):'—'}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="6" style="text-align:center;padding:30px;color:#9ca3af">${_adCalls.length?'No calls match this filter.':'Upload a call export to get started.'}</td></tr>`;
+  }
+}
+
+function getCustomerHistoryByPhone(phone){
+  if(!phone) return {jobs:[], estimates:[]};
+  const matchesPhone = (x) => {
+    const cust = x.customer||{};
+    return normalizePhone(cust.mobile_number||'')===phone || normalizePhone(cust.home_number||'')===phone;
+  };
+  const jobs = _jobs.filter(matchesPhone)
+    .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0));
+  const estimates = (_estimates||[]).filter(matchesPhone)
+    .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0));
+  return {jobs, estimates};
+}
+
+// Detail view — mirrors the Attribution feature's "show full customer
+// history, let the person decide" pattern rather than trusting the
+// automatic 120-day-window heuristic alone. Every job/estimate in the
+// customer's history is shown (not just ones the heuristic picked), with
+// the ones falling inside the matching window flagged as "within window"
+// — a hint, not a decision. Clicking "Mark as this call's result" is the
+// actual decision, and overrides whatever the heuristic guessed.
+function openAdCallDetail(idx){
+  const call = _adCalls[idx];
+  if(!call) return;
+
+  const {jobs, estimates} = getCustomerHistoryByPhone(call.phone);
+  const windowMs = AD_CALL_MATCH_WINDOW_DAYS*24*60*60*1000;
+  const callTime = call.date && !isNaN(call.date) ? call.date.getTime() : null;
+
+  const timeline = [
+    ...jobs.map(j => ({type:'job', item:j, date:j.schedule?.scheduled_start||j.created_at})),
+    ...estimates.map(e => ({type:'estimate', item:e, date:e.schedule?.scheduled_start||e.created_at})),
+  ].filter(t=>t.date).sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const custName = call.customerName || (jobs[0]?getCust(jobs[0]):(estimates[0]?getCust(estimates[0]):null));
+
+  const custInfoHtml = custName ? `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px">
+      <div style="font-weight:700;color:#111827;margin-bottom:4px">${escHtml(custName)}</div>
+      <div style="color:#6b7280">📞 ${escHtml(call.phoneRaw)}</div>
+    </div>` : `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#991B1B">
+      No customer in HouseCall Pro matches this phone number.
+    </div>`;
+
+  const timelineHtml = timeline.length ? timeline.map(t => {
+    const j = t.item;
+    const isJob = t.type==='job';
+    const inWindow = callTime && (new Date(t.date).getTime() - callTime) >= -2*24*60*60*1000 && (new Date(t.date).getTime() - callTime) <= windowMs;
+    const val = isJob ? getJobTotal(j) : getEstTotal(j);
+    const paid = isJob && isJobPaid(j);
+    const statusLabel = isJob ? (paid?'💰 Paid':(isJobComplete(j)?'Completed, unpaid':'Job')) : `📋 Estimate — ${getEstDisplayStatus(j)}`;
+    const isConfirmed = call.confirmed && call.confirmed.id===j.id && call.confirmed.type===t.type;
+    return `<div style="padding:10px;border:1.5px solid ${isConfirmed?'#86efac':inWindow?'#93c5fd':'#e5e7eb'};border-radius:8px;margin-bottom:8px;background:${isConfirmed?'#f0fdf4':inWindow?'#eff6ff':'#fff'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600;color:#111827">
+            ${isJob?'Job #'+(j.job_number||j.id||'—'):'Estimate #'+(j.estimate_number||j.id||'—')} · ${getDept(j)}
+            ${inWindow?'<span style="font-size:10px;background:#DBEAFE;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:4px">within window</span>':''}
+            ${isConfirmed?'<span style="font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;margin-left:4px">✓ confirmed</span>':''}
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">${fmtDY(t.date)} · ${statusLabel} · ${getAssigned(j)||'—'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:${paid?'#166534':'#374151'}">${dollars(val)}</div>
+          <button onclick="confirmAdCallMatch(${idx},'${j.id}','${t.type}',${val})" style="margin-top:4px;font-size:10px;padding:3px 8px;background:${isConfirmed?'#059669':'#fff'};color:${isConfirmed?'#fff':'#374151'};border:1px solid #d1d5db;border-radius:5px;cursor:pointer">${isConfirmed?'✓ Selected':"Mark as this call's result"}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No job or estimate history found for this customer.</div>`;
+
+  $$('adCallDetail').innerHTML = `
+    <div class="is-modal-header">
+      <div>
+        <div class="is-modal-title">📞 ${call.dateRaw||'Call'}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${call.campaign||'—'} · ${call.duration?call.duration+'s duration':'—'}</div>
+      </div>
+      <span style="font-size:20px;cursor:pointer;color:#9ca3af;line-height:1" onclick="closeAdCallDetail()">✕</span>
+    </div>
+    ${custInfoHtml}
+    <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Customer history — pick which result (if any) this call actually led to</div>
+    ${timelineHtml}
+    <div style="margin-top:12px;display:flex;gap:8px">
+      ${call.confirmed?`<button class="is-btn danger" onclick="clearAdCallMatch(${idx})">Clear selection</button>`:''}
+      <button class="is-btn" onclick="closeAdCallDetail()">Close</button>
+    </div>`;
+  $$('adCallOverlay').style.display='block';
+  $$('adCallDetail').style.display='block';
+}
+
+function closeAdCallDetail(){
+  $$('adCallDetail').style.display='none';
+  $$('adCallOverlay').style.display='none';
+}
+
+function confirmAdCallMatch(idx, itemId, type, value){
+  const call = _adCalls[idx];
+  if(!call) return;
+  call.confirmed = {id:itemId, type, value};
+  call.matchStatus = 'converted';
+  call.jobValue = value;
+  call.jobStatus = 'manually confirmed';
+  openAdCallDetail(idx); // refresh to show the selection
+  renderAdCallResults();
+  saveAdCallsToSheets();
+}
+
+function clearAdCallMatch(idx){
+  const call = _adCalls[idx];
+  if(!call) return;
+  delete call.confirmed;
+  // Re-run the automatic heuristic for just this call to restore its guess
+  matchCallsToJobs([call]);
+  openAdCallDetail(idx);
+  renderAdCallResults();
+  saveAdCallsToSheets();
+}
+
+async function saveAdCallsToSheets(){
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'saveAdCalls', calls:_adCalls })
+    });
+    const d = await res.json().catch(()=>({}));
+    if(!d.success) console.warn('[AdCalls] Save failed:', d.error);
+  } catch(e) { console.warn('[AdCalls] Save failed:', e.message); }
+}
+
+async function loadAdCallsFromSheets(){
+  if(!_sheetsProxy) return;
+  try {
+    const res = await fetch(_sheetsProxy+'?action=getAdCalls&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
+    const d = await res.json();
+    if(d.success && Array.isArray(d.calls) && d.calls.length){
+      // Reconstruct the fields the sheet doesn't store directly (parsed
+      // date, normalized phone) from what it does store (dateRaw, phoneRaw)
+      _adCalls = d.calls.map(c => ({
+        ...c,
+        phone: normalizePhone(c.phoneRaw||''),
+        date: c.dateRaw ? new Date(String(c.dateRaw).replace(/\u202f/g,' ')) : null,
+      }));
+      renderAdCallResults();
+      console.log('[AdCalls] Restored', _adCalls.length, 'calls from Sheets');
+    }
+  } catch(e) { console.warn('[AdCalls] Restore failed:', e.message); }
+}
+
+// Downloads the current results as a CSV — call date, phone, campaign,
+// match status, customer, and value for every row currently loaded,
+// respecting whatever status filter is active so an export can be
+// scoped to just converted calls, for example.
+function exportAdCallResults(){
+  if(!_adCalls.length){ showToast('Nothing to export yet — upload a call file first.','error'); return; }
+  const filter = $$('adCallMatchFilter')?.value || '';
+  const rows = filter ? _adCalls.filter(c=>c.matchStatus===filter) : _adCalls;
+
+  const headers = ['Call Date','Phone','Campaign','Duration (s)','Match Status','Customer','Value','Manually Confirmed'];
+  const csvRows = [headers.join(',')];
+  rows.forEach(c => {
+    const line = [
+      c.dateRaw||'', c.phoneRaw||'', c.campaign||'', c.duration||0,
+      c.matchStatus==='converted'?'Converted':c.matchStatus==='matched'?'Matched, no job yet':'No match',
+      c.customerName||'', c.jobValue||0, c.confirmed?'Yes':'No',
+    ].map(v => {
+      const s = String(v).replace(/"/g,'""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    });
+    csvRows.push(line.join(','));
+  });
+
+  const blob = new Blob([csvRows.join('\n')], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ad-call-conversions-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`📥 Exported ${rows.length} calls`,'success');
 }
 
 async function processPlanFile(file){
