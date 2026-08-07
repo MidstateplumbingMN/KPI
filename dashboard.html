@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.25</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.26</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.25</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.26</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.25</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.26</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3337,7 +3337,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.25
+  // ATTRIBUTION ENGINE — v25.26
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5294,7 +5294,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.25',  // dashboard version that generated this push
+    dash_version: 'v25.26',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5865,7 +5865,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.25',
+        dash_version:        'v25.26',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13520,6 +13520,23 @@ function normalizePhone(raw){
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
+// FIXED (2026-08-07): a job restored from Sheets (no live pull yet) has a
+// flat customer_phone field, NOT the nested customer.mobile_number/
+// home_number structure a live-pulled job has. Ad Call matching only
+// checked the live shape, so EVERY call showed "no customer match"
+// whenever _jobs was populated purely from a restore — which is the
+// common case right after login, before any pull has run. This checks
+// both shapes so matching works correctly either way, no pull required.
+function getJobPhones(j){
+  const phones = [];
+  if(j.customer){
+    if(j.customer.mobile_number) phones.push(normalizePhone(j.customer.mobile_number));
+    if(j.customer.home_number)   phones.push(normalizePhone(j.customer.home_number));
+  }
+  if(j.customer_phone) phones.push(normalizePhone(j.customer_phone));
+  return phones.filter(Boolean);
+}
+
 // For each call, find a matching HCP customer by phone number, then
 // check for a job created within a reasonable window after the call —
 // that's the actual "did this specific ad call turn into work" signal.
@@ -13533,12 +13550,7 @@ function matchCallsToJobs(calls){
   calls.forEach(call => {
     if(!call.phone){ call.matchStatus='unmatched'; return; }
 
-    const candidateJobs = _jobs.filter(j => {
-      const cust = j.customer||{};
-      const mobile = normalizePhone(cust.mobile_number||'');
-      const home    = normalizePhone(cust.home_number||'');
-      return (mobile && mobile===call.phone) || (home && home===call.phone);
-    });
+    const candidateJobs = _jobs.filter(j => getJobPhones(j).includes(call.phone));
 
     if(!candidateJobs.length){ call.matchStatus='unmatched'; return; }
 
@@ -13638,10 +13650,7 @@ function renderAdCallResults(){
 
 function getCustomerHistoryByPhone(phone){
   if(!phone) return {jobs:[], estimates:[]};
-  const matchesPhone = (x) => {
-    const cust = x.customer||{};
-    return normalizePhone(cust.mobile_number||'')===phone || normalizePhone(cust.home_number||'')===phone;
-  };
+  const matchesPhone = (x) => getJobPhones(x).includes(phone);
   const jobs = _jobs.filter(matchesPhone)
     .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0));
   const estimates = (_estimates||[]).filter(matchesPhone)
