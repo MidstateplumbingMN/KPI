@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.26</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.27</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.26</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.27</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.26</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.27</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1376,7 +1376,8 @@ tr:hover td{background:#fafafa}
           <select id="adCallMatchFilter" onchange="renderAdCallResults()" style="font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#374151;cursor:pointer">
             <option value="">All calls</option>
             <option value="converted">✅ Converted to job</option>
-            <option value="matched">Matched, no job yet</option>
+            <option value="estimate_only">📋 Estimate, no job</option>
+            <option value="matched_no_activity">Matched, no activity</option>
             <option value="unmatched">No customer match</option>
           </select>
           <button onclick="exportAdCallResults()" style="font-size:12px;padding:7px 14px;border:1px solid #059669;border-radius:6px;background:#fff;color:#059669;cursor:pointer;font-weight:700">📥 Export Results</button>
@@ -3337,7 +3338,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.26
+  // ATTRIBUTION ENGINE — v25.27
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5294,7 +5295,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.26',  // dashboard version that generated this push
+    dash_version: 'v25.27',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5865,7 +5866,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.26',
+        dash_version:        'v25.27',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13546,81 +13547,132 @@ function getJobPhones(j){
 // job if more than one falls in the window.
 const AD_CALL_MATCH_WINDOW_DAYS = 120;
 
+// Classification (checked in this priority order once a customer match exists):
+//   converted            — a JOB falls within the matching window
+//   estimate_only         — no job in window, but an ESTIMATE does (call led to
+//                           a quote, didn't close — or hasn't yet)
+//   matched_no_activity   — customer exists in HCP, but neither a job nor an
+//                           estimate falls within the window of this call
+//   unmatched             — phone number doesn't match any HCP customer at all
 function matchCallsToJobs(calls){
   calls.forEach(call => {
     if(!call.phone){ call.matchStatus='unmatched'; return; }
 
     const candidateJobs = _jobs.filter(j => getJobPhones(j).includes(call.phone));
+    const candidateEsts  = (_estimates||[]).filter(e => getJobPhones(e).includes(call.phone));
 
-    if(!candidateJobs.length){ call.matchStatus='unmatched'; return; }
+    if(!candidateJobs.length && !candidateEsts.length){ call.matchStatus='unmatched'; return; }
 
-    call.customerName = getCust(candidateJobs[0]);
+    call.customerName = candidateJobs.length ? getCust(candidateJobs[0]) : getCust(candidateEsts[0]);
 
     if(!call.date || isNaN(call.date)){
       // No usable call date to compare against — treat any customer
-      // match as "matched" rather than guessing at conversion timing
-      call.matchStatus='matched';
+      // match as "matched, no activity" rather than guessing at timing
+      call.matchStatus='matched_no_activity';
       return;
     }
 
     const windowMs = AD_CALL_MATCH_WINDOW_DAYS*24*60*60*1000;
-    const inWindow = candidateJobs.filter(j => {
-      const created = j.scheduled_start ? new Date(j.scheduled_start) : (j.created_at ? new Date(j.created_at) : null);
+    const inWindowOf = (list, dateFn) => list.filter(x => {
+      const created = dateFn(x);
       if(!created || isNaN(created)) return false;
       const delta = created - call.date;
-      return delta >= -2*24*60*60*1000 && delta <= windowMs; // allow 2 days before (call logged slightly after job created) through the full window after
+      return delta >= -2*24*60*60*1000 && delta <= windowMs; // allow 2 days before (call logged slightly after record created) through the full window after
     });
 
-    if(!inWindow.length){ call.matchStatus='matched'; return; }
+    const jobsInWindow = inWindowOf(candidateJobs, j => j.scheduled_start ? new Date(j.scheduled_start) : (j.created_at ? new Date(j.created_at) : null));
+    if(jobsInWindow.length){
+      jobsInWindow.sort((a,b) => getJobTotal(b)-getJobTotal(a));
+      const bestJob = jobsInWindow[0];
+      call.matchStatus = 'converted';
+      call.jobValue = getJobTotal(bestJob);
+      call.jobStatus = bestJob._restored ? (bestJob._status||'') : (bestJob.work_status||'');
+      return;
+    }
 
-    // Prefer the highest-value job in the window as the representative outcome
-    inWindow.sort((a,b) => getJobTotal(b)-getJobTotal(a));
-    const bestJob = inWindow[0];
-    call.matchStatus = 'converted';
-    call.jobValue = getJobTotal(bestJob);
-    call.jobStatus = bestJob._restored ? (bestJob._status||'') : (bestJob.work_status||'');
+    const estsInWindow = inWindowOf(candidateEsts, e => e.schedule?.scheduled_start ? new Date(e.schedule.scheduled_start) : (e.created_at ? new Date(e.created_at) : null));
+    if(estsInWindow.length){
+      call.matchStatus = 'estimate_only';
+      call.jobValue = 0;
+      call.jobStatus = 'estimate only';
+      return;
+    }
+
+    call.matchStatus = 'matched_no_activity';
   });
+}
+
+const AD_CALL_STATUS_LABELS = {
+  converted:           {label:'✅ Converted',              color:'#166534'},
+  estimate_only:        {label:'📋 Estimate, no job',       color:'#1d4ed8'},
+  matched_no_activity:  {label:'Matched, no activity',      color:'#D97706'},
+  unmatched:            {label:'No customer match',         color:'#9ca3af'},
+};
+
+// Shared by the on-screen display, CSV/XLSX export, and the printable
+// PDF summary — computes overall totals/percentages and the per-campaign
+// breakdown once, so all three views are always showing the exact same
+// numbers rather than three separately-maintained calculations.
+function computeAdCallSummary(){
+  const total = _adCalls.length;
+  const byStatus = {converted:[], estimate_only:[], matched_no_activity:[], unmatched:[]};
+  _adCalls.forEach(c => { (byStatus[c.matchStatus]||byStatus.unmatched).push(c); });
+
+  const pct = (n) => total ? Math.round(n/total*100) : 0;
+  const totalRevenue = byStatus.converted.reduce((s,c)=>s+(c.jobValue||0),0);
+
+  const byCampaign = {};
+  _adCalls.forEach(c => {
+    const camp = c.campaign || '(unlabeled)';
+    if(!byCampaign[camp]) byCampaign[camp] = {calls:0, converted:0, estimate_only:0, matched_no_activity:0, unmatched:0, revenue:0};
+    byCampaign[camp].calls++;
+    byCampaign[camp][c.matchStatus] = (byCampaign[camp][c.matchStatus]||0)+1;
+    if(c.matchStatus==='converted') byCampaign[camp].revenue += (c.jobValue||0);
+  });
+  const campaigns = Object.entries(byCampaign)
+    .map(([name,d])=>({name, ...d, convRate: d.calls?Math.round(d.converted/d.calls*100):0}))
+    .sort((a,b)=>b.revenue-a.revenue);
+
+  return {
+    total, totalRevenue,
+    converted: byStatus.converted.length, convertedPct: pct(byStatus.converted.length),
+    estimateOnly: byStatus.estimate_only.length, estimateOnlyPct: pct(byStatus.estimate_only.length),
+    matchedNoActivity: byStatus.matched_no_activity.length, matchedNoActivityPct: pct(byStatus.matched_no_activity.length),
+    unmatched: byStatus.unmatched.length, unmatchedPct: pct(byStatus.unmatched.length),
+    campaigns,
+  };
 }
 
 function renderAdCallResults(){
   const filter = $$('adCallMatchFilter')?.value || '';
   const filtered = filter ? _adCalls.filter(c=>c.matchStatus===filter) : _adCalls;
-
-  const total = _adCalls.length;
-  const converted = _adCalls.filter(c=>c.matchStatus==='converted');
-  const matched = _adCalls.filter(c=>c.matchStatus==='matched').length;
-  const unmatched = _adCalls.filter(c=>c.matchStatus==='unmatched').length;
-  const totalRevenue = converted.reduce((s,c)=>s+(c.jobValue||0),0);
-  const convRate = total ? Math.round(converted.length/total*100) : 0;
+  const s = computeAdCallSummary();
 
   const metricsEl = $$('adCallMetrics');
-  if(metricsEl) metricsEl.innerHTML = total ? `
-    <div class="metric"><div class="metric-label">Total Calls</div><div class="metric-value">${total}</div></div>
-    <div class="metric"><div class="metric-label">Converted to Job</div><div class="metric-value" style="color:#166534">${converted.length}</div><div class="metric-sub">${convRate}% of calls</div></div>
-    <div class="metric"><div class="metric-label">Revenue Attributed</div><div class="metric-value" style="color:#166534">${dollars(totalRevenue)}</div></div>
-    <div class="metric"><div class="metric-label">No Customer Match</div><div class="metric-value" style="color:#9ca3af">${unmatched}</div><div class="metric-sub">${matched} matched, no job yet</div></div>
+  if(metricsEl) metricsEl.innerHTML = s.total ? `
+    <div class="metric"><div class="metric-label">Total Calls</div><div class="metric-value">${s.total}</div></div>
+    <div class="metric"><div class="metric-label">Converted to Job</div><div class="metric-value" style="color:#166534">${s.converted}</div><div class="metric-sub">${s.convertedPct}% of calls</div></div>
+    <div class="metric"><div class="metric-label">Revenue Attributed</div><div class="metric-value" style="color:#166534">${dollars(s.totalRevenue)}</div></div>
+    <div class="metric"><div class="metric-label">Estimate, No Job</div><div class="metric-value" style="color:#1d4ed8">${s.estimateOnly}</div><div class="metric-sub">${s.estimateOnlyPct}% of calls</div></div>
+    <div class="metric"><div class="metric-label">Matched, No Activity</div><div class="metric-value" style="color:#D97706">${s.matchedNoActivity}</div><div class="metric-sub">${s.matchedNoActivityPct}% of calls</div></div>
+    <div class="metric"><div class="metric-label">No Customer Match</div><div class="metric-value" style="color:#9ca3af">${s.unmatched}</div><div class="metric-sub">${s.unmatchedPct}% of calls</div></div>
   ` : '';
 
-  // Campaign breakdown — conversion rate and revenue per campaign
-  const byCampaign = {};
-  _adCalls.forEach(c => {
-    const camp = c.campaign || '(unlabeled)';
-    if(!byCampaign[camp]) byCampaign[camp] = {calls:0, converted:0, revenue:0};
-    byCampaign[camp].calls++;
-    if(c.matchStatus==='converted'){ byCampaign[camp].converted++; byCampaign[camp].revenue += (c.jobValue||0); }
-  });
   const campaignEl = $$('adCallCampaignBreakdown');
   if(campaignEl){
-    const rows = Object.entries(byCampaign).sort((a,b)=>b[1].revenue-a[1].revenue);
-    campaignEl.innerHTML = rows.length ? `
-      <div class="sec-head" style="margin-bottom:8px">By Campaign</div>
+    campaignEl.innerHTML = s.campaigns.length ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="sec-head" style="margin:0">By Campaign</div>
+        <button onclick="printAdCallSummary()" style="font-size:11px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print Summary</button>
+      </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Campaign</th><th style="text-align:right">Calls</th><th style="text-align:right">Converted</th><th style="text-align:right">Revenue</th></tr></thead>
-        <tbody>${rows.map(([camp,d])=>`<tr>
-          <td>${escHtml(camp)}</td>
-          <td style="text-align:right">${d.calls}</td>
-          <td style="text-align:right;color:${d.converted?'#166534':'#9ca3af'}">${d.converted}</td>
-          <td style="text-align:right;font-weight:700">${dollars(d.revenue)}</td>
+        <thead><tr><th>Campaign</th><th style="text-align:right">Calls</th><th style="text-align:right">Converted</th><th style="text-align:right">Conv. Rate</th><th style="text-align:right">Revenue</th></tr></thead>
+        <tbody>${s.campaigns.map(c=>`<tr>
+          <td>${escHtml(c.name)}</td>
+          <td style="text-align:right">${c.calls}</td>
+          <td style="text-align:right;color:${c.converted?'#166534':'#9ca3af'}">${c.converted}</td>
+          <td style="text-align:right">${c.convRate}%</td>
+          <td style="text-align:right;font-weight:700">${dollars(c.revenue)}</td>
         </tr>`).join('')}</tbody>
       </table></div>` : '';
   }
@@ -13629,11 +13681,8 @@ function renderAdCallResults(){
   if(body){
     body.innerHTML = filtered.length ? filtered.map(c => {
       const idx = _adCalls.indexOf(c);
-      const statusBadge = c.matchStatus==='converted'
-        ? `<span style="color:#166534;font-weight:700">✅ Converted${c.jobStatus?' — '+escHtml(c.jobStatus):''}</span>`
-        : c.matchStatus==='matched'
-        ? `<span style="color:#D97706;font-weight:600">Matched, no job yet</span>`
-        : `<span style="color:#9ca3af">No customer match</span>`;
+      const meta = AD_CALL_STATUS_LABELS[c.matchStatus]||AD_CALL_STATUS_LABELS.unmatched;
+      const statusBadge = `<span style="color:${meta.color};font-weight:${c.matchStatus==='converted'?700:600}">${meta.label}${c.jobStatus && c.matchStatus==='converted'?' — '+escHtml(c.jobStatus):''}</span>`;
       const confirmedBadge = c.confirmed
         ? `<span style="margin-left:6px;font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">✓ reviewed</span>` : '';
       return `<tr onclick="openAdCallDetail(${idx})" style="cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
@@ -13795,35 +13844,140 @@ async function loadAdCallsFromSheets(){
 // match status, customer, and value for every row currently loaded,
 // respecting whatever status filter is active so an export can be
 // scoped to just converted calls, for example.
-function exportAdCallResults(){
+function printAdCallSummary(){
+  if(!_adCalls.length){ showToast('Nothing to print yet — upload a call file first.','error'); return; }
+  const s = computeAdCallSummary();
+  const today = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const dateRange = _adCalls.map(c=>c.dateRaw).filter(Boolean);
+
+  const win = window.open('','_blank','width=900,height=1100');
+  win.document.write(`<!DOCTYPE html><html><head><title>Ad Call Conversion Summary — Midstate Plumbing</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    @page{size:letter portrait;margin:0.5in}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
+    @media print{button{display:none!important}}
+    .header{border-bottom:3px solid #059669;padding-bottom:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}
+    .title{font-size:20px;font-weight:800;color:#059669}
+    .sub{font-size:11px;color:#6b7280;margin-top:2px}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+    .sum-box{border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center}
+    .sum-val{font-size:26px;font-weight:800;line-height:1.1}
+    .sum-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
+    .sum-pct{font-size:11px;color:#374151;margin-top:2px;font-weight:600}
+    table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}
+    th{background:#059669!important;color:#fff!important;padding:7px 9px;text-align:left;font-weight:700}
+    td{padding:6px 9px;border-bottom:1px solid #e5e7eb}
+    tr:nth-child(even) td{background:#F0FDF4!important}
+    tfoot td{font-weight:800;border-top:2px solid #059669;background:#fff!important}
+    .sec-title{font-size:13px;font-weight:800;color:#111827;margin:20px 0 8px}
+    .footer{margin-top:16px;font-size:9px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:8px}
+  </style></head><body>
+  <div class="header">
+    <div>
+      <div class="title">📞 Ad Call Conversion Summary</div>
+      <div class="sub">${dateRange.length?dateRange[dateRange.length-1]+' to '+dateRange[0]:''} &nbsp;·&nbsp; Printed ${today}</div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;text-align:right">Midstate Plumbing, Heating &amp; Cooling</div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sum-box" style="border-color:#86efac;background:#F0FDF4">
+      <div class="sum-val" style="color:#166534">${s.converted}</div>
+      <div class="sum-label">Converted to Job</div>
+      <div class="sum-pct">${s.convertedPct}% of ${s.total} calls</div>
+    </div>
+    <div class="sum-box" style="border-color:#93c5fd;background:#EFF6FF">
+      <div class="sum-val" style="color:#1d4ed8">${s.estimateOnly}</div>
+      <div class="sum-label">Estimate, No Job</div>
+      <div class="sum-pct">${s.estimateOnlyPct}% of calls</div>
+    </div>
+    <div class="sum-box" style="border-color:#fcd34d;background:#FFFBEB">
+      <div class="sum-val" style="color:#D97706">${s.matchedNoActivity}</div>
+      <div class="sum-label">Matched, No Activity</div>
+      <div class="sum-pct">${s.matchedNoActivityPct}% of calls</div>
+    </div>
+    <div class="sum-box" style="border-color:#d1d5db;background:#F9FAFB">
+      <div class="sum-val" style="color:#6b7280">${s.unmatched}</div>
+      <div class="sum-label">No Customer History</div>
+      <div class="sum-pct">${s.unmatchedPct}% of calls</div>
+    </div>
+  </div>
+
+  <div style="background:#F0FDF4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px;font-weight:700;color:#111827">Total Revenue Attributed</span>
+    <span style="font-size:22px;font-weight:800;color:#166534">${dollars(s.totalRevenue)}</span>
+  </div>
+
+  <div class="sec-title">Results by Campaign</div>
+  <table>
+    <thead><tr><th>Campaign</th><th style="text-align:right">Calls</th><th style="text-align:right">Converted</th><th style="text-align:right">Conv. Rate</th><th style="text-align:right">Revenue</th></tr></thead>
+    <tbody>${s.campaigns.map(c=>`<tr>
+      <td>${escHtml(c.name)}</td>
+      <td style="text-align:right">${c.calls}</td>
+      <td style="text-align:right">${c.converted}</td>
+      <td style="text-align:right">${c.convRate}%</td>
+      <td style="text-align:right">${dollars(c.revenue)}</td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr>
+      <td>TOTAL</td>
+      <td style="text-align:right">${s.total}</td>
+      <td style="text-align:right">${s.converted}</td>
+      <td style="text-align:right">${s.total?Math.round(s.converted/s.total*100):0}%</td>
+      <td style="text-align:right">${dollars(s.totalRevenue)}</td>
+    </tr></tfoot>
+  </table>
+
+  <div class="footer">
+    <div>"Matched, no activity" = an existing HouseCall Pro customer, but no estimate or job found near this call's date.</div>
+    <div>"No customer history" = this phone number doesn't match any customer on file.</div>
+    <div style="margin-top:4px">Matching window: ${AD_CALL_MATCH_WINDOW_DAYS} days after each call. ${s.total} total calls analyzed.</div>
+  </div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+async function exportAdCallResults(){
   if(!_adCalls.length){ showToast('Nothing to export yet — upload a call file first.','error'); return; }
+
+  if(typeof XLSX==='undefined'){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload=res; s.onerror=()=>rej(new Error('Could not load Excel export library'));
+      document.head.appendChild(s);
+    });
+  }
+
   const filter = $$('adCallMatchFilter')?.value || '';
   const rows = filter ? _adCalls.filter(c=>c.matchStatus===filter) : _adCalls;
+  const summary = computeAdCallSummary();
 
-  const headers = ['Call Date','Phone','Campaign','Duration (s)','Match Status','Customer','Value','Manually Confirmed'];
-  const csvRows = [headers.join(',')];
-  rows.forEach(c => {
-    const line = [
+  // Sheet 1 — call-by-call detail
+  const detailAoa = [
+    ['Call Date','Phone','Campaign','Duration (s)','Match Status','Customer','Value','Manually Confirmed'],
+    ...rows.map(c => [
       c.dateRaw||'', c.phoneRaw||'', c.campaign||'', c.duration||0,
-      c.matchStatus==='converted'?'Converted':c.matchStatus==='matched'?'Matched, no job yet':'No match',
+      (AD_CALL_STATUS_LABELS[c.matchStatus]||{}).label?.replace(/^[^\w]*/,'') || c.matchStatus,
       c.customerName||'', c.jobValue||0, c.confirmed?'Yes':'No',
-    ].map(v => {
-      const s = String(v).replace(/"/g,'""');
-      return /[",\n]/.test(s) ? `"${s}"` : s;
-    });
-    csvRows.push(line.join(','));
-  });
+    ]),
+  ];
 
-  const blob = new Blob([csvRows.join('\n')], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `ad-call-conversions-${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast(`📥 Exported ${rows.length} calls`,'success');
+  // Sheet 2 — per-campaign results, exactly what the marketing team
+  // needs to see performance by campaign rather than a raw call list
+  const campaignAoa = [
+    ['Campaign','Total Calls','Converted','Est. Only','Matched, No Activity','No Match','Conversion Rate','Revenue'],
+    ...summary.campaigns.map(c => [c.name, c.calls, c.converted, c.estimate_only||0, c.matched_no_activity||0, c.unmatched||0, c.convRate+'%', c.revenue]),
+    [],
+    ['TOTAL', summary.total, summary.converted, summary.estimateOnly, summary.matchedNoActivity, summary.unmatched, summary.total?Math.round(summary.converted/summary.total*100)+'%':'0%', summary.totalRevenue],
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailAoa), 'Call Details');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(campaignAoa), 'Campaign Summary');
+  XLSX.writeFile(wb, `ad-call-conversions-${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast(`📥 Exported ${rows.length} calls across ${summary.campaigns.length} campaigns`,'success');
 }
 
 async function processPlanFile(file){
