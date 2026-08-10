@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.36</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.38</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.36</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.38</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.36</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.38</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3364,7 +3364,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.36
+  // ATTRIBUTION ENGINE — v25.38
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5321,7 +5321,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.36',  // dashboard version that generated this push
+    dash_version: 'v25.38',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5892,7 +5892,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.36',
+        dash_version:        'v25.38',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13635,26 +13635,43 @@ function matchCallsToJobs(calls){
       return;
     }
 
+    // FIXED (2026-08-10): this used to allow a 2-day grace period BEFORE
+    // the call ("call logged slightly after record created"), which
+    // meant an estimate or job created before a call could still be
+    // credited to it — but a booking that already existed couldn't have
+    // been caused by a call that came later. Now only looks forward from
+    // the call, never backward.
     const windowMs = AD_CALL_MATCH_WINDOW_DAYS*24*60*60*1000;
     const inWindowOf = (list, dateFn) => list.filter(x => {
       const created = dateFn(x);
       if(!created || isNaN(created)) return false;
       const delta = created - call.date;
-      return delta >= -2*24*60*60*1000 && delta <= windowMs; // allow 2 days before (call logged slightly after record created) through the full window after
+      return delta >= 0 && delta <= windowMs;
     });
 
-    const jobsInWindow = inWindowOf(candidateJobs, j => j.schedule?.scheduled_start ? new Date(j.schedule.scheduled_start) : (j.created_at ? new Date(j.created_at) : null));
+    // FIXED (2026-08-10): a call can result in a visit scheduled for a
+    // later date — the estimate/job RECORD is created around the time of
+    // the call (when the appointment gets booked), but its
+    // scheduled_start could be days or weeks in the future. Matching
+    // against scheduled_start would incorrectly treat a real, immediate
+    // conversion as "too far in the future" or misjudge the window
+    // entirely. created_at (when the record actually came into
+    // existence) is the true signal of whether this call led to a
+    // booking — falls back to scheduled_start only if created_at is
+    // genuinely missing (can happen on some restored data).
+    const jobsInWindow = inWindowOf(candidateJobs, j => j.created_at ? new Date(j.created_at) : (j.schedule?.scheduled_start ? new Date(j.schedule.scheduled_start) : null));
     if(jobsInWindow.length){
       jobsInWindow.sort((a,b) => getJobTotal(b)-getJobTotal(a));
       const bestJob = jobsInWindow[0];
       call.matchStatus = 'converted';
       call.jobValue = getJobTotal(bestJob);
       call.jobStatus = bestJob._restored ? (bestJob._status||'') : (bestJob.work_status||'');
+      call.matchedJobId = bestJob.id; // used to de-duplicate revenue when multiple calls (same phone number) point to the same job
       claimedJobIds.add(bestJob.id);
       return;
     }
 
-    const estsInWindow = inWindowOf(candidateEsts, e => e.schedule?.scheduled_start ? new Date(e.schedule.scheduled_start) : (e.created_at ? new Date(e.created_at) : null));
+    const estsInWindow = inWindowOf(candidateEsts, e => e.created_at ? new Date(e.created_at) : (e.schedule?.scheduled_start ? new Date(e.schedule.scheduled_start) : null));
     if(estsInWindow.length){
       call.matchStatus = 'estimate_only';
       call.jobValue = 0;
@@ -13686,6 +13703,7 @@ function matchCallsToJobs(calls){
       call.customerName = getCust(best.item);
       call.jobStatus = 'possible match by time — not phone-verified';
       call.timeMatchJobId = best.item.id;
+      call.matchedJobId = best.item.id; // used to de-duplicate revenue, same as the phone-verified path above
       claimedJobIds.add(best.item.id);
     });
 }
@@ -13709,13 +13727,34 @@ function computeAdCallSummary(){
   _adCalls.forEach(c => { (byStatus[c.matchStatus]||byStatus.unmatched).push(c); });
 
   const pct = (n) => total ? Math.round(n/total*100) : 0;
-  const totalRevenue = byStatus.converted.reduce((s,c)=>s+(c.jobValue||0),0);
+
+  // Per request: multiple calls from the same phone number can share
+  // credit for a single job (e.g. someone calls a few times before
+  // booking) — but that job's revenue should only be counted ONCE in
+  // the total, not once per call. Groups by matchedJobId and sums each
+  // distinct job's value a single time; a call without a matchedJobId
+  // (shouldn't normally happen) falls back to counting individually
+  // rather than silently dropping its revenue.
+  function dedupedRevenue(calls){
+    const seen = new Set();
+    let sum = 0;
+    calls.forEach(c => {
+      if(c.matchedJobId){
+        if(seen.has(c.matchedJobId)) return;
+        seen.add(c.matchedJobId);
+      }
+      sum += (c.jobValue||0);
+    });
+    return sum;
+  }
+
+  const totalRevenue = dedupedRevenue(byStatus.converted);
   // Time-based matches (filled in from an otherwise-blank caller ID) are
   // tracked completely separately from phone-verified revenue — never
   // silently merged into it. "Combined" gives the optimistic view for
   // anyone who wants it, but the headline revenue number stays
   // conservative and phone-verified only.
-  const possibleRevenue = byStatus.possible_conversion_time.reduce((s,c)=>s+(c.jobValue||0),0);
+  const possibleRevenue = dedupedRevenue(byStatus.possible_conversion_time);
   const combinedRevenue = totalRevenue + possibleRevenue;
   // Combined view: "no customer record" and "customer exists but no
   // estimate/job near this call" both mean the same thing practically —
@@ -13738,13 +13777,17 @@ function computeAdCallSummary(){
   const noPhoneGenuine = byStatus.no_phone.length - noPhoneSpam;
 
   const byCampaign = {};
+  const seenJobPerCampaign = new Set(); // "campaign|jobId" — same dedup reasoning as the overall totals above
   _adCalls.forEach(c => {
     const camp = c.campaign || '(unlabeled)';
     if(!byCampaign[camp]) byCampaign[camp] = {calls:0, converted:0, possible_conversion_time:0, estimate_only:0, matched_no_activity:0, unmatched:0, no_phone:0, revenue:0, possibleRevenue:0, spam:0};
     byCampaign[camp].calls++;
     byCampaign[camp][c.matchStatus] = (byCampaign[camp][c.matchStatus]||0)+1;
-    if(c.matchStatus==='converted') byCampaign[camp].revenue += (c.jobValue||0);
-    if(c.matchStatus==='possible_conversion_time') byCampaign[camp].possibleRevenue += (c.jobValue||0);
+    const jobKey = c.matchedJobId ? camp+'|'+c.matchedJobId : null;
+    const alreadyCounted = jobKey && seenJobPerCampaign.has(jobKey);
+    if(jobKey) seenJobPerCampaign.add(jobKey);
+    if(c.matchStatus==='converted' && !alreadyCounted) byCampaign[camp].revenue += (c.jobValue||0);
+    if(c.matchStatus==='possible_conversion_time' && !alreadyCounted) byCampaign[camp].possibleRevenue += (c.jobValue||0);
     if(c.likelySpam) byCampaign[camp].spam++;
   });
   const campaigns = Object.entries(byCampaign)
@@ -13757,14 +13800,29 @@ function computeAdCallSummary(){
 
   // Individual converted calls, highest revenue first — the actual
   // customer-by-customer detail behind the aggregate revenue number.
-  // Phone-verified and time-based possible matches are kept as two
-  // separate lists rather than merged, so it's always clear which is which.
-  const convertedList = byStatus.converted
-    .map(c => ({customerName:c.customerName||'(unknown)', dateRaw:c.dateRaw, phoneRaw:c.phoneRaw, campaign:c.campaign||'(unlabeled)', value:c.jobValue||0}))
-    .sort((a,b)=>b.value-a.value);
-  const possibleList = byStatus.possible_conversion_time
-    .map(c => ({customerName:c.customerName||'(unknown)', dateRaw:c.dateRaw, phoneRaw:c.phoneRaw, campaign:c.campaign||'(unlabeled)', value:c.jobValue||0}))
-    .sort((a,b)=>b.value-a.value);
+  // Multiple calls sharing the same job (e.g. a customer called a few
+  // times before booking) are grouped into one row rather than each
+  // showing that job's full value — otherwise summing this column by
+  // hand would overstate revenue, same reasoning as the deduped total
+  // above. Phone-verified and time-based possible matches are kept as
+  // two separate lists rather than merged, so it's always clear which is which.
+  function groupByJob(calls){
+    const byJob = new Map(); // matchedJobId -> merged row; calls without an id each get their own row
+    const rows = [];
+    calls.forEach(c => {
+      const key = c.matchedJobId || Symbol();
+      if(byJob.has(key)){
+        byJob.get(key).dateRaw += ', ' + c.dateRaw;
+      } else {
+        const row = {customerName:c.customerName||'(unknown)', dateRaw:c.dateRaw, phoneRaw:c.phoneRaw, campaign:c.campaign||'(unlabeled)', value:c.jobValue||0};
+        byJob.set(key, row);
+        rows.push(row);
+      }
+    });
+    return rows.sort((a,b)=>b.value-a.value);
+  }
+  const convertedList = groupByJob(byStatus.converted);
+  const possibleList = groupByJob(byStatus.possible_conversion_time);
 
   return {
     total, totalRevenue, possibleRevenue, combinedRevenue,
@@ -13848,9 +13906,9 @@ function getCustomerHistoryByPhone(phone){
   if(!phone) return {jobs:[], estimates:[]};
   const matchesPhone = (x) => getJobPhones(x).includes(phone);
   const jobs = _jobs.filter(matchesPhone)
-    .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0));
+    .sort((a,b)=>new Date(b.created_at||b.schedule?.scheduled_start||0)-new Date(a.created_at||a.schedule?.scheduled_start||0));
   const estimates = (_estimates||[]).filter(matchesPhone)
-    .sort((a,b)=>new Date(b.schedule?.scheduled_start||b.created_at||0)-new Date(a.schedule?.scheduled_start||a.created_at||0));
+    .sort((a,b)=>new Date(b.created_at||b.schedule?.scheduled_start||0)-new Date(a.created_at||a.schedule?.scheduled_start||0));
   return {jobs, estimates};
 }
 
@@ -13877,17 +13935,23 @@ function findTimeProximityMatches(call){
   const windowMs = TIME_PROXIMITY_WINDOW_HOURS*60*60*1000;
   const rejected = call.rejectedJobIds || [];
 
+  // Only looks forward from the call — a job/estimate created before
+  // the call couldn't have been caused by it (same rule as the phone-
+  // verified matching in matchCallsToJobs above). Uses created_at
+  // (when the record actually came into existence) rather than
+  // scheduled_start (when the visit itself is scheduled, which could be
+  // days or weeks later) — same reasoning as the fix in matchCallsToJobs.
   const jobMatches = _jobs
     .filter(j => !rejected.includes(j.id))
-    .map(j => ({type:'job', item:j, date:j.schedule?.scheduled_start||j.created_at}))
+    .map(j => ({type:'job', item:j, date:j.created_at||j.schedule?.scheduled_start}))
     .filter(t => t.date)
-    .filter(t => Math.abs(new Date(t.date).getTime()-callTime) <= windowMs);
+    .filter(t => { const d = new Date(t.date).getTime()-callTime; return d >= 0 && d <= windowMs; });
   const estMatches = (_estimates||[])
-    .map(e => ({type:'estimate', item:e, date:e.schedule?.scheduled_start||e.created_at}))
+    .map(e => ({type:'estimate', item:e, date:e.created_at||e.schedule?.scheduled_start}))
     .filter(t => t.date)
-    .filter(t => Math.abs(new Date(t.date).getTime()-callTime) <= windowMs);
+    .filter(t => { const d = new Date(t.date).getTime()-callTime; return d >= 0 && d <= windowMs; });
 
-  return [...jobMatches, ...estMatches].sort((a,b) => Math.abs(new Date(a.date)-callTime) - Math.abs(new Date(b.date)-callTime));
+  return [...jobMatches, ...estMatches].sort((a,b) => (new Date(a.date)-callTime) - (new Date(b.date)-callTime));
 }
 
 function openAdCallDetail(idx){
@@ -13898,9 +13962,14 @@ function openAdCallDetail(idx){
   const windowMs = AD_CALL_MATCH_WINDOW_DAYS*24*60*60*1000;
   const callTime = call.date && !isNaN(call.date) ? call.date.getTime() : null;
 
+  // Uses created_at (when the record actually came into existence)
+  // rather than scheduled_start (when a booked visit is scheduled to
+  // happen, which can be days or weeks after the call) — same reasoning
+  // as the fix in matchCallsToJobs, so the "within window" highlighting
+  // below stays consistent with what the actual matching decided.
   const timeline = [
-    ...jobs.map(j => ({type:'job', item:j, date:j.schedule?.scheduled_start||j.created_at})),
-    ...estimates.map(e => ({type:'estimate', item:e, date:e.schedule?.scheduled_start||e.created_at})),
+    ...jobs.map(j => ({type:'job', item:j, date:j.created_at||j.schedule?.scheduled_start})),
+    ...estimates.map(e => ({type:'estimate', item:e, date:e.created_at||e.schedule?.scheduled_start})),
   ].filter(t=>t.date).sort((a,b)=>new Date(b.date)-new Date(a.date));
 
   const custName = call.customerName || (jobs[0]?getCust(jobs[0]):(estimates[0]?getCust(estimates[0]):null));
@@ -13949,7 +14018,7 @@ function openAdCallDetail(idx){
   const timelineHtml = timeline.length ? timeline.map(t => {
     const j = t.item;
     const isJob = t.type==='job';
-    const inWindow = callTime && (new Date(t.date).getTime() - callTime) >= -2*24*60*60*1000 && (new Date(t.date).getTime() - callTime) <= windowMs;
+    const inWindow = callTime && (new Date(t.date).getTime() - callTime) >= 0 && (new Date(t.date).getTime() - callTime) <= windowMs;
     const val = isJob ? getJobTotal(j) : getEstTotal(j);
     const paid = isJob && isJobPaid(j);
     const statusLabel = isJob ? (paid?'💰 Paid':(isJobComplete(j)?'Completed, unpaid':'Job')) : `📋 Estimate — ${getEstDisplayStatus(j)}`;
@@ -14004,6 +14073,7 @@ function confirmAdCallMatch(idx, itemId, type, value){
   call.matchStatus = 'converted';
   call.jobValue = value;
   call.jobStatus = 'manually confirmed';
+  call.matchedJobId = itemId; // used to de-duplicate revenue, same as the automatic paths
   openAdCallDetail(idx); // refresh to show the selection
   renderAdCallResults();
   saveAdCallsToSheets();
