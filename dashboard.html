@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.40</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.42</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.40</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.42</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.40</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.42</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1385,6 +1385,7 @@ tr:hover td{background:#fafafa}
             <option value="__spam__">📵 Likely spam/hang-up</option>
           </select>
           <button onclick="rematchAdCalls()" style="font-size:12px;padding:7px 14px;border:1px solid #7C3AED;border-radius:6px;background:#fff;color:#7C3AED;cursor:pointer;font-weight:700">🔄 Re-match</button>
+          <button onclick="loadAdCallsFromSheets(true)" style="font-size:12px;padding:7px 14px;border:1px solid #1A3A5C;border-radius:6px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:700">📥 Load from Sheets</button>
           <button onclick="saveAdCallsToSheets(true)" style="font-size:12px;padding:7px 14px;border:1px solid #1A3A5C;border-radius:6px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:700">💾 Save to Sheets</button>
           <button onclick="exportAdCallResults()" style="font-size:12px;padding:7px 14px;border:1px solid #059669;border-radius:6px;background:#fff;color:#059669;cursor:pointer;font-weight:700">📥 Export Results</button>
         </div>
@@ -3365,7 +3366,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.40
+  // ATTRIBUTION ENGINE — v25.42
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5322,7 +5323,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.40',  // dashboard version that generated this push
+    dash_version: 'v25.42',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5893,7 +5894,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.40',
+        dash_version:        'v25.42',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13465,7 +13466,14 @@ function handleAdCallUpload(input){
   if(file) processAdCallFile(file);
 }
 
-function adCallKey(c){ return (c.phone||'')+'|'+(c.dateRaw||''); }
+// FIXED (2026-08-11): this used to be phone+date — but phone is exactly
+// the field that changes when a call gets its caller ID filled in via
+// CallRail, so the key itself would change partway through the
+// workflow, making it impossible to find and preserve that work on a
+// later re-upload of the main file. dateRaw+duration+campaign are all
+// stable regardless of phone-fill-in status or matching progress, and
+// specific enough together to distinguish calls at the same rounded hour.
+function adCallKey(c){ return (c.dateRaw||'')+'|'+(c.duration||0)+'|'+(c.campaign||''); }
 
 async function processAdCallFile(file){
   const status=$$('adCallUploadStatus');
@@ -13486,17 +13494,43 @@ async function processAdCallFile(file){
     if(!_jobs.length){
       if(status) status.innerHTML='<span style="color:#dc2626">⚠ No job data loaded yet — pull a report or wait for the restore to finish, then re-upload to match correctly.</span>';
     }
-    matchCallsToJobs(calls);
-
-    // Preserve any prior manual confirmations when re-uploading an
-    // updated export — matched by phone+call-time, since that's the only
-    // stable identifier a call export gives us.
+    // Preserve prior INPUTS when re-uploading an updated export — phone
+    // numbers filled in via CallRail, manual confirmations, and
+    // rejected time-based suggestions are irreplaceable work that a
+    // fresh parse would otherwise wipe (every row starts back at its
+    // raw, un-worked state). Matched by the stable key
+    // (date+duration+campaign), since phone number is exactly the field
+    // that changes during CallRail fill-in and can't be used to find
+    // the prior record for that same call. Deliberately preserves only
+    // INPUTS, not old match results (status/value/etc.) — those get
+    // recomputed fresh by matchCallsToJobs below, on the complete
+    // dataset, so job-claiming (avoiding the same job being credited to
+    // two different calls) stays consistent across everything rather
+    // than mixing stale copied results with newly-computed ones.
     const priorByKey = {};
-    _adCalls.forEach(c => { if(c.confirmed) priorByKey[adCallKey(c)] = c.confirmed; });
+    _adCalls.forEach(c => { priorByKey[adCallKey(c)] = c; });
+    let carriedForward = 0;
     calls.forEach(c => {
       const prior = priorByKey[adCallKey(c)];
-      if(prior){ c.confirmed = prior; c.matchStatus='converted'; c.jobValue=prior.value; c.jobStatus='manually confirmed'; }
+      if(prior && (prior.confirmed || prior.filledFromCallRail || (prior.rejectedJobIds||[]).length)){
+        if(prior.filledFromCallRail){
+          c.phone = prior.phone; c.phoneRaw = prior.phoneRaw;
+          c.filledFromCallRail = true; c.callRailMatchConfidence = prior.callRailMatchConfidence;
+        }
+        if(prior.rejectedJobIds?.length) c.rejectedJobIds = prior.rejectedJobIds;
+        if(prior.confirmed){
+          // matchCallsToJobs skips confirmed calls entirely (doesn't
+          // re-derive their status) — so the derived fields from when
+          // confirmAdCallMatch originally set them need to come along too.
+          c.confirmed = prior.confirmed;
+          c.matchStatus = prior.matchStatus; c.jobValue = prior.jobValue;
+          c.jobStatus = prior.jobStatus; c.matchedJobId = prior.matchedJobId;
+        }
+        carriedForward++;
+      }
     });
+
+    matchCallsToJobs(calls); // recompute fresh on the complete, corrected dataset — consistent job-claiming throughout
 
     _adCalls = calls;
     renderAdCallResults();
@@ -13507,7 +13541,7 @@ async function processAdCallFile(file){
     // were actually loaded as calls — if these ever differ, that gap is
     // rows the parser is skipping (e.g. a subtotal/blank row), and this
     // makes that visible immediately rather than requiring a re-check.
-    if(status) status.innerHTML=`<span style="color:#166534">✅ ${calls.length} calls found in "${file.name}" (${rows.length} total rows read) — ${converted} matched to a job${noPhone?`, ${noPhone} with no caller ID`:''}</span>`;
+    if(status) status.innerHTML=`<span style="color:#166534">✅ ${calls.length} calls found in "${file.name}" (${rows.length} total rows read) — ${converted} matched to a job${noPhone?`, ${noPhone} with no caller ID`:''}${carriedForward?`. Carried forward prior work on ${carriedForward} calls (phone fill-ins, confirmations, rejections)`:''}</span>`;
   } catch(e){
     if(status) status.innerHTML=`<span style="color:#dc2626">Error reading file: ${e.message}</span>`;
   }
@@ -14348,8 +14382,11 @@ async function saveAdCallsToSheets(explicit){
   }
 }
 
-async function loadAdCallsFromSheets(){
-  if(!_sheetsProxy) return;
+async function loadAdCallsFromSheets(explicit){
+  if(!_sheetsProxy){ if(explicit) showToast('Not connected to Sheets','error'); return; }
+  if(explicit && _adCalls.length){
+    if(!confirm('This will replace your current results with whatever is saved in Sheets. Any changes since your last save will be lost. Continue?')) return;
+  }
   try {
     const res = await fetch(_sheetsProxy+'?action=getAdCalls&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
     const d = await res.json();
@@ -14363,8 +14400,14 @@ async function loadAdCallsFromSheets(){
       }));
       renderAdCallResults();
       console.log('[AdCalls] Restored', _adCalls.length, 'calls from Sheets');
+      if(explicit) showToast(`📥 Loaded ${_adCalls.length} calls from Sheets`,'success');
+    } else if(explicit) {
+      showToast(d.success ? 'Nothing saved in Sheets yet' : 'Load failed: '+(d.error||'unknown error'),'error');
     }
-  } catch(e) { console.warn('[AdCalls] Restore failed:', e.message); }
+  } catch(e) {
+    console.warn('[AdCalls] Restore failed:', e.message);
+    if(explicit) showToast('Load failed: '+e.message,'error');
+  }
 }
 
 // Downloads the current results as a CSV — call date, phone, campaign,
