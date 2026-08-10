@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.30</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.31</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.30</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.31</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.30</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.31</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1381,6 +1381,7 @@ tr:hover td{background:#fafafa}
             <option value="unmatched">No customer match</option>
             <option value="no_phone">No caller ID</option>
           </select>
+          <button onclick="rematchAdCalls()" style="font-size:12px;padding:7px 14px;border:1px solid #7C3AED;border-radius:6px;background:#fff;color:#7C3AED;cursor:pointer;font-weight:700">🔄 Re-match</button>
           <button onclick="saveAdCallsToSheets(true)" style="font-size:12px;padding:7px 14px;border:1px solid #1A3A5C;border-radius:6px;background:#fff;color:#1A3A5C;cursor:pointer;font-weight:700">💾 Save to Sheets</button>
           <button onclick="exportAdCallResults()" style="font-size:12px;padding:7px 14px;border:1px solid #059669;border-radius:6px;background:#fff;color:#059669;cursor:pointer;font-weight:700">📥 Export Results</button>
         </div>
@@ -2110,7 +2111,13 @@ function connect(){
   loadAllSettingsFromSheets().then(() => {
     console.log('[Connect] Settings loaded from Sheets');
     stagger(() => { loadPlansFromSheets(); loadActivePlansFromSheets(); }, 0);
-    stagger(() => { restoreJobsEstimatesFromSheets().then(() => loadUnpaidJobsFromSheetsFull()); }, 300);
+    stagger(() => { restoreJobsEstimatesFromSheets().then(() => {
+      loadUnpaidJobsFromSheetsFull();
+      // Re-run ad call matching now that jobs/estimates are fully loaded —
+      // if a call file was uploaded before this restore finished, the
+      // summary would have been computed against an incomplete jobs list.
+      if(_adCalls.length){ matchCallsToJobs(_adCalls); renderAdCallResults(); }
+    }); }, 300);
     stagger(() => loadHCPReportsFullFromSheets(), 700);
     stagger(() => loadTYCards(), 1100);
     stagger(() => { loadSpotlights(); loadVideos(); }, 1400);
@@ -3256,6 +3263,11 @@ async function loadAll(){
     // job_number, which would otherwise orphan anything saved against the
     // old id. Fire-and-forget; doesn't need to block rendering.
     loadUnpaidJobsFromSheetsFull();
+    // Re-run ad call matching against the now-current jobs/estimates —
+    // a pull can surface jobs that weren't loaded when a call file was
+    // last matched (e.g. uploaded before the pull, or before the initial
+    // restore finished).
+    if(_adCalls.length){ matchCallsToJobs(_adCalls); renderAdCallResults(); }
     if(activeTab==='jobs')        renderJobs(jobs,estimates);
     else if(activeTab==='estimates') renderEstimates(estimates);
     else if(activeTab==='attr')   renderAttr(jobs,estimates);
@@ -3340,7 +3352,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.30
+  // ATTRIBUTION ENGINE — v25.31
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5297,7 +5309,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.30',  // dashboard version that generated this push
+    dash_version: 'v25.31',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5868,7 +5880,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.30',
+        dash_version:        'v25.31',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13573,6 +13585,7 @@ const AD_CALL_MATCH_WINDOW_DAYS = 120;
 //   unmatched             — phone number doesn't match any HCP customer at all
 function matchCallsToJobs(calls){
   calls.forEach(call => {
+    if(call.confirmed) return; // manual confirmation always wins — never silently overwritten by a re-match
     if(!call.phone){ call.matchStatus='no_phone'; return; }
 
     const candidateJobs = _jobs.filter(j => getJobPhones(j).includes(call.phone));
@@ -13841,6 +13854,15 @@ function clearAdCallMatch(idx){
   openAdCallDetail(idx);
   renderAdCallResults();
   saveAdCallsToSheets();
+}
+
+function rematchAdCalls(){
+  if(!_adCalls.length){ showToast('Nothing to re-match yet — upload a call file first.','error'); return; }
+  if(!_jobs.length){ showToast('No job data loaded yet — wait for it to finish loading and try again.','error'); return; }
+  matchCallsToJobs(_adCalls);
+  renderAdCallResults();
+  saveAdCallsToSheets();
+  showToast(`🔄 Re-matched ${_adCalls.length} calls against current job data`,'success');
 }
 
 async function saveAdCallsToSheets(explicit){
