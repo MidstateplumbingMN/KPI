@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.35</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.36</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.35</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.36</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.35</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.36</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1388,6 +1388,16 @@ tr:hover td{background:#fafafa}
           <button onclick="exportAdCallResults()" style="font-size:12px;padding:7px 14px;border:1px solid #059669;border-radius:6px;background:#fff;color:#059669;cursor:pointer;font-weight:700">📥 Export Results</button>
         </div>
       </div>
+      <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="font-size:11px;color:#5B21B6">
+          <strong>📞 Fill in missing caller ID:</strong> upload a CallRail Call Log export — calls with no caller ID above will be matched by exact call time against this file to recover the real phone number, then automatically re-matched against your customers.
+        </div>
+        <label class="plan-upload-btn" for="callRailFileInput" style="padding:6px 12px;font-size:11px;cursor:pointer;background:#7C3AED;border-color:#7C3AED">
+          📁 Upload CallRail Report
+          <input type="file" id="callRailFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleCallRailUpload(this)">
+        </label>
+      </div>
+      <div id="callRailUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
       <div id="adCallUploadStatus" style="font-size:12px;margin-bottom:14px"></div>
       <div id="adCallMetrics" class="metrics" style="margin-bottom:16px"></div>
       <div id="adCallCampaignBreakdown" style="margin-bottom:16px"></div>
@@ -3354,7 +3364,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.35
+  // ATTRIBUTION ENGINE — v25.36
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5311,7 +5321,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.35',  // dashboard version that generated this push
+    dash_version: 'v25.36',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5882,7 +5892,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.35',
+        dash_version:        'v25.36',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -13817,12 +13827,17 @@ function renderAdCallResults(){
         ? `<span style="margin-left:6px;font-size:10px;background:#EAF3DE;color:#3B6D11;padding:1px 6px;border-radius:99px;font-weight:600">✓ reviewed</span>` : '';
       const spamBadge = (c.likelySpam && c.matchStatus!=='converted' && c.matchStatus!=='estimate_only')
         ? `<span style="margin-left:6px;font-size:10px;background:#F3F4F6;color:#6b7280;padding:1px 6px;border-radius:99px;font-weight:600">📵 likely spam</span>` : '';
+      const callRailBadge = c.filledFromCallRail
+        ? (c.callRailMatchConfidence==='high'
+            ? `<span style="margin-left:6px;font-size:10px;background:#DCFCE7;color:#166534;padding:1px 6px;border-radius:99px;font-weight:600" title="Unique match — only one CallRail call in the time window">📞 CallRail (confident)</span>`
+            : `<span style="margin-left:6px;font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:99px;font-weight:600" title="Multiple possible calls at that hour — best guess by duration">📞 CallRail (best guess)</span>`)
+        : '';
       return `<tr onclick="openAdCallDetail(${idx})" style="cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
         <td>${c.dateRaw||'—'}</td>
         <td>${escHtml(c.phoneRaw||'—')}</td>
         <td style="font-size:12px">${escHtml(c.campaign||'—')}</td>
         <td>${c.duration?c.duration+'s':'—'}</td>
-        <td>${statusBadge}${confirmedBadge}${spamBadge}</td>
+        <td>${statusBadge}${confirmedBadge}${spamBadge}${callRailBadge}</td>
         <td style="text-align:right;font-weight:700">${c.jobValue?dollars(c.jobValue):'—'}</td>
       </tr>`;
     }).join('') : `<tr><td colspan="6" style="text-align:center;padding:30px;color:#9ca3af">${_adCalls.length?'No calls match this filter.':'Upload a call export to get started.'}</td></tr>`;
@@ -14035,6 +14050,170 @@ function rematchAdCalls(){
   renderAdCallResults();
   saveAdCallsToSheets();
   showToast(`🔄 Re-matched ${_adCalls.length} calls against current job data`,'success');
+}
+
+// ============================================================
+// CALLRAIL PHONE-NUMBER FILL-IN — a real CallRail Call Log export is
+// much more complete (caller ID present on ~99% of calls, vs a fraction
+// of that in a Google-Ads-side export) since it captures every website
+// call via DNI, not just clicks on a call-only ad. This matches each
+// no_phone call from the main file to a CallRail record by exact call
+// time, recovers the real phone number, then re-runs the normal
+// reliable phone-based HCP matching on it — a much stronger signal than
+// guessing a job by time proximity alone.
+// ============================================================
+
+function handleCallRailUpload(input){
+  const file=input?.files?.[0];
+  if(file) processCallRailFile(file);
+}
+
+// Dedicated parser — deliberately NOT reusing the shared parseExcelFile,
+// which only reads the FIRST sheet (a CallRail export's first sheet is
+// a "Cover Sheet" with just export metadata, not the actual call data,
+// which lives on a separate "Calls" sheet) and converts every cell to a
+// string immediately (which would mangle the Start Time column — a real
+// Excel date/time value, not preformatted text like the marketing export's
+// date column was).
+async function parseCallRailExcelFile(file){
+  if(typeof XLSX==='undefined'){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload=res;s.onerror=()=>rej(new Error('Could not load Excel parser'));
+      document.head.appendChild(s);
+    });
+  }
+  const buf=await file.arrayBuffer();
+  // cellDates:true makes SheetJS return real JS Date objects for date
+  // cells instead of raw Excel serial numbers (e.g. 46236.372...), which
+  // is what a real date/time cell (like CallRail's Start Time column)
+  // needs to be usable directly.
+  const wb=XLSX.read(buf,{type:'array', cellDates:true});
+  // Target the "Calls" sheet by name if present (the actual data);
+  // otherwise fall back to whichever sheet has the most rows, since a
+  // cover/metadata sheet is typically tiny by comparison.
+  let sheetName = wb.SheetNames.find(n => /calls?$/i.test(n.trim()));
+  if(!sheetName){
+    sheetName = wb.SheetNames.reduce((best,n) => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1}).length;
+      return rows > (best.rows||0) ? {name:n, rows} : best;
+    }, {}).name || wb.SheetNames[0];
+  }
+  const ws = wb.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+}
+
+function mapCallRailRows(rows){
+  const headerIdx = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('phone')));
+  if(headerIdx < 0) return [];
+  const headers = rows[headerIdx].map(h=>String(h||'').toLowerCase().trim());
+  function findCol(...kws){ for(const kw of kws){ const i=headers.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; }
+
+  const dateCol      = findCol('start time','call date','date');
+  const durationCol  = findCol('duration');
+  const phoneCol      = findCol('phone number','caller phone','phone');
+  const statusCol     = findCol('call status','status');
+  // Exact match preferred — "name" as a substring would otherwise match
+  // "Company Name" first (it appears earlier in CallRail's column order
+  // and also contains "name"), not the actual caller Name column.
+  const nameCol       = headers.findIndex(h => h==='name') >= 0 ? headers.findIndex(h => h==='name') : findCol('caller name','contact name');
+  const sourceCol     = findCol('source');
+  if(phoneCol < 0 || dateCol < 0) return [];
+
+  return rows.slice(headerIdx+1)
+    .filter(r => r[phoneCol] && String(r[phoneCol]).trim())
+    .map(r => {
+      const rawDate = r[dateCol];
+      // cellDates:true means a real date cell arrives as a JS Date
+      // already; guard against a text fallback just in case
+      const date = rawDate instanceof Date ? rawDate : new Date(String(rawDate||''));
+      return {
+        date, phone: normalizePhone(String(r[phoneCol]||'')), phoneRaw: String(r[phoneCol]||'').trim(),
+        duration: durationCol>=0 ? Number(r[durationCol])||0 : 0,
+        status: statusCol>=0 ? String(r[statusCol]||'').trim() : '',
+        name: nameCol>=0 ? String(r[nameCol]||'').trim() : '',
+        source: sourceCol>=0 ? String(r[sourceCol]||'').trim() : '',
+      };
+    })
+    .filter(c => c.date && !isNaN(c.date));
+}
+
+// FIXED (2026-08-10): verified directly against Bob's actual marketing
+// export — every single timestamp in that file is rounded to the exact
+// hour (100% of 558 rows end in :00:00), not a real to-the-minute
+// value. A tight few-minute window would essentially never match
+// anything real.
+//
+// Tested several window sizes against the real files (415 no-phone
+// calls vs ~5,900 real CallRail calls over the same period — an average
+// of ~28 calls/day). Even the best-performing window (±30 min,
+// assuming standard "round to nearest hour") only produces a genuinely
+// UNIQUE match for about 10% of calls — the rest have multiple
+// candidates in the window, because the call volume is simply too high
+// for an hour-rounded timestamp to pin down one specific call. This is
+// a real data limitation, not something a smarter window size fixes.
+// Duration is used as a tie-breaker for the multi-candidate case, but
+// that's a best guess among several plausible calls, not a reliable
+// match — confidence is marked 'low' for these (not 'medium') so the UI
+// and any export can be honest about which fills are trustworthy (the
+// ~10% unique matches) versus which are a guess worth spot-checking.
+const CALLRAIL_WINDOW_BEFORE_MIN = 30;
+const CALLRAIL_WINDOW_AFTER_MIN = 30;
+
+async function processCallRailFile(file){
+  const status = $$('callRailUploadStatus');
+  if(status) status.innerHTML = '<span style="color:#6b7280">Reading CallRail file...</span>';
+  if(!_adCalls.length){
+    if(status) status.innerHTML = '<span style="color:#dc2626">Upload your main call export first — this fills in gaps in that file, it doesn\'t stand alone.</span>';
+    return;
+  }
+  try{
+    const rows = file.name.match(/\.xlsx?$/i) ? await parseCallRailExcelFile(file) : parseCSVFile(await file.text());
+    const callRailCalls = mapCallRailRows(rows);
+    if(!callRailCalls.length){
+      if(status) status.innerHTML = '<span style="color:#dc2626">Could not find call data with a phone number and date column in this file.</span>';
+      return;
+    }
+
+    const targets = _adCalls.filter(c => c.matchStatus==='no_phone' && c.date && !isNaN(c.date));
+    const beforeMs = CALLRAIL_WINDOW_BEFORE_MIN*60*1000;
+    const afterMs = CALLRAIL_WINDOW_AFTER_MIN*60*1000;
+    let filled = 0, highConfidence = 0;
+    targets.forEach(call => {
+      const callTime = call.date.getTime();
+      const candidates = callRailCalls.filter(cr => {
+        const delta = cr.date.getTime() - callTime;
+        return delta >= -beforeMs && delta <= afterMs;
+      });
+      if(!candidates.length) return;
+
+      let best;
+      if(candidates.length === 1){
+        best = candidates[0];
+        highConfidence++;
+      } else {
+        // Multiple candidates in the window — duration is the best
+        // available disambiguator (the rounded timestamp can't tell them
+        // apart), but with this many candidates it's a guess, not a
+        // reliable match — marked 'low' confidence below, deliberately.
+        candidates.sort((a,b) => Math.abs((a.duration||0)-(call.duration||0)) - Math.abs((b.duration||0)-(call.duration||0)));
+        best = candidates[0];
+      }
+      call.phone = best.phone;
+      call.phoneRaw = best.phoneRaw;
+      call.filledFromCallRail = true;
+      call.callRailMatchConfidence = candidates.length===1 ? 'high' : 'low';
+      filled++;
+    });
+
+    if(filled) matchCallsToJobs(_adCalls); // re-run matching now that real phone numbers are available
+    renderAdCallResults();
+    saveAdCallsToSheets();
+    if(status) status.innerHTML = `<span style="color:#166534">✅ ${callRailCalls.length} CallRail records loaded — filled in ${filled} of ${targets.length} calls with no phone number.</span> <span style="color:#92400E">${highConfidence} are a confident, unique match; ${filled-highConfidence} had multiple possible calls at that hour and are a best guess by duration — worth spot-checking before trusting those.</span>`;
+  } catch(e){
+    if(status) status.innerHTML = `<span style="color:#dc2626">Error reading CallRail file: ${e.message}</span>`;
+  }
 }
 
 async function saveAdCallsToSheets(explicit){
