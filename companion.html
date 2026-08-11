@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.25</title>
+<title>Midstate — KPI Command Center v3.28</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -803,6 +803,93 @@ html, body {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
+
+/* ============================================================
+   WEATHER SLIDES — 5 premium designs (Current / Today / 5-Day /
+   Hourly / Operations). Built on the existing design system (glass
+   cards, --blue/--orange/--green/--purple/--gold accents, Bebas Neue
+   display font) rather than introducing a new visual language.
+   ============================================================ */
+
+/* Dynamic backgrounds — applied as a class on the scene's inner wrapper,
+   layered on top of the existing --bg dark base. Kept as static/slow
+   gradients, no JS particle systems — this is a wallboard, not a
+   screensaver, and needs to stay light on GPU usage. */
+.wx-bg { position:absolute; inset:0; z-index:0; overflow:hidden; transition:background 1.5s ease; }
+.wx-bg-clear-day    { background: radial-gradient(ellipse at 30% 20%, rgba(0,180,255,.18), transparent 60%), linear-gradient(180deg, #0a1930 0%, #050810 100%); }
+.wx-bg-clear-night  { background: radial-gradient(ellipse at 70% 15%, rgba(168,133,255,.10), transparent 55%), linear-gradient(180deg, #04060f 0%, #050810 100%); }
+.wx-bg-partly-cloudy{ background: radial-gradient(ellipse at 25% 25%, rgba(0,180,255,.12), transparent 55%), linear-gradient(180deg, #0c1626 0%, #050810 100%); }
+.wx-bg-cloudy       { background: linear-gradient(180deg, #131722 0%, #050810 100%); }
+.wx-bg-rain         { background: radial-gradient(ellipse at 50% 0%, rgba(0,100,180,.16), transparent 60%), linear-gradient(180deg, #0a1420 0%, #050810 100%); }
+.wx-bg-storm        { background: radial-gradient(ellipse at 50% 10%, rgba(80,60,140,.16), transparent 55%), linear-gradient(180deg, #0c0a18 0%, #050810 100%); }
+.wx-bg-snow         { background: radial-gradient(ellipse at 40% 15%, rgba(180,210,255,.14), transparent 60%), linear-gradient(180deg, #0e1420 0%, #050810 100%); }
+.wx-bg-fog          { background: linear-gradient(180deg, #181c22 0%, #050810 100%); }
+.wx-bg-hot          { background: radial-gradient(ellipse at 50% 15%, rgba(255,107,53,.16), transparent 55%), linear-gradient(180deg, #170e0a 0%, #050810 100%); }
+.wx-bg-severe       { background: radial-gradient(ellipse at 50% 10%, rgba(255,71,87,.20), transparent 55%), linear-gradient(180deg, #170a0a 0%, #050810 100%); }
+
+/* Subtle ambient particles — pure CSS, extremely low element count */
+.wx-particles { position:absolute; inset:0; overflow:hidden; opacity:.35; pointer-events:none; }
+.wx-drop { position:absolute; width:2px; height:16px; background:linear-gradient(180deg,transparent,rgba(120,180,255,.5)); animation:wxFall linear infinite; }
+.wx-flake { position:absolute; width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,.5); animation:wxFallSlow linear infinite; }
+.wx-star { position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; animation:wxTwinkle ease-in-out infinite; }
+@keyframes wxFall { from{transform:translateY(-10vh)} to{transform:translateY(110vh)} }
+@keyframes wxFallSlow { from{transform:translateY(-10vh) translateX(0)} to{transform:translateY(110vh) translateX(20px)} }
+@keyframes wxTwinkle { 0%,100%{opacity:.2} 50%{opacity:.9} }
+
+/* Typography */
+.wx-mega-temp { font-family:var(--font-display); font-weight:400; line-height:.85; letter-spacing:-.01em; }
+.wx-label { font-size:19px; text-transform:uppercase; letter-spacing:.18em; color:rgba(255,255,255,.55); }
+.wx-loc-line { font-family:var(--font-display); font-size:26px; letter-spacing:.08em; color:rgba(255,255,255,.92); text-transform:uppercase; }
+.wx-updated { font-size:16px; color:rgba(255,255,255,.4); }
+.wx-condition { font-family:var(--font-body); font-weight:700; }
+.wx-stat-label { font-size:16px; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.5); }
+.wx-stat-value { font-family:var(--font-display); font-size:34px; color:#fff; }
+.wx-icon-img { filter:drop-shadow(0 4px 24px rgba(0,180,255,.25)); }
+
+/* Operational status badge */
+.wx-op-badge {
+  display:inline-flex; align-items:center; gap:12px;
+  padding:16px 32px; border-radius:16px;
+  font-family:var(--font-display); font-size:32px; letter-spacing:.06em;
+  border:1.5px solid; backdrop-filter:blur(20px);
+}
+.wx-op-normal   { color:var(--green);  background:var(--green-dim);  border-color:var(--green); }
+.wx-op-caution  { color:var(--gold);   background:rgba(255,215,0,.12); border-color:var(--gold); }
+.wx-op-hot      { color:var(--orange); background:var(--orange-dim); border-color:var(--orange); }
+.wx-op-severe   { color:var(--red);    background:rgba(255,71,87,.15); border-color:var(--red); animation:wxPulseBorder 2s ease-in-out infinite; }
+@keyframes wxPulseBorder { 0%,100%{box-shadow:0 0 0 0 rgba(255,71,87,.4)} 50%{box-shadow:0 0 0 10px rgba(255,71,87,0)} }
+
+/* Alert banner (severe weather) */
+.wx-alert-banner {
+  background:linear-gradient(90deg, rgba(255,71,87,.18), rgba(255,71,87,.08));
+  border:1.5px solid var(--red); border-radius:16px;
+  padding:20px 28px; display:flex; flex-direction:column; gap:6px;
+}
+.wx-alert-banner .wx-alert-title { font-family:var(--font-display); font-size:30px; color:var(--red); letter-spacing:.04em; display:flex; align-items:center; gap:10px; }
+.wx-alert-banner .wx-alert-detail { font-size:19px; color:rgba(255,255,255,.9); }
+
+/* 5-day forecast columns */
+.wx-day-col { display:flex; flex-direction:column; align-items:center; gap:10px; flex:1; padding:20px 8px; border-radius:16px; transition:background .3s; }
+.wx-day-col.wx-day-today { background:var(--glass); border:1px solid var(--border-hi); }
+.wx-day-col .wx-day-name { font-family:var(--font-display); font-size:24px; letter-spacing:.08em; color:rgba(255,255,255,.75); text-transform:uppercase; }
+.wx-day-col.wx-day-today .wx-day-name { color:var(--blue); }
+.wx-day-col .wx-day-high { font-family:var(--font-display); font-size:44px; color:#fff; }
+.wx-day-col .wx-day-low { font-size:22px; color:rgba(255,255,255,.5); }
+.wx-day-col .wx-day-rain { font-size:16px; color:var(--blue); font-weight:700; }
+
+/* Hourly timeline */
+.wx-hour-col { display:flex; flex-direction:column; align-items:center; gap:8px; flex:1; }
+.wx-hour-col .wx-hour-time { font-size:16px; color:rgba(255,255,255,.55); text-transform:uppercase; letter-spacing:.08em; }
+.wx-hour-col .wx-hour-temp { font-family:var(--font-display); font-size:32px; color:#fff; }
+.wx-hour-col .wx-hour-rain { font-size:14px; font-weight:700; padding:2px 8px; border-radius:99px; }
+
+/* Fade-in entrance for weather slide contents */
+.wx-fade-in { animation: wxFadeIn .6s ease both; }
+.wx-stagger-1 { animation-delay: .05s; } .wx-stagger-2 { animation-delay: .12s; }
+.wx-stagger-3 { animation-delay: .19s; } .wx-stagger-4 { animation-delay: .26s; }
+.wx-stagger-5 { animation-delay: .33s; } .wx-stagger-6 { animation-delay: .40s; }
+@keyframes wxFadeIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+
 </style>
 </head>
 <body>
@@ -1305,6 +1392,115 @@ html, body {
       </div>
     </div><!-- end s9 -->
 
+    <!-- SCENE 16: WEATHER — CURRENT CONDITIONS -->
+    <div class="scene" id="s16">
+      <div class="wx-bg wx-bg-clear-day" id="wx16-bg"></div>
+      <div class="wx-particles" id="wx16-particles"></div>
+      <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 40px">
+        <div class="wx-fade-in" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div>
+            <div class="wx-label">Weather</div>
+            <div class="wx-loc-line" id="wx16-loc">Hastings, Minnesota</div>
+          </div>
+          <div class="wx-updated" id="wx16-updated" style="text-align:right;margin-top:6px">Updated —</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center;margin-top:10px">
+          <div class="wx-fade-in wx-stagger-1">
+            <div style="display:flex;align-items:center;gap:24px">
+              <div class="wx-mega-temp" id="wx16-temp" style="font-size:clamp(140px,16vw,220px);color:#fff;text-shadow:0 0 60px rgba(0,180,255,.25)">--°</div>
+              <img id="wx16-icon" class="wx-icon-img" style="width:110px;height:110px" src="" alt="">
+            </div>
+            <div class="wx-condition" id="wx16-condition" style="font-size:34px;color:#fff;margin-top:4px">Loading…</div>
+            <div id="wx16-feels" style="font-size:24px;color:rgba(255,255,255,.65);margin-top:2px">Feels like --°</div>
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+              <span class="wx-stat-label">Today</span>
+              <span id="wx16-hilo" style="font-size:24px;color:#fff;margin-left:12px">High --° &nbsp;•&nbsp; Low --°</span>
+              <span id="wx16-rainpct" style="font-size:22px;color:var(--blue);margin-left:16px">Rain --%</span>
+            </div>
+          </div>
+          <div class="wx-fade-in wx-stagger-2" style="display:grid;grid-template-columns:1fr 1fr;gap:22px 32px">
+            <div><div class="wx-stat-label">Humidity</div><div class="wx-stat-value" id="wx16-humidity">--%</div></div>
+            <div><div class="wx-stat-label">Wind</div><div class="wx-stat-value" id="wx16-wind">-- --</div></div>
+            <div><div class="wx-stat-label">Gusts</div><div class="wx-stat-value" id="wx16-gust">-- mph</div></div>
+            <div><div class="wx-stat-label">Dew Point</div><div class="wx-stat-value" id="wx16-dewpoint">--°</div></div>
+            <div><div class="wx-stat-label">Pressure</div><div class="wx-stat-value" id="wx16-pressure">-- in</div></div>
+            <div><div class="wx-stat-label">Visibility</div><div class="wx-stat-value" id="wx16-visibility">-- mi</div></div>
+          </div>
+        </div>
+        <div id="wx16-alert" class="wx-alert-banner wx-fade-in" style="display:none;margin-top:24px"></div>
+      </div>
+    </div><!-- end s16 -->
+
+    <!-- SCENE 17: WEATHER — TODAY -->
+    <div class="scene" id="s17">
+      <div class="wx-bg wx-bg-clear-day" id="wx17-bg"></div>
+      <div class="wx-particles" id="wx17-particles"></div>
+      <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 40px">
+        <div class="wx-label wx-fade-in">Today</div>
+        <div class="wx-condition wx-fade-in wx-stagger-1" id="wx17-condition" style="font-size:38px;color:#fff;margin-top:6px">Loading…</div>
+        <div class="wx-fade-in wx-stagger-2" style="display:flex;align-items:center;gap:40px;margin-top:14px">
+          <img id="wx17-icon" class="wx-icon-img" style="width:130px;height:130px" src="" alt="">
+          <div style="display:flex;gap:48px">
+            <div><div class="wx-mega-temp" id="wx17-high" style="font-size:96px;color:var(--orange)">--°</div><div class="wx-stat-label">High</div></div>
+            <div><div class="wx-mega-temp" id="wx17-low" style="font-size:96px;color:var(--blue)">--°</div><div class="wx-stat-label">Tonight</div></div>
+          </div>
+        </div>
+        <div class="wx-fade-in wx-stagger-3" id="wx17-summary" style="font-size:24px;color:rgba(255,255,255,.8);line-height:1.5;margin-top:22px;max-width:900px">—</div>
+        <div class="wx-fade-in wx-stagger-4" style="display:flex;gap:36px;margin-top:14px">
+          <div><span class="wx-stat-label">Rain</span> <span id="wx17-rain" style="font-size:22px;color:var(--blue);margin-left:8px">--%</span></div>
+          <div><span class="wx-stat-label">Wind</span> <span id="wx17-wind" style="font-size:22px;color:#fff;margin-left:8px">-- --</span></div>
+          <div><span class="wx-stat-label">Sunset</span> <span id="wx17-sunset" style="font-size:22px;color:#fff;margin-left:8px">--</span></div>
+        </div>
+        <div class="wx-fade-in wx-stagger-5" id="wx17-timeline" style="display:flex;gap:16px;margin-top:32px;padding-top:20px;border-top:1px solid var(--border)"></div>
+      </div>
+    </div><!-- end s17 -->
+
+    <!-- SCENE 18: WEATHER — 5 DAY FORECAST -->
+    <div class="scene" id="s18">
+      <div class="wx-bg wx-bg-cloudy" id="wx18-bg"></div>
+      <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 40px">
+        <div class="wx-label wx-fade-in" style="margin-bottom:20px">5 Day Forecast</div>
+        <div id="wx18-days" class="wx-fade-in wx-stagger-1" style="display:flex;gap:14px"></div>
+      </div>
+    </div><!-- end s18 -->
+
+    <!-- SCENE 19: WEATHER — HOURLY OUTLOOK -->
+    <div class="scene" id="s19">
+      <div class="wx-bg wx-bg-clear-day" id="wx19-bg"></div>
+      <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 40px">
+        <div class="wx-label wx-fade-in" style="margin-bottom:24px">Next 8 Hours</div>
+        <svg id="wx19-curve-svg" viewBox="0 0 800 80" style="width:100%;height:80px;margin-bottom:8px" class="wx-fade-in wx-stagger-1"></svg>
+        <div id="wx19-hours" class="wx-fade-in wx-stagger-2" style="display:flex;gap:8px"></div>
+      </div>
+    </div><!-- end s19 -->
+
+    <!-- SCENE 20: WEATHER — OPERATIONS -->
+    <div class="scene" id="s20">
+      <div class="wx-bg wx-bg-clear-day" id="wx20-bg"></div>
+      <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 40px">
+        <div class="wx-label wx-fade-in">Today's Weather</div>
+        <div class="wx-fade-in wx-stagger-1" style="display:flex;align-items:center;gap:24px;margin-top:8px">
+          <div class="wx-mega-temp" id="wx20-temp" style="font-size:100px;color:#fff">--°</div>
+          <div>
+            <div class="wx-condition" id="wx20-condition" style="font-size:28px;color:#fff">Loading…</div>
+            <div style="font-size:20px;color:rgba(255,255,255,.6)" id="wx20-hilo">High --° &nbsp;•&nbsp; Low --°</div>
+          </div>
+        </div>
+        <div class="wx-fade-in wx-stagger-2" style="display:flex;gap:44px;margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
+          <div><div class="wx-stat-label">Rain (24h)</div><div class="wx-stat-value" id="wx20-rain">--%</div></div>
+          <div><div class="wx-stat-label">Peak Heat</div><div class="wx-stat-value" id="wx20-peak">--°</div></div>
+          <div><div class="wx-stat-label">Wind</div><div class="wx-stat-value" id="wx20-wind">-- --</div></div>
+        </div>
+        <div class="wx-fade-in wx-stagger-3" style="margin-top:32px">
+          <div class="wx-label" style="margin-bottom:10px">Service Outlook</div>
+          <div id="wx20-badge" class="wx-op-badge wx-op-normal">NORMAL CONDITIONS</div>
+        </div>
+        <div id="wx20-alert" class="wx-alert-banner wx-fade-in" style="display:none;margin-top:24px"></div>
+      </div>
+    </div><!-- end s20 -->
+
+
+
     <!-- SCENE 10: BIRTHDAYS & ANNIVERSARIES -->
     <div class="scene" id="s10">
       <div class="scene-title">// Team Celebrations</div>
@@ -1434,7 +1630,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.25
+      v3.28
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1445,7 +1641,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.25';
+const COMPANION_VERSION = 'v3.28';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1569,7 +1765,7 @@ let state = {
   refreshCountdown: CONFIG.REFRESH_MS / 1000,
 };
 
-const SCENES = ['s1','s2','s6','s4','s3','s12','s13','s7','s8','s9','s10','s11','s15','s5'];
+const SCENES = ['s1','s2','s6','s4','s3','s12','s13','s7','s8','s16','s17','s18','s19','s20','s10','s11','s15','s5'];
 
 // Authoritative department assignments
 const DEPT_MAP = {
@@ -3535,6 +3731,19 @@ function goScene(idx) {
     if (wxHasData || wxEnabled === 'true' || wxEnabled === true) { updateS9(); scheduleNextScene('s9'); }
     else { nextScene(); }
   }
+  else if (['s16','s17','s18','s19','s20'].includes(sceneId)) {
+    const wxFull = getWeatherFull();
+    const wxEnabled = state.wbSettings['weather_enabled'];
+    if (wxFull && (wxEnabled === 'true' || wxEnabled === true)) {
+      applyWeatherBackground(sceneId, wxFull);
+      if      (sceneId==='s16') renderWeatherCurrent(wxFull);
+      else if (sceneId==='s17') renderWeatherToday(wxFull);
+      else if (sceneId==='s18') renderWeatherFiveDay(wxFull);
+      else if (sceneId==='s19') renderWeatherHourly(wxFull);
+      else if (sceneId==='s20') renderWeatherOperations(wxFull);
+      scheduleNextScene(sceneId);
+    } else { nextScene(); }
+  }
   else if (sceneId==='s10') {
     if (state.birthdays && state.birthdays.length) { updateS10(); scheduleNextScene('s10'); }
     else { nextScene(); }
@@ -3888,6 +4097,7 @@ async function init() {
     await loadSpotlightData();
     await loadWallboardData();
     checkVictoryMode();
+    checkWeatherAlertOverride();
     // Update displayed values on current scene WITHOUT restarting it or its timer
     updateAll();
   }, CONFIG.REFRESH_MS);
@@ -4427,6 +4637,25 @@ let _promoAdvanceFn = null; // current advancePromo callback, so a video's onend
 async function updateS9() {
   const snap = state.snap;
 
+  // If the last fetch failed, show that clearly instead of silently
+  // displaying whatever stale data was last saved — a wrong or expired
+  // key otherwise looks identical to a working one that just hasn't
+  // updated recently.
+  if(snap['wx_error']){
+    const descEl = el('wx-desc');
+    if(descEl) descEl.textContent = 'Weather API error';
+    const feelsEl = el('wx-feels');
+    if(feelsEl) feelsEl.textContent = snap['wx_error'] + (snap['wx_error_code']==='2008' ? ' — key disabled (trial likely expired)' : '');
+    const ageEl = document.getElementById('wx-age');
+    if(ageEl && snap['wx_fetched_at']){
+      ageEl.textContent = `Last attempted: ${new Date(snap['wx_fetched_at']).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`;
+      ageEl.style.opacity = '1';
+      ageEl.style.color = '#F87171';
+    }
+    // Fall through — still show whatever last-known temp data exists
+    // below, so the scene isn't completely blank, just clearly flagged.
+  }
+
   // First try pre-fetched weather from dashboard snapshot
   const wxTemp   = snap['wx_temp'];
   const wxCity   = snap['wx_city'] || snap['weather_loc'] || 'Hastings, MN';
@@ -4434,7 +4663,7 @@ async function updateS9() {
   if(locEl) locEl.textContent = wxCity;
 
   if(wxTemp) {
-    // Use snapshot data from weatherapi.com
+    // Use snapshot data pulled from the National Weather Service (NWS) API
     const d = {
       temp_f:             num(snap['wx_temp']),
       feels_like_f:       num(snap['wx_feels_like']),
@@ -4465,32 +4694,75 @@ async function updateS9() {
     try { hourly = JSON.parse(snap['wx_hourly_temps']||'[]'); } catch(e) {}
     renderHeatTrend(hourly, d.high_f, d.low_f);
     renderWeatherAPI(d);
-    const fetchedAt = snap['wx_fetched_at'];
-    if(fetchedAt) {
-      const mins = Math.round((Date.now()-new Date(fetchedAt))/60000);
-      const ageEl = document.getElementById('wx-age');
-      if(ageEl) ageEl.textContent = `Updated ${mins < 2 ? 'just now' : mins + 'm ago'}`;
-    }
+      const fetchedAt = snap['wx_fetched_at'];
+      if(fetchedAt) {
+        const mins = Math.round((Date.now()-new Date(fetchedAt))/60000);
+        const ageEl = document.getElementById('wx-age');
+        const dateStr = new Date(fetchedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+        if(ageEl) ageEl.textContent = `Updated ${mins < 2 ? 'just now' : mins + 'm ago'} — ${dateStr}`;
+      }
     return;
   }
 
-  // Fallback: fetch live if no snapshot data
-  const key = state.wbSettings['weather_key'] || 'f7cf8e60cafb429ca21131316262205';
-  const loc = state.wbSettings['weather_loc'] || 'Hastings,MN';
-  if(!key) {
-    el('wx-desc').textContent = 'Pull a report to load weather data';
-    el('wx-temp').textContent = '--°';
-    return;
-  }
+  // Fallback: fetch live if no snapshot data yet (e.g. first load before
+  // any dashboard pull has run). Uses the National Weather Service (NWS)
+  // API — free, government-run, no key ever required — matching the
+  // dashboard's own primary weather source (switched from WeatherAPI.com
+  // 2026-08-11 after that key was found disabled, a known behavior when
+  // WeatherAPI.com's default 14-day trial period ends).
+  const lat = state.wbSettings['weather_lat'] || 44.7433;
+  const lon = state.wbSettings['weather_lon'] || -92.8527;
+  const loc = state.wbSettings['weather_loc'] || 'Hastings, MN';
+  const ua = 'MidstatePlumbingDashboard/1.0 (internal business tool)';
   try {
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(loc)}&appid=${key}&units=imperial`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('Weather API error');
-    const d = await res.json();
+    const ptRes = await fetch(`https://api.weather.gov/points/${lat},${lon}`, {headers:{'User-Agent':ua}});
+    if(!ptRes.ok) throw new Error(`NWS points lookup failed: HTTP ${ptRes.status}`);
+    const p = (await ptRes.json()).properties||{};
+    const cityLabel = [p.relativeLocation?.properties?.city, p.relativeLocation?.properties?.state].filter(Boolean).join(', ') || loc;
+
+    let high_f=0, low_f=0;
+    if(p.forecast){
+      const fRes = await fetch(p.forecast, {headers:{'User-Agent':ua}});
+      if(fRes.ok){
+        const periods = (await fRes.json()).properties?.periods||[];
+        high_f = (periods.find(x=>x.isDaytime)||periods[0])?.temperature||0;
+        low_f = (periods.find(x=>!x.isDaytime)||periods[1])?.temperature||0;
+      }
+    }
+
+    let cur = {};
+    if(p.observationStations){
+      const stRes = await fetch(p.observationStations, {headers:{'User-Agent':ua}});
+      if(stRes.ok){
+        const stationId = (await stRes.json()).features?.[0]?.properties?.stationIdentifier;
+        if(stationId){
+          const obsRes = await fetch(`https://api.weather.gov/stations/${stationId}/observations/latest`, {headers:{'User-Agent':ua}});
+          if(obsRes.ok) cur = (await obsRes.json()).properties||{};
+        }
+      }
+    }
+    const cToF = c => c==null ? null : Math.round(c*9/5+32);
+    const kphToMph = k => k==null ? null : Math.round(k*0.621371);
+    const tempF = cur.temperature?.value!=null ? cToF(cur.temperature.value) : null;
+    const d = {
+      temp_f: tempF, feels_like_f: cur.heatIndex?.value!=null ? cToF(cur.heatIndex.value) : tempF,
+      humidity: cur.relativeHumidity?.value!=null ? Math.round(cur.relativeHumidity.value) : '',
+      wind_mph: cur.windSpeed?.value!=null ? kphToMph(cur.windSpeed.value) : 0,
+      wind_dir: cur.windDirection?.value!=null ? degToCompass(cur.windDirection.value) : '',
+      description: cur.textDescription||'', icon_url: cur.icon||'', icon_code: '',
+      heat_index_f: cur.heatIndex?.value!=null ? cToF(cur.heatIndex.value) : tempF,
+      wind_chill_f: cur.windChill?.value!=null ? cToF(cur.windChill.value) : tempF,
+      chance_rain: 0, city: cityLabel, high_f, low_f, max_uv: 0, uv: 0,
+      daily_rain_chance: 0, daily_rain_in: 0,
+    };
     _wxData = d;
     renderWeather(d);
+    const ageEl = document.getElementById('wx-age');
+    if(ageEl) ageEl.textContent = `Updated just now — ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`;
   } catch(e) {
-    el('wx-desc').textContent = 'Weather unavailable';
+    el('wx-desc').textContent = 'Weather API error';
+    const feelsEl = el('wx-feels');
+    if(feelsEl) feelsEl.textContent = e.message;
     console.warn('Weather error:', e.message);
   }
 }
@@ -4656,11 +4928,17 @@ function renderWeatherAPI(d) {
   if(rainWinEl) rainWinEl.textContent = rainWin ? `Expected: ${rainWin}` : rainPct > 10 ? 'Possible today' : 'Low chance today';
   if(precipEl)  precipEl.textContent = rainIn > 0 ? `${rainIn}" expected` : '';
 
-  // UV Index
-  const uv = d.max_uv ?? d.uv ?? 0;
+  // UV Index — NWS's standard endpoints don't provide this; show
+  // honestly that it's unavailable rather than a misleading "0 — Low risk"
+  const uv = d.max_uv ?? d.uv ?? null;
   const uvEl = el('wx-uv'); const uvLblEl = el('wx-uv-label');
-  if(uvEl) { uvEl.textContent = uv; uvEl.style.color = uv>=11?'#EF4444':uv>=8?'#F97316':uv>=6?'#FBBF24':uv>=3?'#84CC16':'#22C55E'; }
-  if(uvLblEl) uvLblEl.textContent = uv>=11?'⚠️ Extreme — SPF required':uv>=8?'Very High — limit exposure':uv>=6?'High — protection needed':uv>=3?'Moderate':'Low — minimal risk';
+  if(uv==null || uv===0){
+    if(uvEl) { uvEl.textContent = '--'; uvEl.style.color = '#6b7280'; }
+    if(uvLblEl) uvLblEl.textContent = 'Not available';
+  } else {
+    if(uvEl) { uvEl.textContent = uv; uvEl.style.color = uv>=11?'#EF4444':uv>=8?'#F97316':uv>=6?'#FBBF24':uv>=3?'#84CC16':'#22C55E'; }
+    if(uvLblEl) uvLblEl.textContent = uv>=11?'⚠️ Extreme — SPF required':uv>=8?'Very High — limit exposure':uv>=6?'High — protection needed':uv>=3?'Moderate':'Low — minimal risk';
+  }
 
   // Peak heat
   const peakTimeEl = el('wx-peak-time');
@@ -4729,6 +5007,333 @@ function wxCodeToEmojiWAPI(code) {
 
 // Keep old renderWeather as alias
 function renderWeather(d) { renderWeatherAPI(d); }
+
+// ============================================================
+// WEATHER SLIDES 2.0 — Current / Today / 5-Day / Hourly / Operations
+// ============================================================
+// All five read from the single normalized weather object the Apps
+// Script backend builds (getWeatherData in Weather.js) and stores as
+// wx_full_json on the snapshot — no slide fetches anything independently.
+
+function getWeatherFull(){
+  try {
+    const raw = state.snap['wx_full_json'];
+    if(!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+function wxConditionToBgClass(conditionText, isDay){
+  const c = (conditionText||'').toLowerCase();
+  if(/tornado|hurricane|blizzard/.test(c)) return 'wx-bg-severe';
+  if(/thunder|storm/.test(c)) return 'wx-bg-storm';
+  if(/snow|sleet|ice|flurr/.test(c)) return 'wx-bg-snow';
+  if(/rain|shower|drizzle/.test(c)) return 'wx-bg-rain';
+  if(/fog|mist|haze/.test(c)) return 'wx-bg-fog';
+  if(/cloudy|overcast/.test(c)) return 'wx-bg-cloudy';
+  if(/partly|mostly sunny|mostly clear/.test(c)) return isDay ? 'wx-bg-partly-cloudy' : 'wx-bg-clear-night';
+  if(/clear|sunny|fair/.test(c)) return isDay ? 'wx-bg-clear-day' : 'wx-bg-clear-night';
+  return isDay ? 'wx-bg-partly-cloudy' : 'wx-bg-clear-night';
+}
+
+// Applies a condition-appropriate background + very light particle
+// effect (rain drops / snowflakes / stars — a few dozen CSS-animated
+// divs, not a canvas/JS particle engine, to stay GPU-cheap on a TV).
+function applyWeatherBackground(sceneId, wxFull){
+  const num = sceneId.replace('s','');
+  const bgEl = el(`wx${num}-bg`);
+  if(!bgEl) return;
+
+  const hour = new Date().getHours();
+  const isDay = hour >= 6 && hour < 20;
+  const condition = (wxFull.current?.condition || wxFull.today?.condition || '').toLowerCase();
+  const hasSevereAlert = (wxFull.alerts||[]).some(a => ['Extreme','Severe'].includes(a.severity) || /warning/i.test(a.event||''));
+  const highF = wxFull.today?.tempF;
+
+  let cls;
+  if (hasSevereAlert) cls = 'wx-bg-severe';
+  else if (highF != null && highF >= 95) cls = 'wx-bg-hot';
+  else cls = wxConditionToBgClass(condition, isDay);
+
+  bgEl.className = 'wx-bg ' + cls;
+
+  const particlesEl = el(`wx${num}-particles`);
+  if (particlesEl) {
+    particlesEl.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    if (cls === 'wx-bg-rain' || cls === 'wx-bg-storm') {
+      for (let i=0;i<24;i++) {
+        const d = document.createElement('div');
+        d.className = 'wx-drop';
+        d.style.left = (Math.random()*100)+'%';
+        d.style.animationDuration = (0.6+Math.random()*0.5)+'s';
+        d.style.animationDelay = (Math.random()*2)+'s';
+        frag.appendChild(d);
+      }
+    } else if (cls === 'wx-bg-snow') {
+      for (let i=0;i<20;i++) {
+        const d = document.createElement('div');
+        d.className = 'wx-flake';
+        d.style.left = (Math.random()*100)+'%';
+        d.style.animationDuration = (4+Math.random()*3)+'s';
+        d.style.animationDelay = (Math.random()*4)+'s';
+        frag.appendChild(d);
+      }
+    } else if (cls === 'wx-bg-clear-night') {
+      for (let i=0;i<40;i++) {
+        const d = document.createElement('div');
+        d.className = 'wx-star';
+        d.style.left = (Math.random()*100)+'%';
+        d.style.top = (Math.random()*60)+'%';
+        d.style.animationDuration = (2+Math.random()*3)+'s';
+        d.style.animationDelay = (Math.random()*3)+'s';
+        frag.appendChild(d);
+      }
+    }
+    particlesEl.appendChild(frag);
+  }
+}
+
+// Shared alert banner renderer — only shows for genuinely significant
+// alerts (a NWS "Warning", or Extreme/Severe severity); minor advisories
+// are deliberately not surfaced here, per spec ("do not use alarmist
+// styling for minor advisories"). Truncates to avoid overflowing the slide.
+function renderWxAlertBanner(elId, alerts){
+  const bannerEl = el(elId);
+  if(!bannerEl) return;
+  const significant = (alerts||[]).find(a => ['Extreme','Severe'].includes(a.severity) || /warning/i.test(a.event||''));
+  if(!significant){ bannerEl.style.display='none'; return; }
+  const expires = significant.expires ? new Date(significant.expires).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+  bannerEl.innerHTML = `
+    <div class="wx-alert-title">⚠ ${escWx(significant.event||significant.headline||'Weather Alert')}</div>
+    ${expires?`<div class="wx-alert-detail">Until ${expires}</div>`:''}
+    <div class="wx-alert-detail">${escWx((significant.headline||significant.description||'').slice(0,180))}</div>
+  `;
+  bannerEl.style.display='flex';
+}
+function escWx(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Compact sunset calculation (standard almanac sunrise/sunset algorithm)
+// so the Today slide can show a real sunset time without needing a
+// second paid API — sanity-checked against a plausible local-time
+// window before display, since an unvalidated astronomical formula
+// showing a wrong time would be worse than not showing one at all.
+function calcSunsetLocal(lat, lon, date){
+  try {
+    const rad = Math.PI/180, deg = 180/Math.PI;
+    const N = Math.floor((Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()) - Date.UTC(date.getFullYear(),0,0)) / 86400000) + 1;
+    const lngHour = lon/15;
+    const t = N + ((18 - lngHour)/24);
+    const M = (0.9856*t) - 3.289;
+    let L = M + (1.916*Math.sin(M*rad)) + (0.020*Math.sin(2*M*rad)) + 282.634;
+    L = ((L%360)+360)%360;
+    let RA = deg*Math.atan(0.91764*Math.tan(L*rad));
+    RA = ((RA%360)+360)%360;
+    const Lquadrant = Math.floor(L/90)*90, RAquadrant = Math.floor(RA/90)*90;
+    RA = (RA + (Lquadrant - RAquadrant)) / 15;
+    const sinDec = 0.39782*Math.sin(L*rad);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(90.833*rad) - (sinDec*Math.sin(lat*rad))) / (cosDec*Math.cos(lat*rad));
+    if (cosH > 1 || cosH < -1) return null; // sun never sets/rises at this latitude on this date
+    const H = deg*Math.acos(cosH) / 15;
+    const T = H + RA - (0.06571*t) - 6.622;
+    let UT = ((T%24)+24)%24;
+    const sunsetUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0,0,0));
+    sunsetUTC.setUTCMinutes(Math.round(UT*60));
+    // Sanity check: local sunset should fall between 3 PM and 11 PM for
+    // any US latitude — if the formula produced something outside that,
+    // treat it as unreliable rather than display a wrong time.
+    const localHour = new Date(sunsetUTC).getHours();
+    return (localHour >= 15 || localHour <= 1) ? sunsetUTC : null;
+  } catch(e) { return null; }
+}
+
+// ---- SLIDE 1: CURRENT CONDITIONS ----
+function renderWeatherCurrent(wxFull){
+  const cur = wxFull.current || {};
+  const today = wxFull.today || {};
+  const tonight = wxFull.tonight || {};
+
+  el('wx16-loc').textContent = wxFull.location?.name || 'Hastings, MN';
+  const updated = wxFull.updated ? new Date(wxFull.updated).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '--';
+  el('wx16-updated').textContent = 'Updated ' + updated + (wxFull.stale ? ' (cached)' : '');
+
+  el('wx16-temp').textContent = (cur.tempF!=null ? cur.tempF : '--') + '°';
+  el('wx16-condition').textContent = cur.condition || today.condition || '—';
+  el('wx16-feels').textContent = 'Feels like ' + (cur.feelsLikeF!=null ? cur.feelsLikeF+'°' : '--°');
+  const iconEl = el('wx16-icon');
+  if(iconEl) iconEl.src = cur.iconUrl || today.iconUrl || '';
+
+  el('wx16-hilo').innerHTML = `High ${today.tempF!=null?today.tempF+'°':'--°'} &nbsp;•&nbsp; Low ${tonight.tempF!=null?tonight.tempF+'°':'--°'}`;
+  el('wx16-rainpct').textContent = 'Rain ' + (today.chanceRain||0) + '%';
+
+  el('wx16-humidity').textContent = (cur.humidity!=null ? cur.humidity : '--') + '%';
+  el('wx16-wind').textContent = (cur.windDir||'--') + ' ' + (cur.windSpeedMph!=null?cur.windSpeedMph:'--') + ' mph';
+  el('wx16-gust').textContent = (cur.windGustMph!=null ? cur.windGustMph : '--') + ' mph';
+  el('wx16-dewpoint').textContent = (cur.dewpointF!=null ? cur.dewpointF : '--') + '°';
+  el('wx16-pressure').textContent = (cur.pressureIn!=null ? cur.pressureIn : '--') + ' in';
+  el('wx16-visibility').textContent = (cur.visibilityMi!=null ? cur.visibilityMi : '--') + ' mi';
+
+  renderWxAlertBanner('wx16-alert', wxFull.alerts);
+}
+
+// ---- SLIDE 2: TODAY ----
+function renderWeatherToday(wxFull){
+  const today = wxFull.today || {};
+  const tonight = wxFull.tonight || {};
+  const hourly = wxFull.hourly || [];
+
+  el('wx17-condition').textContent = today.condition || '—';
+  el('wx17-high').textContent = (today.tempF!=null ? today.tempF : '--') + '°';
+  el('wx17-low').textContent = (tonight.tempF!=null ? tonight.tempF : '--') + '°';
+  const iconEl = el('wx17-icon');
+  if(iconEl) iconEl.src = today.iconUrl || '';
+
+  el('wx17-summary').textContent = today.detailedForecast || today.condition || '';
+  el('wx17-rain').textContent = (today.chanceRain||0) + '%';
+  el('wx17-wind').textContent = (today.windDir||'--') + ' ' + (today.windSpeed||'--');
+
+  const sunsetEl = el('wx17-sunset');
+  if(sunsetEl){
+    const sunset = calcSunsetLocal(wxFull.location?.lat||44.7433, wxFull.location?.lon||-92.8527, new Date());
+    sunsetEl.textContent = sunset ? sunset.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+  }
+
+  const timelineEl = el('wx17-timeline');
+  if(timelineEl){
+    const picks = hourly.slice(0,10).filter((_,i)=>i%2===0).slice(0,5);
+    timelineEl.innerHTML = picks.map((h,i) => `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="font-size:15px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em">${i===0?'Now':new Date(h.time).toLocaleTimeString('en-US',{hour:'numeric'})}</div>
+        ${h.iconUrl?`<img src="${h.iconUrl}" style="width:36px;height:36px" alt="">`:''}
+        <div style="font-family:var(--font-display);font-size:26px;color:#fff">${h.tempF||'--'}°</div>
+      </div>
+    `).join('');
+  }
+}
+
+// ---- SLIDE 3: 5-DAY FORECAST ----
+function renderWeatherFiveDay(wxFull){
+  const daily = wxFull.daily || [];
+  const daysEl = el('wx18-days');
+  if(!daysEl) return;
+  daysEl.innerHTML = daily.map((d,i) => `
+    <div class="wx-day-col ${i===0?'wx-day-today':''}">
+      <div class="wx-day-name">${i===0?'Today':d.day}</div>
+      ${d.iconUrl?`<img src="${d.iconUrl}" style="width:64px;height:64px" alt="">`:'<div style="font-size:48px">—</div>'}
+      <div class="wx-day-high">${d.highF!=null?d.highF+'°':'--°'}</div>
+      <div class="wx-day-low">${d.lowF!=null?d.lowF+'°':'--°'}</div>
+      <div class="wx-day-rain">${d.chanceRain||0}%</div>
+    </div>
+  `).join('');
+}
+
+// ---- SLIDE 4: HOURLY OUTLOOK ----
+function renderWeatherHourly(wxFull){
+  const hourly = (wxFull.hourly||[]).slice(0,8);
+  const hoursEl = el('wx19-hours');
+  if(hoursEl){
+    hoursEl.innerHTML = hourly.map((h,i) => {
+      const rain = h.chanceRain||0;
+      const rainColor = rain>=50?'color:#fff;background:var(--red)':rain>=25?'color:#050810;background:var(--gold)':'color:var(--blue);background:transparent';
+      return `<div class="wx-hour-col">
+        <div class="wx-hour-time">${i===0?'Now':new Date(h.time).toLocaleTimeString('en-US',{hour:'numeric'})}</div>
+        ${h.iconUrl?`<img src="${h.iconUrl}" style="width:34px;height:34px" alt="">`:''}
+        <div class="wx-hour-temp">${h.tempF||'--'}°</div>
+        <div class="wx-hour-rain" style="${rainColor}">${rain}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Temperature curve
+  const svg = el('wx19-curve-svg');
+  if(svg && hourly.length){
+    const temps = hourly.map(h=>h.tempF||0);
+    const min = Math.min(...temps), max = Math.max(...temps);
+    const range = Math.max(max-min, 1);
+    const w = 800, h = 80, pad = 10;
+    const step = (w-pad*2) / (hourly.length-1 || 1);
+    const points = temps.map((t,i) => {
+      const x = pad + i*step;
+      const y = h - pad - ((t-min)/range)*(h-pad*2);
+      return `${x},${y}`;
+    }).join(' ');
+    svg.innerHTML = `<polyline points="${points}" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>`;
+  }
+}
+
+// ---- SLIDE 5: OPERATIONS ----
+const WX_OP_STYLE = {
+  'NORMAL CONDITIONS':      {cls:'wx-op-normal'},
+  'COOL WEATHER':           {cls:'wx-op-normal'},
+  'COOLING DEMAND':         {cls:'wx-op-caution'},
+  'HOT WEATHER':            {cls:'wx-op-hot'},
+  'EXTREME HEAT':           {cls:'wx-op-severe'},
+  'HEATING DEMAND':         {cls:'wx-op-caution'},
+  'FREEZE RISK':            {cls:'wx-op-caution'},
+  'HEAVY RAIN':             {cls:'wx-op-caution'},
+  'SNOW / ICE':             {cls:'wx-op-caution'},
+  'SEVERE WEATHER POSSIBLE':{cls:'wx-op-severe'},
+};
+
+function renderWeatherOperations(wxFull){
+  const cur = wxFull.current || {};
+  const today = wxFull.today || {};
+  const tonight = wxFull.tonight || {};
+  const hourly = wxFull.hourly || [];
+
+  el('wx20-temp').textContent = (cur.tempF!=null ? cur.tempF : (today.tempF!=null?today.tempF:'--')) + '°';
+  el('wx20-condition').textContent = cur.condition || today.condition || '—';
+  el('wx20-hilo').innerHTML = `High ${today.tempF!=null?today.tempF+'°':'--°'} &nbsp;•&nbsp; Low ${tonight.tempF!=null?tonight.tempF+'°':'--°'}`;
+
+  const maxRain = Math.max(...hourly.slice(0,24).map(h=>h.chanceRain||0), today.chanceRain||0, 0);
+  const peakTemp = Math.max(...hourly.slice(0,24).map(h=>h.tempF||0), today.tempF||0, 0);
+  el('wx20-rain').textContent = maxRain + '%';
+  el('wx20-peak').textContent = (peakTemp||'--') + '°';
+  el('wx20-wind').textContent = (today.windDir||cur.windDir||'--') + ' ' + (today.windSpeed || (cur.windSpeedMph!=null?cur.windSpeedMph+' mph':'--'));
+
+  const status = wxFull.operationalStatus || 'NORMAL CONDITIONS';
+  const badgeEl = el('wx20-badge');
+  if(badgeEl){
+    const style = WX_OP_STYLE[status] || {cls:'wx-op-normal'};
+    badgeEl.className = 'wx-op-badge ' + style.cls;
+    badgeEl.textContent = status;
+  }
+
+  renderWxAlertBanner('wx20-alert', wxFull.alerts);
+}
+
+// Severe weather override — per spec, only genuinely significant alerts
+// (Extreme/Severe severity, or an explicit NWS "Warning") interrupt the
+// normal rotation; minor advisories never do. Fires once per distinct
+// alert (event+expiry as the key) so an ongoing warning doesn't
+// re-interrupt on every single data refresh — it shows once, then lets
+// normal rotation resume via the Operations slide's own scheduled
+// duration, and will show again if a genuinely new alert appears later.
+let _lastAlertOverrideKey = null;
+
+function checkWeatherAlertOverride(){
+  const overrideOn = state.wbSettings['weatherAlertOverride'] === 'true' || state.wbSettings['weatherAlertOverride'] === true;
+  if(!overrideOn) return;
+
+  const wxFull = getWeatherFull();
+  if(!wxFull) return;
+
+  const significant = (wxFull.alerts||[]).find(a => ['Extreme','Severe'].includes(a.severity) || /warning/i.test(a.event||''));
+  if(!significant){ _lastAlertOverrideKey = null; return; }
+
+  const alertKey = (significant.event||'') + '|' + (significant.expires||'');
+  if(alertKey === _lastAlertOverrideKey) return; // already interrupted for this exact alert
+  _lastAlertOverrideKey = alertKey;
+
+  const idx = SCENES.indexOf('s20'); // Operations slide carries the alert banner
+  if(idx >= 0){
+    console.log('[Weather] Significant alert detected — interrupting rotation:', significant.event);
+    goScene(idx);
+  }
+}
+
+
 
 function wxCodeToEmoji(code) {
   if(code >= 200 && code < 300) return '⛈️';
@@ -5208,6 +5813,20 @@ function spawnVictoryConfetti() {
 let _victoryFiredThisSession = false;
 let _freshDataLoaded = false; // set true after first successful Sheets refresh
 
+// FIXED (2026-08-06): _victoryFiredThisSession only lived in memory, so it
+// reset on every single page load — meaning the 8-second "GOAL ACHIEVED"
+// overlay would re-fire every time the wallboard reloaded (TV reboot,
+// browser refresh, etc.) for as long as the goal stayed met, which could
+// be the rest of the month. Persisting to localStorage, keyed by the
+// specific month/year, means it only ever celebrates once per goal period
+// — reloading the page won't trigger it again until a new period begins.
+function hasAlreadyCelebrated(key) {
+  try { return localStorage.getItem('victory_'+key) === 'true'; } catch(e) { return false; }
+}
+function markCelebrated(key) {
+  try { localStorage.setItem('victory_'+key, 'true'); } catch(e) {}
+}
+
 function checkVictoryMode() {
   const snap = state.snap;
 
@@ -5224,6 +5843,9 @@ function checkVictoryMode() {
   if(revMonthly <= 0 && revAnnual <= 0) return;
 
   const annualPct = num(snap['goal_annual_pct']||0);
+  const now = new Date();
+  const monthKey  = 'monthly_' + now.getFullYear() + '-' + (now.getMonth()+1);
+  const annualKey = 'annual_'  + now.getFullYear();
 
   // Monthly goal: only celebrate if data is from THIS calendar month
   const monthPct = (() => {
@@ -5233,7 +5855,6 @@ function checkVictoryMode() {
     const pullDate = state.snap['pull_date'] || '';
     if(!pullDate) return raw;
     const pushed = new Date(pullDate);
-    const now    = new Date();
     if(pushed.getMonth() !== now.getMonth() || pushed.getFullYear() !== now.getFullYear()) {
       return 0; // stale — pushed last month
     }
@@ -5247,8 +5868,13 @@ function checkVictoryMode() {
   // Annual goal: only celebrate if we have meaningful annual revenue
   const annualMet = annualPct >= 100 && revAnnual > 0;
 
-  if(monthPct >= 100 || annualMet) {
+  const monthlyNewlyMet = monthPct >= 100 && !hasAlreadyCelebrated(monthKey);
+  const annualNewlyMet  = annualMet && !hasAlreadyCelebrated(annualKey);
+
+  if(monthlyNewlyMet || annualNewlyMet) {
     _victoryFiredThisSession = true;
+    if(monthlyNewlyMet) markCelebrated(monthKey);
+    if(annualNewlyMet) markCelebrated(annualKey);
     triggerVictoryMode();
   }
 
