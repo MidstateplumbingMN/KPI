@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.42</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.45</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.42</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.45</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.42</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.45</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1539,21 +1539,43 @@ tr:hover td{background:#fafafa}
           <div class="sec-head" style="margin:0">🌤 Weather &amp; Gap to Goal</div>
 
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">Weather Location</div>
-            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">City / ZIP code</div>
-            <input type="text" id="wb-weather-loc" placeholder="55033 or Hastings,MN"
-              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
-            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">WeatherAPI Key <span style="color:#9ca3af">(free at weatherapi.com — pre-filled)</span></div>
-            <input type="text" id="wb-weather-key" placeholder="your API key"
-              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-bottom:6px">
+            <div style="font-size:13px;font-weight:800;color:#1A3A5C;margin-bottom:12px">🌤 WEATHER</div>
+
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e5e7eb">
               <input type="checkbox" id="wb-weather-enabled" onchange="saveWbSetting('weatherEnabled',this.checked)">
-              Show weather scene on companion
+              Weather Slides — Master Enable
             </label>
+
+            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Location</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Display label</div>
+            <input type="text" id="wb-weather-loc" placeholder="Hastings, MN"
+              style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Coordinates <span style="color:#9ca3af">(no API key needed — powered by the free National Weather Service API)</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+              <input type="text" id="wb-weather-lat" placeholder="Latitude (44.7433)"
+                style="font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+              <input type="text" id="wb-weather-lon" placeholder="Longitude (-92.8527)"
+                style="font-size:12px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            </div>
+
+            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-top:4px;border-top:1px solid #e5e7eb;padding-top:12px">Slides <span style="text-transform:none;font-weight:400;color:#9ca3af">— view all 5 on the TV, then narrow down to your favorites</span></div>
+            <div id="wx-slide-toggles" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+
+            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-top:12px;border-top:1px solid #e5e7eb">Behavior</div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-bottom:12px">
+              <input type="checkbox" id="wb-weather-alert-override" onchange="saveWbSetting('weatherAlertOverride',this.checked)">
+              Severe Weather Override <span style="color:#9ca3af">(interrupt rotation for major warnings only)</span>
+            </label>
+
             <button onclick="saveWeatherSettings()"
               style="width:100%;padding:7px;background:#0EA5E9;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
               💾 Save Weather Settings
             </button>
+            <button onclick="testWeatherApi()"
+              style="width:100%;padding:7px;background:#fff;color:#0EA5E9;border:1px solid #0EA5E9;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:6px">
+              🔍 Test Weather API Connection
+            </button>
+            <div id="wx-test-result" style="font-size:11px;margin-top:6px"></div>
           </div>
 
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
@@ -2304,6 +2326,14 @@ function fmtDY(s){if(!s)return'—';try{const d=new Date(s);return`${d.getMonth(
 function fmtKey(d){if(!d)return null;try{const dt=new Date(d);if(isNaN(dt))return null;return dt.toISOString().split('T')[0];}catch(e){return null;}}
 function $$(id){return document.getElementById(id);}
 function centsToD(n){const v=parseFloat(n)||0;return v>500?v/100:v;}
+// Converts a wind direction in degrees (as NWS provides) to a standard
+// 16-point compass string (e.g. "NW") — WeatherAPI.com provided this
+// directly as a string; NWS only gives degrees, so this fills the gap.
+function degToCompass(deg){
+  if(deg==null || isNaN(deg)) return '';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg/22.5) % 16];
+}
 function toLocalDateDB(val){
   if(!val) return '';
   const d=new Date(val);
@@ -3366,7 +3396,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.42
+  // ATTRIBUTION ENGINE — v25.45
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5250,80 +5280,60 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const kpiPlanCount = Object.values(map).reduce((s,e)=>s+e.plans,0);
   const totalPlans = _uploadedPlans.length > 0 ? _uploadedPlans.length : kpiPlanCount;
 
-  // Fetch weather forecast from weatherapi.com (1 day = free tier)
+  // Weather is now fetched server-side via Apps Script's getWeatherData
+  // (Weather.js) — the backend owns the full NWS points/forecast/hourly/
+  // station/alerts chain plus tiered caching, so the dashboard just asks
+  // for the already-normalized result. Moved server-side specifically so
+  // multiple weather slides can share one cached fetch rather than each
+  // hitting api.weather.gov independently, and so a last-known-good
+  // fallback survives even if this specific browser session never
+  // successfully fetches weather itself.
   let _weatherSnap = {};
+  let _weatherFull = null;
   try {
-    const _wxLoc = _wbSettings.weatherLoc||'55033';
-    const _wxKey = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
-    const _wxRes = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${_wxKey}&q=${encodeURIComponent(_wxLoc)}&days=1&aqi=no&alerts=yes`);
-    if(_wxRes.ok){
-      const _wx = await _wxRes.json();
-      const cur = _wx.current;
-      const day = _wx.forecast?.forecastday?.[0]?.day || {};
-      const hours = _wx.forecast?.forecastday?.[0]?.hour || [];
-      const alerts = _wx.alerts?.alert || [];
-
-      // Find peak heat hour (highest feels-like temp)
-      let peakHeatHour = null, peakHeatTemp = 0;
-      hours.forEach(h => {
-        if(h.feelslike_f > peakHeatTemp){ peakHeatTemp = h.feelslike_f; peakHeatHour = h.time; }
-      });
-      const peakTime = peakHeatHour ? new Date(peakHeatHour).toLocaleTimeString('en-US',{hour:'numeric',hour12:true}) : null;
-
-      // Rain hours — find windows with >30% chance
-      const rainHours = hours.filter(h=>h.chance_of_rain>30).map(h=>new Date(h.time).getHours());
-      const rainWindow = rainHours.length > 0 ?
-        `${rainHours[0] > 12 ? rainHours[0]-12 : rainHours[0] || 12}${rainHours[0]>=12?'PM':'AM'}–${rainHours[rainHours.length-1] > 12 ? rainHours[rainHours.length-1]-12 : rainHours[rainHours.length-1] || 12}${rainHours[rainHours.length-1]>=12?'PM':'AM'}` : null;
-
+    const _wxRes = await fetch(_sheetsProxy+'?action=getWeatherData&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
+    const _wxBody = await _wxRes.json();
+    if(_wxBody.success && !_wxBody.error){
+      _weatherFull = _wxBody;
+      const cur = _wxBody.current || {};
+      const today = _wxBody.today || {};
+      const tonight = _wxBody.tonight || {};
+      const hourly = _wxBody.hourly || [];
+      const rainHours = hourly.slice(0,24).filter(h=>(h.chanceRain||0)>30).map(h=>new Date(h.time).getHours());
+      const fmtHr = h => `${h>12?h-12:(h||12)}${h>=12?'PM':'AM'}`;
       _weatherSnap = {
-        // Current conditions
-        temp:         Math.round(cur.temp_f),
-        feels_like:   Math.round(cur.feelslike_f),
-        humidity:     cur.humidity,
-        wind_speed:   Math.round(cur.wind_mph),
-        wind_dir:     cur.wind_dir,
-        wind_deg:     cur.wind_degree,
-        description:  cur.condition.text,
-        icon_url:     'https:' + cur.condition.icon,
-        icon_code:    cur.condition.code,
-        heat_index:   Math.round(cur.heatindex_f),
-        wind_chill:   Math.round(cur.windchill_f),
-        chance_rain:  cur.chance_of_rain||0,
-        is_day:       cur.is_day,
-        uv:           cur.uv||0,
-        city:         _wx.location.name + ', ' + _wx.location.region,
-        // Forecast for today
-        high_f:       Math.round(day.maxtemp_f||0),
-        low_f:        Math.round(day.mintemp_f||0),
-        avg_humidity: day.avghumidity||cur.humidity,
-        max_wind:     Math.round(day.maxwind_mph||cur.wind_mph),
-        daily_rain_chance: day.daily_chance_of_rain||0,
-        daily_rain_in:    day.totalprecip_in||0,
-        max_uv:       day.uv||cur.uv||0,
-        peak_heat_time: peakTime||'',
-        peak_heat_temp: Math.round(peakHeatTemp)||0,
-        rain_window:  rainWindow||'',
-        // Alerts
-        alert_count:  alerts.length,
-        alert_headline: alerts.length ? alerts[0].headline||alerts[0].event||'' : '',
-        // Hourly temps for trend chart (every 3 hours: 0,3,6,9,12,15,18,21)
-        hourly_temps: hours.filter((_,i) => i % 3 === 0).map(h => ({
-          time: new Date(h.time).getHours(),
-          temp_f: Math.round(h.temp_f),
-          feels_f: Math.round(h.feelslike_f),
-          rain_chance: h.chance_of_rain || 0,
-        })),
-
-        fetched_at:   new Date().toISOString()
+        temp: cur.tempF||0, feels_like: cur.feelsLikeF||cur.tempF||0, humidity: cur.humidity||'',
+        wind_speed: cur.windSpeedMph||0, wind_dir: cur.windDir||'', description: cur.condition||today.condition||'',
+        icon_url: cur.iconUrl||today.iconUrl||'', icon_code: '',
+        heat_index: cur.feelsLikeF||cur.tempF||0, wind_chill: cur.feelsLikeF||cur.tempF||0,
+        chance_rain: hourly[0]?.chanceRain||0, is_day: 1, uv: 0,
+        city: _wxBody.location?.name||'Hastings, MN',
+        high_f: today.tempF||0, low_f: tonight.tempF||0,
+        avg_humidity: cur.humidity||'', max_wind: cur.windSpeedMph||0,
+        daily_rain_chance: Math.max(...hourly.slice(0,24).map(h=>h.chanceRain||0), 0),
+        daily_rain_in: 0, max_uv: 0, peak_heat_time: '', peak_heat_temp: 0,
+        rain_window: rainHours.length ? `${fmtHr(rainHours[0])}–${fmtHr(rainHours[rainHours.length-1])}` : '',
+        alert_count: (_wxBody.alerts||[]).length,
+        alert_headline: _wxBody.alerts?.[0]?.headline || _wxBody.alerts?.[0]?.event || '',
+        hourly_temps: hourly.filter((_,i)=>i%3===0).slice(0,8).map(h=>({time:new Date(h.time).getHours(), temp_f:h.tempF||0, feels_f:h.tempF||0, rain_chance:h.chanceRain||0})),
+        fetched_at: _wxBody.updated || new Date().toISOString(),
       };
-      console.log('[Weather] forecast fetched:', _weatherSnap.city, _weatherSnap.temp+'°F', 'H:'+_weatherSnap.high_f+' L:'+_weatherSnap.low_f, _weatherSnap.description);
+      console.log('[Weather/NWS]', _weatherFull.stale?'(stale/last-known)':'fetched:', _weatherSnap.city, _weatherSnap.temp+'°F', _weatherSnap.description);
+    } else {
+      const errMsg = _wxBody.error || 'Unknown weather error';
+      console.warn('[Weather/NWS] API returned an error:', errMsg);
+      _weatherSnap = { error: errMsg, fetched_at: new Date().toISOString() };
+      showToast(`⚠ Weather (NWS) error: ${errMsg}`, 'error');
     }
-  } catch(e) { console.warn('[Weather] fetch failed:', e.message); }
+  } catch(e) {
+    console.warn('[Weather/NWS] fetch failed:', e.message);
+    _weatherSnap = { error: e.message, fetched_at: new Date().toISOString() };
+  }
 
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.42',  // dashboard version that generated this push
+    dash_version: 'v25.45',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5592,7 +5602,12 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     wx_alert_count:   _weatherSnap.alert_count||0,
     wx_alert_headline:_weatherSnap.alert_headline||'',
     wx_fetched_at:    _weatherSnap.fetched_at||'',
-    weather_loc:      _wbSettings.weatherLoc||'55033',
+    wx_error:         _weatherSnap.error||'',
+    wx_error_code:    _weatherSnap.error_code||'',
+    wx_full_json:     _weatherFull ? JSON.stringify(_weatherFull) : '',
+    weather_loc:      _wbSettings.weatherLoc||'Hastings, MN',
+    weather_lat:      _wbSettings.weatherLat||44.7433,
+    weather_lon:      _wbSettings.weatherLon||-92.8527,
 
     // CallRail daily/monthly — flattened for companion
 
@@ -5894,7 +5909,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.42',
+        dash_version:        'v25.45',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -5959,7 +5974,12 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         wx_alert_count:      dashboardSnapshot.wx_alert_count,
         wx_alert_headline:   dashboardSnapshot.wx_alert_headline,
         wx_fetched_at:       dashboardSnapshot.wx_fetched_at,
+        wx_error:            dashboardSnapshot.wx_error,
+        wx_error_code:       dashboardSnapshot.wx_error_code,
+        wx_full_json:        dashboardSnapshot.wx_full_json,
         weather_loc:         dashboardSnapshot.weather_loc,
+        weather_lat:         dashboardSnapshot.weather_lat,
+        weather_lon:         dashboardSnapshot.weather_lon,
         // Calls (CallRail)
         // Content
         holidays_json:       dashboardSnapshot.holidays_json,
@@ -6338,7 +6358,12 @@ const DEFAULT_SCENE_ORDER = [
   { id:'s6',  label:'⚡ Win the Day',            enabled:true },
   { id:'s7',  label:'⭐ Employee Spotlight',     enabled:true },
   { id:'s8',  label:'🎁 Promotions',             enabled:true },
-  { id:'s9',  label:'🌤 Weather',                enabled:true },
+  { id:'s9',  label:'🌤 Weather (Classic)',      enabled:false },
+  { id:'s16', label:'🌡 Weather — Current',      enabled:true },
+  { id:'s17', label:'🌤 Weather — Today',        enabled:true },
+  { id:'s18', label:'📅 Weather — 5 Day',        enabled:true },
+  { id:'s19', label:'🕐 Weather — Hourly',       enabled:true },
+  { id:'s20', label:'🔧 Weather — Operations',   enabled:true },
   { id:'s10', label:'🎂 Birthdays',              enabled:true },
   { id:'s11', label:'🎉 Holidays',               enabled:true },
   { id:'s12', label:'📋 Service Plans',          enabled:true },
@@ -10973,9 +10998,12 @@ function loadWallboardSettings(){
   if($$('wb-logo-url'))      $$('wb-logo-url').value      = _wbSettings.logoUrl||'https://midstateplumbingmn.github.io/KPI/images/logo.png';
   if($$('wb-theme'))         { $$('wb-theme').value = _wbSettings.theme||'default'; updateThemePreview(_wbSettings.theme||'default'); }
   if($$('wb-holiday'))       $$('wb-holiday').value        = _wbSettings.holiday||'';
-  if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'55033';
-  if($$('wb-weather-key'))   $$('wb-weather-key').value    = _wbSettings.weatherKey||'f7cf8e60cafb429ca21131316262205';
+  if($$('wb-weather-loc'))   $$('wb-weather-loc').value    = _wbSettings.weatherLoc||'Hastings, MN';
+  if($$('wb-weather-lat'))   $$('wb-weather-lat').value    = _wbSettings.weatherLat||44.7433;
+  if($$('wb-weather-lon'))   $$('wb-weather-lon').value    = _wbSettings.weatherLon||-92.8527;
   if($$('wb-weather-enabled')) $$('wb-weather-enabled').checked = !!_wbSettings.weatherEnabled;
+  if($$('wb-weather-alert-override')) $$('wb-weather-alert-override').checked = !!_wbSettings.weatherAlertOverride;
+  renderWxSlideToggles();
   if($$('wb-daily-goal'))    $$('wb-daily-goal').value     = _wbSettings.dailyGoal||8219;
   if($$('wb-open-hour'))     $$('wb-open-hour').value      = _wbSettings.openHour||7;
   if($$('wb-close-hour'))    $$('wb-close-hour').value     = _wbSettings.closeHour||17;
@@ -11028,15 +11056,91 @@ function previewWbLogo(url){
   else preview.style.display='none';
 }
 
+// The 5 weather slide toggles shown in the Weather settings panel are a
+// convenience view over the SAME underlying _sceneOrder data used by the
+// main scene order list — not a separate settings system. This avoids
+// exactly the "duplicate configuration system" the spec explicitly
+// warned against, while still giving weather slides their own grouped,
+// labeled section in the UI.
+const WX_SLIDE_IDS = [
+  {id:'s16', label:'Current Conditions'},
+  {id:'s17', label:"Today's Forecast"},
+  {id:'s18', label:'5-Day Forecast'},
+  {id:'s19', label:'Hourly Outlook'},
+  {id:'s20', label:'Weather / Operations'},
+];
+
+function renderWxSlideToggles(){
+  const el = $$('wx-slide-toggles');
+  if(!el) return;
+  const order = _sceneOrder || DEFAULT_SCENE_ORDER;
+  el.innerHTML = WX_SLIDE_IDS.map(s => {
+    const entry = order.find(o=>o.id===s.id);
+    const checked = entry ? !!entry.enabled : true;
+    return `<label style="display:flex;align-items:center;justify-content:space-between;font-size:12px;cursor:pointer;padding:4px 0">
+      <span>${escHtml(s.label)}</span>
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleWeatherSlide('${s.id}',this.checked)">
+    </label>`;
+  }).join('');
+}
+
+function toggleWeatherSlide(sceneId, checked){
+  if(!_sceneOrder) _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
+  const entry = _sceneOrder.find(o=>o.id===sceneId);
+  if(entry) entry.enabled = checked;
+  saveSceneOrder();
+  renderSceneOrder(); // keep the main scene order list (if visible) in sync too
+}
+
 function saveWeatherSettings(){
   _wbSettings.weatherLoc=$$('wb-weather-loc')?.value?.trim()||'Hastings, MN';
-  _wbSettings.weatherKey=$$('wb-weather-key')?.value?.trim()||'';
+  _wbSettings.weatherLat=parseFloat($$('wb-weather-lat')?.value)||44.7433;
+  _wbSettings.weatherLon=parseFloat($$('wb-weather-lon')?.value)||-92.8527;
   _wbSettings.weatherEnabled=$$('wb-weather-enabled')?.checked||false;
+  _wbSettings.weatherAlertOverride=$$('wb-weather-alert-override')?.checked||false;
   _wbSettings.logoUrl=convertGoogleDriveUrl($$('wb-logo-url')?.value?.trim()||'')||$$('wb-logo-url')?.value?.trim()||'';
   _wbSettings.theme=$$('wb-theme')?.value||'default';
   _wbSettings.holiday=$$('wb-holiday')?.value||'';
   saveWallboardSettingsToSheets();
   showToast('✅ Weather settings saved','success');
+}
+
+// Direct, on-demand check of whether the weather API key is actually
+// working right now — separate from the scheduled pull, so a failure can
+// be diagnosed immediately rather than only noticed when the wallboard
+// shows stale data. WeatherAPI.com returns a specific error code/message
+// on failure (e.g. code 2008 "API key has been disabled" — the exact
+// signature of a trial period ending), which is surfaced directly rather
+// than a generic "failed" message, since the specific reason is what
+// actually tells you what to do next.
+async function testWeatherApi(){
+  const resultEl = $$('wx-test-result');
+  const lat = parseFloat($$('wb-weather-lat')?.value) || _wbSettings.weatherLat || 44.7433;
+  const lon = parseFloat($$('wb-weather-lon')?.value) || _wbSettings.weatherLon || -92.8527;
+  const ua = 'MidstatePlumbingDashboard/1.0 (internal business tool)';
+  if(resultEl) resultEl.innerHTML = '<span style="color:#6b7280">Testing...</span>';
+  try {
+    const ptRes = await fetch(`https://api.weather.gov/points/${lat},${lon}`, {headers:{'User-Agent':ua}});
+    if(!ptRes.ok) throw new Error(`Points lookup failed: HTTP ${ptRes.status}`);
+    const pt = await ptRes.json();
+    const p = pt.properties||{};
+    const cityLabel = [p.relativeLocation?.properties?.city, p.relativeLocation?.properties?.state].filter(Boolean).join(', ');
+
+    if(!p.observationStations) throw new Error('No observation stations found for these coordinates');
+    const stRes = await fetch(p.observationStations, {headers:{'User-Agent':ua}});
+    if(!stRes.ok) throw new Error(`Station lookup failed: HTTP ${stRes.status}`);
+    const stationId = (await stRes.json()).features?.[0]?.properties?.stationIdentifier;
+    if(!stationId) throw new Error('No stations available near these coordinates');
+
+    const obsRes = await fetch(`https://api.weather.gov/stations/${stationId}/observations/latest`, {headers:{'User-Agent':ua}});
+    if(!obsRes.ok) throw new Error(`Observation fetch failed: HTTP ${obsRes.status}`);
+    const obs = (await obsRes.json()).properties||{};
+    const tempF = obs.temperature?.value!=null ? Math.round(obs.temperature.value*9/5+32) : null;
+    const now = new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    if(resultEl) resultEl.innerHTML = `<span style="color:#166534">✅ Working — ${escHtml(cityLabel||'NWS')} (station ${stationId}): ${tempF!=null?tempF+'°F':'—'}, ${escHtml(obs.textDescription||'')} (checked ${now})</span>`;
+  } catch(e) {
+    if(resultEl) resultEl.innerHTML = `<span style="color:#dc2626">❌ Failed — ${escHtml(e.message)}. NWS requires no key, so this is likely a coordinates or network issue, not an expired/disabled credential.</span>`;
+  }
 }
 
 function saveGapSettings(){
