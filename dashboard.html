@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.45</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.46</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.45</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.46</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.45</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.46</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3396,7 +3396,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.45
+  // ATTRIBUTION ENGINE — v25.46
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5333,7 +5333,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.45',  // dashboard version that generated this push
+    dash_version: 'v25.46',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5909,7 +5909,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.45',
+        dash_version:        'v25.46',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6226,6 +6226,22 @@ async function loadAllSettingsFromSheets() {
       console.log('[SceneOrder DEBUG] parsed value:', v);
       console.log('[SceneOrder DEBUG] is array?', Array.isArray(v));
       if(Array.isArray(v)) {
+        // FIXED (2026-08-11): a saved scene order from before a new scene
+        // was added (e.g. the 5 new weather slides s16-s20) would silently
+        // never include that new scene — _sceneOrder=v overwrote with
+        // exactly what was saved, with nothing to add IDs that simply
+        // didn't exist yet when that save happened. The new scene would
+        // then never appear in rotation at all, indistinguishable from it
+        // never having been built. Now merges in any DEFAULT_SCENE_ORDER
+        // entry whose id isn't already present, using its default enabled
+        // state, so newly-added scenes reach existing saved configurations
+        // automatically rather than requiring a manual reset.
+        const existingIds = new Set(v.map(x=>x.id));
+        const missing = DEFAULT_SCENE_ORDER.filter(d => !existingIds.has(d.id));
+        if(missing.length){
+          console.log('[SceneOrder DEBUG] merging in newly-added scenes not present in saved order:', missing.map(m=>m.id).join(', '));
+          v.push(...missing.map(m=>({...m})));
+        }
         _sceneOrder=v;
         console.log('[SceneOrder DEBUG] _sceneOrder assigned, enabled states:', v.map(x=>x.id+':'+x.enabled).join(', '));
         // FIXED (2026-08-06): this used to only re-render if the Wallboard
@@ -6243,6 +6259,11 @@ async function loadAllSettingsFromSheets() {
         // never left showing outdated state once real data has arrived.
         renderSceneOrder();
         console.log('[SceneOrder DEBUG] renderSceneOrder() called');
+        // Persist the merge immediately — otherwise the newly-appended
+        // scenes exist only in this session's memory and would be lost
+        // again on the very next load if the merged result isn't saved.
+        if(missing.length) saveSceneOrder();
+        renderWxSlideToggles();
       }
     } catch(e){ console.log('[SceneOrder DEBUG] JSON.parse threw:', e.message); }
     else { console.log('[SceneOrder DEBUG] s.wb_scene_order_full was falsy — key missing or empty from settings response'); }
