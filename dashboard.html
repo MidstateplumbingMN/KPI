@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.50</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.51</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.50</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.51</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.50</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.51</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3378,14 +3378,23 @@ async function loadAll(){
         _uploadedPlans.length > 0 ? _uploadedPlans : plans,  // upload is definitive
         from, to, {skipHealthCheck:true});
 
-      // Step 3 — everything else in parallel
-      fetchTYCardsFromSheets();
-      syncTYSalesToSheets(); // cache the customer/equipment list so it's visible before next pull
-      loadCalEmpFilter();
-      loadKPIEmpFilter().then(()=>{ syncNewEmployeesToFilter(); });
-      loadTYCards();
-      loadSpotlights();
-      loadAnnouncements();
+      // Step 3 — everything else, staggered rather than fired all at once.
+      // FIXED (2026-08-13): these 7 calls used to all fire in the same
+      // synchronous block with zero spacing between them — on top of
+      // syncReportToSheets's own internal delayed sub-requests (fired
+      // just above, without awaiting it first), this was a major,
+      // previously-unaddressed source of the widespread Apps Script 404s
+      // seen after a pull — a separate problem from the connect-time
+      // sequence fixed earlier, since this one only runs after a pull,
+      // not on initial page load.
+      const pullStagger = (fn, delayMs) => setTimeout(fn, delayMs);
+      pullStagger(() => fetchTYCardsFromSheets(), 0);
+      pullStagger(() => syncTYSalesToSheets(), 600); // caches the customer/equipment list so it's visible before next pull
+      pullStagger(() => loadCalEmpFilter(), 1200);
+      pullStagger(() => loadKPIEmpFilter().then(()=>{ syncNewEmployeesToFilter(); }), 1800);
+      pullStagger(() => loadTYCards(), 2400);
+      pullStagger(() => loadSpotlights(), 3000);
+      pullStagger(() => loadAnnouncements(), 3600);
     }, 100);
 
     _wbSettings = _wbSettings || {};// loaded from Sheets
@@ -3419,7 +3428,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.50
+  // ATTRIBUTION ENGINE — v25.51
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5356,7 +5365,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.50',  // dashboard version that generated this push
+    dash_version: 'v25.51',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5932,7 +5941,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.50',
+        dash_version:        'v25.51',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11728,8 +11737,16 @@ function saveSpotlights(allowEmpty){
       body:JSON.stringify({action:'saveSpotlights',spotlights:_spotlights,promos:_promos,allowEmpty:!!allowEmpty})
     })
     .then(r=>r.json())
-    .then(d=>{ if(d.success) showToast('✅ Synced to companion','success'); })
-    .catch(()=>{});
+    .then(d=>{
+      if(d.success) showToast('✅ Synced to companion','success');
+      // FIXED (2026-08-13): a failed save used to do nothing visible at
+      // all — no toast, no log — so it looked identical to a successful
+      // one on screen even though nothing actually reached Sheets. Now
+      // surfaced clearly, so a save that fails (e.g. during a brief
+      // backend overload) isn't mistaken for one that succeeded.
+      else showToast('⚠️ Save failed — try again in a moment: '+(d.error||'unknown error'),'error');
+    })
+    .catch(e => showToast('⚠️ Save failed — try again in a moment: '+e.message,'error'));
   }
 }
 
