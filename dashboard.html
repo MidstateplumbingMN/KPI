@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.46</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.50</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.46</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.50</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.46</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.50</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -2144,31 +2144,54 @@ function connect(){
 
   // Load all user preferences from Sheets — replaces localStorage reads
   // This runs asynchronously so UI is not blocked
+  //
+  // FIXED (2026-08-13): this used to be split across two separate,
+  // uncoordinated stagger timelines — one inside this .then() (starting
+  // from whenever loadAllSettingsFromSheets happened to resolve, which
+  // is itself variable), and a second one below, timed from page load
+  // instead. Because those two clocks don't share a reference point, the
+  // real overlap between them was unpredictable — and several slots in
+  // each bundled 2-3 function calls into the exact same moment on top of
+  // that. The likely result: well over a dozen requests hitting the
+  // Apps Script proxy within a 1-2 second window during connect, which
+  // is a plausible match for Apps Script's own concurrent-execution
+  // limit — manifesting as the widespread "404 on the echo redirect URL"
+  // pattern seen across many unrelated features at once (not a code bug
+  // in any one of them individually). Merged into one linear timeline,
+  // one request per slot, evenly spaced, all measured from the same
+  // starting point.
   loadAllSettingsFromSheets().then(() => {
     console.log('[Connect] Settings loaded from Sheets');
-    stagger(() => { loadPlansFromSheets(); loadActivePlansFromSheets(); }, 0);
+    stagger(() => loadAttr(), 0);
+    stagger(() => loadIS(), 400);
+    stagger(() => loadISEmailState(), 800);
+    stagger(() => loadEmpFilter(), 1200);
+    stagger(() => loadCalEmpFilter(), 1600);
+    stagger(() => loadKPIEmpFilter(), 2000);
+    stagger(() => loadUploadedPlans(), 2400);
+    stagger(() => loadPlansFromSheets(), 2800);
+    stagger(() => loadActivePlansFromSheets(), 3200);
     stagger(() => { restoreJobsEstimatesFromSheets().then(() => {
       loadUnpaidJobsFromSheetsFull();
       // Re-run ad call matching now that jobs/estimates are fully loaded —
       // if a call file was uploaded before this restore finished, the
       // summary would have been computed against an incomplete jobs list.
       if(_adCalls.length){ matchCallsToJobs(_adCalls); renderAdCallResults(); }
-    }); }, 300);
-    stagger(() => loadHCPReportsFullFromSheets(), 700);
-    stagger(() => loadTYCards(), 1100);
-    stagger(() => { loadSpotlights(); loadVideos(); }, 1400);
-    stagger(() => { loadManualPlans(); loadAnnouncements(); }, 1700);
-    stagger(() => { loadHolidays(); loadMotivations(); }, 2000);
+    }); }, 3600);
+    stagger(() => loadHCPReportsFullFromSheets(), 4400);
+    stagger(() => loadTYCards(), 4800);
+    stagger(() => loadSpotlights(), 5200);
+    stagger(() => loadVideos(), 5600);
+    stagger(() => loadManualPlans(), 6000);
+    stagger(() => loadAnnouncements(), 6400);
+    stagger(() => loadHolidays(), 6800);
+    stagger(() => loadMotivations(), 7200);
   });
   // Show last-known headline numbers immediately, before any live pull —
   // these two are the most important for perceived responsiveness, so
   // they still fire right away rather than being staggered.
   if(_sheetsProxy) { loadCachedSnapshotIntoUI(); loadCachedTYSalesIntoUI(); }
   try{localStorage.setItem('hcp_sheets_proxy',s);}catch(e){}
-  stagger(() => loadAttr(), 100);
-  stagger(() => { loadIS(); loadISEmailState(); }, 200);
-  stagger(() => { loadEmpFilter(); loadCalEmpFilter(); loadKPIEmpFilter(); }, 400);
-  stagger(() => loadUploadedPlans(), 500);
   loadUnpaidState();
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
@@ -3396,7 +3419,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.46
+  // ATTRIBUTION ENGINE — v25.50
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5333,7 +5356,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.46',  // dashboard version that generated this push
+    dash_version: 'v25.50',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5909,7 +5932,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.46',
+        dash_version:        'v25.50',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6448,7 +6471,21 @@ function sceneDrop(e, idx) {
   renderSceneOrder();
 }
 function toggleScene(idx, enabled) {
-  if(_sceneOrder[idx]) { _sceneOrder[idx].enabled = enabled; renderSceneOrder(); }
+  if(_sceneOrder[idx]) {
+    _sceneOrder[idx].enabled = enabled;
+    renderSceneOrder();
+    // FIXED (2026-08-11): this used to only update the in-memory list,
+    // requiring a separate "Save & Push Order" button click to actually
+    // persist — easy to miss, especially now that the newer weather
+    // slide toggles (toggleWeatherSlide) already auto-save. A toggle
+    // that silently only lives in the current browser tab, while
+    // companion.html keeps reading the old unchanged value from Sheets,
+    // looks exactly like "I turned it off but it's still showing" even
+    // though nothing is actually broken — just unsaved. Auto-saving here
+    // makes every scene toggle behave consistently, and removes this
+    // whole class of confusion.
+    saveSceneOrder();
+  }
 }
 function resetSceneOrder() {
   _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
@@ -11613,18 +11650,44 @@ function loadMotivations() {
 
 
 
+let _spotlightsLoadInFlight = null;
+let _spotlightsLoadQueued = false;
+
 function loadSpotlights(){
   _spotlights = _spotlights || [];
   _promos = _promos || [];
   renderSpotlightList(); // render whatever is in memory immediately
   renderPromoList();
   if(!_sheetsProxy) return;
-  fetch(_sheetsProxy+'?action=getSpotlights&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
+
+  // FIXED (2026-08-12): loadSpotlights() is called from four different
+  // places (initial connect, spotlight tab, promos tab, and after every
+  // data pull) — with no coordination between them, these can overlap.
+  // An earlier version of this fix shared one in-flight promise across
+  // overlapping calls, which avoided redundant simultaneous requests but
+  // introduced a different problem: a call that arrived while another was
+  // still pending (e.g. the connect-time load still running when a pull
+  // finishes) got silently absorbed into that earlier, possibly-stale
+  // request — meaning the deliberate post-pull refresh could end up
+  // never actually issuing its own fresh fetch. Now, instead of being
+  // dropped, an overlapping call schedules exactly one guaranteed
+  // follow-up fetch to run the moment the current one finishes — so
+  // every trigger point still eventually gets a fresh result, while
+  // still avoiding truly redundant simultaneous requests.
+  if(_spotlightsLoadInFlight){ _spotlightsLoadQueued = true; return _spotlightsLoadInFlight; }
+
+  _spotlightsLoadInFlight = fetch(_sheetsProxy+'?action=getSpotlights&cb='+Date.now(), {redirect:'follow', cache:'no-store'})
     .then(r => r.json())
     .then(data => {
       if(data.success) {
-        if(data.spotlights) _spotlights = data.spotlights;
-        if(data.promos)     _promos     = data.promos;
+        // Safety net even with the in-flight guard above (e.g. a genuine
+        // transient backend read issue on the one request that does go
+        // out): an empty result never overwrites non-empty data already
+        // in memory — a real "I deleted everything" state is only ever
+        // reflected here via a fresh, non-empty-or-explicit save, not by
+        // this load path silently returning less than what was already showing.
+        if(data.spotlights && (data.spotlights.length || !_spotlights.length)) _spotlights = data.spotlights;
+        if(data.promos && (data.promos.length || !_promos.length)) _promos = data.promos;
         renderSpotlightList();
         renderPromoList();
         console.log('[Spotlights] Loaded', _spotlights.length, 'spotlights,', _promos.length, 'promos from Sheets');
@@ -11632,7 +11695,13 @@ function loadSpotlights(){
         console.warn('[Spotlights] getSpotlights returned:', JSON.stringify(data).slice(0,200));
       }
     })
-    .catch(e => console.warn('[Spotlights] Fetch failed:', e.message));
+    .catch(e => console.warn('[Spotlights] Fetch failed:', e.message))
+    .finally(() => {
+      _spotlightsLoadInFlight = null;
+      if(_spotlightsLoadQueued){ _spotlightsLoadQueued = false; loadSpotlights(); }
+    });
+
+  return _spotlightsLoadInFlight;
 }
 
 // Alias for missing function calls
