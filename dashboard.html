@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.52</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.54</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.52</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.54</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.52</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.54</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3428,7 +3428,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.52
+  // ATTRIBUTION ENGINE — v25.54
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5320,14 +5320,22 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   // hitting api.weather.gov independently, and so a last-known-good
   // fallback survives even if this specific browser session never
   // successfully fetches weather itself.
+  //
+  // FIXED (2026-08-14): this used to fire unconditionally on every
+  // single pull, regardless of whether weather was even enabled —
+  // needlessly making up to 6 external NWS calls per pull (points,
+  // forecast, hourly, station list, observation, alerts) for a feature
+  // that might be completely turned off. Now gated behind the actual
+  // enabled setting, same as every other optional wallboard feature.
   let _weatherSnap = {};
   let _weatherFull = null;
-  try {
-    const _wxRes = await fetch(_sheetsProxy+'?action=getWeatherData&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
-    const _wxBody = await _wxRes.json();
-    if(_wxBody.success && !_wxBody.error){
-      _weatherFull = _wxBody;
-      const cur = _wxBody.current || {};
+  if(_wbSettings.weatherEnabled){
+    try {
+      const _wxRes = await fetch(_sheetsProxy+'?action=getWeatherData&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
+      const _wxBody = await _wxRes.json();
+      if(_wxBody.success && !_wxBody.error){
+        _weatherFull = _wxBody;
+        const cur = _wxBody.current || {};
       const today = _wxBody.today || {};
       const tonight = _wxBody.tonight || {};
       const hourly = _wxBody.hourly || [];
@@ -5351,21 +5359,22 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         fetched_at: _wxBody.updated || new Date().toISOString(),
       };
       console.log('[Weather/NWS]', _weatherFull.stale?'(stale/last-known)':'fetched:', _weatherSnap.city, _weatherSnap.temp+'°F', _weatherSnap.description);
-    } else {
-      const errMsg = _wxBody.error || 'Unknown weather error';
-      console.warn('[Weather/NWS] API returned an error:', errMsg);
-      _weatherSnap = { error: errMsg, fetched_at: new Date().toISOString() };
-      showToast(`⚠ Weather (NWS) error: ${errMsg}`, 'error');
+      } else {
+        const errMsg = _wxBody.error || 'Unknown weather error';
+        console.warn('[Weather/NWS] API returned an error:', errMsg);
+        _weatherSnap = { error: errMsg, fetched_at: new Date().toISOString() };
+        showToast(`⚠ Weather (NWS) error: ${errMsg}`, 'error');
+      }
+    } catch(e) {
+      console.warn('[Weather/NWS] fetch failed:', e.message);
+      _weatherSnap = { error: e.message, fetched_at: new Date().toISOString() };
     }
-  } catch(e) {
-    console.warn('[Weather/NWS] fetch failed:', e.message);
-    _weatherSnap = { error: e.message, fetched_at: new Date().toISOString() };
-  }
+  } // end if(_wbSettings.weatherEnabled)
 
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.52',  // dashboard version that generated this push
+    dash_version: 'v25.54',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5941,7 +5950,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.52',
+        dash_version:        'v25.54',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6275,6 +6284,7 @@ async function loadAllSettingsFromSheets() {
           v.push(...missing.map(m=>({...m})));
         }
         _sceneOrder=v;
+        _sceneOrderLoadedFromSheets = true;
         console.log('[SceneOrder DEBUG] _sceneOrder assigned, enabled states:', v.map(x=>x.id+':'+x.enabled).join(', '));
         // FIXED (2026-08-06): this used to only re-render if the Wallboard
         // tab happened to already be active at the exact moment this async
@@ -6425,6 +6435,14 @@ const DEFAULT_SCENE_ORDER = [
   { id:'s5',  label:'📣 Announcements',          enabled:true },
 ];
 let _sceneOrder = null;
+// Tracks whether _sceneOrder currently holds real data successfully
+// loaded from Sheets, vs. an in-memory-only fallback to defaults (e.g.
+// because the settings load failed). Critical distinction: saving while
+// this is false would overwrite whatever is genuinely saved in Sheets
+// with the fallback state — exactly the failure mode that corrupted a
+// real saved scene order into "everything enabled" during a backend
+// outage, when an auto-save fired on top of an unverified fallback.
+let _sceneOrderLoadedFromSheets = false;
 
 function loadSceneOrder() {
   // FIXED (2026-07-30): this used to unconditionally reset _sceneOrder to
@@ -6498,6 +6516,10 @@ function toggleScene(idx, enabled) {
 }
 function resetSceneOrder() {
   _sceneOrder = JSON.parse(JSON.stringify(DEFAULT_SCENE_ORDER));
+  // A deliberate reset is an intentional choice, not an accidental
+  // fallback — safe to save, unlike the load-failure case the guard in
+  // saveSceneOrder() is meant to catch.
+  _sceneOrderLoadedFromSheets = true;
   renderSceneOrder();
 }
 async function saveSceneOrder() {
@@ -6528,6 +6550,20 @@ async function saveSceneOrder() {
   // awaited) would still be correct, but the dashboard's own list would
   // revert to defaults on the next login. Now awaits both writes before
   // declaring success.
+  // CRITICAL SAFETY GUARD (2026-08-14): if _sceneOrder was never
+  // confirmed loaded from real, saved Sheets data (e.g. the settings
+  // request failed and this is still the in-memory-only
+  // DEFAULT_SCENE_ORDER fallback), refuse to save. Saving here would
+  // silently overwrite whatever is genuinely saved in Sheets with the
+  // fallback state — this is exactly the failure mode that corrupted a
+  // real, custom scene selection into "everything enabled" during a
+  // backend outage: settings failed to load, the toggle list fell back
+  // to defaults in memory, and a single toggle click auto-saved that
+  // entire fallback state over the real configuration.
+  if(!_sceneOrderLoadedFromSheets){
+    showToast('⚠️ Scene order hasn\'t loaded from Sheets yet — refresh and try again to avoid overwriting your saved settings','error');
+    return;
+  }
   await saveSettingToSheets('wb_scene_order_full', JSON.stringify(_sceneOrder));
   const enabledIds = _sceneOrder.filter(s=>s.enabled).map(s=>s.id);
   if(_sheetsProxy) {
