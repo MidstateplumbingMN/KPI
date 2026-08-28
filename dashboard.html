@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.55</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.57</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.55</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.57</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.55</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.57</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3428,7 +3428,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.55
+  // ATTRIBUTION ENGINE — v25.57
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5374,7 +5374,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.55',  // dashboard version that generated this push
+    dash_version: 'v25.57',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5950,7 +5950,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.55',
+        dash_version:        'v25.57',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9925,6 +9925,18 @@ function detectEquipmentSale(j, requirePaid=true){
   const typeAndDesc = (getJobType(j) + ' ' + (j.description||'')).trim();
   if(EQUIP_EXCLUSION.test(typeAndDesc)) return null;
 
+  // Minimum-revenue safeguard — a job whose entire value is a trip-charge-
+  // level amount cannot genuinely be an equipment installation, regardless
+  // of what equipment-related keywords the fuzzy matcher below finds in
+  // free-text description/notes (which can trigger on a job where
+  // equipment was merely diagnosed or discussed, not installed). Text-
+  // based exclusion above doesn't reliably catch this — a job can be a
+  // simple trip-charge visit without its type/description literally
+  // saying "service call" or "diagnostic". $250 is comfortably above any
+  // real trip/diagnostic fee and comfortably below even the cheapest
+  // genuine equipment install.
+  if(jobCollected(j) < 250) return null;
+
   // Department check via tech name — more reliable than getDept which can return "Other"
   const techName = _jobAttribution[j.id]?.techName || getAssigned(j) || '';
   const techDept = DEPT_MAP[techName] || getDept(j);
@@ -9962,7 +9974,7 @@ function detectEquipmentSale(j, requirePaid=true){
     if(TY_ITEM_LOOKUP[text]) {
       const key = TY_ITEM_LOOKUP[text];
       if(key === 'water_heater'){
-        if((getJobRevenue(j)||getJobTotal(j)) < 3000) continue;
+        if(jobCollected(j) < 3000) continue;
         return {key, ...TY_ITEM_SETS[key], matchedItem:text};
       }
       if(isPlumbing) continue;
@@ -11665,10 +11677,20 @@ function saveItemsToSheets(key) {
   // the real 'syncSettings' action.
   saveSettingToSheets('hcp_'+key, data);
   // Also push to KPI_Dashboard so companion picks it up
+  // FIXED (2026-08-14): this was fire-and-forget with a silent .catch —
+  // a failure here (e.g. during a brief backend overload) meant a newly
+  // added motivation/announcement would appear successfully added in
+  // this local list, while never actually reaching KPI_Dashboard at
+  // all — the one place companion's fast read path (and the CSV export
+  // fallback) actually looks. Now surfaced clearly so a failed save is
+  // never mistaken for a successful one.
   fetch(_sheetsProxy, {
     method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
     body: JSON.stringify({ action:'syncSnapshotKeys', keys:{ [key+'_json']: JSON.stringify(data) } })
-  }).catch(()=>{});
+  })
+  .then(r=>r.json())
+  .then(d=>{ if(!d.success) showToast(`⚠️ ${key} may not have synced to the companion — try again in a moment`,'error'); })
+  .catch(e => showToast(`⚠️ ${key} may not have synced to the companion — try again in a moment`,'error'));
 }
 
 // Load motivations from Sheets on connect
