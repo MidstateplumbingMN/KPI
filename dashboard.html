@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.57</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.58</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.57</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.58</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.57</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.58</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1695,6 +1695,13 @@ tr:hover td{background:#fafafa}
           <div style="display:flex;justify-content:space-between;align-items:center">
             <div style="font-size:12px;font-weight:700;color:#374151">Active Motivations</div>
             <span id="motCount" style="font-size:11px;color:#9ca3af">0</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <button onclick="pushMotivationsNow()"
+              style="padding:5px 10px;background:#0EA5E9;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+              📤 Push to Sheets & Confirm
+            </button>
+            <span id="motPushResult" style="font-size:11px"></span>
           </div>
           <div id="motList" style="display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto">
             <div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px">No motivations yet.</div>
@@ -3428,7 +3435,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.57
+  // ATTRIBUTION ENGINE — v25.58
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5374,7 +5381,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.57',  // dashboard version that generated this push
+    dash_version: 'v25.58',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5950,7 +5957,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.57',
+        dash_version:        'v25.58',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -6246,6 +6253,38 @@ async function loadAllSettingsFromSheets() {
     // KPI employee filter
     if(s.hcp_kpi_emps) try { const v=JSON.parse(s.hcp_kpi_emps); if(Array.isArray(v)) _kpiSelectedEmps=new Set(v); } catch(e){}
 
+    // FIXED (2026-08-14): _wbSettings (weather location/enabled, theme,
+    // holiday, logo) was NEVER actually being loaded back from Sheets on
+    // connect — the only place any of these fields ever got set in
+    // memory was inside saveWeatherSettings() itself, reading the
+    // current UI form values, not a Sheets fetch. That meant every
+    // fresh session started with an empty/incomplete _wbSettings, and
+    // saveWallboardSettingsToSheets() does a full clear-and-replace of
+    // the WallboardSettings tab — so ANY other action that happened to
+    // trigger a save (adding a holiday, a birthday, adjusting the daily
+    // goal, etc.) before the weather panel was manually revisited would
+    // silently wipe the real, previously-saved weather/theme settings
+    // from the sheet. This is the same failure class as the scene-order
+    // corruption fixed earlier — a full-replace save firing against
+    // incomplete in-memory state. Now actually restores these fields
+    // from the fetched settings object, and — same as scene order —
+    // tracks whether this genuinely succeeded so a save can be blocked
+    // if it didn't.
+    _wbSettings = _wbSettings || {};
+    _wbSettings.weatherLoc = s.weatherLoc ?? _wbSettings.weatherLoc;
+    _wbSettings.weatherLat = s.weatherLat!=null ? parseFloat(s.weatherLat) : _wbSettings.weatherLat;
+    _wbSettings.weatherLon = s.weatherLon!=null ? parseFloat(s.weatherLon) : _wbSettings.weatherLon;
+    _wbSettings.weatherEnabled = s.weatherEnabled!=null ? (s.weatherEnabled==='true'||s.weatherEnabled===true) : _wbSettings.weatherEnabled;
+    _wbSettings.weatherAlertOverride = s.weatherAlertOverride!=null ? (s.weatherAlertOverride==='true'||s.weatherAlertOverride===true) : _wbSettings.weatherAlertOverride;
+    _wbSettings.logoUrl = s.logoUrl ?? _wbSettings.logoUrl;
+    _wbSettings.theme = s.theme ?? _wbSettings.theme;
+    _wbSettings.holiday = s.holiday ?? _wbSettings.holiday;
+    _wbSettings.dailyGoal = s.dailyGoal!=null ? parseInt(s.dailyGoal) : _wbSettings.dailyGoal;
+    _wbSettings.openHour = s.openHour!=null ? parseInt(s.openHour) : _wbSettings.openHour;
+    _wbSettings.closeHour = s.closeHour!=null ? parseInt(s.closeHour) : _wbSettings.closeHour;
+    _wbSettingsLoadedFromSheets = true;
+    console.log('[WbSettings DEBUG] Restored from Sheets — weatherEnabled:', _wbSettings.weatherEnabled, 'weatherLat:', _wbSettings.weatherLat);
+
     // DIAGNOSTIC (2026-08-06): every likely cause so far (save race
     // condition, conditional re-render, stale cache, duplicate sheet
     // rows) has been individually checked and ruled out with direct
@@ -6443,6 +6482,13 @@ let _sceneOrder = null;
 // real saved scene order into "everything enabled" during a backend
 // outage, when an auto-save fired on top of an unverified fallback.
 let _sceneOrderLoadedFromSheets = false;
+// Same pattern for _wbSettings (weather/theme/holiday/logo) — set true
+// only once genuinely confirmed loaded from Sheets (see
+// loadAllSettingsFromSheets). saveWallboardSettingsToSheets() does a
+// full clear-and-replace of its tab, so saving before this is true would
+// risk wiping real, previously-saved settings with an incomplete
+// in-memory default.
+let _wbSettingsLoadedFromSheets = false;
 
 function loadSceneOrder() {
   // FIXED (2026-07-30): this used to unconditionally reset _sceneOrder to
@@ -11293,11 +11339,24 @@ function saveGapSettings(){
 }
 
 function saveWallboardSettingsToSheets(){
+  // CRITICAL SAFETY GUARD (2026-08-14): mirrors the scene-order guard —
+  // refuse to save if _wbSettings was never confirmed loaded from real
+  // Sheets data this session. saveWallboardSettings does a full
+  // clear-and-replace of the WallboardSettings tab; saving an
+  // incomplete/default in-memory object here would silently wipe
+  // whatever weather/theme/holiday settings were actually saved.
+  if(!_wbSettingsLoadedFromSheets){
+    showToast('⚠️ Settings haven\'t loaded from Sheets yet — refresh and try again to avoid overwriting your saved settings','error');
+    return;
+  }
   saveSettingsToSheets({hcp_wb_settings: JSON.stringify(_wbSettings)});
   if(_sheetsProxy){
     fetch(_sheetsProxy,{method:'POST',headers:{'Content-Type':'text/plain'},redirect:'follow',
       body:JSON.stringify({action:'saveWallboardSettings',settings:_wbSettings,birthdays:_bdayList,holidays:_holidays||[]})
-    }).then(()=>showToast('✅ Wallboard settings synced','success')).catch(()=>{});
+    })
+    .then(r=>r.json())
+    .then(d=>{ if(d.success) showToast('✅ Wallboard settings synced','success'); else showToast('⚠️ Sync failed — try again in a moment','error'); })
+    .catch(e => showToast('⚠️ Sync failed — try again in a moment: '+e.message,'error'));
   }
 }
 
@@ -11662,7 +11721,36 @@ function editItem(kind, id) {
 function editAnnouncement(id){ editItem('announcement',id); }
 
 // Save motivations to Sheets
-function saveItemsToSheets(key) {
+// Explicit push + read-back verification, for a real answer to "how do
+// we know it actually saved" — rather than just trusting the save
+// request's own response, this re-fetches the saved state from Sheets
+// afterward and compares counts, so a save that reports success but
+// didn't actually take (e.g. reached the server but failed partway
+// through) doesn't go unnoticed.
+async function pushMotivationsNow(){
+  const resultEl = $$('motPushResult');
+  if(resultEl) resultEl.innerHTML = '<span style="color:#6b7280">Saving…</span>';
+  await saveItemsToSheets('motivations'); // shows its own success/failure toast
+  if(!_sheetsProxy){ if(resultEl) resultEl.innerHTML=''; return; }
+  try {
+    const res = await fetch(_sheetsProxy+'?action=getMotivations&cb='+Date.now(), {redirect:'follow', cache:'no-store'});
+    const body = await res.json();
+    const savedCount = body.success ? (body.motivations||[]).length : null;
+    const localCount = (_motivations||[]).length;
+    const now = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    if(savedCount === null){
+      if(resultEl) resultEl.innerHTML = `<span style="color:#dc2626">❌ Could not verify — try again</span>`;
+    } else if(savedCount === localCount){
+      if(resultEl) resultEl.innerHTML = `<span style="color:#166534">✅ Confirmed — ${savedCount} motivations in Sheets (checked ${now})</span>`;
+    } else {
+      if(resultEl) resultEl.innerHTML = `<span style="color:#dc2626">⚠️ Mismatch — Sheets has ${savedCount}, expected ${localCount}. Try pushing again.</span>`;
+    }
+  } catch(e) {
+    if(resultEl) resultEl.innerHTML = `<span style="color:#dc2626">❌ Could not verify: ${escHtml(e.message)}</span>`;
+  }
+}
+
+async function saveItemsToSheets(key) {
   if(!_sheetsProxy) return;
   const data = key==='motivations' ? (_motivations||[]) : _announcements;
   // FIXED (2026-07-29): this used to POST directly with action:'saveSettingToSheets',
@@ -11677,20 +11765,25 @@ function saveItemsToSheets(key) {
   // the real 'syncSettings' action.
   saveSettingToSheets('hcp_'+key, data);
   // Also push to KPI_Dashboard so companion picks it up
-  // FIXED (2026-08-14): this was fire-and-forget with a silent .catch —
-  // a failure here (e.g. during a brief backend overload) meant a newly
-  // added motivation/announcement would appear successfully added in
-  // this local list, while never actually reaching KPI_Dashboard at
-  // all — the one place companion's fast read path (and the CSV export
-  // fallback) actually looks. Now surfaced clearly so a failed save is
-  // never mistaken for a successful one.
-  fetch(_sheetsProxy, {
-    method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-    body: JSON.stringify({ action:'syncSnapshotKeys', keys:{ [key+'_json']: JSON.stringify(data) } })
-  })
-  .then(r=>r.json())
-  .then(d=>{ if(!d.success) showToast(`⚠️ ${key} may not have synced to the companion — try again in a moment`,'error'); })
-  .catch(e => showToast(`⚠️ ${key} may not have synced to the companion — try again in a moment`,'error'));
+  // FIXED (2026-08-14): this was fire-and-forget with a silent .catch, and
+  // the function itself wasn't async/awaitable — a failure here (e.g.
+  // during a brief backend overload) meant a newly added
+  // motivation/announcement would appear successfully added in this
+  // local list, while never actually reaching KPI_Dashboard at all — the
+  // one place companion's fast read path (and the CSV export fallback)
+  // actually looks. Now surfaced clearly, and awaitable, so a caller
+  // (e.g. pushMotivationsNow's read-back check) can know for certain
+  // when the save has actually finished rather than assuming.
+  try {
+    const res = await fetch(_sheetsProxy, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
+      body: JSON.stringify({ action:'syncSnapshotKeys', keys:{ [key+'_json']: JSON.stringify(data) } })
+    });
+    const d = await res.json();
+    if(!d.success) showToast(`⚠️ ${key} may not have synced to the companion — try again in a moment`,'error');
+  } catch(e) {
+    showToast(`⚠️ ${key} may not have synced to the companion — try again in a moment`,'error');
+  }
 }
 
 // Load motivations from Sheets on connect
