@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.30</title>
+<title>Midstate — KPI Command Center v3.31</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1630,7 +1630,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.30
+      v3.31
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1641,7 +1641,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.30';
+const COMPANION_VERSION = 'v3.31';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -4226,6 +4226,25 @@ async function loadSpotlightData() {
           .map(r => ({ id:r[0], message:r[1]||'', author:r[2]||'Midstate Team', type:r[3]||'motivation', photoUrl:r[4]||'' }));
         console.log('[Announcements] Loaded', state.announcements.length, 'via CSV fallback');
       } catch(e) { state.announcements = []; }
+    }
+  }
+
+  // ── Motivations ──
+  // FIXED (2026-08-14): motivations previously had no fast proxy path at
+  // all — only ever read via state.snap['motivations_json'], populated
+  // solely from the CSV-exported copy of KPI_Dashboard, which carries
+  // Google's own multi-minute server-side export cache. A newly-added or
+  // recently-edited motivation could sit invisible on the wallboard for
+  // several minutes after being saved. Mirrors the announcements pattern
+  // above — fast proxy read first, with the existing CSV-derived
+  // state.snap value remaining as an automatic fallback if this fetch
+  // doesn't return anything (updateS5 already reads state.snap as
+  // today's only source, so no changes needed there).
+  {
+    const proxyData = await proxyGet('getMotivations');
+    if(proxyData?.motivations?.length) {
+      state.snap['motivations_json'] = JSON.stringify(proxyData.motivations);
+      console.log('[Motivations] Loaded', proxyData.motivations.length, 'via proxy');
     }
   }
 
