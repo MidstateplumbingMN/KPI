@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-<title>Midstate — KPI Command Center v3.31</title>
+<title>Midstate — KPI Command Center v3.32</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1630,7 +1630,7 @@ html, body {
       Auto in <span id="nextRefresh">60</span>s
     </div>
     <div id="companion-ver" style="color:rgba(255,255,255,.85);font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1)">
-      v3.31
+      v3.32
     </div>
     <div id="dash-ver-display" style="color:rgba(255,255,255,.4);font-size:17px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px">
       dash: —
@@ -1641,7 +1641,7 @@ html, body {
 
 <script>
 // ============================================================
-const COMPANION_VERSION = 'v3.31';
+const COMPANION_VERSION = 'v3.32';
 // Single source of truth — update this when bumping version
 // ============================================================
 //  ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
@@ -1998,10 +1998,11 @@ async function loadData() {
             const h = JSON.parse(row[1]||'[]');
             if(Array.isArray(h) && h.length) {
               const todayMs = new Date().setHours(0,0,0,0);
+              const windowMs = todayMs + 60*24*60*60*1000; // 60-day upcoming window
               state.holidays = h.filter(hol => {
                 if(hol.enabled === false) return false;
                 const d = new Date(hol.date.includes('T') ? hol.date : hol.date + 'T12:00:00');
-                return !isNaN(d) && d.getTime() >= todayMs; // future or today only
+                return !isNaN(d) && d.getTime() >= todayMs && d.getTime() <= windowMs; // within the next 60 days
               });
             }
           } catch(e) {}
@@ -5656,12 +5657,13 @@ async function loadWallboardData() {
     }
     if(proxyData.holidays?.length) {
       const todayMs = new Date().setHours(0,0,0,0);
+      const windowMs = todayMs + 60*24*60*60*1000; // 60-day upcoming window
       state.holidays = proxyData.holidays.filter(h => {
         if(h.enabled === false) return false;
         const d = new Date(h.date.includes('T') ? h.date : h.date + 'T12:00:00');
-        return !isNaN(d) && d.getTime() >= todayMs;
+        return !isNaN(d) && d.getTime() >= todayMs && d.getTime() <= windowMs;
       });
-      console.log('[Holidays] Loaded', state.holidays.length, 'upcoming enabled via proxy');
+      console.log('[Holidays] Loaded', state.holidays.length, 'upcoming enabled via proxy (within 60 days)');
     }
   }
 
@@ -5688,6 +5690,7 @@ async function loadWallboardData() {
     try {
       const rows = await fetchCSV('Holidays');
       const todayMs = new Date().setHours(0,0,0,0);
+      const windowMs = todayMs + 60*24*60*60*1000; // 60-day upcoming window
       state.holidays = rows.slice(1).filter(r => {
         if(!r || !r[0]) return false;
         const enabled = String(r[4]||'').trim().toUpperCase();
@@ -5695,7 +5698,7 @@ async function loadWallboardData() {
         const dateStr = String(r[3]||'').trim();
         if(!dateStr) return false;
         const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
-        return !isNaN(d) && d.getTime() >= todayMs; // future or today only
+        return !isNaN(d) && d.getTime() >= todayMs && d.getTime() <= windowMs; // within the next 60 days
       }).map(r=>({
         id:r[0], emoji:r[1]||'🎉', name:r[2]||'', date:r[3]||'',
         enabled:true, message:r[5]||'', photoUrl:r[6]||''
