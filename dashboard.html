@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.77</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.79</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.77</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.79</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.77</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.79</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1075,16 +1075,18 @@ tr:hover td{background:#fafafa}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
           <div>
             <div class="sec-head" style="margin:0">🛠️ Repair Credit Letters</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:3px">HVAC repairs over $2,000 completed on or after 10/1/2026 (not installs). Each gets a letter offering up to $500 toward a new system for one year. Tracked in Google Sheets.</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px">HVAC repairs over $2,000 completed on or after 10/1/2026 (not installs). Each gets a letter offering up to $500 toward a new system for one year, and a reminder letter 90 days before it expires. Tracked in Google Sheets.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button onclick="renderRepairCredits()" style="font-size:12px;padding:5px 12px;border:1px solid #B45309;border-radius:5px;background:#fff;color:#B45309;cursor:pointer;font-weight:600">↻ Refresh</button>
             <button onclick="printRepairCreditLetters('needs')" style="font-size:12px;padding:5px 12px;border:none;border-radius:5px;background:#B45309;color:#fff;cursor:pointer;font-weight:700">🖨 Print Letters Needed</button>
+            <button onclick="printRepairCreditLetters('due','reminder')" style="font-size:12px;padding:5px 12px;border:1px solid #B45309;border-radius:5px;background:#fff;color:#B45309;cursor:pointer;font-weight:700">⏰ Print Reminders Due</button>
             <button onclick="printRepairCreditLetters('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
             <select id="repairStatusFilter" onchange="renderRepairCredits()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;color:#374151;cursor:pointer">
               <option value="">All statuses</option>
               <option value="needs">⚠ Needs letter</option>
               <option value="sent">✅ Letter sent</option>
+              <option value="reminders">⏰ Reminder due</option>
               <option value="used">🎟 Credit used</option>
               <option value="skipped">Skipped</option>
             </select>
@@ -3469,7 +3471,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.77
+  // ATTRIBUTION ENGINE — v25.79
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5421,7 +5423,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.77',  // dashboard version that generated this push
+    dash_version: 'v25.79',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5997,7 +5999,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.77',
+        dash_version:        'v25.79',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10027,6 +10029,7 @@ function isOrderEquip(equipKey){ return ORDER_EQUIP_KEYS.has(equipKey); }
 const REPAIR_CREDIT_THRESHOLD = 2000;
 const REPAIR_CREDIT_AMOUNT    = 500;
 const REPAIR_CREDIT_MONTHS    = 12;
+const REPAIR_REMINDER_DAYS    = 90;   // reminder letter goes out this many days before the credit expires
 // The credit program starts here. Repairs completed before this date are never tagged,
 // never synced to the Repair_Credits tab, and never get a letter (the rest of the tool is unaffected).
 const REPAIR_CREDIT_START     = '2026-10-01';
@@ -10180,6 +10183,22 @@ async function ensureRepairAddresses(list){
   return list;
 }
 
+// ---- Reminder letter: REPAIR_REMINDER_DAYS before the credit expires ----
+function repairReminderDate(r){
+  const m = String(r.expiresDate||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return '';
+  const d = new Date(+m[1], +m[2]-1, +m[3] - REPAIR_REMINDER_DAYS, 12);
+  return d.toLocaleDateString('en-CA');
+}
+// Due = inside the reminder window, credit not used, reminder not already sent/skipped, credit not expired
+function isRepairReminderDue(r){
+  if(r.redeemed === 'yes') return false;
+  if(r.reminderStatus === 'sent' || r.reminderStatus === 'skipped') return false;
+  const today = new Date().toLocaleDateString('en-CA');
+  const rd = repairReminderDate(r);
+  return !!rd && today >= rd && today <= String(r.expiresDate||'');
+}
+
 // Sheet record for a repair job. `patch` holds only the fields being changed.
 function buildRepairCreditRecord(j, patch){
   const cust = j.customer || {};
@@ -10195,6 +10214,9 @@ function buildRepairCreditRecord(j, patch){
     repairDate,
     repairAmount: Math.round(jobCollected(j) * 100) / 100,
     repairDescription: (j.line_items||[]).map(li => (li.name||'').trim()).filter(Boolean).join('; ').slice(0,160),
+    lineItemDetail: jobItemizedFields(j).line_item_detail,
+    techs: jobItemizedFields(j).techs,
+    jobType: getJobType(j) || '',
     creditAmount: REPAIR_CREDIT_AMOUNT,
     expiresDate: repairExpiryFromDate(repairDate),
     ...patch,
@@ -10325,6 +10347,7 @@ function renderRepairCredits(){
     <div class="metric"><div class="metric-label">Repairs over ${dollars(REPAIR_CREDIT_THRESHOLD)}</div><div class="metric-value">${all.length}</div><div class="metric-sub">Since ${REPAIR_CREDIT_START}</div></div>
     <div class="metric"><div class="metric-label">⚠ Needs letter</div><div class="metric-value" style="color:#DC2626">${nNeeds}</div></div>
     <div class="metric"><div class="metric-label">✅ Letter sent</div><div class="metric-value" style="color:#059669">${nSent}</div></div>
+    <div class="metric"><div class="metric-label">⏰ Reminders due</div><div class="metric-value" style="color:#B45309">${all.filter(isRepairReminderDue).length}</div><div class="metric-sub">${REPAIR_REMINDER_DAYS} days before expiry</div></div>
     <div class="metric"><div class="metric-label">🎟 Credit used</div><div class="metric-value" style="color:#166534">${nUsed}</div></div>
   </div>`;
 
@@ -10333,7 +10356,7 @@ function renderRepairCredits(){
     return;
   }
   const shown = all.filter(r => !filter || (filter==='needs' && isNeeds(r)) || (filter==='sent' && !isUsed(r) && r.letterStatus==='sent')
-    || (filter==='used' && isUsed(r)) || (filter==='skipped' && !isUsed(r) && r.letterStatus==='skipped'));
+    || (filter==='reminders' && isRepairReminderDue(r)) || (filter==='used' && isUsed(r)) || (filter==='skipped' && !isUsed(r) && r.letterStatus==='skipped'));
   const todayIso = new Date().toISOString().split('T')[0];
   const fmt = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : '—';
   const btn = (color, label, fn) => `<button onclick="${fn}" style="font-size:11px;padding:4px 10px;border:1px solid ${color};border-radius:5px;background:#fff;color:${color};cursor:pointer;font-weight:700">${label}</button>`;
@@ -10354,10 +10377,16 @@ function renderRepairCredits(){
           <div style="font-size:12px;color:#6b7280">📍 ${(r.address||lookupRepairAddress(r)) ? escHtml(r.address||lookupRepairAddress(r)) : '<span style="color:#B91C1C;font-weight:700">address missing — it will ask you when you print</span>'} ${r.phone?'· 📞'+escHtml(r.phone):''}</div>
           <div style="font-size:12px;color:#374151;margin-top:3px">
             <span style="background:#B45309;color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">🛠️ Repairs</span>
-            ${escHtml(r.repairDescription||'Repair')} · Repaired ${fmt(r.repairDate)} · ${dollars(parseFloat(r.repairAmount)||0)} · Job #${escHtml(String(r.jobNumber))}
+            Repaired ${fmt(r.repairDate)} · ${dollars(parseFloat(r.repairAmount)||0)} · Job #${escHtml(String(r.jobNumber))}${r.jobType?' · '+escHtml(r.jobType):''}${r.techs?' · 🧑‍🔧 '+escHtml(r.techs):''}
           </div>
+          ${(()=>{ const items = String(r.lineItemDetail||'').split(' | ').filter(Boolean);
+            if(!items.length) return r.repairDescription ? `<div style="font-size:11px;color:#374151;margin-top:4px">${escHtml(r.repairDescription)}</div>` : '';
+            return `<ul style="margin:5px 0 0 16px;padding:0;font-size:11px;color:#374151;line-height:1.5">${items.slice(0,8).map(i=>`<li>${escHtml(i)}</li>`).join('')}${items.length>8?`<li style="color:#9ca3af">+ ${items.length-8} more (see the Jobs tab)</li>`:''}</ul>`; })()}
           <div style="font-size:11px;margin-top:4px;color:${expired?'#B91C1C':'#92400E'}">Up to ${dollars(parseFloat(r.creditAmount)||REPAIR_CREDIT_AMOUNT)} credit toward a new system · ${expired?'<b>expired ':'expires '}${fmt(r.expiresDate)}${expired?'</b>':''}
             ${r.letterPrintedDate?' · Printed '+fmt(r.letterPrintedDate):''}${r.letterSentDate?' · Sent '+fmt(r.letterSentDate):''}${used?' · <b>Used '+fmt(r.redeemedDate)+(r.redeemedJobNumber?' (#'+escHtml(r.redeemedJobNumber)+')':'')+'</b>':''}</div>
+          ${used ? '' : (()=>{ const rd = repairReminderDate(r); const due = isRepairReminderDue(r);
+            const st = r.reminderStatus==='sent' ? '✅ Reminder sent '+fmt(r.reminderSentDate) : r.reminderStatus==='skipped' ? 'Reminder skipped' : r.reminderStatus==='printed' ? '🖨 Reminder printed '+fmt(r.reminderPrintedDate)+' — not marked sent' : (due ? '<b>⏰ Reminder due now</b>' : 'Reminder due '+fmt(rd));
+            return `<div style="font-size:11px;margin-top:3px;color:${due?'#B45309':'#6b7280'}">${st}</div>`; })()}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
           <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;color:${status[1]};background:${status[2]}">${status[0]}</span>
@@ -10365,6 +10394,9 @@ function renderRepairCredits(){
             ${btn('#B45309','🖨 Letter',`printRepairCreditLetters(['${jn}'])`)}
             ${r.letterStatus==='sent' ? btn('#6b7280','Undo sent',`repairCreditAct('${jn}',{letterStatus:'pending',letterSentDate:''})`) : btn('#059669','✅ Mark Sent',`markRepairLetterSent('${jn}')`)}
             ${r.letterStatus==='skipped' ? btn('#6b7280','Unskip',`repairCreditAct('${jn}',{letterStatus:'pending'})`) : (r.letterStatus!=='sent' ? btn('#6b7280','Skip',`repairCreditAct('${jn}',{letterStatus:'skipped'})`) : '')}
+            ${used ? '' : btn('#B45309','🖨 Reminder',`printRepairCreditLetters(['${jn}'],'reminder')`)}
+            ${used || r.reminderStatus==='sent' ? '' : btn('#059669','✅ Reminder Sent',`repairCreditAct('${jn}',{reminderStatus:'sent',reminderSentDate:new Date().toISOString().split('T')[0]})`)}
+            ${!used && r.reminderStatus==='sent' ? btn('#6b7280','Undo reminder',`repairCreditAct('${jn}',{reminderStatus:'',reminderSentDate:''})`) : ''}
             ${used ? btn('#6b7280','Undo used',`undoRepairCreditRedeemed('${jn}')`) : btn('#166534','🎟 Mark Credit Used',`markRepairCreditRedeemed('${jn}')`)}
           </div>
         </div>
@@ -11470,14 +11502,16 @@ async function loadLetterLogoDataUrl(){
   return '';
 }
 
-async function printRepairCreditLetters(which) {
+async function printRepairCreditLetters(which, kind) {
+  const isReminder = kind === 'reminder';
   const all = getRepairCreditList();
   const isUsed = r => r.redeemed === 'yes';
   let list;
   if(Array.isArray(which)) list = all.filter(r => which.includes(String(r.jobNumber)));
   else if(which === 'all') list = all;
+  else if(isReminder) list = all.filter(isRepairReminderDue);
   else list = all.filter(r => !isUsed(r) && (r.letterStatus === 'pending' || r.letterStatus === 'printed'));
-  if(!list.length) { alert('No repair credit letters to print.'); return; }
+  if(!list.length) { alert(isReminder ? 'No reminder letters are due right now.' : 'No repair credit letters to print.'); return; }
   const win = window.open('','_blank','width=900,height=1100');
   if(!win){ alert('Please allow pop-ups for this site to print letters.'); return; }
   win.document.write('<p style="font-family:Arial;padding:24px;color:#6b7280">Preparing letters…</p>');
@@ -11485,7 +11519,9 @@ async function printRepairCreditLetters(which) {
 
   // Record in Google Sheets that these letters were printed (a letter already marked Sent stays Sent)
   const todayIso = new Date().toISOString().split('T')[0];
-  saveRepairCreditRecords(list.map(r => ({ ...r, letterPrintedDate: todayIso, letterStatus: r.letterStatus === 'sent' ? 'sent' : 'printed' })))
+  saveRepairCreditRecords(list.map(r => isReminder
+      ? ({ ...r, reminderPrintedDate: todayIso, reminderStatus: r.reminderStatus === 'sent' ? 'sent' : 'printed' })
+      : ({ ...r, letterPrintedDate: todayIso, letterStatus: r.letterStatus === 'sent' ? 'sent' : 'printed' })))
     .then(() => renderRepairCredits());
 
   const embeddedLogo = await loadLetterLogoDataUrl();
@@ -11508,7 +11544,20 @@ async function printRepairCreditLetters(which) {
       ${letterhead}
       <div class="letter-date">${fmtLong(new Date().toISOString())}</div>
       <div class="letter-address">${escHtml(r.customerName)}<br>${r.address ? formatMailingAddress(r.address) : '<span style="color:#B91C1C">[address missing — add before mailing]</span>'}</div>
-      <div class="letter-greeting">Dear ${escHtml(first)},</div>
+      ${isReminder ? `      <div class="letter-greeting">Dear ${escHtml(first)},</div>
+      <div class="letter-body">
+        <p>We hope your system has been running well since your repair on ${fmtLong(r.repairDate)}.</p>
+        <p>This is a friendly reminder about something extra we set aside for you. When you invested in your repair, we offered a credit toward a new system, and it is still available.</p>
+        <div class="letter-offer">
+          <div class="letter-offer-head">Your $${amount} Repair Credit Is Still Available</div>
+          <div>If you choose to replace your system with Midstate, we&rsquo;ll credit <strong>up to $${amount}</strong> from your repair toward your new system. Your credit is available until <strong>${fmtLong(r.expiresDate)}</strong>.</div>
+        </div>
+        <p>If you&rsquo;re starting to think about a replacement, we&rsquo;d be glad to walk through your options and help you plan. There&rsquo;s no obligation, and a quick call to 651-480-1195 is all it takes to get started.</p>
+        <p>Thank you again for being a valued Midstate customer!</p>
+      </div>
+      <div class="letter-sign">Warm regards,<br><strong>The Midstate Team</strong><br>651-480-1195</div>
+      <div class="letter-fine">This offer expires ${fmtLong(r.expiresDate)}. Credit applies to qualifying replacements within one year of the original repair. Maximum credit of $${amount}, not to exceed the amount paid for the qualifying repair. Subject to program terms.</div>
+` : `      <div class="letter-greeting">Dear ${escHtml(first)},</div>
       <div class="letter-body">
         <p>Thank you for choosing Midstate for your recent repair!</p>
         <p>We know that unexpected repairs aren&rsquo;t always part of the plan, and that every home, budget, and situation is different. At Midstate, our goal is to help you make the best decision for your home, whether that&rsquo;s a small repair, a larger repair that adds years to your equipment&rsquo;s life, or a complete system replacement.</p>
@@ -11522,6 +11571,7 @@ async function printRepairCreditLetters(which) {
       </div>
       <div class="letter-sign">Warm regards,<br><strong>The Midstate Team</strong><br>651-480-1195</div>
       <div class="letter-fine">This offer expires ${fmtLong(r.expiresDate)}. Credit applies to qualifying replacements within one year of the original repair. Maximum credit of $${amount}, not to exceed the amount paid for the qualifying repair. Subject to program terms.</div>
+`}
     </div>`;
   }).join('');
 
