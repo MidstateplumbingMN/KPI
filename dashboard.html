@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.73</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.74</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.73</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.74</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.73</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.74</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3469,7 +3469,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.73
+  // ATTRIBUTION ENGINE — v25.74
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5421,7 +5421,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.73',  // dashboard version that generated this push
+    dash_version: 'v25.74',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5997,7 +5997,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.73',
+        dash_version:        'v25.74',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11430,17 +11430,18 @@ function printRepairCreditLetters(which) {
       <div class="letter-address">${escHtml(r.customerName)}<br>${formatMailingAddress(r.address)}</div>
       <div class="letter-greeting">Dear ${escHtml(first)},</div>
       <div class="letter-body">
-        <p>Thank you for trusting Midstate with your recent repair!</p>
-        <p>We know that unexpected repairs aren&rsquo;t always part of the plan. We also understand that every home, budget, and situation is different.</p>
-        <p>At Midstate, our goal is to help you make the best decision for your home, whether that&rsquo;s a small repair, a larger repair that adds years to your equipment&rsquo;s life, or a complete system replacement.</p>
+        <p>Thank you for choosing Midstate for your recent repair!</p>
+        <p>We know that unexpected repairs aren&rsquo;t always part of the plan, and that every home, budget, and situation is different. At Midstate, our goal is to help you make the best decision for your home, whether that&rsquo;s a small repair, a larger repair that adds years to your equipment&rsquo;s life, or a complete system replacement.</p>
         <p>Because you&rsquo;ve recently invested in repairing your system, we&rsquo;d like to offer you something extra.</p>
-        <p>If you choose to replace your system with Midstate within the next year, we&rsquo;ll credit <strong>up to $${amount}</strong> from your recent repair toward your new system.</p>
-        <p>Your credit is available until <strong>${fmtLong(r.expiresDate)}</strong>.</p>
-        <p>There&rsquo;s no need to make a decision today. Please know that if your needs change, we&rsquo;re here to help make that next step a little easier.</p>
+        <div class="letter-offer">
+          <div class="letter-offer-head">Don&rsquo;t Leave Money on the Table!</div>
+          <div>If you choose to replace your system with Midstate within the next year, we&rsquo;ll credit <strong>up to $${amount}</strong> from your recent repair toward your new system.</div>
+        </div>
+        <p>There&rsquo;s no obligation and no need to make a decision today. If your needs change, we&rsquo;re here to help make that next step a little easier.</p>
         <p>Thank you again for being a valued Midstate customer!</p>
       </div>
-      <div class="letter-sign">Your Midstate Service Team<br>651-480-1195</div>
-      <div class="letter-fine">Credit applies to qualifying replacements within one year of the original repair. Maximum credit of $${amount}, not to exceed the amount paid for the qualifying repair. Subject to program terms.</div>
+      <div class="letter-sign">Warm regards,<br><strong>The Midstate Team</strong><br>651-480-1195</div>
+      <div class="letter-fine">This offer expires ${fmtLong(r.expiresDate)}. Credit applies to qualifying replacements within one year of the original repair. Maximum credit of $${amount}, not to exceed the amount paid for the qualifying repair. Subject to program terms.</div>
     </div>`;
   }).join('');
 
@@ -11463,6 +11464,8 @@ function printRepairCreditLetters(which) {
     .letter-greeting{margin-bottom:16px;font-size:14px;font-weight:700}
     .letter-body p{margin-bottom:14px;line-height:1.7;font-size:13px}
     .letter-sign{margin-top:18px;font-size:13px;line-height:1.6}
+    .letter-offer{margin:6px 0 16px;padding:14px 18px;border:2px solid #B45309;border-radius:6px;background:#FFFBEB;font-size:13px;line-height:1.6;text-align:center}
+    .letter-offer-head{font-family:Arial,sans-serif;font-size:17px;font-weight:800;color:#B45309;margin-bottom:6px}
     .letter-fine{margin-top:auto;padding-top:24px;font-size:9.5px;line-height:1.5;color:#6b7280;font-family:Arial,sans-serif}
   </style></head><body>
   ${letters}
