@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.71</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.73</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.71</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.73</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.71</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.73</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3469,7 +3469,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.71
+  // ATTRIBUTION ENGINE — v25.73
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5421,7 +5421,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.71',  // dashboard version that generated this push
+    dash_version: 'v25.73',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5997,7 +5997,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.71',
+        dash_version:        'v25.73',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10039,13 +10039,17 @@ const SYSTEM_NAME_RE = /\b(80|96|97|98)\s*%|\bseer2?\b|\b\d(\.\d)?\s*ton\b|chang
 const TANK_WH_RE = /natural.?draft|atmospheric|power.?vent|\b\d{2,3}\s*-?\s*gal(lon)?\b|\b(6|9|12)\s*-?\s*(yr|year)|tank.?(type)?\s*water|water.?heater[^,;]{0,40}\btank\b|standard.*water.*heat|electric.*water.*heat/i;
 
 function isHvacOrInstallJob(j){
-  // Any technician tied to the job counts: sold-by attribution, primary assignee, or anyone on an appointment.
-  const names = [
-    _jobAttribution[j.id]?.techName,
-    getAssigned(j),
-    ...(j.appointments||[]).flatMap(a => a.assigned_employees||[]).map(e => ((e.first_name||'')+' '+(e.last_name||'')).trim()),
-  ].filter(Boolean);
-  if(names.some(n => INSTALLER_NAMES.includes(n) || ['HVAC','Install'].includes(DEPT_MAP[n]))) return true;
+  // HVAC side only (HVAC techs and the dedicated installers). Plumbing jobs never qualify.
+  const hvacSide = n => INSTALLER_NAMES.includes(n) || ['HVAC','Install'].includes(DEPT_MAP[n]);
+  const plumbing = n => DEPT_MAP[n] === 'Plumbing';
+  // 1) The sold-by / primary technician decides when we know their department
+  const lead = [_jobAttribution[j.id]?.techName, getAssigned(j)].filter(Boolean);
+  if(lead.some(plumbing)) return false;
+  if(lead.some(hvacSide)) return true;
+  // 2) Otherwise anyone on an appointment: HVAC counts only if no plumber is on the job
+  const crew = (j.appointments||[]).flatMap(a => a.assigned_employees||[]).map(e => ((e.first_name||'')+' '+(e.last_name||'')).trim()).filter(Boolean);
+  if(crew.some(plumbing)) return false;
+  if(crew.some(hvacSide)) return true;
   const dept = getDept(j);
   return dept === 'HVAC' || dept === 'Install';
 }
@@ -10065,7 +10069,7 @@ function repairTextSources(j){
 
 // Decides whether a job is an HVAC repair AND says why (the reason is written to the Jobs tab, Repair Reason column).
 function explainRepairJob(j){
-  if(!isHvacOrInstallJob(j)) return { isRepair:false, reason:'No HVAC/Install technician on the job' };
+  if(!isHvacOrInstallJob(j)) return { isRepair:false, reason:'Not an HVAC job (repair credits are HVAC only)' };
   const { names, lines, free } = repairTextSources(j);
   const sysName = names.find(n => lookupTYItem(n) || (SYSTEM_NAME_RE.test(n) && !REPAIR_PART_RE.test(n)));
   if(sysName) return { isRepair:false, reason:'System sold: ' + sysName };
@@ -10093,7 +10097,7 @@ function diagnoseRepairJob(){
     const day = fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '?';
     const techs = [ _jobAttribution[j.id]?.techName, getAssigned(j), ...(j.appointments||[]).flatMap(a => a.assigned_employees||[]).map(e => ((e.first_name||'')+' '+(e.last_name||'')).trim()) ].filter(Boolean);
     const checks = [
-      ['HVAC/Install tech on job', isHvacOrInstallJob(j)],
+      ['HVAC job (plumbing jobs never qualify)', isHvacOrInstallJob(j)],
       ['Paid', isJobPaid(j)],
       ['Not canceled', !isJobCanceled(j)],
       ['Completed on/after ' + REPAIR_CREDIT_START + ' (' + day + ')', day >= REPAIR_CREDIT_START],
@@ -11424,7 +11428,6 @@ function printRepairCreditLetters(which) {
       ${letterhead}
       <div class="letter-date">${fmtLong(new Date().toISOString())}</div>
       <div class="letter-address">${escHtml(r.customerName)}<br>${formatMailingAddress(r.address)}</div>
-      <div class="letter-subject">Subject: Your Recent Repair Comes with an Added Benefit</div>
       <div class="letter-greeting">Dear ${escHtml(first)},</div>
       <div class="letter-body">
         <p>Thank you for trusting Midstate with your recent repair!</p>
@@ -11460,7 +11463,6 @@ function printRepairCreditLetters(which) {
     .letter-greeting{margin-bottom:16px;font-size:14px;font-weight:700}
     .letter-body p{margin-bottom:14px;line-height:1.7;font-size:13px}
     .letter-sign{margin-top:18px;font-size:13px;line-height:1.6}
-    .letter-subject{margin-bottom:14px;font-size:13px;font-weight:700}
     .letter-fine{margin-top:auto;padding-top:24px;font-size:9.5px;line-height:1.5;color:#6b7280;font-family:Arial,sans-serif}
   </style></head><body>
   ${letters}
