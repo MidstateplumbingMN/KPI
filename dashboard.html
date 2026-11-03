@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.79</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.80</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.79</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.80</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.79</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.80</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3471,7 +3471,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.79
+  // ATTRIBUTION ENGINE — v25.80
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5423,7 +5423,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.79',  // dashboard version that generated this push
+    dash_version: 'v25.80',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5999,7 +5999,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.79',
+        dash_version:        'v25.80',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10361,7 +10361,7 @@ function renderRepairCredits(){
   const fmt = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : '—';
   const btn = (color, label, fn) => `<button onclick="${fn}" style="font-size:11px;padding:4px 10px;border:1px solid ${color};border-radius:5px;background:#fff;color:${color};cursor:pointer;font-weight:700">${label}</button>`;
 
-  el.innerHTML = metrics + (shown.length ? shown.map(r => {
+  const cardHtml = r => {
     const used = isUsed(r);
     const expired = !used && r.expiresDate && String(r.expiresDate) < todayIso;
     const status = used ? ['🎟 Credit used','#166534','#DCFCE7']
@@ -10402,7 +10402,13 @@ function renderRepairCredits(){
         </div>
       </div>
     </div>`;
-  }).join('') : '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">Nothing in this view.</div>');
+  };
+  const isSkipped = r => !isUsed(r) && r.letterStatus === 'skipped';
+  const mainList = filter ? shown : shown.filter(r => !isSkipped(r));
+  const skippedList = filter ? [] : shown.filter(isSkipped);
+  el.innerHTML = metrics
+    + (mainList.length ? mainList.map(cardHtml).join('') : '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">Nothing in this view.</div>')
+    + (skippedList.length ? `<details style="margin-top:12px"><summary style="font-size:12px;font-weight:700;color:#6b7280;cursor:pointer;padding:8px 10px;background:#F3F4F6;border-radius:6px;list-style:none">⏭ Skipped (${skippedList.length}) — hidden · click to review or restore</summary><div style="margin-top:8px">${skippedList.map(cardHtml).join('')}</div></details>` : '');
 }
 
 // Calendar day (YYYY-MM-DD) in Central time, so a late-evening completion does not slip to the next day
@@ -10909,10 +10915,15 @@ function renderTYCardsFromCache(sales) {
   } else {
     if(pending.length) body += head('⚠ Needs Thank You Card', '#DC2626', '#FEF2F2', pending.length) + rowsHtml(pending);
     else body += '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No thank you cards waiting.</div>';
-    if(sent.length || skipped.length || noRev.length) {
+    if(sent.length) {
       body += `<details style="margin-top:16px"><summary style="font-size:13px;font-weight:700;color:#059669;cursor:pointer;padding:8px 10px;background:#F0FDF4;border-radius:6px;list-style:none">
-        ✅ Cards Sent &amp; History (${sent.length} sent${skipped.length?', '+skipped.length+' skipped':''}${noRev.length?', '+noRev.length+' with no revenue recorded':''}) — click to expand</summary>
-        <div style="margin-top:8px">${rowsHtml([...sent, ...skipped, ...noRev.map(s => ({...s, status:'skip'}))])}</div></details>`;
+        ✅ Cards Sent &amp; History (${sent.length} sent) — click to expand</summary>
+        <div style="margin-top:8px">${rowsHtml(sent)}</div></details>`;
+    }
+    if(skipped.length || noRev.length) {
+      body += `<details style="margin-top:10px"><summary style="font-size:12px;font-weight:700;color:#6b7280;cursor:pointer;padding:8px 10px;background:#F3F4F6;border-radius:6px;list-style:none">
+        ⏭ Skipped${skipped.length?' ('+skipped.length+')':''}${noRev.length?(skipped.length?' + ':' ')+noRev.length+' with no revenue recorded':''} — hidden · click to review (pull a report to restore cards)</summary>
+        <div style="margin-top:8px">${rowsHtml([...skipped, ...noRev.map(s => ({...s, status:'skip'}))])}</div></details>`;
     }
   }
 
@@ -11007,8 +11018,11 @@ function renderTYCards(){
             ?`<span style="font-size:12px;font-weight:700;color:#059669">✅ Sent ${card.sentDate?'on '+card.sentDate:''}</span>
                ${card.completedAt?`<span style="font-size:11px;color:#6b7280">· Completed ${new Date(card.completedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>`:''}
                <button onclick="saveTYCard('${j.id}',{status:'pending'})" style="font-size:11px;padding:3px 8px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer;color:#6b7280">Undo</button>`
-            :`<button onclick="markTYSent('${j.id}')" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:5px;background:#059669;color:#fff;cursor:pointer">✅ Mark Sent</button>
-              <button onclick="saveTYCard('${j.id}',{status:'skip'})" style="font-size:11px;padding:5px 10px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;color:#6b7280">Skip</button>`}
+            :(status==='skip'
+              ?`<span style="font-size:12px;font-weight:700;color:#6b7280">⏭ Skipped</span>
+                <button onclick="saveTYCard('${j.id}',{status:'pending'})" style="font-size:11px;font-weight:700;padding:4px 10px;border:1px solid #BE185D;border-radius:5px;background:#fff;cursor:pointer;color:#BE185D">↩ Restore</button>`
+              :`<button onclick="markTYSent('${j.id}')" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:5px;background:#059669;color:#fff;cursor:pointer">✅ Mark Sent</button>
+              <button onclick="saveTYCard('${j.id}',{status:'skip'})" style="font-size:11px;padding:5px 10px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;color:#6b7280">Skip</button>`)}
         </div>
       </div>
       ${card.note?`<div style="margin-top:6px;font-size:11px;color:#6b7280;font-style:italic">${escHtml(card.note)}</div>`:''}
@@ -11037,13 +11051,21 @@ function renderTYCards(){
     html += pending.map(j=>tyRow(j)).join('');
   }
 
-  // SENT / HISTORY section (collapsible)
-  if(sent.length||skipped.length){
+  // SENT / HISTORY section (collapsible) — skipped cards are kept out of sight in their own section below
+  if(sent.length){
     html += `<details style="margin-top:16px">
       <summary style="font-size:13px;font-weight:700;color:#059669;cursor:pointer;padding:8px 10px;background:#F0FDF4;border-radius:6px;list-style:none">
-        ✅ Cards Sent &amp; History (${sent.length} sent${skipped.length?', '+skipped.length+' skipped':''}) — click to expand
+        ✅ Cards Sent &amp; History (${sent.length} sent) — click to expand
       </summary>
-      <div style="margin-top:8px">${[...sent,...skipped].map(j=>tyRow(j,true)).join('')}</div>
+      <div style="margin-top:8px">${sent.map(j=>tyRow(j,true)).join('')}</div>
+    </details>`;
+  }
+  if(skipped.length){
+    html += `<details style="margin-top:10px">
+      <summary style="font-size:12px;font-weight:700;color:#6b7280;cursor:pointer;padding:8px 10px;background:#F3F4F6;border-radius:6px;list-style:none">
+        ⏭ Skipped (${skipped.length}) — hidden · click to review or restore
+      </summary>
+      <div style="margin-top:8px">${skipped.map(j=>tyRow(j,true)).join('')}</div>
     </details>`;
   }
 
