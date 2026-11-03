@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.66</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.67</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.66</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.67</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.66</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.67</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1029,6 +1029,7 @@ tr:hover td{background:#fafafa}
     <div class="panel" id="tab-ty">
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <button id="ty-toggle-installs" onclick="setTYMode('installs')" style="padding:7px 16px;border:1px solid #BE185D;border-radius:7px;background:#BE185D;color:#fff;font-size:12px;font-weight:700;cursor:pointer">🔧 System Installs</button>
+        <button id="ty-toggle-repairs" onclick="setTYMode('repairs')" style="padding:7px 16px;border:1px solid #BE185D;border-radius:7px;background:#fff;color:#BE185D;font-size:12px;font-weight:700;cursor:pointer">🛠️ Repair Credits</button>
         <button id="ty-toggle-referrals" onclick="setTYMode('referrals')" style="padding:7px 16px;border:1px solid #BE185D;border-radius:7px;background:#fff;color:#BE185D;font-size:12px;font-weight:700;cursor:pointer">🎁 Referrals</button>
       </div>
 
@@ -1052,7 +1053,6 @@ tr:hover td{background:#fafafa}
           <button onclick="printTYCards('pending')" style="font-size:12px;padding:5px 12px;border:1px solid #BE185D;border-radius:5px;background:#fff;color:#BE185D;cursor:pointer;font-weight:700">🖨 Print Pending</button>
           <button onclick="printTYCards('sent')" style="font-size:12px;padding:5px 12px;border:1px solid #059669;border-radius:5px;background:#fff;color:#059669;cursor:pointer;font-weight:700">🖨 Print Sent</button>
           <button onclick="printTYCards('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
-          <button onclick="printRepairCreditLetters()" style="font-size:12px;padding:5px 12px;border:1px solid #B45309;border-radius:5px;background:#fff;color:#B45309;cursor:pointer;font-weight:700">🛠️ Repair Credit Letters</button>
           <label style="font-size:12px;color:#6b7280;margin-left:6px">Sort by status</label>
           <select id="tyStatusFilter" onchange="renderTYCards()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;color:#374151;cursor:pointer">
             <option value="">All statuses</option>
@@ -1068,6 +1068,29 @@ tr:hover td{background:#fafafa}
       <div id="ty-deploy-warning" style="display:none;margin-top:12px;padding:10px 14px;background:#FFF9C3;border:1px solid #F59E0B;border-radius:7px;font-size:12px;color:#78350F">
         <strong>⚠ Apps Script needs redeployment</strong> — pull a fresh report after deploying to create the TY_Cards tab.
       </div>
+      </div>
+
+      <!-- ════ REPAIR CREDITS ════ -->
+      <div id="ty-repairs-section" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="sec-head" style="margin:0">🛠️ Repair Credit Letters</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px">HVAC repairs over $2,000 completed on or after 10/1/2026 (not installs). Each gets a letter offering up to $500 toward a new system for one year. Tracked in Google Sheets.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button onclick="renderRepairCredits()" style="font-size:12px;padding:5px 12px;border:1px solid #B45309;border-radius:5px;background:#fff;color:#B45309;cursor:pointer;font-weight:600">↻ Refresh</button>
+            <button onclick="printRepairCreditLetters('needs')" style="font-size:12px;padding:5px 12px;border:none;border-radius:5px;background:#B45309;color:#fff;cursor:pointer;font-weight:700">🖨 Print Letters Needed</button>
+            <button onclick="printRepairCreditLetters('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
+            <select id="repairStatusFilter" onchange="renderRepairCredits()" style="font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;color:#374151;cursor:pointer">
+              <option value="">All statuses</option>
+              <option value="needs">⚠ Needs letter</option>
+              <option value="sent">✅ Letter sent</option>
+              <option value="used">🎟 Credit used</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </div>
+        </div>
+        <div id="repairContent"><div style="text-align:center;padding:40px;color:#9ca3af">Pull a report to find repairs.</div></div>
       </div>
 
       <!-- ════ REFERRALS (new) ════ -->
@@ -2815,7 +2838,7 @@ function showTab(t){
     $$('tyFrom').value=$$('dateFrom')?.value||'';
     $$('tyTo').value=$$('dateTo')?.value||'';
     // renderTYCards handles both live (post-pull) and cached (pre-pull) display
-    Promise.all([fetchTYCardsFromSheets(), loadRepairCredits()]).then(()=>{ syncRepairCreditsToSheets().then(()=>renderTYCards()); renderTYCards(); });
+    Promise.all([fetchTYCardsFromSheets(), loadRepairCredits()]).then(()=>{ renderTYCards(); syncRepairCreditsToSheets().then(()=>renderRepairCredits()); });
   }
 }
 function printReport(){
@@ -3438,7 +3461,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.66
+  // ATTRIBUTION ENGINE — v25.67
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5384,7 +5407,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.66',  // dashboard version that generated this push
+    dash_version: 'v25.67',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5960,7 +5983,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.66',
+        dash_version:        'v25.67',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -9941,9 +9964,6 @@ const TY_ITEM_SETS={
     'HD/HDS 60','Modine HD/HDS 75',
   ])},
   water_heater:{label:'Tankless Water Heater',color:'#0369A1',icon:'💧',items:TANKLESS_ITEMS},
-  // Not an install. HVAC repair invoices that exceed REPAIR_CREDIT_THRESHOLD get this tag so a
-  // "repair credit" letter can be sent (see printRepairCreditLetters). Never goes to the Order Queue.
-  repair:{label:'Repairs',color:'#B45309',icon:'🛠️',items:new Set()},
 };
 
 // Flat lookup: exact item name -> category key
@@ -9951,6 +9971,22 @@ const TY_ITEM_LOOKUP={};
 Object.entries(TY_ITEM_SETS).forEach(([key,cat])=>{
   cat.items.forEach(name=>{TY_ITEM_LOOKUP[name]=key;});
 });
+
+// Forgiving lookup: ignores case, extra spaces and punctuation so "ALXS3 13 seer 3 ton"
+// matches the pricebook item "ALXS3 (13 SEER) 3 TON".
+const _tyNorm = t => String(t||'').toLowerCase().replace(/[^a-z0-9%.]+/g,' ').trim();
+const TY_ITEM_LOOKUP_NORM = {};
+Object.keys(TY_ITEM_LOOKUP).forEach(name => { TY_ITEM_LOOKUP_NORM[_tyNorm(name)] = TY_ITEM_LOOKUP[name]; });
+function lookupTYItem(text){ return TY_ITEM_LOOKUP[text] || TY_ITEM_LOOKUP_NORM[_tyNorm(text)] || null; }
+
+// Equipment model codes found on invoice line items (checked before loose keyword matching,
+// so an AC model is never mistaken for a furnace because other text mentions a furnace).
+const TY_MODEL_RULES = [
+  [/\bASZH4\b|heat.?pump/i,                                  'heat_pump'],
+  [/\bALXS[35]\b|\bAXV6S\b|\bseer2?\b|\bcondenser\b/i,       'ac'],
+  [/\bAR9[ST]\d\d\b|\bARVM97\b/i,                             'furnace'],
+];
+
 
 // Equipment categories that require parts ordered before install day
 // Used by Order Queue — Eric and Bob track these
@@ -9983,8 +10019,8 @@ const REPAIR_CREDIT_START     = '2026-10-01';
 
 // Parts / repair wording on the job's OWN invoice line items
 const REPAIR_PART_RE = /inducer|draft.?motor|blower.?motor|motor\b|\becm\b|igniter|ignitor|flame.?sens|pressure.?switch|limit.?switch|control.?board|circuit.?board|gas.?valve|thermocouple|thermopile|heat.?exchanger|reversing.?valve|compressor|capacitor|contactor|fan.?motor|condensate.?pump|\brepair\b|replace(d|ment)?\s+(part|motor|board|valve|switch|sensor)/i;
-// Wording that means a whole system/unit was sold, not a part
-const SYSTEM_ITEM_RE = /\b(80|96|97|98)\s*%|\bseer2?\b|\b\d(\.\d)?\s*ton\b|change.?out|new\s+system|mini.?split\s+system|(install|replac\w*|new)\s+(\w+\s+){0,3}(furnace|air.?cond|a\/c|condenser|heat.?pump|boiler|mini.?split|air.?handler)/i;
+// Wording in a line item NAME that means a whole system/unit was sold, not a part
+const SYSTEM_NAME_RE = /\b(80|96|97|98)\s*%|\bseer2?\b|\b\d(\.\d)?\s*ton\b|change.?out|new\s+system|mini.?split\s+system|\bALXS[35]\b|\bAXV6S\b|\bASZH4\b|\bAR9[ST]\d\d\b|\bARVM97\b/i;
 // Tank-type water heaters (not tankless) — plumbing jobs, never a system install
 const TANK_WH_RE = /natural.?draft|atmospheric|power.?vent|\b\d{2,3}\s*-?\s*gal(lon)?\b|\b(6|9|12)\s*-?\s*(yr|year)|tank.?(type)?\s*water|water.?heater[^,;]{0,40}\btank\b|standard.*water.*heat|electric.*water.*heat/i;
 
@@ -9995,18 +10031,32 @@ function isHvacOrInstallJob(j){
 }
 
 // True when the job is an HVAC repair (parts/labor on existing equipment).
-// Uses the job's own invoice line items — NOT linked estimate options, which
-// often list replacement systems that were quoted but not chosen.
+// Uses the job's own invoice line items — NOT linked estimate options (which often list
+// replacement systems that were quoted but not chosen) and NOT line item descriptions
+// when deciding whether a system was sold.
 function isRepairJob(j){
   if(!isHvacOrInstallJob(j)) return false;
-  const lines = (j.line_items||[]).map(li => ((li.name||'') + ' ' + (li.description||'')).trim()).filter(Boolean);
-  if(lines.some(t => TY_ITEM_LOOKUP[(t||'').trim()] || SYSTEM_ITEM_RE.test(t))) return false; // a system was sold
-  if((j.line_items||[]).some(li => TY_ITEM_LOOKUP[(li.name||'').trim()])) return false;
-  const typeIsRepair = /repair/i.test(getJobType(j));
-  return typeIsRepair || lines.some(t => REPAIR_PART_RE.test(t));
+  const items = (j.line_items||[]);
+  const names = items.map(li => (li.name||'').trim()).filter(Boolean);
+  const lines = items.map(li => ((li.name||'') + ' ' + (li.description||'')).trim()).filter(Boolean);
+  // A pricebook system, or a system-sounding NAME that is not itself a part → a system was sold
+  if(names.some(n => lookupTYItem(n) || (SYSTEM_NAME_RE.test(n) && !REPAIR_PART_RE.test(n)))) return false;
+  return /repair/i.test(getJobType(j)) || lines.some(t => REPAIR_PART_RE.test(t));
 }
 
+// ---- Repair Credits (own tab; independent of the install thank you cards) ----
 let _repairCredits = {};   // jobNumber -> record stored in the Repair_Credits Sheet tab
+
+// Every paid HVAC repair completed on/after REPAIR_CREDIT_START that is over REPAIR_CREDIT_THRESHOLD.
+function getRepairCreditJobs(){
+  return _jobs.filter(j => {
+    if(!isJobPaid(j) || isJobCanceled(j)) return false;
+    if(!isRepairJob(j)) return false;
+    const day = fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '';
+    if(!day || day < REPAIR_CREDIT_START) return false;
+    return jobCollected(j) > REPAIR_CREDIT_THRESHOLD;
+  });
+}
 
 async function loadRepairCredits(){
   if(!_sheetsProxy) return;
@@ -10021,8 +10071,7 @@ async function loadRepairCredits(){
   } catch(e){ console.warn('[RepairCredits] load failed:', e.message); }
 }
 
-// Build the Sheet record for a Repairs-tagged job. `patch` holds only the fields being changed,
-// so the Sheet keeps everything else it already has (letter dates, redemption, etc.).
+// Sheet record for a repair job. `patch` holds only the fields being changed.
 function buildRepairCreditRecord(j, patch){
   const cust = j.customer || {};
   const base = j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at;
@@ -10035,13 +10084,27 @@ function buildRepairCreditRecord(j, patch){
     phone: cust.mobile_number || cust.home_number || '',
     repairDate: iso(base),
     repairAmount: Math.round(jobCollected(j) * 100) / 100,
+    repairDescription: (j.line_items||[]).map(li => (li.name||'').trim()).filter(Boolean).join('; ').slice(0,160),
     creditAmount: REPAIR_CREDIT_AMOUNT,
     expiresDate: iso(repairCreditExpiry(j)),
     ...patch,
   };
 }
 
-// Saves one or more records. Returns true only when the Sheet confirms.
+// Stored records merged with live repair jobs, newest repair first.
+function getRepairCreditList(){
+  const map = {};
+  Object.values(_repairCredits).forEach(r => { map[String(r.jobNumber)] = { ...r }; });
+  getRepairCreditJobs().forEach(j => {
+    const rec = buildRepairCreditRecord(j, {});
+    map[rec.jobNumber] = { ...(map[rec.jobNumber]||{}), ...rec };
+  });
+  return Object.values(map)
+    .map(r => ({ ...r, letterStatus: r.letterStatus || 'pending' }))
+    .sort((a,b) => String(b.repairDate).localeCompare(String(a.repairDate)));
+}
+
+// Saves records. Returns true only when the Sheet confirms.
 async function saveRepairCreditRecords(records){
   if(!records.length) return true;
   if(!_sheetsProxy){ showToast('Not connected to Sheets — repair credit not saved.', 'error'); return false; }
@@ -10061,35 +10124,112 @@ async function saveRepairCreditRecords(records){
   }
 }
 
-async function saveRepairCreditPatch(j, patch){
-  const ok = await saveRepairCreditRecords([buildRepairCreditRecord(j, patch)]);
-  renderTYCards();
+// Change one repair credit (letter status, redemption...). Sends the full record so the row is complete.
+async function repairCreditAct(jobNumber, patch){
+  const full = getRepairCreditList().find(r => String(r.jobNumber) === String(jobNumber));
+  if(!full){ showToast('Repair not found — pull a report first.', 'error'); return false; }
+  const ok = await saveRepairCreditRecords([{ ...full, ...patch }]);
+  renderRepairCredits();
   return ok;
 }
 
-async function markRepairCreditRedeemed(jobId){
-  const j = _jobs.find(x => x.id === jobId); if(!j) return;
+function markRepairLetterSent(jobNumber){
+  return repairCreditAct(jobNumber, { letterStatus:'sent', letterSentDate:new Date().toISOString().split('T')[0] });
+}
+
+async function markRepairCreditRedeemed(jobNumber){
   const num = prompt('Credit used toward a new system. Enter the new system job or estimate number (optional):', '');
   if(num === null) return;
-  const ok = await saveRepairCreditPatch(j, { redeemed:'yes', redeemedDate:new Date().toISOString().split('T')[0], redeemedJobNumber:(num||'').trim() });
+  const ok = await repairCreditAct(jobNumber, { redeemed:'yes', redeemedDate:new Date().toISOString().split('T')[0], redeemedJobNumber:(num||'').trim() });
   if(ok) showToast('Repair credit marked as used', 'success');
 }
 
-async function undoRepairCreditRedeemed(jobId){
-  const j = _jobs.find(x => x.id === jobId); if(!j) return;
+function undoRepairCreditRedeemed(jobNumber){
   if(!confirm('Mark this repair credit as not used?')) return;
-  await saveRepairCreditPatch(j, { redeemed:'', redeemedDate:'', redeemedJobNumber:'' });
+  return repairCreditAct(jobNumber, { redeemed:'', redeemedDate:'', redeemedJobNumber:'' });
 }
 
-// Make sure every Repairs-tagged job has a row in the Sheet (letterStatus pending) after a pull.
+// Make sure every qualifying repair has a row in the Sheet (letterStatus pending) after a pull.
 async function syncRepairCreditsToSheets(){
   if(!_sheetsProxy || !_jobs.length) return;
   try {
-    const repairs = _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j) && detectEquipmentSale(j)?.key === 'repair');
-    const fresh = repairs.filter(j => !_repairCredits[String(j.job_number || j.id)])
+    const fresh = getRepairCreditJobs()
+      .filter(j => !_repairCredits[String(j.job_number || j.id)])
       .map(j => buildRepairCreditRecord(j, { letterStatus:'pending' }));
     if(fresh.length){ await saveRepairCreditRecords(fresh); console.log('[RepairCredits] Synced', fresh.length, 'new repair credits'); }
   } catch(e){ console.warn('[RepairCredits] sync failed:', e.message); }
+}
+
+function renderRepairCredits(){
+  const el = $$('repairContent');
+  if(!el) return;
+  const filter = $$('repairStatusFilter')?.value || '';
+  const all = getRepairCreditList();
+  const isUsed  = r => r.redeemed === 'yes';
+  const isNeeds = r => !isUsed(r) && (r.letterStatus === 'pending' || r.letterStatus === 'printed');
+  const nNeeds = all.filter(isNeeds).length;
+  const nSent  = all.filter(r => !isUsed(r) && r.letterStatus === 'sent').length;
+  const nUsed  = all.filter(isUsed).length;
+
+  // Diagnostic: HVAC jobs paid over the threshold since the start date that were NOT treated as repairs
+  if(_jobs.length){
+    const missed = _jobs.filter(j => isJobPaid(j) && !isJobCanceled(j) && isHvacOrInstallJob(j)
+      && (fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at)||'') >= REPAIR_CREDIT_START
+      && jobCollected(j) > REPAIR_CREDIT_THRESHOLD && !isRepairJob(j));
+    console.log('[RepairCredits] ' + all.length + ' repairs listed. ' + missed.length + ' other HVAC jobs over $' + REPAIR_CREDIT_THRESHOLD + ' since ' + REPAIR_CREDIT_START + ' treated as non-repairs (installs/other):');
+    missed.slice(0,40).forEach(j => console.log('   #' + (j.job_number||j.id) + ' | ' + getJobType(j) + ' | ' + (j.line_items||[]).map(li=>li.name).join(' ; ')));
+  }
+
+  const metrics = `<div class="metrics" style="margin-bottom:16px">
+    <div class="metric"><div class="metric-label">Repairs over ${dollars(REPAIR_CREDIT_THRESHOLD)}</div><div class="metric-value">${all.length}</div><div class="metric-sub">Since ${REPAIR_CREDIT_START}</div></div>
+    <div class="metric"><div class="metric-label">⚠ Needs letter</div><div class="metric-value" style="color:#DC2626">${nNeeds}</div></div>
+    <div class="metric"><div class="metric-label">✅ Letter sent</div><div class="metric-value" style="color:#059669">${nSent}</div></div>
+    <div class="metric"><div class="metric-label">🎟 Credit used</div><div class="metric-value" style="color:#166534">${nUsed}</div></div>
+  </div>`;
+
+  if(!all.length){
+    el.innerHTML = metrics + `<div style="text-align:center;padding:30px;color:#9ca3af;font-size:12px">${_jobs.length ? 'No paid HVAC repairs over '+dollars(REPAIR_CREDIT_THRESHOLD)+' found since '+REPAIR_CREDIT_START+' in the pulled data.' : 'Pull a report to find repairs.'}</div>`;
+    return;
+  }
+  const shown = all.filter(r => !filter || (filter==='needs' && isNeeds(r)) || (filter==='sent' && !isUsed(r) && r.letterStatus==='sent')
+    || (filter==='used' && isUsed(r)) || (filter==='skipped' && !isUsed(r) && r.letterStatus==='skipped'));
+  const todayIso = new Date().toISOString().split('T')[0];
+  const fmt = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : '—';
+  const btn = (color, label, fn) => `<button onclick="${fn}" style="font-size:11px;padding:4px 10px;border:1px solid ${color};border-radius:5px;background:#fff;color:${color};cursor:pointer;font-weight:700">${label}</button>`;
+
+  el.innerHTML = metrics + (shown.length ? shown.map(r => {
+    const used = isUsed(r);
+    const expired = !used && r.expiresDate && String(r.expiresDate) < todayIso;
+    const status = used ? ['🎟 Credit used','#166534','#DCFCE7']
+      : r.letterStatus==='sent' ? ['✅ Letter sent','#166534','#DCFCE7']
+      : r.letterStatus==='printed' ? ['🖨 Printed — not marked sent','#92400E','#FEF3C7']
+      : r.letterStatus==='skipped' ? ['Skipped','#6b7280','#F3F4F6']
+      : ['⚠ Needs letter','#B91C1C','#FEE2E2'];
+    const jn = escHtml(String(r.jobNumber)).replace(/'/g,'');
+    return `<div style="border:1.5px solid ${used?'#059669':'#B45309'};border-radius:10px;padding:14px;background:${used?'#F0FDF4':'#FFFBEB'};margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#1f2937">${escHtml(r.customerName)}</div>
+          <div style="font-size:12px;color:#6b7280">📍 ${escHtml(r.address)} ${r.phone?'· 📞'+escHtml(r.phone):''}</div>
+          <div style="font-size:12px;color:#374151;margin-top:3px">
+            <span style="background:#B45309;color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">🛠️ Repairs</span>
+            ${escHtml(r.repairDescription||'Repair')} · Repaired ${fmt(r.repairDate)} · ${dollars(parseFloat(r.repairAmount)||0)} · Job #${escHtml(String(r.jobNumber))}
+          </div>
+          <div style="font-size:11px;margin-top:4px;color:${expired?'#B91C1C':'#92400E'}">Up to ${dollars(parseFloat(r.creditAmount)||REPAIR_CREDIT_AMOUNT)} credit toward a new system · ${expired?'<b>expired ':'expires '}${fmt(r.expiresDate)}${expired?'</b>':''}
+            ${r.letterPrintedDate?' · Printed '+fmt(r.letterPrintedDate):''}${r.letterSentDate?' · Sent '+fmt(r.letterSentDate):''}${used?' · <b>Used '+fmt(r.redeemedDate)+(r.redeemedJobNumber?' (#'+escHtml(r.redeemedJobNumber)+')':'')+'</b>':''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;color:${status[1]};background:${status[2]}">${status[0]}</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            ${btn('#B45309','🖨 Letter',`printRepairCreditLetters(['${jn}'])`)}
+            ${r.letterStatus==='sent' ? btn('#6b7280','Undo sent',`repairCreditAct('${jn}',{letterStatus:'pending',letterSentDate:''})`) : btn('#059669','✅ Mark Sent',`markRepairLetterSent('${jn}')`)}
+            ${r.letterStatus==='skipped' ? btn('#6b7280','Unskip',`repairCreditAct('${jn}',{letterStatus:'pending'})`) : (r.letterStatus!=='sent' ? btn('#6b7280','Skip',`repairCreditAct('${jn}',{letterStatus:'skipped'})`) : '')}
+            ${used ? btn('#6b7280','Undo used',`undoRepairCreditRedeemed('${jn}')`) : btn('#166534','🎟 Mark Credit Used',`markRepairCreditRedeemed('${jn}')`)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">Nothing in this view.</div>');
 }
 
 function repairCreditExpiry(j){
@@ -10102,14 +10242,8 @@ function repairCreditExpiry(j){
 function detectEquipmentSale(j, requirePaid=true){
   if(requirePaid && !isJobPaid(j)) return null;
 
-  // Repairs are never installs. Over the threshold = "Repairs" tag (credit letter); under = ignored.
-  if(isRepairJob(j)){
-    const repairDay = fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '';
-    if(!repairDay || repairDay < REPAIR_CREDIT_START) return null; // before the program start date
-    const repairTotal = requirePaid ? jobCollected(j) : getJobTotal(j);
-    if(repairTotal > REPAIR_CREDIT_THRESHOLD) return {key:'repair', ...TY_ITEM_SETS.repair, matchedItem:'Repair over $'+REPAIR_CREDIT_THRESHOLD, repairTotal};
-    return null;
-  }
+  // Repairs are never installs. They are handled by the Repair Credits tab (getRepairCreditJobs).
+  if(isRepairJob(j)) return null;
 
   // Hard exclusion — service calls, maintenance, cleaning, and ALL tank water heaters
   // Tank WH identifiers: power vent, gallon size, year warranty (6yr/12yr), storage tank
@@ -10165,15 +10299,24 @@ function detectEquipmentSale(j, requirePaid=true){
   const allTextsFull = [...allTexts, ...descTexts]; // includes description for fuzzy only
 
   for(const text of allTexts){
-    // First try exact pricebook lookup
-    if(TY_ITEM_LOOKUP[text]) {
-      const key = TY_ITEM_LOOKUP[text];
+    // First try exact pricebook lookup (forgiving about case/spacing/punctuation)
+    if(lookupTYItem(text)) {
+      const key = lookupTYItem(text);
       if(key === 'water_heater'){
         if(jobCollected(j) < 3000) continue;
         return {key, ...TY_ITEM_SETS[key], matchedItem:text};
       }
       if(isPlumbing) continue;
       return {key, ...TY_ITEM_SETS[key], matchedItem:text};
+    }
+  }
+
+  // Model-code match on the invoice line item names (AC / heat pump / furnace model numbers)
+  if(!isPlumbing){
+    for(const text of lineItemTexts){
+      for(const [re,key] of TY_MODEL_RULES){
+        if(re.test(text)) return {key, ...TY_ITEM_SETS[key], matchedItem:text, fuzzy:true};
+      }
     }
   }
 
@@ -10322,13 +10465,6 @@ async function saveTYCard(jobId,update){
   // Enrich with job data for Sheets storage
   const job=_jobs.find(j=>j.id===jobId);
   const equip=job?detectEquipmentSale(job):null;
-  if(job && equip?.key==='repair' && update.status){
-    const today=new Date().toISOString().split('T')[0];
-    const patch = update.status==='sent' ? {letterStatus:'sent', letterSentDate:update.sentDate||today}
-                : update.status==='skip' ? {letterStatus:'skipped'}
-                : {letterStatus:'pending', letterSentDate:''};
-    saveRepairCreditPatch(job, patch);
-  }
   const cust=job?.customer||{};
   const name=job?[cust.first_name,cust.last_name].filter(Boolean).join(' ')||getCust(job):'';
   const addr=job?.address?[job.address.street,job.address.city,job.address.state,job.address.zip].filter(Boolean).join(', '):'';
@@ -10602,8 +10738,7 @@ function renderTYCards(){
   // understated (often $0) total even though the job had real, collected
   // revenue.
   const metrics=`<div class="metrics" style="margin-bottom:16px">
-    <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.filter(j=>detectEquipmentSale(j)?.key!=='repair').length}</div><div class="metric-sub">In date range</div></div>
-    <div class="metric"><div class="metric-label">🛠️ Repair credits</div><div class="metric-value" style="color:#B45309">${sales.filter(j=>detectEquipmentSale(j)?.key==='repair').length}</div><div class="metric-sub">Over ${dollars(REPAIR_CREDIT_THRESHOLD)}</div></div>
+    <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.length}</div><div class="metric-sub">In date range</div></div>
     <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending.length}</div></div>
     <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent.length}</div></div>
     <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(sales.reduce((s,j)=>s+jobCollected(j),0))}</div></div>
@@ -10643,10 +10778,7 @@ function renderTYCards(){
             <span style="background:${equip?.color||'#1A3A5C'};color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">${equip?.icon||''} ${equip?.label||'Equipment'}</span>
             ${escHtml(equipLabel)} · Completed ${installDate} · <span style="font-weight:600;color:${isJobPaid(j)?'#166534':'#92400E'}">${paidLabel}</span> · ${escHtml(techName)} · ${dollars(jobRev)}
           </div>
-          ${equip?.key==='repair'?`<div style="font-size:11px;color:#92400E;margin-top:4px">🛠️ Repair over ${dollars(REPAIR_CREDIT_THRESHOLD)} — eligible for up to ${dollars(REPAIR_CREDIT_AMOUNT)} credit toward a new system · expires ${repairCreditExpiry(j).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
-            <button onclick="printRepairCreditLetters(['${j.id}'])" style="margin-left:6px;font-size:11px;padding:2px 8px;border:1px solid #B45309;border-radius:4px;background:#fff;color:#B45309;cursor:pointer;font-weight:700">🖨 Credit Letter</button>
-            ${(()=>{ const rc=_repairCredits[String(j.job_number||j.id)]||{};
-              return `<span style="margin-left:8px;color:#6b7280">${rc.letterPrintedDate?'Printed '+escHtml(rc.letterPrintedDate)+' · ':''}${rc.letterSentDate?'Sent '+escHtml(rc.letterSentDate)+' · ':''}${rc.redeemed==='yes'?'<b style="color:#166534">✅ Credit used '+escHtml(rc.redeemedDate||'')+(rc.redeemedJobNumber?' (#'+escHtml(rc.redeemedJobNumber)+')':'')+'</b> <button onclick="undoRepairCreditRedeemed(\''+j.id+'\')" style="font-size:10px;padding:1px 6px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer;color:#6b7280">Undo</button>':'<button onclick="markRepairCreditRedeemed(\''+j.id+'\')" style="font-size:11px;padding:2px 8px;border:1px solid #166534;border-radius:4px;background:#fff;color:#166534;cursor:pointer;font-weight:700">Mark Credit Used</button>'}</span>`; })()}</div>`:''}
+
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           ${status==='sent'
@@ -10828,17 +10960,24 @@ let _referralCards = []; // [{id, customerName, address, referredName, amount, d
 let _tySalesCache  = []; // flat cached records from TY_Sales_Cache Sheets tab
 
 function setTYMode(mode) {
-  const installsBtn = $$('ty-toggle-installs'), referralsBtn = $$('ty-toggle-referrals');
-  const installsSec = $$('ty-installs-section'), referralsSec = $$('ty-referrals-section');
-  const isInstalls = mode === 'installs';
-  if(installsSec) installsSec.style.display = isInstalls ? '' : 'none';
-  if(referralsSec) referralsSec.style.display = isInstalls ? 'none' : '';
-  if(installsBtn) { installsBtn.style.background = isInstalls?'#BE185D':'#fff'; installsBtn.style.color = isInstalls?'#fff':'#BE185D'; }
-  if(referralsBtn) { referralsBtn.style.background = !isInstalls?'#BE185D':'#fff'; referralsBtn.style.color = !isInstalls?'#fff':'#BE185D'; }
-  if(!isInstalls) {
+  const modes = {
+    installs:  ['ty-toggle-installs',  'ty-installs-section'],
+    repairs:   ['ty-toggle-repairs',   'ty-repairs-section'],
+    referrals: ['ty-toggle-referrals', 'ty-referrals-section'],
+  };
+  Object.entries(modes).forEach(([m,[btnId,secId]]) => {
+    const on = m === mode, btn = $$(btnId), sec = $$(secId);
+    if(sec) sec.style.display = on ? '' : 'none';
+    if(btn) { btn.style.background = on?'#BE185D':'#fff'; btn.style.color = on?'#fff':'#BE185D'; }
+  });
+  if(mode === 'referrals') {
     const dateEl = $$('ref-date');
     if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
     if(!_referralCards.length) loadReferralCards();
+  }
+  if(mode === 'repairs') {
+    renderRepairCredits();
+    loadRepairCredits().then(() => syncRepairCreditsToSheets()).then(() => renderRepairCredits());
   }
 }
 
@@ -11123,22 +11262,23 @@ function formatMailingAddress(raw) {
   return escHtml(addr);
 }
 
-// Repair credit letter — HVAC repair invoices over REPAIR_CREDIT_THRESHOLD.
-// jobIds: array of job ids, or omitted to print every Repairs-tagged job in the TY date range.
-function printRepairCreditLetters(jobIds) {
-  const repairs = getTYSales().filter(j => detectEquipmentSale(j)?.key === 'repair');
-  const jobs = Array.isArray(jobIds) ? repairs.filter(j => jobIds.includes(j.id)) : repairs;
-  if(!jobs.length) { alert('No repair credit letters to print in this date range.'); return; }
+// Repair credit letters. `which` = array of job numbers, 'needs' (not yet sent/skipped/used), or 'all'.
+function printRepairCreditLetters(which) {
+  const all = getRepairCreditList();
+  const isUsed = r => r.redeemed === 'yes';
+  let list;
+  if(Array.isArray(which)) list = all.filter(r => which.includes(String(r.jobNumber)));
+  else if(which === 'all') list = all;
+  else list = all.filter(r => !isUsed(r) && (r.letterStatus === 'pending' || r.letterStatus === 'printed'));
+  if(!list.length) { alert('No repair credit letters to print.'); return; }
 
   // Record in Google Sheets that these letters were printed (a letter already marked Sent stays Sent)
   const todayIso = new Date().toISOString().split('T')[0];
-  saveRepairCreditRecords(jobs.map(j => {
-    const prev = _repairCredits[String(j.job_number || j.id)];
-    return buildRepairCreditRecord(j, { letterPrintedDate: todayIso, letterStatus: prev?.letterStatus === 'sent' ? 'sent' : 'printed' });
-  })).then(() => renderTYCards());
+  saveRepairCreditRecords(list.map(r => ({ ...r, letterPrintedDate: todayIso, letterStatus: r.letterStatus === 'sent' ? 'sent' : 'printed' })))
+    .then(() => renderRepairCredits());
 
   const logoUrl = _wbSettings?.logoUrl || 'https://midstateplumbingmn.github.io/KPI/images/logo.png';
-  const fmtLong = d => d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const fmtLong = d => new Date(String(d).slice(0,10) + 'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const letterhead = `<div class="letterhead">
     <img src="${logoUrl}" class="letterhead-logo" onerror="this.style.display='none'">
     <div class="letterhead-text">
@@ -11148,17 +11288,13 @@ function printRepairCreditLetters(jobIds) {
   </div>
   <div class="letterhead-rule"></div>`;
 
-  const letters = jobs.map(j => {
-    const cust = j.customer || {};
-    const name = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j);
-    const first = cust.first_name || name.split(' ')[0] || name;
-    const addr = j.address ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ') : '';
-    const repairDate = new Date(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at || Date.now());
-    const expires = repairCreditExpiry(j);
+  const letters = list.map(r => {
+    const first = (r.customerName || '').split(' ')[0] || r.customerName;
+    const amount = parseFloat(r.creditAmount) || REPAIR_CREDIT_AMOUNT;
     return `<div class="letter-page">
       ${letterhead}
-      <div class="letter-date">${fmtLong(new Date())}</div>
-      <div class="letter-address">${escHtml(name)}<br>${formatMailingAddress(addr)}</div>
+      <div class="letter-date">${fmtLong(new Date().toISOString())}</div>
+      <div class="letter-address">${escHtml(r.customerName)}<br>${formatMailingAddress(r.address)}</div>
       <div class="letter-subject">Subject: Your Recent Repair Comes with an Added Benefit</div>
       <div class="letter-greeting">Dear ${escHtml(first)},</div>
       <div class="letter-body">
@@ -11166,13 +11302,13 @@ function printRepairCreditLetters(jobIds) {
         <p>We know that unexpected repairs aren&rsquo;t always part of the plan. We also understand that every home, budget, and situation is different.</p>
         <p>At Midstate, our goal is to help you make the best decision for your home, whether that&rsquo;s a small repair, a larger repair that adds years to your equipment&rsquo;s life, or a complete system replacement.</p>
         <p>Because you&rsquo;ve recently invested in repairing your system, we&rsquo;d like to offer you something extra.</p>
-        <p>If you choose to replace your system with Midstate within the next year, we&rsquo;ll credit <strong>up to $${REPAIR_CREDIT_AMOUNT}</strong> from your recent repair toward your new system.</p>
-        <p>Your credit is available until <strong>${fmtLong(expires)}</strong>.</p>
+        <p>If you choose to replace your system with Midstate within the next year, we&rsquo;ll credit <strong>up to $${amount}</strong> from your recent repair toward your new system.</p>
+        <p>Your credit is available until <strong>${fmtLong(r.expiresDate)}</strong>.</p>
         <p>There&rsquo;s no need to make a decision today. Please know that if your needs change, we&rsquo;re here to help make that next step a little easier.</p>
         <p>Thank you again for being a valued Midstate customer!</p>
       </div>
       <div class="letter-sign">Your Midstate Service Team<br>651-480-1195</div>
-      <div class="letter-fine">Credit applies to qualifying replacements within one year of the original repair. Maximum credit of $${REPAIR_CREDIT_AMOUNT}, not to exceed the amount paid for the qualifying repair. Subject to program terms.</div>
+      <div class="letter-fine">Credit applies to qualifying replacements within one year of the original repair. Maximum credit of $${amount}, not to exceed the amount paid for the qualifying repair. Subject to program terms.</div>
     </div>`;
   }).join('');
 
