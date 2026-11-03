@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.76</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.77</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.76</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.77</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.76</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.77</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3469,7 +3469,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.76
+  // ATTRIBUTION ENGINE — v25.77
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5421,7 +5421,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.76',  // dashboard version that generated this push
+    dash_version: 'v25.77',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5997,7 +5997,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.76',
+        dash_version:        'v25.77',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10141,14 +10141,51 @@ async function loadRepairCredits(){
   } catch(e){ console.warn('[RepairCredits] load failed:', e.message); }
 }
 
+// Mailing address as one string, from a live job (object) or a job restored from the Sheet (string)
+function jobAddressString(j){
+  if(!j || !j.address) return '';
+  if(typeof j.address === 'string') return j.address.trim();
+  return [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ');
+}
+
+// Find a mailing address for a repair credit record: the same job first, then any other job for that customer.
+function lookupRepairAddress(r){
+  const byJob = _jobs.find(j => String(j.job_number || j.id) === String(r.jobNumber));
+  let addr = jobAddressString(byJob);
+  if(addr) return addr;
+  const name = String(r.customerName||'').trim().toLowerCase();
+  const phone = String(r.phone||'').replace(/\D/g,'');
+  const other = _jobs.find(j => {
+    if(!jobAddressString(j)) return false;
+    const jp = String(j.customer?.mobile_number || j.customer?.home_number || j.customer_phone || '').replace(/\D/g,'');
+    return (name && getCust(j).trim().toLowerCase() === name) || (phone.length >= 7 && jp === phone);
+  });
+  return jobAddressString(other);
+}
+
+// Make sure every record about to be printed has an address. Fills from pulled data; asks you only as a last resort.
+// Anything found or typed is saved to the Repair_Credits tab so it is there next time.
+async function ensureRepairAddresses(list){
+  const fixed = [];
+  for(const r of list){
+    if(String(r.address||'').trim()) continue;
+    let addr = lookupRepairAddress(r);
+    if(!addr){
+      const typed = prompt('No mailing address on file for ' + r.customerName + ' (job #' + r.jobNumber + ').\nType the address (street, city, state, zip) or leave blank to skip:', '');
+      addr = (typed || '').trim();
+    }
+    if(addr){ r.address = addr; fixed.push({ ...r, address: addr }); }
+  }
+  if(fixed.length) await saveRepairCreditRecords(fixed);
+  return list;
+}
+
 // Sheet record for a repair job. `patch` holds only the fields being changed.
 function buildRepairCreditRecord(j, patch){
   const cust = j.customer || {};
   const base = j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at;
   const repairDate = centralDay(base);
-  // Live jobs carry an address object; jobs restored from the Sheet carry a plain string
-  const address = typeof j.address === 'string' ? j.address
-    : (j.address ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ') : '');
+  const address = jobAddressString(j);
   return {
     jobNumber: String(j.job_number || j.id),
     jobId: j.id,
@@ -10231,7 +10268,11 @@ async function syncRepairCreditsToSheets(){
     const fresh = getRepairCreditJobs()
       .filter(j => !_repairCredits[String(j.job_number || j.id)])
       .map(j => buildRepairCreditRecord(j, { letterStatus:'pending' }));
-    if(fresh.length){ await saveRepairCreditRecords(fresh); console.log('[RepairCredits] Synced', fresh.length, 'new repair credits'); }
+    // Stored rows that have no address yet: fill from pulled job data
+    const backfill = Object.values(_repairCredits).filter(r => !String(r.address||'').trim())
+      .map(r => ({ r, addr: lookupRepairAddress(r) })).filter(x => x.addr).map(x => ({ ...x.r, address: x.addr }));
+    const toSave = [...fresh, ...backfill];
+    if(toSave.length){ await saveRepairCreditRecords(toSave); console.log('[RepairCredits] Synced', fresh.length, 'new and backfilled', backfill.length, 'addresses'); }
   } catch(e){ console.warn('[RepairCredits] sync failed:', e.message); }
 }
 
@@ -10310,7 +10351,7 @@ function renderRepairCredits(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div>
           <div style="font-size:15px;font-weight:800;color:#1f2937">${escHtml(r.customerName)}</div>
-          <div style="font-size:12px;color:#6b7280">📍 ${escHtml(r.address)} ${r.phone?'· 📞'+escHtml(r.phone):''}</div>
+          <div style="font-size:12px;color:#6b7280">📍 ${(r.address||lookupRepairAddress(r)) ? escHtml(r.address||lookupRepairAddress(r)) : '<span style="color:#B91C1C;font-weight:700">address missing — it will ask you when you print</span>'} ${r.phone?'· 📞'+escHtml(r.phone):''}</div>
           <div style="font-size:12px;color:#374151;margin-top:3px">
             <span style="background:#B45309;color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">🛠️ Repairs</span>
             ${escHtml(r.repairDescription||'Repair')} · Repaired ${fmt(r.repairDate)} · ${dollars(parseFloat(r.repairAmount)||0)} · Job #${escHtml(String(r.jobNumber))}
@@ -11440,6 +11481,7 @@ async function printRepairCreditLetters(which) {
   const win = window.open('','_blank','width=900,height=1100');
   if(!win){ alert('Please allow pop-ups for this site to print letters.'); return; }
   win.document.write('<p style="font-family:Arial;padding:24px;color:#6b7280">Preparing letters…</p>');
+  await ensureRepairAddresses(list);
 
   // Record in Google Sheets that these letters were printed (a letter already marked Sent stays Sent)
   const todayIso = new Date().toISOString().split('T')[0];
