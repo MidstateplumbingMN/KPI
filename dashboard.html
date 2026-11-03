@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.69</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.71</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.69</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.71</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.69</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.71</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -3469,7 +3469,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.69
+  // ATTRIBUTION ENGINE — v25.71
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5120,6 +5120,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
       completed:j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):'',
       payment_date:j._payments?.length ? j._payments[j._payments.length-1].date : (j.work_timestamps?.completed_at?fmtD(j.work_timestamps.completed_at):''),
       description:j.description||'',
+      ...jobItemizedFields(j),
     };
   });
 
@@ -5140,6 +5141,11 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
     option_count:e.options?.length||1,
     created:e.created_at?fmtD(e.created_at):'',
     notes:getEstNotes(e).slice(0,2).join(' | ').slice(0,300),
+    option_names:(e.options||[]).map(o=>(o.name||'').trim()).filter(Boolean).join(' | ').slice(0,600),
+    line_item_detail:(e.options||[]).map(o=>{
+      const lis=(o.line_items||[]).map(li=>(li.name||'').trim()+(li.description?' — '+String(li.description).replace(/\s+/g,' ').trim().slice(0,100):'')).filter(Boolean).join('; ');
+      return (o.name||'Option')+': '+lis;
+    }).join(' | ').slice(0,1800),
   }));
 
   // Build invoices payload — one row per payment, keyed by invoice
@@ -5415,7 +5421,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.69',  // dashboard version that generated this push
+    dash_version: 'v25.71',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5991,7 +5997,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.69',
+        dash_version:        'v25.71',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10057,7 +10063,7 @@ function repairTextSources(j){
   return { names, lines, free };
 }
 
-// Decides whether a job is an HVAC repair AND says why (the reason is written to the Transactions tab).
+// Decides whether a job is an HVAC repair AND says why (the reason is written to the Jobs tab, Repair Reason column).
 function explainRepairJob(j){
   if(!isHvacOrInstallJob(j)) return { isRepair:false, reason:'No HVAC/Install technician on the job' };
   const { names, lines, free } = repairTextSources(j);
@@ -10220,60 +10226,29 @@ async function syncRepairCreditsToSheets(){
   } catch(e){ console.warn('[RepairCredits] sync failed:', e.message); }
 }
 
-// ---- Transactions tab: every job from REPAIR_CREDIT_START forward, scanned for repair credits ----
-function buildTransactionRow(j){
-  const cust = j.customer || {};
-  const day  = fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '';
-  const techs = [...new Set([ _jobAttribution[j.id]?.techName, getAssigned(j),
-    ...(j.appointments||[]).flatMap(a => a.assigned_employees||[]).map(e => ((e.first_name||'')+' '+(e.last_name||'')).trim()) ].filter(Boolean))].join(', ');
+// Itemized info + repair-credit scan result for one job. Written into the Jobs tab on every pull.
+function jobItemizedFields(j){
   const items = (j.line_items||[]);
   const detail = items.map(li => {
     const price = li.unit_price ?? li.price ?? li.amount ?? '';
     const qty = li.quantity ?? li.qty ?? 1;
-    return (li.name||'').trim() + (li.description ? ' — ' + String(li.description).trim().slice(0,120) : '') + ' (x' + qty + (price!=='' ? ' @ $' + centsToD(price).toFixed(2) : '') + ')';
+    return (li.name||'').trim() + (li.description ? ' — ' + String(li.description).replace(/\s+/g,' ').trim().slice(0,120) : '') + ' (x' + qty + (price!=='' ? ' @ $' + centsToD(price).toFixed(2) : '') + ')';
   }).join(' | ').slice(0,1800);
+  const techs = [...new Set([ _jobAttribution[j.id]?.techName, getAssigned(j),
+    ...(j.appointments||[]).flatMap(a => a.assigned_employees||[]).map(e => ((e.first_name||'')+' '+(e.last_name||'')).trim()) ].filter(Boolean))].join(', ');
   const ex = explainRepairJob(j);
-  const paid = isJobPaid(j), canceled = isJobCanceled(j);
-  const collected = Math.round(jobCollected(j) * 100) / 100;
-  const qualifies = ex.isRepair && paid && !canceled && day >= REPAIR_CREDIT_START && collected > REPAIR_CREDIT_THRESHOLD;
-  const check = ex.isRepair ? 'Repair' : (/^System/.test(ex.reason) ? 'System install' : 'Other');
-  return [
-    String(j.job_number || j.id), j.id,
-    [cust.first_name, cust.last_name].filter(Boolean).join(' ') || getCust(j),
-    j.address ? [j.address.street, j.address.city, j.address.state, j.address.zip].filter(Boolean).join(', ') : '',
-    cust.mobile_number || cust.home_number || '',
-    techs, getDept(j) || '', getJobType(j) || '', canceled ? 'Canceled' : getNormStatus(j),
-    day, (j._payments?.length ? j._payments[j._payments.length-1].date : '') || '', paid ? 'Yes' : 'No',
-    collected, Math.round(getJobTotal(j) * 100) / 100,
-    items.map(li => (li.name||'').trim()).filter(Boolean).join(' | ').slice(0,900),
-    detail,
-    (j.description||'').slice(0,500), (j.summary||'').slice(0,500),
-    check, ex.reason, qualifies ? 'YES' : 'no', new Date().toISOString(),
-  ];
-}
-
-let _txSyncing = false;
-async function syncTransactionsToSheets(){
-  if(!_sheetsProxy || !_jobs.length || _txSyncing) return;
-  _txSyncing = true;
-  try {
-    const rows = _jobs
-      .filter(j => (fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '') >= REPAIR_CREDIT_START)
-      .map(buildTransactionRow);
-    if(!rows.length){ console.log('[Transactions] No jobs on/after', REPAIR_CREDIT_START, 'in this pull'); return; }
-    for(let i = 0; i < rows.length; i += 150){
-      const res = await fetch(_sheetsProxy, {
-        method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
-        body: JSON.stringify({ action:'syncTransactions', rows: rows.slice(i, i + 150) })
-      });
-      const d = await res.json();
-      if(!(d && d.success)) throw new Error((d && d.error) || 'unexpected response');
-    }
-    console.log('[Transactions] Synced', rows.length, 'jobs to the Transactions tab (' + rows.filter(r => r[20] === 'YES').length + ' qualify for repair credit letters)');
-  } catch(e){
-    console.warn('[Transactions] sync failed:', e.message);
-    showToast('⚠ Transactions did not save to the Sheet (' + e.message + ').', 'error');
-  } finally { _txSyncing = false; }
+  const day = fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '';
+  const qualifies = ex.isRepair && isJobPaid(j) && !isJobCanceled(j) && day >= REPAIR_CREDIT_START && jobCollected(j) > REPAIR_CREDIT_THRESHOLD;
+  return {
+    techs,
+    job_type: getJobType(j) || '',
+    line_items: items.map(li => (li.name||'').trim()).filter(Boolean).join(' | ').slice(0,900),
+    line_item_detail: detail,
+    summary: (j.summary||'').slice(0,500),
+    repair_check: ex.isRepair ? 'Repair' : (/^System/.test(ex.reason) ? 'System install' : 'Other'),
+    repair_reason: ex.reason,
+    repair_credit: qualifies ? 'YES' : 'no',
+  };
 }
 
 function renderRepairCredits(){
@@ -10488,6 +10463,15 @@ function detectEquipmentSale(j, requirePaid=true){
   }
 
   return null;
+}
+
+// Line item name + its description for the equipment that was sold (what the thank you card is about).
+function getEquipmentDetail(j){
+  const items = (j.line_items||[]).filter(li => (li.name||'').trim());
+  if(!items.length) return (j.description||j.summary||'').slice(0,160);
+  const pick = items.find(li => lookupTYItem((li.name||'').trim()) || TY_MODEL_RULES.some(([re]) => re.test(li.name||''))) || items[0];
+  const desc = String(pick.description||'').replace(/\s+/g,' ').trim();
+  return ((pick.name||'').trim() + (desc ? ' — ' + desc : '')).slice(0,200);
 }
 
 function getEquipmentLabel(j){
@@ -10735,8 +10719,9 @@ async function syncTYSalesToSheets() {
         equipLabel: equip?.label || '',
         equipColor: equip?.color || '',
         equipIcon: equip?.icon || '',
+        equipDetail: getEquipmentDetail(j),
         installDate: fmtKey(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at) || '',
-        revenue: getJobRevenue(j),
+        revenue: jobCollected(j),
         status: card.status || 'pending',
       };
     });
@@ -10746,7 +10731,6 @@ async function syncTYSalesToSheets() {
     });
     console.log('[TY Cards] Synced', flattened.length, 'sales to cache sheet');
     syncRepairCreditsToSheets();
-    syncTransactionsToSheets();
   } catch(e) { console.warn('[TY Cards] Cache sync failed:', e.message); }
 }
 
@@ -10779,49 +10763,77 @@ function setTYRange(range) {
   renderTYCards();
 }
 
-// Render a read-only view from cached Sheets data when no live pull has happened
+// m/d/yyyy from 'YYYY-MM-DD', an ISO string, or a long JS date string
+function tyCacheDate(v){
+  if(!v) return '—';
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return (+m[2]) + '/' + (+m[3]) + '/' + m[1];
+  return fmtDY(v);
+}
+
+// Render a read-only view from cached Sheets data when no live pull has happened.
+// Same layout as the live view: cards that still need sending first, everything else tucked away.
 function renderTYCardsFromCache(sales) {
   const el = $$('tyContent');
   if(!el || !sales.length) return;
 
-  const pending  = sales.filter(s => s.status === 'pending').length;
-  const sent     = sales.filter(s => s.status === 'sent').length;
-  const totalRev = sales.reduce((s,r) => s + (parseFloat(r.revenue)||0), 0);
+  // The cache can hold rows saved before repairs / $0 jobs were screened out. Hide them here.
+  const repairJobIds = new Set(Object.values(_repairCredits||{}).map(r => String(r.jobId||'')).filter(Boolean));
+  const isRepairLike = s => repairJobIds.has(String(s.jobId))
+    || (s.equipDetail && REPAIR_PART_RE.test(s.equipDetail) && !SYSTEM_NAME_RE.test(s.equipDetail));
+  const eligible = sales.filter(s => !isRepairLike(s));
+  const rev = s => parseFloat(s.revenue) || 0;
+  const noRev   = eligible.filter(s => rev(s) < 250);
+  const real    = eligible.filter(s => rev(s) >= 250);
+  const pending = real.filter(s => !s.status || s.status === 'pending');
+  const sent    = real.filter(s => s.status === 'sent');
+  const skipped = real.filter(s => s.status === 'skip');
+  const totalRev = real.reduce((n,s) => n + rev(s), 0);
   const updatedAt = sales[0]?.updatedAt;
   const ago = updatedAt ? formatRelativeTime(new Date(updatedAt)) : '';
+  const statusFilter = $$('tyStatusFilter')?.value || '';
+
+  const rowsHtml = list => `<div class="tbl-wrap"><table style="font-size:12px">
+    <thead><tr><th>Customer</th><th>Address</th><th>Equipment</th><th>Install Date</th><th>Revenue</th><th>Status</th></tr></thead>
+    <tbody>${list.map(s => `<tr>
+      <td style="font-weight:600;padding:5px 8px;white-space:nowrap">${escHtml(s.customerName)}</td>
+      <td style="font-size:11px;color:#6b7280;padding:5px 8px">${escHtml(s.address)||'—'}</td>
+      <td style="padding:5px 8px"><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:700;color:#fff;background:${s.equipColor||'#6b7280'}">${s.equipIcon||''} ${escHtml(s.equipLabel)||'?'}</span>
+        ${s.equipDetail ? `<div style="font-size:11px;color:#374151;margin-top:2px;max-width:340px">${escHtml(s.equipDetail)}</div>` : ''}</td>
+      <td style="font-size:11px;white-space:nowrap;padding:5px 8px">${tyCacheDate(s.installDate)}</td>
+      <td style="font-size:11px;padding:5px 8px">${dollars(rev(s))}</td>
+      <td style="padding:5px 8px"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;
+        background:${s.status==='sent'?'#DCFCE7':s.status==='skip'?'#F3F4F6':'#FEF3C7'};color:${s.status==='sent'?'#166534':s.status==='skip'?'#6b7280':'#92400E'}">
+        ${s.status==='sent'?'✅ Sent':s.status==='skip'?'Skipped':'📬 Pending'}</span></td>
+    </tr>`).join('')}</tbody></table></div>`;
+
+  const head = (label, color, bg, n) => `<div style="font-size:13px;font-weight:800;color:${color};margin:12px 0 8px;padding:6px 10px;background:${bg};border-radius:6px">${label} (${n})</div>`;
+  let body = '';
+  if(statusFilter) {
+    const list = statusFilter==='pending' ? pending : statusFilter==='sent' ? sent : skipped;
+    body = head(statusFilter==='pending'?'⚠ Needs Thank You Card':statusFilter==='sent'?'✅ Card Sent':'Skipped', '#374151', '#F3F4F6', list.length)
+      + (list.length ? rowsHtml(list) : '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No customers with this status.</div>');
+  } else {
+    if(pending.length) body += head('⚠ Needs Thank You Card', '#DC2626', '#FEF2F2', pending.length) + rowsHtml(pending);
+    else body += '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">No thank you cards waiting.</div>';
+    if(sent.length || skipped.length || noRev.length) {
+      body += `<details style="margin-top:16px"><summary style="font-size:13px;font-weight:700;color:#059669;cursor:pointer;padding:8px 10px;background:#F0FDF4;border-radius:6px;list-style:none">
+        ✅ Cards Sent &amp; History (${sent.length} sent${skipped.length?', '+skipped.length+' skipped':''}${noRev.length?', '+noRev.length+' with no revenue recorded':''}) — click to expand</summary>
+        <div style="margin-top:8px">${rowsHtml([...sent, ...skipped, ...noRev.map(s => ({...s, status:'skip'}))])}</div></details>`;
+    }
+  }
 
   el.innerHTML = `
     <div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
       <span>📦 Cached data from last pull ${ago} — pull a fresh report to update</span>
-      <span style="font-size:11px;color:#9ca3af">${sales.length} equipment installs</span>
+      <span style="font-size:11px;color:#9ca3af">${real.length} equipment installs</span>
     </div>
-    <div class="metrics" style="margin-bottom:16px">
-      <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${sales.length}</div></div>
-      <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending}</div></div>
-      <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent}</div></div>
+    <div class="metrics" style="margin-bottom:8px">
+      <div class="metric"><div class="metric-label">Equipment installs</div><div class="metric-value">${real.length}</div></div>
+      <div class="metric"><div class="metric-label">⚠ Needs card</div><div class="metric-value" style="color:#DC2626">${pending.length}</div></div>
+      <div class="metric"><div class="metric-label">✅ Card sent</div><div class="metric-value" style="color:#059669">${sent.length}</div></div>
       <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">${dollars(totalRev)}</div></div>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Customer</th><th>Address</th><th>Equipment</th>
-          <th>Install Date</th><th>Revenue</th><th>Status</th>
-        </tr></thead>
-        <tbody>
-          ${sales.map(s => `<tr>
-            <td style="font-weight:600">${escHtml(s.customerName)}</td>
-            <td style="font-size:11px;color:#6b7280">${escHtml(s.address)||'—'}</td>
-            <td><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:700;color:#fff;background:${s.equipColor||'#6b7280'}">${s.equipIcon||''} ${escHtml(s.equipLabel)||'?'}</span></td>
-            <td style="font-size:11px;white-space:nowrap">${s.installDate||'—'}</td>
-            <td style="font-size:11px">${dollars(parseFloat(s.revenue)||0)}</td>
-            <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;
-              background:${s.status==='sent'?'#DCFCE7':'#FEF3C7'};
-              color:${s.status==='sent'?'#166534':'#92400E'}">
-              ${s.status==='sent'?'✅ Sent':'📬 Pending'}</span></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
+    </div>` + body;
 }
 
 function renderTYCards(){
@@ -10893,7 +10905,7 @@ function renderTYCards(){
           <div style="font-size:12px;color:#6b7280">📍 ${escHtml(addr)} ${phone?'· 📞'+escHtml(phone):''}</div>
           <div style="font-size:12px;color:#374151;margin-top:3px">
             <span style="background:${equip?.color||'#1A3A5C'};color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:99px;margin-right:6px">${equip?.icon||''} ${equip?.label||'Equipment'}</span>
-            ${escHtml(equipLabel)} · Completed ${installDate} · <span style="font-weight:600;color:${isJobPaid(j)?'#166534':'#92400E'}">${paidLabel}</span> · ${escHtml(techName)} · ${dollars(jobRev)}
+            ${escHtml(getEquipmentDetail(j)||equipLabel)} · Completed ${installDate} · <span style="font-weight:600;color:${isJobPaid(j)?'#166534':'#92400E'}">${paidLabel}</span> · ${escHtml(techName)} · ${dollars(jobRev)}
           </div>
 
         </div>
@@ -14324,6 +14336,10 @@ async function restoreJobsEstimatesFromSheets(){
         _total: r.total,
         _outstanding: r.outstanding,
         description: r.description,
+        summary: r.summary || '',
+        line_items: (r.line_items ? String(r.line_items).split(' | ').filter(Boolean).map(n => ({ name:n })) : []),
+        _restoredJobType: r.job_type || '',
+        _restoredTechs: r.techs || '',
         customer_phone: r.customer_phone,
         customer_email: r.customer_email,
         address: r.address,
