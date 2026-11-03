@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.58</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.62</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.58</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.62</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.58</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.62</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1106,6 +1106,7 @@ tr:hover td{background:#fafafa}
                 <option value="50" selected>$50</option>
                 <option value="75">$75</option>
                 <option value="100">$100</option>
+                <option value="250">$250</option>
                 <option value="custom">Custom amount...</option>
               </select>
               <input type="number" id="ref-amount-custom" placeholder="Enter amount" style="display:none;margin-top:6px;width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
@@ -1129,6 +1130,7 @@ tr:hover td{background:#fafafa}
             <button onclick="printReferralLetters('all')" style="font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;font-weight:700">🖨 Print All</button>
           </div>
         </div>
+        <div id="refSummary" style="margin-bottom:10px"></div>
         <div id="referralList" style="display:flex;flex-direction:column;gap:8px">
           <div style="text-align:center;padding:30px;color:#9ca3af;font-size:12px">No referrals logged yet — add one above.</div>
         </div>
@@ -3435,7 +3437,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.58
+  // ATTRIBUTION ENGINE — v25.62
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5381,7 +5383,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.58',  // dashboard version that generated this push
+    dash_version: 'v25.62',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5957,7 +5959,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.58',
+        dash_version:        'v25.62',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -10728,8 +10730,10 @@ function addReferralCard() {
     dateAdded, status: 'pending', sentDate: '', note: '',
   };
   _referralCards.unshift(card);
-  saveReferralCardToSheets(card);
   renderReferralList();
+  saveReferralCardToSheets(card).then(ok => {
+    if(!ok) { _referralCards = _referralCards.filter(c => c.id !== card.id); renderReferralList(); }
+  });
 
   ['ref-customer-name','ref-referred-name','ref-address','ref-amount-custom'].forEach(id => {
     const el = $$(id); if(el) el.value = '';
@@ -10739,75 +10743,192 @@ function addReferralCard() {
   showToast(`🎁 Referral added for ${customerName}`, 'success');
 }
 
+var _refFilter = 'all';        // all | pending | sent
+var _refSendOpenId = null;     // referral whose "gift card sent" form is open
+var _refLastSentBy = '';       // remembers the sender name for the session
+
+// Returns true only when the Sheet confirms the save, so the screen never
+// shows "Sent" for something that did not actually persist.
 async function saveReferralCardToSheets(card) {
-  if(!_sheetsProxy) return;
+  if(!_sheetsProxy) { showToast('Not connected to Sheets — referral not saved.', 'error'); return false; }
   try {
-    await fetch(_sheetsProxy, {
+    const res = await fetch(_sheetsProxy, {
       method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
       body: JSON.stringify({ action:'saveReferralCard', ...card })
     });
-  } catch(e) { console.warn('[Referrals] save failed:', e.message); }
+    const d = await res.json();
+    if(d && d.success) return true;
+    throw new Error((d && d.error) || 'unexpected response');
+  } catch(e) {
+    console.warn('[Referrals] save failed:', e.message);
+    showToast('⚠ Referral did not save to the Sheet (' + e.message + '). Try again.', 'error');
+    return false;
+  }
 }
 
-function markReferralSent(id) {
-  const card = _referralCards.find(c => c.id === id);
-  if(!card) return;
-  card.status = 'sent';
-  card.sentDate = new Date().toISOString().split('T')[0];
-  saveReferralCardToSheets(card);
+function refDeliveryToggle(id) {
+  const hand = $$('refsend-method-'+id)?.value === 'Hand-delivered';
+  const t = $$('refsend-trackwrap-'+id), d = $$('refsend-delwrap-'+id);
+  if(t) t.style.display = hand ? 'none' : '';
+  if(d) d.style.display = hand ? '' : 'none';
+}
+
+function openReferralSend(id) {
+  _refSendOpenId = (_refSendOpenId === id) ? null : id;
   renderReferralList();
-  showToast('Marked as sent', 'success');
 }
 
-function markReferralPending(id) {
+async function confirmReferralSent(id) {
   const card = _referralCards.find(c => c.id === id);
   if(!card) return;
-  card.status = 'pending'; card.sentDate = '';
-  saveReferralCardToSheets(card);
+  const brand  = ($$('refsend-brand-'+id)?.value || '').trim();
+  const ref    = ($$('refsend-ref-'+id)?.value || '').trim();
+  const method = $$('refsend-method-'+id)?.value || 'Mail';
+  const hand   = method === 'Hand-delivered';
+  const track  = hand ? '' : ($$('refsend-track-'+id)?.value || '').trim();
+  const delBy  = hand ? ($$('refsend-delby-'+id)?.value || '').trim() : '';
+  const by     = ($$('refsend-by-'+id)?.value || '').trim();
+  const date   = $$('refsend-date-'+id)?.value || new Date().toISOString().split('T')[0];
+  const note   = ($$('refsend-note-'+id)?.value || '').trim();
+  if(!brand) { showToast('Choose which gift card was sent.', 'error'); return; }
+  if(!by)    { showToast('Enter who sent it.', 'error'); return; }
+  if(hand && !delBy) { showToast('Enter the name of the person dropping it off.', 'error'); return; }
+  const prev = {...card};
+  Object.assign(card, { status:'sent', sentDate:date, cardBrand:brand, cardRef:ref, trackingNumber:track, deliveryMethod:method, deliveredBy:delBy, sentBy:by, note: note || card.note });
+  const ok = await saveReferralCardToSheets(card);
+  if(!ok) { Object.assign(card, prev); }
+  else { _refLastSentBy = by; _refSendOpenId = null; showToast('🎁 Gift card recorded as sent to ' + card.customerName, 'success'); }
+  renderReferralList();
+}
+
+async function markReferralPending(id) {
+  const card = _referralCards.find(c => c.id === id);
+  if(!card) return;
+  if(!confirm('Undo "gift card sent" for ' + card.customerName + '? The card details will be cleared.')) return;
+  const prev = {...card};
+  Object.assign(card, { status:'pending', sentDate:'', cardBrand:'', cardRef:'', trackingNumber:'', deliveryMethod:'', deliveredBy:'', sentBy:'' });
+  const ok = await saveReferralCardToSheets(card);
+  if(!ok) Object.assign(card, prev);
   renderReferralList();
 }
 
 async function deleteReferral(id) {
   if(!confirm('Delete this referral record?')) return;
-  _referralCards = _referralCards.filter(c => c.id !== id);
-  renderReferralList();
   if(_sheetsProxy) {
     try {
-      await fetch(_sheetsProxy, {
+      const res = await fetch(_sheetsProxy, {
         method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
         body: JSON.stringify({ action:'deleteReferralCard', id })
       });
-    } catch(e) { console.warn('[Referrals] delete failed:', e.message); }
+      const d = await res.json();
+      if(!d || (!d.success && d.error !== 'not found')) throw new Error((d && d.error) || 'unexpected response');
+    } catch(e) {
+      console.warn('[Referrals] delete failed:', e.message);
+      showToast('⚠ Delete did not save to the Sheet. Try again.', 'error');
+      return;
+    }
   }
+  _referralCards = _referralCards.filter(c => c.id !== id);
+  renderReferralList();
   showToast('Referral removed', 'warning');
+}
+
+// Full card numbers live only in the Sheet; the screen and CSV show the last 4.
+function maskCardNumber(n) {
+  const d = String(n||'').replace(/\s+/g,'');
+  if(!d) return '';
+  return d.length <= 4 ? d : '•••• ' + d.slice(-4);
+}
+
+function setReferralFilter(f) { _refFilter = f; renderReferralList(); }
+
+function exportGiftCardLog() {
+  const sent = _referralCards.filter(c => c.status === 'sent');
+  if(!sent.length) { showToast('No gift cards sent yet.', 'warning'); return; }
+  const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+  const rows = [['Customer','Referred','Address','Amount','Gift Card','Card (last 4)','Delivery','Delivered By','Tracking #','Sent Date','Sent By','Note']]
+    .concat(sent.map(c => [c.customerName,c.referredName,c.address,c.amount,c.cardBrand,maskCardNumber(c.cardRef),c.deliveryMethod,c.deliveredBy,c.trackingNumber,c.sentDate,c.sentBy,c.note]));
+  const blob = new Blob([rows.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'gift-cards-sent-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
 }
 
 function renderReferralList() {
   const listEl = $$('referralList');
   const countEl = $$('refCount');
+  const sumEl = $$('refSummary');
   if(!listEl) return;
   if(countEl) countEl.textContent = _referralCards.length ? `(${_referralCards.length})` : '';
+
+  const nSent = _referralCards.filter(c => c.status === 'sent').length;
+  const nPend = _referralCards.length - nSent;
+  const tab = (key, label, n, color) => `<button onclick="setReferralFilter('${key}')" style="font-size:12px;padding:5px 12px;border:1px solid ${color};border-radius:99px;cursor:pointer;font-weight:700;background:${_refFilter===key?color:'#fff'};color:${_refFilter===key?'#fff':color}">${label} (${n})</button>`;
+  if(sumEl) sumEl.innerHTML = _referralCards.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${tab('all','All',_referralCards.length,'#6b7280')}
+      ${tab('pending','📬 Awaiting Gift Card',nPend,'#B45309')}
+      ${tab('sent','✅ Gift Card Sent',nSent,'#166534')}
+      <button onclick="exportGiftCardLog()" style="margin-left:auto;font-size:12px;padding:5px 12px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#374151;cursor:pointer;font-weight:700">⬇ Export Sent Log (CSV)</button>
+    </div>` : '';
 
   if(!_referralCards.length) {
     listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:12px">No referrals logged yet — add one above.</div>';
     return;
   }
+  const shown = _referralCards.filter(c => _refFilter === 'all' || (_refFilter === 'sent') === (c.status === 'sent'));
+  if(!shown.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:12px">Nothing in this view.</div>';
+    return;
+  }
 
-  listEl.innerHTML = _referralCards.map(c => {
+  const brands = ['Visa Gift Card','Amazon','Target','Walmart','Home Depot','Lowe\'s','Cub Foods','Restaurant','Other'];
+  const today = new Date().toISOString().split('T')[0];
+  const inp = 'width:100%;font-size:12px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px';
+
+  listEl.innerHTML = shown.map(c => {
     const isSent = c.status === 'sent';
-    return `<div style="background:${isSent?'#F0FDF4':'#fff'};border:1px solid ${isSent?'#BBF7D0':'#e5e7eb'};border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px">
+    const detail = isSent
+      ? `<div style="font-size:11px;color:#166534;margin-top:3px">🎁 ${escHtml(c.cardBrand || 'Gift card')}${c.cardRef?' · card '+escHtml(maskCardNumber(c.cardRef)):''}${c.deliveryMethod==='Hand-delivered' ? ' · hand-delivered'+(c.deliveredBy?' by '+escHtml(c.deliveredBy):'') : (c.deliveryMethod==='Mail' ? ' · mailed' : '')}${c.trackingNumber?' · tracking '+escHtml(c.trackingNumber):''} · sent ${escHtml(c.sentDate||'')}${c.sentBy?' by '+escHtml(c.sentBy):''}${(!c.cardBrand && !c.sentBy)?' <span style="color:#9ca3af">(details not recorded)</span>':''}</div>` : '';
+    const form = (!isSent && _refSendOpenId === c.id) ? `
+      <div style="flex-basis:100%;background:#F9FAFB;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-top:4px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Gift card sent</div>
+            <select id="refsend-brand-${c.id}" style="${inp};background:#fff"><option value="">Choose…</option>${brands.map(b=>`<option>${escHtml(b)}</option>`).join('')}</select></div>
+          <div><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Gift card number</div>
+            <input id="refsend-ref-${c.id}" maxlength="32" autocomplete="off" style="${inp}" placeholder="Card number"></div>
+          <div><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Delivery method</div>
+            <select id="refsend-method-${c.id}" onchange="refDeliveryToggle('${c.id}')" style="${inp};background:#fff"><option value="Mail">Mail</option><option value="Hand-delivered">Hand-delivered</option></select></div>
+          <div id="refsend-trackwrap-${c.id}"><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Mail tracking number (optional)</div>
+            <input id="refsend-track-${c.id}" maxlength="40" autocomplete="off" style="${inp}" placeholder="USPS / UPS / FedEx tracking"></div>
+          <div id="refsend-delwrap-${c.id}" style="display:none"><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Dropped off by</div>
+            <input id="refsend-delby-${c.id}" maxlength="60" style="${inp}" placeholder="Name of person delivering"></div>
+          <div><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Sent by</div>
+            <input id="refsend-by-${c.id}" value="${escHtml(_refLastSentBy)}" style="${inp}" placeholder="Your name"></div>
+          <div><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Date sent</div>
+            <input type="date" id="refsend-date-${c.id}" value="${today}" style="${inp}"></div>
+        </div>
+        <input id="refsend-note-${c.id}" style="${inp};margin-bottom:8px" placeholder="Note (optional) — e.g. mailed with thank you letter">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="openReferralSend('${c.id}')" style="font-size:11px;padding:5px 12px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer;color:#6b7280">Cancel</button>
+          <button onclick="confirmReferralSent('${c.id}')" style="font-size:11px;padding:5px 14px;background:#166534;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:700">Save as Sent</button>
+        </div>
+      </div>` : '';
+    return `<div style="background:${isSent?'#F0FDF4':'#fff'};border:1px solid ${isSent?'#BBF7D0':'#e5e7eb'};border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:20px;flex-shrink:0">🎁</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;color:#111827">${escHtml(c.customerName)} <span style="font-weight:400;color:#9ca3af">referred</span> ${escHtml(c.referredName)}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px">${escHtml(c.address)} · $${escHtml(c.amount)} gift card · ${c.dateAdded}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">${escHtml(c.address)} · $${escHtml(c.amount)} gift card · logged ${escHtml(c.dateAdded)}</div>
+        ${detail}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${isSent?'#DCFCE7':'#FEF3C7'};color:${isSent?'#166534':'#92400E'}">${isSent?'✅ Sent':'📬 Pending'}</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${isSent?'#DCFCE7':'#FEF3C7'};color:${isSent?'#166534':'#92400E'}">${isSent?'✅ Gift Card Sent':'📬 Awaiting Gift Card'}</span>
         ${isSent
           ? `<button onclick="markReferralPending('${c.id}')" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;cursor:pointer;color:#6b7280">Undo</button>`
-          : `<button onclick="markReferralSent('${c.id}')" style="font-size:11px;padding:4px 10px;background:#166534;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">Mark Sent</button>`}
+          : `<button onclick="openReferralSend('${c.id}')" style="font-size:11px;padding:4px 10px;background:#166534;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600">Mark Gift Card Sent</button>`}
         <button onclick="deleteReferral('${c.id}')" style="font-size:11px;padding:4px 8px;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:5px;cursor:pointer">✕</button>
       </div>
+      ${form}
     </div>`;
   }).join('');
 }
