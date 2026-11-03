@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>HCP KPI Dashboard — Midstate Plumbing v25.82</title>
+<title>HCP KPI Dashboard — Midstate Plumbing v25.83</title>
 <style>
 @media print {
   body{background:#fff!important;font-size:11px}
@@ -455,7 +455,7 @@ tr:hover td{background:#fafafa}
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-logo">🏠 Midstate Plumbing KPI Dashboard
-      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.82</span>
+      <span style="font-size:12px;background:#BE185D;color:#fff;border:1px solid #BE185D;padding:2px 8px;border-radius:99px;font-weight:700;vertical-align:middle">v25.83</span>
     </div>
     <div class="auth-sub">Powered by Housecall Pro</div>
     <div class="field">
@@ -484,7 +484,7 @@ tr:hover td{background:#fafafa}
     <div id="printDateRange" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
   </div>
   <div class="top-bar">
-    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.82</span></div>
+    <div><span class="top-logo">🏠 HCP KPI Dashboard</span><span class="chip">● Connected</span><span class="ver-chip">v25.83</span></div>
     <div class="top-right">
       <button class="pull-btn" id="loadBtn" onclick="quickPull()" title="Pull last 7 days — fast (~5s). Merges with existing data in Sheets.">⚡ Quick Pull <span style="font-size:10px;opacity:.7">7 days</span></button>
       <button class="pull-btn" id="fullPullBtn" onclick="fullPull()" style="background:#1A3A5C;font-size:12px;padding:7px 14px" title="Full YTD pull — complete dataset (~25s). Use weekly or when monthly charts look off.">↻ Full Pull</button>
@@ -1146,7 +1146,7 @@ tr:hover td{background:#fafafa}
               <input type="number" id="ref-amount-custom" placeholder="Enter amount" style="display:none;margin-top:6px;width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
             </div>
             <div>
-              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Date sold</div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:3px">Date sold <span style="color:#9ca3af">(uses the job's completion date when found)</span></div>
               <input type="date" id="ref-date" style="width:100%;font-size:12px;padding:7px 9px;border:1px solid #FBCFE8;border-radius:6px">
             </div>
           </div>
@@ -3471,7 +3471,7 @@ function buildAttribution(jobs, estimates){
   _jobAttribution = {};
 
   // ============================================================
-  // ATTRIBUTION ENGINE — v25.82
+  // ATTRIBUTION ENGINE — v25.83
   //
   // Core principle: credit the SELLER (who ran the estimate), not the performer.
   // When confident → auto-assign and record why.
@@ -5423,7 +5423,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
   const dashboardSnapshot={
     // Metadata
     pull_date: now_snap.toISOString(),
-    dash_version: 'v25.82',  // dashboard version that generated this push
+    dash_version: 'v25.83',  // dashboard version that generated this push
     date_from: dateFrom,
     date_to: dateTo,
 
@@ -5999,7 +5999,7 @@ async function syncReportToSheets(jobs, estimates, employees, plans, dateFrom, d
         proxy_url:           _sheetsProxy || '',
 
         // Identity
-        dash_version:        'v25.82',
+        dash_version:        'v25.83',
         pull_date:           dashboardSnapshot.pull_date,
         date_from:           dashboardSnapshot.date_from,
         date_to:             dashboardSnapshot.date_to,
@@ -11250,6 +11250,29 @@ async function loadReferralCards(isRetry) {
   }
 }
 
+// ── Referral → job link: finds the referred customer's job so the email shows the
+// completion date and line items. Matches on customer name (all words must match).
+function _refNameKey(n){ return String(n||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(Boolean).sort().join(' '); }
+function findReferralJob(referredName){
+  const key = _refNameKey(referredName);
+  if(!key) return null;
+  const seen = {}, pool = [];
+  [...(_jobs||[]), ...(_allYearJobs||[])].forEach(j => { if(j && !seen[j.id]) { seen[j.id] = 1; pool.push(j); } });
+  const hits = pool.filter(j => !isJobCanceled(j) && _refNameKey(getCust(j)) === key);
+  if(!hits.length) return null;
+  const when = j => String(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at || '');
+  hits.sort((a,b) => (jobCollected(b) - jobCollected(a)) || when(b).localeCompare(when(a)));  // biggest sale first
+  return hits[0];
+}
+function referralJobFields(j){
+  return {
+    jobNumber: String(j.job_number || j.id),
+    soldDate: centralDay(j.work_timestamps?.completed_at || j.schedule?.scheduled_start || j.created_at),
+    jobAmount: String(Math.round(jobCollected(j) * 100) / 100),
+    jobLineItems: jobItemizedFields(j).line_item_detail,
+  };
+}
+
 function addReferralCard() {
   const customerName = $$('ref-customer-name')?.value?.trim();
   const referredName = $$('ref-referred-name')?.value?.trim();
@@ -11273,6 +11296,9 @@ function addReferralCard() {
     amount: parseFloat(amount).toFixed(0),
     dateAdded, status: 'pending', sentDate: '', note: '',
   };
+  const refJob = findReferralJob(referredName);
+  if(refJob) Object.assign(card, referralJobFields(refJob));
+  else card.soldDate = dateAdded;
   _referralCards.unshift(card);
   renderReferralList();
   saveReferralCardToSheets(card).then(ok => {
@@ -11284,7 +11310,7 @@ function addReferralCard() {
   });
   $$('ref-amount-select').value = '50';
   $$('ref-amount-custom').style.display = 'none';
-  showToast(`🎁 Referral added for ${customerName}`, 'success');
+  showToast(`🎁 Referral added for ${customerName}` + (refJob ? ` — linked to job #${card.jobNumber}` : ' — job not found yet, will retry when emailed'), 'success');
 }
 
 var _refFilter = 'all';        // all | pending | sent
@@ -11352,6 +11378,16 @@ async function emailReferralRequest(id) {
   if(card.emailRequestedAt && !confirm('A request for ' + card.customerName + ' was already emailed. Send it again?')) return;
   showToast('Sending request…', 'info');
   try {
+    // Link to the referred customer's job first (completion date + line items) when we do not have it yet
+    if(!card.jobNumber || !card.jobLineItems) {
+      const j = findReferralJob(card.referredName);
+      if(j) {
+        Object.assign(card, referralJobFields(j));
+        await saveReferralCardToSheets(card);
+      } else {
+        showToast('Job for ' + card.referredName + ' not found in the loaded data — sending with the logged date. Pull data first for the completion date and line items.', 'info');
+      }
+    }
     const res = await fetch(_sheetsProxy, { method:'POST', headers:{'Content-Type':'text/plain'}, redirect:'follow',
       body: JSON.stringify({ action:'emailReferralRequest', id }) });
     const r = await res.json();
@@ -11482,6 +11518,7 @@ function renderReferralList() {
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;color:#111827">${escHtml(c.customerName)} <span style="font-weight:400;color:#9ca3af">referred</span> ${escHtml(c.referredName)}</div>
         <div style="font-size:11px;color:#6b7280;margin-top:2px">${escHtml(c.address)} · $${escHtml(c.amount)} gift card · logged ${escHtml(c.dateAdded)}</div>
+        ${c.jobNumber?`<div style="font-size:11px;color:#6b7280;margin-top:3px">Sold ${escHtml(c.soldDate||'')} · Job #${escHtml(c.jobNumber)}${c.jobAmount?' · $'+Number(c.jobAmount).toLocaleString():''}</div>`:''}
         ${detail}${(!isSent && c.emailRequestedAt)?`<div style="font-size:11px;color:#1A3A5C;margin-top:3px">✉ Request emailed ${escHtml(String(c.emailRequestedAt).slice(0,10))}</div>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
